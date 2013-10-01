@@ -3976,7 +3976,6 @@ void CAhApp::ViewFactionOverview()
 void CAhApp::CheckMonthLongOrders()
 {
     static const char dup_ord_msg[] = ";--- Duplicate month long orders";
-    static const char no_ord_msg[]  = ";--- No month long orders";
     int                  x;
     CUnit              * pUnit;
     const char         * src;
@@ -4101,13 +4100,6 @@ void CAhApp::CheckMonthLongOrders()
                 if (pUnitPaneF)
                 {
                     pUnitPaneF->InsertUnit(pUnit);
-                    Line.GetToken(pUnit->Orders.GetData(), '\n', TRIM_ALL);
-                    if (NULL==strstr(Line.GetData(), no_ord_msg))
-                    {
-                        S = no_ord_msg;
-                        S << EOL_SCR;
-                        pUnit->Orders.InsBuf(S.GetData(), 0, S.GetLength());
-                    }
                 }
                 else
                 {
