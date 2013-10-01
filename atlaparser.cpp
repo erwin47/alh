@@ -4031,7 +4031,7 @@ void CAtlaParser::OrderErrFinalize()
     m_sOrderErrors.Empty();
 }
 
-void CAtlaParser::OrderErr(int Severity, int UnitId, const char * Msg)
+void CAtlaParser::OrderErr(int Severity, int UnitId, const char * Msg, const char * UnitName)
 {
     const char * type;
     CStr         S(32);
@@ -4040,7 +4040,11 @@ void CAtlaParser::OrderErr(int Severity, int UnitId, const char * Msg)
         type = "Error  ";
     else
         type = "Warning";
-    S.Format("Unit % 5d %s : %s%s", UnitId, type, Msg, EOL_SCR);
+    if (UnitName)
+        S.Format("%s (%d) %s : %s%s", UnitName, UnitId, type, Msg, EOL_SCR);
+    else
+        S.Format("Unit % 5d %s : %s%s", UnitId, type, Msg, EOL_SCR);
+
 
     m_sOrderErrors << S;
 }
@@ -4545,7 +4549,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     {                                                \
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
-        OrderErr(1, pUnit->Id, ErrorLine.GetData()); \
+        OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData()); \
         continue;                                    \
     }                                                \
 }
@@ -4556,7 +4560,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     {                                                \
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
-        OrderErr(1, pUnit->Id, ErrorLine.GetData()); \
+        OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData()); \
         break;                                       \
     }                                                \
 }

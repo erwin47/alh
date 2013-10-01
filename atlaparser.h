@@ -249,7 +249,7 @@ protected:
     void         PutLineBack (CStr & s);
 
     void         GenericErr(int Severity, const char * Msg);
-    void         OrderErr(int Severity, int UnitId, const char * Msg);
+    void         OrderErr(int Severity, int UnitId, const char * Msg, const char * UnitName = NULL);
     void         OrderErrFinalize();
     void         RunLandOrders(CLand * pLand, const char * sCheckTeach = NULL);
     void         OrderProcess_Teach(BOOL skiperror, CUnit * pUnit);
