@@ -2598,10 +2598,6 @@ void CAhApp::PostLoadReport()
         ShowDescriptionList(Coll, "Hex Events");
     }
 
-    // show newly discovered products (advanced resources), if any
-    if (m_pAtlantis->m_NewProducts.Count() > 0)
-        ShowDescriptionList(m_pAtlantis->m_NewProducts, "New products");
-
     if (pUnitPaneF)
         pUnitPaneF->Update(NULL);
 
