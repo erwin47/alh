@@ -64,15 +64,15 @@ CLand          * glb_pPopupLand = NULL;
 
 enum { EDGE_SHAPE_BORDER, EDGE_SHAPE_ROAD, EDGE_SHAPE_BRIDGE, EDGE_SHAPE_ANCHOR, EDGE_SHAPE_ROCKS,
        EDGE_SHAPE_IGNORE };
-       
+
 // Detail levels govern what is shown at what scale
-enum { MIN_DETAIL, UNIT_DETAIL, BATTLE_DETAIL, 
-       TOWN_DETAIL, ROAD_DETAIL, NAME_DETAIL, 
-       FLAG_DETAIL, WEATHER_DETAIL, EDGE_DETAIL, 
-       MILITARY_DETAIL, SPECIAL_DETAIL, ECONOMIC_DETAIL, 
-       //BUILDING_DETAIL, 
+enum { MIN_DETAIL, UNIT_DETAIL, BATTLE_DETAIL,
+       TOWN_DETAIL, ROAD_DETAIL, NAME_DETAIL,
+       FLAG_DETAIL, WEATHER_DETAIL, EDGE_DETAIL,
+       MILITARY_DETAIL, SPECIAL_DETAIL, ECONOMIC_DETAIL,
+       //BUILDING_DETAIL,
        MAX_DETAIL };
-       
+
 const int        SizeForDetail[] =
                                     { 0, // MIN_DETAIL
                                       8, // UNIT_DETAIL
@@ -91,7 +91,7 @@ const int        SizeForDetail[] =
 
 #define ICON_SIZE       8
 #define ICON_SIZE_SMALL 6
-                                     
+
 
 BEGIN_EVENT_TABLE(CMapPane, wxWindow)
     EVT_PAINT            (                          CMapPane::OnPaint             )
@@ -103,7 +103,7 @@ BEGIN_EVENT_TABLE(CMapPane, wxWindow)
     EVT_ENTER_WINDOW     (                          CMapPane::OnMouseEvent        )
     EVT_RIGHT_DOWN       (                          CMapPane::OnMouseEvent        )
     EVT_LEFT_DCLICK      (                          CMapPane::OnMouseEvent        )
-                                                                                 
+
     EVT_MENU             (menu_Popup_Flag         , CMapPane::OnPopupMenuFlag     )
     EVT_MENU             (menu_Popup_Center       , CMapPane::OnPopupMenuCenter   )
     EVT_MENU             (menu_Popup_Battles      , CMapPane::OnPopupMenuBattles  )
@@ -114,7 +114,7 @@ BEGIN_EVENT_TABLE(CMapPane, wxWindow)
     EVT_MENU             (menu_Popup_DistanceRing , CMapPane::OnPopupDistanceRing )
 
 
-    
+
 
 
 END_EVENT_TABLE()
@@ -792,7 +792,7 @@ BOOL CMapPane::SetHexSize(int HexSizeIdx)
             //m_AtlaX0 += CXOld*((double)m_HexSize/(double)OldSize - 1);
             //m_AtlaY0 += CYOld*((double)m_HexSize/(double)OldSize - 1);;
         }
-        
+
         for (int sidx=0; sidx<MAX_DETAIL; sidx++)
         {
             if(m_HexSize >= SizeForDetail[sidx]) m_Detail = sidx;
@@ -892,7 +892,7 @@ void CMapPane::DrawEdgeStructures(wxDC * pDC, CLand * pLand, wxPoint * point, in
 
             CStruct               * pEdge = (CStruct*)pLand->EdgeStructs.At(i);
             CEdgeStructProperties * pProps = GetEdgeProps(pEdge->Kind.GetData());
-            
+
             wxPen * pPen = pProps->pen;
             int offset = 1;
             if (m_Detail < EDGE_DETAIL)
@@ -1237,7 +1237,7 @@ void CMapPane::DrawTaxTrade(wxDC * pDC, CLand * pLand, wxPoint * point)
             pDC->DrawLine(SymLeft+3, SymBottom-5, SymLeft+6, SymBottom-5);
             delete ink;
             delete pen;
-            
+
             wxColour *ink1 = new wxColor(196,200,201); // interior
             wxPen * pen1 = new wxPen(*ink1,1,wxSOLID);
             pDC->SetPen(*pen1);
@@ -1249,7 +1249,7 @@ void CMapPane::DrawTaxTrade(wxDC * pDC, CLand * pLand, wxPoint * point)
             pDC->DrawLine(SymLeft+7, SymBottom-6, SymLeft+7, SymBottom-1);
             delete ink1;
             delete pen1;
-            
+
             wxColour * ink2 = new wxColor(117,151,154); // lightly embossed
             wxPen * pen2 = new wxPen(*ink2,1,wxSOLID);
             pDC->SetPen(*pen2);
@@ -1260,7 +1260,7 @@ void CMapPane::DrawTaxTrade(wxDC * pDC, CLand * pLand, wxPoint * point)
             pDC->DrawLine(SymLeft  , SymBottom-2, SymLeft+2, SymBottom);
             delete ink2;
             delete pen2;
-            
+
             wxColour * ink3 = new wxColor(39,103,107); // embossed colour
             wxPen * pen3 = new wxPen(*ink3,1,wxSOLID);
             pDC->SetPen(*pen3);
@@ -1271,7 +1271,7 @@ void CMapPane::DrawTaxTrade(wxDC * pDC, CLand * pLand, wxPoint * point)
             pDC->DrawLine(SymLeft+3, SymBottom-2, SymLeft+6, SymBottom-2);
             delete ink3;
             delete pen3;
-            
+
             wxColour * ink4 = new wxColor(137,145,147); // right/bottom shadow rim
             wxPen * pen4 = new wxPen(*ink4,1,wxSOLID);
             pDC->SetPen(*pen4);
@@ -1292,7 +1292,7 @@ void CMapPane::DrawTaxTrade(wxDC * pDC, CLand * pLand, wxPoint * point)
             pDC->DrawLine(SymLeft+3, SymBottom-5, SymLeft+8, SymBottom);
             delete ink;
             delete pen;
-    
+
             wxColour * ink1 = new wxColor(178,144,136); // hilight shaft
             wxPen * pen1 = new wxPen(*ink1,1,wxSOLID);
             pDC->SetPen(*pen1);
@@ -1300,14 +1300,14 @@ void CMapPane::DrawTaxTrade(wxDC * pDC, CLand * pLand, wxPoint * point)
             pDC->DrawLine(SymLeft+1, SymBottom-2, SymLeft+6, SymBottom-7);
             delete ink1;
             delete pen1;
-    
+
             wxColour * ink2 = new wxColor(106,89,85); // shadow shaft
             wxPen * pen2 = new wxPen(*ink2,1,wxSOLID);
             pDC->SetPen(*pen2);
             pDC->DrawLine(SymLeft+5, SymBottom-4, SymLeft+8, SymBottom-1);
             delete ink2;
             delete pen2;
-    
+
             wxColour * ink3 = new wxColor(118,112,147); // metal rimpixels
             wxPen * pen3 = new wxPen(*ink3,1,wxSOLID);
             pDC->SetPen(*pen3);
@@ -1317,7 +1317,7 @@ void CMapPane::DrawTaxTrade(wxDC * pDC, CLand * pLand, wxPoint * point)
             pDC->DrawLine(SymLeft+8, SymBottom-7, SymLeft+7, SymBottom-7);
             delete ink3;
             delete pen3;
-    
+
             wxColour * ink4 = new wxColor(39,75,189); // light metal
             wxPen * pen4 = new wxPen(*ink4,1,wxSOLID);
             pDC->SetPen(*pen4);
@@ -1328,7 +1328,7 @@ void CMapPane::DrawTaxTrade(wxDC * pDC, CLand * pLand, wxPoint * point)
             pDC->DrawLine(SymLeft+7, SymBottom-7, SymLeft+8, SymBottom-6);
             delete ink4;
             delete pen4;
-    
+
             wxColour * ink5 = new wxColor(34,21,112); // dark metal
             wxPen * pen5 = new wxPen(*ink5,1,wxSOLID);
             pDC->SetPen(*pen5);
@@ -1344,7 +1344,7 @@ void CMapPane::DrawTaxTrade(wxDC * pDC, CLand * pLand, wxPoint * point)
     {
         int           i = 0;
         char          buf[128]  = {0};
-        
+
         if (pLand && (pLand->Flags&LAND_TAX))
         {
             buf[i]   = '$';
@@ -1420,11 +1420,11 @@ void CMapPane::DrawUnits(wxDC * pDC, CLand * pLand, wxPoint * point)
         {
             color = ATT_FRIEND2;
         }
-    
+
         if (!pLand->GetProperty(PRP_SEL_FACT_MEN, type, (const void *&)x, eNormal) || (eLong!=type))
             x=0;
         GetNextIconPos(point, BOTTOM_LEFT_CORNER);
-    
+
         // show flag icon for guards' stance
         BOOL mark = pLand && pLand->AlarmFlags&PRESENCE_OWN;
         if(pLand&&pLand->AlarmFlags&GUARDED)
@@ -1450,7 +1450,7 @@ void CMapPane::DrawUnits(wxDC * pDC, CLand * pLand, wxPoint * point)
             else color = ATT_NEUTRAL;
             DrawShieldIcon(pDC, SymLeft, SymBottom, *m_pUnitColor[color], *m_pDarkColor[color], (x>m_MinSelMen), mark);
         }
-    
+
         // draw troop strength columns
         int xc = SymLeft+7;
         if(m_Detail >= MILITARY_DETAIL)
@@ -1471,7 +1471,7 @@ void CMapPane::DrawUnits(wxDC * pDC, CLand * pLand, wxPoint * point)
             }
         }
         SymLeft = -1;
-    
+
         GetNextIconPos(point, BOTTOM_RIGHT_CORNER);
         // draw alarm icon
         if((m_Detail>=TOWN_DETAIL)&&pLand&&(pLand->AlarmFlags&ALARM))
@@ -1497,9 +1497,9 @@ void CMapPane::DrawUnits(wxDC * pDC, CLand * pLand, wxPoint * point)
     else  // simple icons
     {
         int x;
-        
+
         GetNextIconPos(point, BOTTOM_LEFT_CORNER);
-        
+
         if (!pLand->GetProperty(PRP_SEL_FACT_MEN, type, (const void *&)x, eNormal) || (eLong!=type))
             x=0;
 
@@ -1537,11 +1537,11 @@ void CMapPane::DrawStructures(wxDC * pDC, CLand * pLand, wxPoint * point, int x0
         #else
             pDC->DrawRectangle(SymLeft, SymBottom-ICON_SIZE, ICON_SIZE+1, ICON_SIZE+1);
         #endif
-    
+
             pDC->SetBrush(*m_pBrushWhite);
             pDC->DrawCircle(SymLeft+ICON_SIZE/2, SymBottom-ICON_SIZE/2, ICON_SIZE/2);
         }
-    
+
         // Shaft
         if (pLand && (pLand->Flags&LAND_STR_SHAFT) && (m_Detail>=SPECIAL_DETAIL))
         {
@@ -1549,11 +1549,11 @@ void CMapPane::DrawStructures(wxDC * pDC, CLand * pLand, wxPoint * point, int x0
             pDC->SetPen  (*m_pPenBlack);
             pDC->DrawLine(SymLeft          , SymBottom-ICON_SIZE, SymLeft          , SymBottom);
             pDC->DrawLine(SymLeft+ICON_SIZE, SymBottom-ICON_SIZE, SymLeft+ICON_SIZE, SymBottom);
-    
+
             pDC->DrawLine(SymLeft, SymBottom-3          , SymLeft+ICON_SIZE, SymBottom-3          );
             pDC->DrawLine(SymLeft, SymBottom-ICON_SIZE+2, SymLeft+ICON_SIZE, SymBottom-ICON_SIZE+2);
         }
-    
+
         // Ship
         if (pLand && pLand->Flags & LAND_STR_MOBILE && (m_Detail>=MILITARY_DETAIL))
         {
@@ -1570,7 +1570,7 @@ void CMapPane::DrawStructures(wxDC * pDC, CLand * pLand, wxPoint * point, int x0
             pDC->DrawLine(SymLeft+7, SymBottom-2, SymLeft+9, SymBottom-2);
             delete ink;
             delete pen;
-    
+
             // Hull hilight
             wxColour * ink1 = new wxColor(134,101,95);
             wxPen * pen1 = new wxPen(*ink1,1,wxSOLID);
@@ -1612,7 +1612,7 @@ void CMapPane::DrawStructures(wxDC * pDC, CLand * pLand, wxPoint * point, int x0
             delete ink4;
             delete pen4;
         }
-    
+
         // Generic struct
         if (pLand && pLand->Flags & LAND_STR_GENERIC && (m_Detail>=SPECIAL_DETAIL))
         {
@@ -1623,12 +1623,12 @@ void CMapPane::DrawStructures(wxDC * pDC, CLand * pLand, wxPoint * point, int x0
                 wxPoint(SymLeft+ICON_SIZE/2, SymBottom-ICON_SIZE),
                 wxPoint(SymLeft+ICON_SIZE,   SymBottom-1)
             };
-    
+
             pDC->SetPen  (*m_pPenBlack);
             pDC->SetBrush(*m_pBrushBlack);
             pDC->DrawPolygon(3, tri, 0, 0, wxWINDING_RULE);
         }
-    
+
         // Battle
         if (pLand && (pLand->Flags&LAND_BATTLE))
         {
@@ -1645,32 +1645,32 @@ void CMapPane::DrawStructures(wxDC * pDC, CLand * pLand, wxPoint * point, int x0
             pDC->DrawLine(x0-4, y0-7, x0+8, y0+5);
             pDC->DrawLine(x0+5, y0-7, x0-7, y0+5);
         }
-    
+
         // Located units
         if (pLand && pLand->Flags & LAND_LOCATED_UNITS)
         {
             pDC->SetPen  (*m_pPenSel);
             pDC->SetBrush( *wxTRANSPARENT_BRUSH);
-    
+
             pDC->DrawCircle(x0, y0, m_HexHalfSize);
         }
-    
+
         // the hex itself was located
         if (pLand && pLand->Flags & LAND_LOCATED_LAND)
         {
             pDC->SetPen  (*m_pPenRed );
             pDC->SetBrush(*m_pBrushRed);
-    
+
             wxPoint points[] = { wxPoint(x0, y0-m_HexHalfSize),
                                 wxPoint( (long)(x0+m_HexHalfSize*cos30), y0+m_HexHalfSize/2),
                                 wxPoint( (long)(x0-m_HexHalfSize*cos30), y0+m_HexHalfSize/2) };
-    
+
             pDC->DrawPolygon(sizeof(points)/sizeof(*points), points);
         }
     }
-    
-    
-    
+
+
+
     else         //  ********** SIMPLE ICONS
     {
         // Gate
@@ -1856,7 +1856,7 @@ void CMapPane::GetNextIconPos(wxPoint * point, int Position)
             y2 = point[0].y + ICON_SIZE + 1;
             break;
     }
-    
+
     SymBottom = y1;
     if(reverse)
     {
@@ -2039,7 +2039,7 @@ void CMapPane::DrawShieldIcon(wxDC * pDC, int x, int y, wxColour pGuardColor, wx
             pDC->DrawLine(x  , y-2, x+7, y-2);
             pDC->DrawLine(x+1, y-1, x+6, y-1);
             pDC->DrawLine(x+2, y  , x+5, y  );
-            
+
             if (mark)
             {
                 pDarkColor = pGuardColor;
@@ -2051,7 +2051,7 @@ void CMapPane::DrawShieldIcon(wxDC * pDC, int x, int y, wxColour pGuardColor, wx
             pDC->DrawLine(x+2, y-5, x+2, y);
             pDC->DrawLine(x+3, y-5, x+3, y-2);
             delete pen;
-            
+
             wxPen * pen1 = new wxPen(pDarkColor,1,wxSOLID);
             pDC->SetPen(*pen1);
             pDC->DrawLine(x+3, y-2, x+3, y);
@@ -2074,7 +2074,7 @@ void CMapPane::DrawFlagIcon(wxDC * pDC, int x, int y, wxColour FlagColor, wxColo
             pDC->DrawLine(x+4, y-8, x+8, y-8);
             pDC->DrawLine(x+1, y-3, x+5, y-3);
             pDC->DrawLine(x+5, y-2, x+8, y-2);
-            
+
             wxPen * pen = new wxPen(DarkColor,1,wxSOLID);
             pDC->SetPen(*pen);
             pDC->DrawLine(x+1, y-6, x+1, y-3);
@@ -2087,7 +2087,7 @@ void CMapPane::DrawFlagIcon(wxDC * pDC, int x, int y, wxColour FlagColor, wxColo
             pDC->DrawLine(x+7, y-7, x+6, y-6);
             pDC->DrawLine(x+7, y-4, x+7, y-2);
             delete pen;
-            
+
             wxPen * pen1 = new wxPen(FlagColor,1,wxSOLID);
             pDC->SetPen(*pen1);
             pDC->DrawLine(x+1, y-8, x+1, y-6);
@@ -2098,7 +2098,7 @@ void CMapPane::DrawFlagIcon(wxDC * pDC, int x, int y, wxColour FlagColor, wxColo
             pDC->DrawLine(x+6, y-7, x+6, y-6);
             pDC->DrawLine(x+6, y-4, x+6, y-2);
             delete pen1;
-            
+
             if (presence)
             {
                 pDC->SetPen  (*m_pPenGrey);
@@ -2127,7 +2127,7 @@ void CMapPane::DrawFlagIcon(wxDC * pDC, int x, int y, wxColour FlagColor, wxColo
             pDC->DrawLine(x+5, y-4, x+7, y-4);
             pDC->DrawLine(x+1, y-3, x+4, y);
             pDC->DrawLine(x+3, y-1, x+6, y-1);
-            
+
             wxPen * pen = new wxPen(DarkColor,1,wxSOLID);
             pDC->SetPen(*pen);
             pDC->DrawLine(x+1, y-4, x+1, y-3);
@@ -2136,7 +2136,7 @@ void CMapPane::DrawFlagIcon(wxDC * pDC, int x, int y, wxColour FlagColor, wxColo
             pDC->DrawLine(x+4, y-4, x+4, y-3);
             pDC->DrawLine(x+5, y-2, x+5, y-1);
             delete pen;
-            
+
             wxPen * pen1 = new wxPen(FlagColor,1,wxSOLID);
             pDC->SetPen(*pen1);
             pDC->DrawLine(x+1, y-7, x+1, y-4);
@@ -2145,7 +2145,7 @@ void CMapPane::DrawFlagIcon(wxDC * pDC, int x, int y, wxColour FlagColor, wxColo
             pDC->DrawLine(x+4, y-3, x+4, y-1);
             pDC->DrawLine(x+5, y-3, x+7, y-3);
             delete pen1;
-            
+
             if (presence)
             {
                 pDC->SetPen  (*m_pPenGrey);
@@ -2354,14 +2354,14 @@ void CMapPane::DrawRing(wxDC * pDC, wxRect * pRect, CPlane * pPlane)
 {
     int dx, dy;
     int DirFlags;
-    
+
     if (m_RingRadius<=0)
         return;
-        
+
 ////enum       eDirection     { North=0, Northeast,   Southeast,   South,   Southwest,   Northwest };
 //int          ExitFlags [] = { 0x01,    0x02,        0x04,        0x08,    0x10,        0x20      };
-        
-        
+
+
     for (dx=-m_RingRadius; dx<=m_RingRadius; dx++)
     {
         if (abs(dx)==m_RingRadius)
@@ -2371,11 +2371,11 @@ void CMapPane::DrawRing(wxDC * pDC, wxRect * pRect, CPlane * pPlane)
                     DirFlags = (1<<Southwest) | (1<<Northwest);
                 else
                     DirFlags = (1<<Southeast) | (1<<Northeast);
-                if (dy==-abs(dx))    
+                if (dy==-abs(dx))
                     DirFlags |= (1<<North);
-                if (dy==abs(dx))    
+                if (dy==abs(dx))
                     DirFlags |= (1<<South);
-                    
+
                 DrawRingSegment(pDC, pRect, pPlane, dx, dy, DirFlags);
             }
         else
@@ -2388,7 +2388,7 @@ void CMapPane::DrawRing(wxDC * pDC, wxRect * pRect, CPlane * pPlane)
                 DirFlags = (1<<Southeast) | (1<<South);
             dy = m_RingRadius*2 - abs(dx);
             DrawRingSegment(pDC, pRect, pPlane, dx, dy, DirFlags);
-            
+
             if (dx<0)
                 DirFlags = (1<<Northwest) | (1<<North);
             else if (dx==0)
@@ -2409,12 +2409,12 @@ void  CMapPane::DrawRingSegment(wxDC * pDC, wxRect * pRect, CPlane * pPlane, int
     int x0, y0;
     int i;
     int x1,y1,x2,y2;
-    
+
     NoX = m_RingX + dx;
     NoY = m_RingY + dy;
-    
+
     GetHexCenter(NoX, NoY, x0, y0);
-    
+
     pDC->SetPen(*m_pPenRing);
 
     for (i=0; i<6; i++)
@@ -2447,11 +2447,11 @@ void  CMapPane::DrawRingSegment(wxDC * pDC, wxRect * pRect, CPlane * pPlane, int
                 x2 = x0-m_HexHalfSize;  y2 = y0-m_HexHalfHeight;
                 break;
             }
-            
+
             if (pPlane && (pPlane->Width>0) )
             {
                 int dwx = (m_HexSize * 3 / 2) * pPlane->Width;
-        
+
                 while (x1 > pRect->x - m_HexSize)
                 {
                     x1 -= dwx;
@@ -2459,19 +2459,19 @@ void  CMapPane::DrawRingSegment(wxDC * pDC, wxRect * pRect, CPlane * pPlane, int
                 }
                 //x1 += dwx;
                 //x2 += dwx;
-        
+
                 while (x1 < pRect->x + pRect->width + m_HexSize)
                 {
                     pDC->DrawLine(x1, y1, x2, y2);
                     x1 += dwx;
                     x2 += dwx;
                 }
-        
+
             }
             else
                 pDC->DrawLine(x1, y1, x2, y2);
         }
-        
+
 }
 
 //--------------------------------------------------------------------------
@@ -2479,15 +2479,15 @@ void  CMapPane::DrawRingSegment(wxDC * pDC, wxRect * pRect, CPlane * pPlane, int
 int  CMapPane::Distance(int x1, int y1, int x2, int y2)
 {
     int dx, dy, d;
-    
+
     dx = x1-x2;
     if (dx<0)
         dx = -dx;
-        
+
     dy = y1-y2;
     if (dy<0)
         dy = -dy;
-        
+
     if (dy>dx)
         d = (dx+dy)/2;
     else
@@ -3256,7 +3256,7 @@ void CMapPane::SetSelection(int nx, int ny, CUnit * pUnit, CPlane * pPlane, BOOL
         RedrawTracksForUnit(pPlane, pUnit, &dc, FALSE);
         DrawCitiesAndWeather(&dc, &rect, pPlane);
         gpApp->OnMapSelectionChange();
-        
+
         DrawRing(&dc, &rect, pPlane);
     }
 
@@ -3360,7 +3360,11 @@ void CMapPane::PaintRectangle(wxDC * pDC)
 {
     if (ShouldDrawRectangle())
     {
-        int     OldFunc = pDC->GetLogicalFunction();
+#if wxCHECK_VERSION(2,9,0)
+        wxRasterOperationMode OldFunc = pDC->GetLogicalFunction();
+#else
+        int OldFunc = pDC->GetLogicalFunction();
+#endif
         wxPen   OldPen  = pDC->GetPen();
         pDC->SetLogicalFunction(wxXOR);
 
@@ -3569,7 +3573,7 @@ void CMapPane::OnMouseEvent(wxMouseEvent& event)
             if (m_pPopupLand->Flags&LAND_BATTLE)
                 menu.Append(menu_Popup_Battles, wxT("Battles"));
             menu.Append(menu_Popup_Financial   , wxT("Financial details for the hex"));
-            
+
             if (0==strcmp(m_pPopupLand->Name.GetData(), SZ_MANUAL_HEX_PROVINCE))
                 menu.Append(menu_Popup_Del_Hex   , wxT("Remove Hex terrain"));
         }
@@ -3581,8 +3585,8 @@ void CMapPane::OnMouseEvent(wxMouseEvent& event)
         menu.Append(menu_Popup_Center      , wxT("Center"));
         menu.Append(menu_Popup_WhoMovesHere, wxT("Find units moving here"));
         menu.Append(menu_Popup_DistanceRing, wxT("Distance ring"));
-        
-        
+
+
 
 
 
@@ -3779,12 +3783,12 @@ void CMapPane::OnPopupWhoMovesHere(wxCommandEvent & event)
 
     pCurPlane = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(m_SelPlane);
     pCurLand  = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
-    
+
     if (pCurLand)
         HexId = pCurLand->Id;  // maybe GetLand produces better Id, so use it if awailable?
     else
         HexId = LandCoordToId(m_SelHexX, m_SelHexY, m_SelPlane);
-    
+
     gpApp->ShowUnitsMovingIntoHex(HexId, pCurPlane);
 }
 
@@ -3822,23 +3826,23 @@ void CMapPane::OnPopupDeleteHex(wxCommandEvent & event)
 
 void CMapPane::OnPopupDistanceRing(wxCommandEvent & event)
 {
-    m_RingRadius = wxGetNumberFromUser( wxT("Ring radius should be no more than 16,\nCancel removes the ring."), 
-                                        wxT("Enter ring radius"), 
-                                        wxT("Distance ring"), 
-                                        m_RingRadius>0 ? m_RingRadius : 4, 
+    m_RingRadius = wxGetNumberFromUser( wxT("Ring radius should be no more than 16,\nCancel removes the ring."),
+                                        wxT("Enter ring radius"),
+                                        wxT("Distance ring"),
+                                        m_RingRadius>0 ? m_RingRadius : 4,
                                         0, 16, this);
     m_RingX = m_SelHexX;
     m_RingY = m_SelHexY;
 
 /*    int               width, height;
-    
+
     GetClientSize(&width, &height);
     CPlane        * pPlane   = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(m_SelPlane);
     wxRect          rect(0, 0, width, height);
     wxPaintDC       dc(this); // device context for painting
 
     DrawRing(&dc, &rect, pPlane);*/
-    
+
     Refresh(FALSE, NULL);
 }
 
@@ -3892,7 +3896,7 @@ void CMapPane::OnToolbarCmd(wxCommandEvent& event)
         m_ShowState ^= SHOW_COORD;
         Refresh(FALSE, NULL);
         break;
-    
+
     case tool_shownames :
         m_ShowState ^= SHOW_NAMES;
         Refresh(FALSE, NULL);
@@ -3974,7 +3978,7 @@ BOOL CMapPane::IsToolActive(wxUpdateUIEvent& event)
         else
             event.Check(FALSE);
         break;
-        
+
     case tool_shownames :
         Ok = TRUE;
         if (m_ShowState & SHOW_NAMES)

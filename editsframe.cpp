@@ -37,7 +37,7 @@
 #include "editsframe.h"
 
 BEGIN_EVENT_TABLE(CEditsFrame, CAhFrame)
-    EVT_MENU   (menu_SaveOrders         , CEditsFrame::OnSaveOrders)  
+    EVT_MENU   (menu_SaveOrders         , CEditsFrame::OnSaveOrders)
     EVT_MENU   (accel_NextUnit          , CEditsFrame::OnNextUnit)
     EVT_MENU   (accel_PrevUnit          , CEditsFrame::OnPrevUnit)
     EVT_MENU   (accel_UnitList          , CEditsFrame::OnUnitList)
@@ -90,10 +90,10 @@ void CEditsFrame::Init(int layout, const char * szConfigSection)
         m_Splitter2->SetBorderSize(0);
         m_Splitter3->SetBorderSize(0);
 
-        p1 = new CEditPane(m_Splitter1, "Hex description"        , FALSE, FONT_EDIT_DESCR);
-        p2 = new CEditPane(m_Splitter2, "Unit description"       , FALSE, FONT_EDIT_DESCR);
-        p3 = new CEditPane(m_Splitter3, "Orders"                 , FALSE, FONT_EDIT_ORDER);
-        p4 = new CEditPane(m_Splitter3, "Comments/Default orders", TRUE , FONT_EDIT_ORDER);
+        p1 = new CEditPane(m_Splitter1, wxT("Hex description")        , FALSE, FONT_EDIT_DESCR);
+        p2 = new CEditPane(m_Splitter2, wxT("Unit description")       , FALSE, FONT_EDIT_DESCR);
+        p3 = new CEditPane(m_Splitter3, wxT("Orders")                 , FALSE, FONT_EDIT_ORDER);
+        p4 = new CEditPane(m_Splitter3, wxT("Comments/Default orders"), TRUE , FONT_EDIT_ORDER);
 
         SetPane(AH_PANE_MAP_DESCR    , p1);
         SetPane(AH_PANE_UNIT_DESCR   , p2);

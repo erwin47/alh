@@ -54,7 +54,7 @@ void CMsgFrame::Init(int layout, const char * szConfigSection)
     szConfigSection = SZ_SECT_WND_MSG;
     CAhFrame::Init(layout, szConfigSection);
 
-    p = new CEditPane(this, NULL  , FALSE, FONT_ERR_DLG);       
+    p = new CEditPane(this, wxEmptyString, FALSE, FONT_ERR_DLG);
     SetPane(AH_PANE_MSG    , p);
     p->Init();
 }

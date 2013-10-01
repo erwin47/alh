@@ -119,7 +119,7 @@ BEGIN_EVENT_TABLE(CMapFrame, CAhFrame)
     EVT_MENU     (menu_WriteMagesCSV      , CMapFrame::OnWriteMagesCSV         )
     EVT_MENU     (menu_ExportHexes        , CMapFrame::OnExportHexes           )
     EVT_MENU     (menu_FindTradeRoutes    , CMapFrame::OnFindTradeRoutes       )
-    
+
     EVT_MENU     (menu_CheckMonthLongOrd  , CMapFrame::OnCheckMonthLongOrd     )
     EVT_MENU     (menu_CheckTaxTrade      , CMapFrame::OnCheckTaxTrade         )
     EVT_MENU     (menu_CheckProduction    , CMapFrame::OnCheckProduction       )
@@ -132,7 +132,7 @@ BEGIN_EVENT_TABLE(CMapFrame, CAhFrame)
     EVT_MENU     (menu_Quit               , CMapFrame::OnQuit                  )
     EVT_MENU     (menu_QuitNoSave         , CMapFrame::OnQuitNoSave            )
     EVT_MENU     (menu_About              , CMapFrame::OnAbout                 )
-    
+
     EVT_MENU   (accel_NextUnit            , CMapFrame::OnNextUnit)
     EVT_MENU   (accel_PrevUnit            , CMapFrame::OnPrevUnit)
     EVT_MENU   (accel_UnitList            , CMapFrame::OnUnitList)
@@ -243,8 +243,8 @@ void CMapFrame::MakeMenu(int layout)
     menuItem->AppendSeparator();
     menuItem->Append(menu_WriteMagesCSV     , wxT("Export mages data to CSV file") , wxT(""));
     menuItem->Append(menu_ExportHexes       , wxT("Export Hexes")                  , wxT(""));
-    
-    
+
+
     menuItem->AppendSeparator();
     menuItem->Append(menu_FlagNames         , wxT("Unit Flag Names")               , wxT(""));
     menuItem->Append(menu_FlagsAllSet       , wxT("Set/Clear Hex/Unit Flags")      , wxT(""));
@@ -308,7 +308,7 @@ void CMapFrame::MakeToolBar()
     toolBar = CreateToolBar(wxNO_BORDER | wxTB_FLAT | wxTB_VERTICAL);
 
     for (i=0; i<TOOLCOUNT; i++)
-        toolBar->AddTool(tool_zoomin+i, toolBarBitmap[i], toolTip[i]);
+      toolBar->AddTool(tool_zoomin+i, toolTip[i], toolBarBitmap[i], toolTip[i]);
 
     toolBar->Realize();
     toolBar->SetRows(TOOLCOUNT+1);
@@ -359,10 +359,10 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
 
             p1 = new CMapPane (m_Splitter1, -1, layout  );
             p2 = new CUnitPane(m_Splitter);
-            p3 = new CEditPane(m_Splitter2, "Hex description"        , FALSE, FONT_EDIT_DESCR);
-            p4 = new CEditPane(m_Splitter3, "Unit description"       , FALSE, FONT_EDIT_DESCR);
-            p5 = new CEditPane(m_Splitter4, "Orders"                 , FALSE, FONT_EDIT_ORDER);
-            p6 = new CEditPane(m_Splitter4, "Comments/Default orders", TRUE , FONT_EDIT_ORDER);
+            p3 = new CEditPane(m_Splitter2, wxT("Hex description")        , FALSE, FONT_EDIT_DESCR);
+            p4 = new CEditPane(m_Splitter3, wxT("Unit description")       , FALSE, FONT_EDIT_DESCR);
+            p5 = new CEditPane(m_Splitter4, wxT("Orders")                 , FALSE, FONT_EDIT_ORDER);
+            p6 = new CEditPane(m_Splitter4, wxT("Comments/Default orders"), TRUE , FONT_EDIT_ORDER);
 
             SetPane(AH_PANE_MAP          , p1);
             SetPane(AH_PANE_UNITS_HEX    , p2);
@@ -421,7 +421,7 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
                                               wxSP_3D | wxCLIP_CHILDREN);
 
             p1 = new CMapPane (m_Splitter, -1, layout  );
-            p2 = new CEditPane(m_Splitter, NULL, FALSE, FONT_EDIT_DESCR);
+            p2 = new CEditPane(m_Splitter, wxEmptyString, FALSE, FONT_EDIT_DESCR);
 
             SetPane(AH_PANE_MAP       , p1);
             SetPane(AH_PANE_MAP_DESCR , p2);
@@ -917,7 +917,7 @@ void CMapFrame::OnExportHexes(wxCommandEvent& event)
 void CMapFrame::OnFindTradeRoutes(wxCommandEvent& event)
 {
     gpApp->FindTradeRoutes();
-    
+
     CMapPane * pMapPane  = (CMapPane* )gpApp->m_Panes[AH_PANE_MAP];
     if (pMapPane)
     {

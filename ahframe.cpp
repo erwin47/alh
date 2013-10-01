@@ -45,7 +45,7 @@ END_EVENT_TABLE()
 //--------------------------------------------------------------------------
 
 CFlatPanel::CFlatPanel(wxWindow* parent)
-          :wxPanel(parent, -1, wxDefaultPosition, wxDefaultSize, wxNO_3D  )
+          :wxPanel(parent, -1, wxDefaultPosition, wxDefaultSize )
 {
     m_pChild = NULL;
 }
@@ -93,7 +93,7 @@ void CAhFrame::Init(int layout, const char * szConfigSection)
         if (gpApp->GetSectionFirst(SZ_SECT_REPORTS, szName, szValue) < 0)
         {
             int  x_old, y_old;
-            GetPosition(&x_old, &y_old); 
+            GetPosition(&x_old, &y_old);
             y = y_old;
         }
         gpApp->SetConfig(szConfigSection, SZ_KEY_USE_SAVED_POS, "1");
@@ -123,7 +123,7 @@ void CAhFrame::Done(BOOL SetClosedFlag)
 
         gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_X1, x);
         gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_Y1, y);
-        
+
         gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_X2, x+w);
         gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_Y2, y+h);
 
@@ -190,8 +190,8 @@ BEGIN_EVENT_TABLE(CResizableDlg, wxDialog)
     EVT_CLOSE  (    CResizableDlg::OnClose )
 END_EVENT_TABLE()
 
-CResizableDlg::CResizableDlg(wxWindow * parent, const char * title, const char * szConfigSection, long style)
-              :wxDialog( parent, -1, wxString::FromAscii(title), wxDefaultPosition, wxDefaultSize, style | wxCAPTION  )
+CResizableDlg::CResizableDlg(wxWindow * parent, const wxString &title, const char * szConfigSection, long style)
+              :wxDialog( parent, -1, title, wxDefaultPosition, wxDefaultSize, style | wxCAPTION  )
 {
     m_sConfigSection = szConfigSection;
 }

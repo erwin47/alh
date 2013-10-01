@@ -44,7 +44,7 @@ BEGIN_EVENT_TABLE(CShowOneDescriptionDlg, CResizableDlg)
 END_EVENT_TABLE()
 
 CShowOneDescriptionDlg::CShowOneDescriptionDlg(wxWindow * parent, const char * title, const char * description)
-                       :CResizableDlg( parent, title, SZ_SECT_WND_DESCR_ONE)
+                       :CResizableDlg( parent, wxString::FromUTF8(title), SZ_SECT_WND_DESCR_ONE)
 {
     wxBoxSizer * topsizer = new wxBoxSizer( wxVERTICAL );
     wxButton   * pBtnDone = new wxButton  (this, wxID_CANCEL, wxT("Done") );
@@ -109,7 +109,7 @@ void CShowOneDescriptionDlg::OnButton(wxCommandEvent& event)
                             wxT(""),
                             wxT(""),
                             wxT(SZ_ALL_FILES),
-                            wxSAVE |  wxOVERWRITE_PROMPT );
+                            wxFD_SAVE |  wxFD_OVERWRITE_PROMPT );
         err = dialog.ShowModal();
         wxSetWorkingDirectory(CurrentDir);
 
@@ -146,7 +146,7 @@ END_EVENT_TABLE()
 
 
 CShowDescriptionListDlg::CShowDescriptionListDlg(wxWindow * parent, const char * title, CCollection * items)
-                        :CResizableDlg( parent, title, SZ_SECT_WND_DESCR_LIST)
+                        :CResizableDlg( parent, wxString::FromUTF8(title), SZ_SECT_WND_DESCR_LIST)
 {
     long i;
     CBaseObject * pObj;
@@ -237,7 +237,7 @@ void CShowDescriptionListDlg::SaveAs()
                         wxT(""),
                         wxT(""),
                         wxT(SZ_ALL_FILES),
-                        wxSAVE |  wxOVERWRITE_PROMPT );
+                        wxFD_SAVE |  wxFD_OVERWRITE_PROMPT );
     err = dialog.ShowModal();
     wxSetWorkingDirectory(CurrentDir);
 
@@ -316,7 +316,7 @@ END_EVENT_TABLE()
 int CExportMagesCSVDlg::borderwidth = 4;
 
 CExportMagesCSVDlg::CExportMagesCSVDlg(wxWindow * parent, const char * fname)
-                   :CResizableDlg( parent, "Export mages", SZ_SECT_WND_EXP_MAGES_CSV)
+                   :CResizableDlg( parent, wxT("Export mages"), SZ_SECT_WND_EXP_MAGES_CSV)
 {
     wxButton    * pBtn;
     wxStaticText* pStatic;
@@ -470,7 +470,7 @@ void CExportMagesCSVDlg::OnButton(wxCommandEvent& event)
                                 wxT(""),
                                 m_pFileName->GetValue(),
                                 wxT(SZ_CSV_FILES),
-                                wxSAVE |  wxOVERWRITE_PROMPT );
+                                wxFD_SAVE |  wxFD_OVERWRITE_PROMPT );
             err = dialog.ShowModal();
             wxSetWorkingDirectory(CurrentDir);
 
@@ -493,7 +493,7 @@ END_EVENT_TABLE()
 
 
 CHexExportDlg::CHexExportDlg(wxWindow *parent)
-              :CResizableDlg( parent, "Hex export options", SZ_SECT_WND_EXP_HEXES, wxDEFAULT_DIALOG_STYLE)
+              :CResizableDlg( parent, wxT("Hex export options"), SZ_SECT_WND_EXP_HEXES, wxDEFAULT_DIALOG_STYLE)
 {
     wxBoxSizer * topsizer;
     wxBoxSizer * sizer   ;
@@ -597,7 +597,7 @@ void CHexExportDlg::OnButton(wxCommandEvent& event)
                             wxT(""),
                             m_tcFName->GetValue(),
                             wxT(SZ_ALL_FILES),
-                            wxSAVE  );
+                            wxFD_SAVE  );
         err = dialog.ShowModal();
         wxSetWorkingDirectory(CurrentDir);
 
@@ -686,7 +686,7 @@ END_EVENT_TABLE()
 //--------------------------------------------------------------------------
 
 CGetTextDlg::CGetTextDlg(wxWindow *parent, const char * szTitle, const char * szMessage)
-            :CResizableDlg( parent, szTitle, SZ_SECT_WND_GET_TEXT_DLG)
+            :CResizableDlg( parent, wxString::FromUTF8(szTitle), SZ_SECT_WND_GET_TEXT_DLG)
 {
     wxBoxSizer * topsizer;
     wxBoxSizer * sizer   ;
@@ -770,17 +770,17 @@ CMessageBoxSwitchableDlg::CMessageBoxSwitchableDlg(wxWindow *parent, const char 
 
 //--------------------------------------------------------------------------
 
-void ShowMessageBoxSwitchable(const char * szTitle, const char * szMessage, const char * szConfigKey)
+void ShowMessageBoxSwitchable(const wxString &szTitle, const wxString &szMessage, const wxString &szConfigKey)
 {
     CStr S;
-    S = gpApp->GetConfig(SZ_SECT_DO_NOT_SHOW_THESE, szConfigKey);
+    S = gpApp->GetConfig(SZ_SECT_DO_NOT_SHOW_THESE, szConfigKey.ToUTF8());
     if (atol(S.GetData()) > 0)
         return;
 
-    CMessageBoxSwitchableDlg dlg(NULL, szTitle, szMessage);
+    CMessageBoxSwitchableDlg dlg(NULL, szTitle.ToUTF8(), szMessage.ToUTF8());
     dlg.ShowModal();
     if (dlg.m_chbSwitchOff->IsChecked())
-        gpApp->SetConfig(SZ_SECT_DO_NOT_SHOW_THESE, szConfigKey, "1");
+        gpApp->SetConfig(SZ_SECT_DO_NOT_SHOW_THESE, szConfigKey.ToUTF8(), "1");
 }
 
 //==========================================================================

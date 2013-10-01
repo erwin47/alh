@@ -147,7 +147,7 @@ private:
 
 //--------------------------------------------------------------------------
 
-void ShowMessageBoxSwitchable(const char * szTitle, const char * szMessage, const char * szConfigKey);
+void ShowMessageBoxSwitchable(const wxString& szTitle, const wxString& szMessage, const wxString &szConfigKey);
 
 #endif
 

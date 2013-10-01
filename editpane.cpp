@@ -66,7 +66,7 @@ CEditorForPane::CEditorForPane(CEditPane * parent)
 
 //--------------------------------------------------------------------
 
-void CEditorForPane::OnKillFocus(wxFocusEvent& event) 
+void CEditorForPane::OnKillFocus(wxFocusEvent& event)
 {
     m_pParent->OnKillFocus();
     event.Skip();
@@ -90,20 +90,20 @@ END_EVENT_TABLE()
 
 //--------------------------------------------------------------------
 
-CEditPane::CEditPane(wxWindow* parent, const char * header, BOOL editable, int WhichFont)
-          :wxPanel(parent, -1, wxDefaultPosition, wxDefaultSize, wxNO_3D  )
+CEditPane::CEditPane(wxWindow* parent, const wxString& header, BOOL editable, int WhichFont)
+          :wxPanel(parent, -1, wxDefaultPosition, wxDefaultSize )
 {
-    m_pSource       = NULL;   
-    m_pChanged      = NULL; 
-                   
-    m_pHeader       = (header && *header)?(new wxStaticText(this, -1, wxString::FromAscii(header), wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE | wxST_NO_AUTORESIZE )):NULL;
+    m_pSource       = NULL;
+    m_pChanged      = NULL;
+
+    m_pHeader       = new wxStaticText(this, -1, header, wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE | wxST_NO_AUTORESIZE );
     m_HdrHeight     = 0;
     m_WhichFont     = WhichFont;
     m_pEditor       = new CEditorForPane(this);
     m_ColorNormal   = m_pEditor->GetBackgroundColour() ;
 
-    m_ColorReadOnly.Set(APPLY_COLOR_DELTA(m_ColorNormal.Red()), 
-                        APPLY_COLOR_DELTA(m_ColorNormal.Green()), 
+    m_ColorReadOnly.Set(APPLY_COLOR_DELTA(m_ColorNormal.Red()),
+                        APPLY_COLOR_DELTA(m_ColorNormal.Green()),
                         APPLY_COLOR_DELTA(m_ColorNormal.Blue()));
 
     SetReadOnly(!editable);
@@ -125,7 +125,7 @@ void CEditPane::Init()
 
 void CEditPane::SetSource(CStr * pSource, BOOL * pChanged)
 {
-    m_pSource   = pSource; 
+    m_pSource   = pSource;
     m_pChanged  = pChanged;
     m_pEditor->SetValue(pSource?wxString::FromAscii(pSource->GetData()):wxT(""));
 }
@@ -194,7 +194,7 @@ void CEditPane::SetReadOnly(BOOL ReadOnly)
 
 //--------------------------------------------------------------------
 
-void CEditPane::OnKillFocus() 
+void CEditPane::OnKillFocus()
 {
     if (SaveModifications())
         gpApp->EditPaneChanged(this);

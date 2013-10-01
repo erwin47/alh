@@ -59,7 +59,7 @@ END_EVENT_TABLE()
 //--------------------------------------------------------------------------
 
 CUnitFlagsDlg::CUnitFlagsDlg(wxWindow *parent, E_FLAG_EDIT_MODE Mode, unsigned int UnitFlags)
-     :CResizableDlg( parent, "Flags", SZ_SECT_WND_LAND_UNIT_FLAGS_DLG )
+     :CResizableDlg( parent, wxT("Flags"), SZ_SECT_WND_LAND_UNIT_FLAGS_DLG )
 {
     wxBoxSizer      * topsizer;
     wxBoxSizer      * sizer   ;
@@ -78,8 +78,8 @@ CUnitFlagsDlg::CUnitFlagsDlg(wxWindow *parent, E_FLAG_EDIT_MODE Mode, unsigned i
     memset(m_chbUnitFlags   , 0, sizeof(m_chbUnitFlags));
     memset(m_chbLandFlags   , 0, sizeof(m_chbLandFlags));
     memset(m_txtUnitFlagText, 0, sizeof(m_txtUnitFlagText));
-    
-    
+
+
     m_UnitFlags = UnitFlags;
     m_LandFlags = 0;
     m_EditMode  = Mode;
@@ -119,12 +119,12 @@ CUnitFlagsDlg::CUnitFlagsDlg(wxWindow *parent, E_FLAG_EDIT_MODE Mode, unsigned i
 
         topsizer->Add(sizer        , 1, wxALIGN_CENTER | wxALL | wxGROW, 2 );
 
-        x <<= 1; 
+        x <<= 1;
     }
 
     if (eAll == m_EditMode || eManyUnits == m_EditMode)
     {
-        m_btnSetAllUnit = new wxButton     (this, ID_BTN_SET_ALL_UNIT , wxT("Set for all units"    )); 
+        m_btnSetAllUnit = new wxButton     (this, ID_BTN_SET_ALL_UNIT , wxT("Set for all units"    ));
         m_btnRmvAllUnit = new wxButton     (this, ID_BTN_RMV_ALL_UNIT , wxT("Clear for all units"    ));
         sizer    = new wxBoxSizer( wxHORIZONTAL );
             sizer->Add(m_btnSetAllUnit , 0, wxALIGN_CENTER | wxALL, SPACER_GENERIC );
@@ -148,7 +148,7 @@ CUnitFlagsDlg::CUnitFlagsDlg(wxWindow *parent, E_FLAG_EDIT_MODE Mode, unsigned i
             topsizer->Add(sizer        , 1, wxALIGN_CENTER | wxALL | wxGROW, 2 );
         }
 
-        m_btnSetAllLand = new wxButton     (this, ID_BTN_SET_ALL_LAND , wxT("Set for all hexes")    ); 
+        m_btnSetAllLand = new wxButton     (this, ID_BTN_SET_ALL_LAND , wxT("Set for all hexes")    );
         m_btnRmvAllLand = new wxButton     (this, ID_BTN_RMV_ALL_LAND , wxT("Clear for all hexes")    );
         sizer    = new wxBoxSizer( wxHORIZONTAL );
             sizer->Add(m_btnSetAllLand , 0, wxALIGN_CENTER | wxALL, SPACER_GENERIC );
@@ -204,7 +204,7 @@ void CUnitFlagsDlg::OnOk(wxCommandEvent& event)
         }
         CUnit::ResetCustomFlagNames();
     }
-    
+
     if (eThisUnit == m_EditMode)
     {
         x           = 1;
@@ -213,10 +213,10 @@ void CUnitFlagsDlg::OnOk(wxCommandEvent& event)
         {
             if (m_chbUnitFlags[i]->IsChecked())
                 m_UnitFlags |= x;
-            x <<= 1; 
+            x <<= 1;
         }
     }
-    
+
     StoreSize();
     EndModal(wxID_OK);
 }
@@ -241,7 +241,7 @@ void CUnitFlagsDlg::OnSetClear(wxCommandEvent& event)
     {
         if (m_chbUnitFlags[i] && m_chbUnitFlags[i]->IsChecked())
             m_UnitFlags |= x;
-        x <<= 1; 
+        x <<= 1;
     }
 
     x           = 1;
@@ -252,7 +252,7 @@ void CUnitFlagsDlg::OnSetClear(wxCommandEvent& event)
             m_LandFlags |= x;
         x <<= 1;
     }
-    
+
     StoreSize();
     EndModal(event.GetId());
 }
@@ -266,9 +266,9 @@ END_EVENT_TABLE()
 
 
 
-CMapFlagDlg::CMapFlagDlg(wxWindow *parent, CLand * pLand, wxPoint & position) 
+CMapFlagDlg::CMapFlagDlg(wxWindow *parent, CLand * pLand, wxPoint & position)
             :wxDialog( parent, -1, wxT("Hex flags"), position) //, wxDefaultSize, wxDIALOG_MODAL | wxRESIZE_BORDER )
-{  
+{
     int i;
 
     m_pLand = pLand;
@@ -290,17 +290,17 @@ CMapFlagDlg::CMapFlagDlg(wxWindow *parent, CLand * pLand, wxPoint & position)
 
         sizer->Add(st           , 0, wxALIGN_LEFT  | wxALL           , SPACER_NARROW );
         sizer->Add(m_FlagText[i], 1, wxALIGN_RIGHT | wxALL | wxEXPAND, SPACER_NARROW );
-    
+
         topsizer->Add(sizer, 1, wxALIGN_LEFT | wxGROW);
     }
 
-    wxBoxSizer *button_sizer = new wxBoxSizer( wxHORIZONTAL );  
-    
+    wxBoxSizer *button_sizer = new wxBoxSizer( wxHORIZONTAL );
+
     button_sizer->Add(  m_btnSet   , 0, wxALL, 10 );
     button_sizer->Add(  m_btnRemove, 0, wxALL, 10 );
     button_sizer->Add(  m_btnCancel, 0, wxALL, 10 );
-    
-    
+
+
     topsizer->Add( button_sizer, 0, wxALIGN_CENTER );
 
     SetAutoLayout( TRUE );     // tell dialog to use sizer

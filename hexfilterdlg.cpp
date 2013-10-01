@@ -60,7 +60,7 @@ END_EVENT_TABLE()
 //--------------------------------------------------------------------------
 
 CHexFilterDlg::CHexFilterDlg(wxWindow *parent, const char * szConfigSection)
-               :CResizableDlg( parent, "Find Hexes", SZ_SECT_WND_HEX_FLTR_DLG),
+               :CResizableDlg( parent, wxT("Find Hexes"), SZ_SECT_WND_HEX_FLTR_DLG),
                 m_bReady(0)
 {
 //    CMapPane   * pMapPane   = (CMapPane  * )gpApp->m_Panes[AH_PANE_MAP];

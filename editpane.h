@@ -26,9 +26,9 @@ class CStr;
 class CEditPane : public wxPanel
 {
 public:
-    CEditPane(wxWindow* parent, const char * header, BOOL editable, int WhichFont);
+    CEditPane(wxWindow *parent, const wxString &header, BOOL editable, int WhichFont);
     virtual     ~CEditPane();
-    
+
     virtual void Update();
     virtual void Init();
     void         SetSource(CStr * pSource, BOOL * pChanged);
@@ -49,7 +49,7 @@ protected :
     BOOL         * m_pChanged;
     wxStaticText * m_pHeader;
     int            m_HdrHeight;
-    int            m_WhichFont;     
+    int            m_WhichFont;
     wxColour       m_ColorNormal;
     wxColour       m_ColorReadOnly;
 

@@ -50,7 +50,7 @@ END_EVENT_TABLE()
 //--------------------------------------------------------------------------
 
 CUnitSplitDlg::CUnitSplitDlg(wxWindow *parent, CUnit * pUnit)
-              :CResizableDlg( parent, "Split Unit", SZ_SECT_WND_SPLIT_UNIT_DLG )
+              :CResizableDlg( parent, wxT("Split Unit"), SZ_SECT_WND_SPLIT_UNIT_DLG )
 {
     wxBoxSizer      * topsizer;
     wxBoxSizer      * sizer   ;

@@ -82,7 +82,7 @@ END_EVENT_TABLE()
 //--------------------------------------------------------------------------
 
 COptionsDialog::COptionsDialog(wxWindow * parent)
-               :CResizableDlg( parent, "Edit options", SZ_SECT_WND_OPTIONS_DLG)//, wxDEFAULT_DIALOG_STYLE)
+               :CResizableDlg( parent, wxT("Edit options"), SZ_SECT_WND_OPTIONS_DLG)//, wxDEFAULT_DIALOG_STYLE)
 {
     wxBoxSizer   * topsizer;
     wxBoxSizer   * rowsizer;
@@ -357,7 +357,7 @@ void COptionsDialog::OnOk    (wxCommandEvent& event)
         }
 
         gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_ICONS, m_pRadioIconsAdvanced->GetValue() ? SZ_ICONS_ADVANCED : SZ_ICONS_SIMPLE);
-        
+
 
 
 
