@@ -17,6 +17,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <algorithm>
+
 #include <stdlib.h>
 #include <string.h>
 #include "files.h"
@@ -587,11 +589,11 @@ BOOL CAtlaParser::ParseOneUnitEvent(CStr & EventLine, BOOL IsEvent, int UnitId)
 
             }
         }
-        
+
         // Mary Loo (1104): Has mithril sword [MSWO] stolen.
         // Unit (3849) is caught attempting to steal from Unit (1662) in Lotan.
         // Unit (3595) steals double bow [DBOW] from So many farmers (1766).
-        // Unit (1023): Is forbidden entry to swamp (31,17) in Dorantor by 
+        // Unit (1023): Is forbidden entry to swamp (31,17) in Dorantor by
         else if (0==stricmp("has"    , Buf.GetData()) && EventLine.FindSubStr("stolen")>=0 ||
                  0==stricmp("is"     , Buf.GetData()) && EventLine.FindSubStr("caught")>=0  ||
                  0==stricmp("steals" , Buf.GetData()) ||
@@ -600,7 +602,7 @@ BOOL CAtlaParser::ParseOneUnitEvent(CStr & EventLine, BOOL IsEvent, int UnitId)
                 )
         {
             BOOL show = TRUE;
-            if (0==stricmp("steals", Buf.GetData()) && 
+            if (0==stricmp("steals", Buf.GetData()) &&
                 0==atol(gpDataHelper->GetConfString(SZ_SECT_COMMON, SZ_KEY_SHOW_STEALS)))
                 show = FALSE;
             if (show)
@@ -1690,10 +1692,10 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
     // When should we replace old description with the new one?
     // My guess is - everytime for the full parsing!
     //pLand->Description = TempDescr;
-    
+
     // Unfortunately, Arno in his latest game shows restricted description for hexes
     // through which your scout pass if there are no stationary units in the hex.
-    
+
     ComposeHexDescriptionForArnoGame(pLand->Description.GetData(), TempDescr.GetData(), CompositeDescr);
     pLand->Description = CompositeDescr;
     pLand->Description.TrimRight(TRIM_ALL);
@@ -1839,7 +1841,7 @@ const char * CountTokensForArno(const char * src, int & count)
     const char * p;
     char         ch;
     CStr         Token(32);
-    
+
     count = 0;
     p = Token.GetToken(src, ')');
     while (p && *p)
@@ -1876,10 +1878,10 @@ plain (55,3) in Lothmarlun, contains Rudoeton [village].
 void CAtlaParser::ComposeHexDescriptionForArnoGame(const char * olddescr, const char * newdescr, CStr & CompositeDescr)
 {
     const char * pnew, * pold;
-    CStr         NewWeather(32); 
+    CStr         NewWeather(32);
     int          oldcount, newcount;
     CStr         Token(32);
-    
+
     if (!olddescr || !*olddescr)
     {
         CompositeDescr = newdescr;
@@ -1890,10 +1892,10 @@ void CAtlaParser::ComposeHexDescriptionForArnoGame(const char * olddescr, const 
         CompositeDescr = olddescr;
         return;
     }
-    
+
     pnew = CountTokensForArno(newdescr, newcount);
     pold = CountTokensForArno(olddescr, oldcount);
-    
+
     // Is new descr good?
     // We do not have to do full parsing here. Good descr has more pieces than bad
     if (newcount>oldcount)
@@ -1901,7 +1903,7 @@ void CAtlaParser::ComposeHexDescriptionForArnoGame(const char * olddescr, const 
         CompositeDescr = newdescr;
         return;
     }
-    
+
     // Maybe they are basically the same?
     if (newcount==oldcount)
     {
@@ -1909,27 +1911,27 @@ void CAtlaParser::ComposeHexDescriptionForArnoGame(const char * olddescr, const 
             CompositeDescr = newdescr;
         return;
     }
-    
-    
-    
+
+
+
     // now our new descr is worse, but it contains good weather line, we need to extract it and merge with old descr
     while (pnew && *pnew && *pnew!='-')
         pnew++;
     pnew = Token.GetToken(pnew, '\n');
     pnew = NewWeather.GetToken(pnew, '.', TRIM_NONE);
-    
+
     CompositeDescr.Empty();
     pnew = Token.GetToken(olddescr, '.');
     CompositeDescr << Token << "." << EOL_SCR;
-    
+
     while (pnew && *pnew && *pnew!='-')
         pnew++;
     pnew = Token.GetToken(pnew, '\n');
     CompositeDescr << Token << EOL_SCR;
-    
+
     pnew = Token.GetToken(pnew, '.');    // old weather
     CompositeDescr << NewWeather << "." << pnew;
-    
+
 }
 
 //----------------------------------------------------------------------
@@ -2589,7 +2591,7 @@ const char * CAtlaParser::AnalyzeBattle_ParseUnit(const char * src, CUnit *& pUn
         }
 
         // now it can be one of the following which we are interested in:
-        //    behind 
+        //    behind
         //    leader [LEAD]
         //    4 leaders [LEAD]
         //    crossbow 5
@@ -2627,7 +2629,7 @@ const char * CAtlaParser::AnalyzeBattle_ParseUnit(const char * src, CUnit *& pUn
 
                 if (N1.IsInteger() && !S1.IsEmpty())
                 {
-                    S2 = gpDataHelper->ResolveAlias(S1.GetData()); 
+                    S2 = gpDataHelper->ResolveAlias(S1.GetData());
                     S2 << PRP_SKILL_POSTFIX; // That is a skill!
                     n = atol(N1.GetData());
                     SetUnitProperty(pUnit, S2.GetData(), eLong, (void*)n, eBoth);
@@ -2783,7 +2785,7 @@ void CAtlaParser::AnalyzeBattle(const char * src, CStr & Details)
         Defenders << Line << EOL_SCR;
     }
 
-    Details << EOL_SCR << EOL_SCR << "----------------------------------------------" 
+    Details << EOL_SCR << EOL_SCR << "----------------------------------------------"
             << EOL_SCR << "Statistics for the battle:" << EOL_SCR << EOL_SCR;
     Details << HDR_ATTACKERS << EOL_SCR;
     AnalyzeBattle_OneSide(Attackers.GetData(), Details);
@@ -3238,15 +3240,15 @@ int CAtlaParser::ParseLines(BOOL Join)
         if (ERR_OK!=err)
         {
             sErr.Empty();
-            sErr << "Error parsing report related to line " << (long)m_nCurLine  << EOL_SCR 
+            sErr << "Error parsing report related to line " << (long)m_nCurLine  << EOL_SCR
                  << "\"" << CurLine << "\"" << "." << EOL_SCR;
-                 
-            if (ERR_INV_TURN==err) 
+
+            if (ERR_INV_TURN==err)
                 sErr << EOL_SCR << "Joined reports must be for the same turn. This is intended for joining your ally reports.";
-                 
+
             LOG_ERR(ERR_PARSE, sErr.GetData());
-            
-            if (ERR_INV_TURN==err) 
+
+            if (ERR_INV_TURN==err)
                 break;
         }
     }
@@ -4252,7 +4254,7 @@ BOOL CAtlaParser::GenGiveEverything(CUnit * pFrom, const char * To)
             // ignore strings
             if (!pFrom->GetProperty(propname, type, (const void *&)amountorg, eOriginal) || eLong!=type)
                 continue;
-            x = min(amount, amountorg);
+            x = std::min(amount, amountorg);
             if (x<=0)
                 continue;
 
@@ -4499,7 +4501,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     CStr                N1(32), N(32), X, Y;
     char                ch;
 
-                                                                          
+
     p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
     if (0==stricmp("FACTION", N1.GetData()))
     {
@@ -4778,7 +4780,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                             pUnitNew->IsOurs     = TRUE;
                             pUnitNew->Name        << "NEW " << N1;
                             pUnitNew->Description << "Created by " << pUnit->Id;
-                            
+
                             // set attitude:
                             int attitude = gpDataHelper->GetAttitudeForFaction(pUnit->FactionId);
                             SetUnitProperty(pUnitNew,PRP_FRIEND_OR_FOE,eLong,(void *) attitude,eNormal);
@@ -6310,7 +6312,7 @@ void CAtlaParser::RunOrder_Sell(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
          // adjust weight
 //         if (gpDataHelper->GetItemWeights(S1.GetData(), weights, movenames, movecount))
 //             pUnit ->AddWeight(-n1, weights, movenames, movecount);
-         pUnit->CalcWeightsAndMovement(); 
+         pUnit->CalcWeightsAndMovement();
     } while (FALSE);
 
 }

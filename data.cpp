@@ -813,7 +813,7 @@ void CUnit::ResetNormalProperties()
 void CUnit::AddWeight(int nitems, int * weights, const char ** movenames, int nweights)
 {
     int  i;
-    int  NW = min(nweights, MOVE_MODE_MAX);
+    int  NW = std::min(nweights, MOVE_MODE_MAX);
 
     for (i=0; i<NW; i++)
         Weight[i] += nitems*weights[i];
@@ -821,7 +821,7 @@ void CUnit::AddWeight(int nitems, int * weights, const char ** movenames, int nw
 
 //-------------------------------------------------------------
 
-void CUnit::CalcWeightsAndMovement() 
+void CUnit::CalcWeightsAndMovement()
 {
     int           idx;
     const char  * propname;
@@ -832,7 +832,7 @@ void CUnit::CalcWeightsAndMovement()
     const void  * n;
     CStr          sValue;
     int           i;
-    
+
     memset(Weight, 0, sizeof(Weight));
     SetProperty(PRP_MOVEMENT, eCharPtr, "", eNormal);
 
@@ -853,10 +853,10 @@ void CUnit::CalcWeightsAndMovement()
 
         propname = GetPropertyName(++idx);
     }
-    
+
     if (!movenames)
         return;
-    
+
     // adjust for wagons if needed
     i = 3;
     if (Weight[0])
@@ -883,11 +883,11 @@ void CUnit::CalcWeightsAndMovement()
             }
             propname = GetPropertyName(++idx);
         }
-        int nAdjust = min(nHorses, nWagons);
+        int nAdjust = std::min(nHorses, nWagons);
         if (nAdjust>0)
             Weight[1] += nAdjust*gpDataHelper->WagonCapacity();
     }
-    
+
     // Set movement name
     sValue.Empty();
     if (Weight[0])
@@ -902,7 +902,7 @@ void CUnit::CalcWeightsAndMovement()
 
     if (Weight[4] >= Weight[0]) // can swim
         sValue << ',' << movenames[4];
-    
+
     SetProperty(PRP_MOVEMENT, eCharPtr, sValue.GetData(), eNormal);
 }
 
@@ -923,7 +923,7 @@ void CUnit::CheckWeight(CStr & sErr)
             broken = i;
             break;
         }
-        
+
     if (broken && broken<MOVE_MODE_MAX-2) // if flying broken, that is final. MOVE_MODE_MAX-2 is flying
     {
         // maybe there is good higher level movement mode?
@@ -935,11 +935,11 @@ void CUnit::CheckWeight(CStr & sErr)
                 break;
             }
     }
-    
+
     if (broken)
         sErr << " - Could " << movenames[broken] << " but is overloaded.";
-        
-        
+
+
 }
 
 //-------------------------------------------------------------

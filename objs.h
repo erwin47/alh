@@ -37,15 +37,6 @@ enum EPropertyType
     eBoth
 };
 
-#ifndef min
-#define min(x,y) ( ((x) < (y)) ? (x) : (y) )
-#endif
-
-#ifndef max
-#define max(x,y) ( ((x) > (y)) ? (x) : (y) )
-#endif
-
-
 #define MAX_PROP_COLL_KEYS  16
 
 // property errors
@@ -53,8 +44,8 @@ enum EPropertyType
 #define PE_OK              ( 0)
 #define PE_NOT_IMPLEMENTED (-1)
 #define PE_INV_NAME        (-2)
-#define PE_INV_VALUE_TYPE  (-3)      
-#define PE_INV_PROP_TYPE   (-4)      
+#define PE_INV_VALUE_TYPE  (-3)
+#define PE_INV_PROP_TYPE   (-4)
 
 //=============================================================
 
@@ -88,7 +79,7 @@ public:
     virtual ~CStrIntColl() {FreeAll();};
 protected:
     virtual void FreeItem(void * pItem) {if (pItem) delete (CStrInt*)pItem;};
-    virtual int Compare(void * pItem1, void * pItem2) 
+    virtual int Compare(void * pItem1, void * pItem2)
     {
         return SafeCmp( ((CStrInt*)pItem1)->m_key,  ((CStrInt*)pItem2)->m_key );
     };
@@ -129,7 +120,7 @@ public:
     virtual ~CStrStrColl() {FreeAll();};
 protected:
     virtual void FreeItem(void * pItem) {if (pItem) delete (CStrStr*)pItem;};
-    virtual int Compare(void * pItem1, void * pItem2) 
+    virtual int Compare(void * pItem1, void * pItem2)
     {
         return SafeCmp( ((CStrStr*)pItem1)->m_key,  ((CStrStr*)pItem2)->m_key );
     };
@@ -146,7 +137,7 @@ public:
     virtual ~CStrStrColl2() {FreeAll();};
 protected:
     virtual void FreeItem(void * pItem) {if (pItem) delete (CStrStr*)pItem;};
-    virtual int Compare(void * pItem1, void * pItem2) 
+    virtual int Compare(void * pItem1, void * pItem2)
     {
         int x = SafeCmp( ((CStrStr*)pItem1)->m_key,  ((CStrStr*)pItem2)->m_key );
         if (0==x)
@@ -184,9 +175,9 @@ public:
     TProperty();
     TProperty(const char * name, EValueType type, const void * value);
     ~TProperty();
-    
+
     int     SetValue(EValueType     type,
-                     const void  *  value, 
+                     const void  *  value,
                      EPropertyType  proptype = eNormal
                     );
 
@@ -212,7 +203,7 @@ protected:
 
 class TPropertyHolder : public TObject
 {
-public: 
+public:
     TPropertyHolder();
     virtual ~TPropertyHolder();
 
@@ -223,7 +214,7 @@ public:
                             );
     virtual int  SetProperty(const char  *  name,
                              EValueType     type,
-                             const void  *  value, 
+                             const void  *  value,
                              EPropertyType  proptype = eNormal
                             );
     virtual void DelProperty(const char  *  name);

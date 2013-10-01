@@ -4651,9 +4651,9 @@ void CAhApp::FindTradeRoutes()
                         Report << pSellLand->TerrainType << " (" << sCoord << ") " << EOL_SCR;
                         m_pAtlantis->ComposeLandStrCoord(pBuyLand, sCoord);
                         Report << "         to " << pBuyLand->TerrainType << " (" << sCoord << ")   ("
-                               << nBuyPrice << "-" << nSalePrice << ")*" << min(nSaleAmount,nBuyAmount)
+                               << nBuyPrice << "-" << nSalePrice << ")*" << std::min(nSaleAmount,nBuyAmount)
                                << " " << GoodsName
-                               << " = " << (nBuyPrice - nSalePrice) * min(nSaleAmount,nBuyAmount) << EOL_SCR;
+                               << " = " << (nBuyPrice - nSalePrice) * std::min(nSaleAmount,nBuyAmount) << EOL_SCR;
                     }
                 }
             }

@@ -421,5 +421,5 @@ enum
 #define SZ_ICONS_ADVANCED                "ADVANCED"
 #define SZ_ICONS_SIMPLE                  "SIMPLE"
 
-#define SZ_MANUAL_HEX_PROVINCE           "_Unknown_Temp_"            
+#define SZ_MANUAL_HEX_PROVINCE           "_Unknown_Temp_"
 #endif

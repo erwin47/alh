@@ -98,7 +98,7 @@ void MakePathFull(const char * cur_dir, CStr & path);
 void GetDirFromPath(const char * path, CStr & dir);
 void GetFileFromPath(const char * path, CStr & file);
 
-#define APPLY_COLOR_DELTA(x) ((unsigned char )(max(min((int)x-gpApp->m_Brightness_Delta,255),0)))
+#define APPLY_COLOR_DELTA(x) ((unsigned char )(std::max(std::min((int)(x-gpApp->m_Brightness_Delta),255),0)))
 
 
 

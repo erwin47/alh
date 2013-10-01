@@ -17,6 +17,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <algorithm>
 
 #include "stdlib.h"
 #include "string.h"
@@ -61,7 +62,7 @@ TProperty::~TProperty()
 {
     if (m_name)
         free((void*)m_name);
-    if (eCharPtr==m_type) 
+    if (eCharPtr==m_type)
     {
         if (m_value)
             free(m_value);
@@ -73,7 +74,7 @@ TProperty::~TProperty()
 //-------------------------------------------------------------------
 
 int TProperty::SetValue(EValueType     type,
-                        const void  *  value, 
+                        const void  *  value,
                         EPropertyType  proptype
                         )
 {
@@ -109,7 +110,7 @@ int TProperty::SetValue(EValueType     type,
 
 //===================================================================
 
-int TPropertyColl::Compare(void * pItem1, void * pItem2) 
+int TPropertyColl::Compare(void * pItem1, void * pItem2)
 {
     return stricmp( ((TProperty*)pItem1)->m_name,  ((TProperty*)pItem2)->m_name );
 }
@@ -133,8 +134,8 @@ TPropertyHolder::~TPropertyHolder()
 BOOL TPropertyHolder::GetJustProperty(const char    *  name,
                                       EValueType     & valuetype,
                                       const void    *& value, // returns pointer to inner location
-                                      EPropertyType    proptype 
-                                     )       
+                                      EPropertyType    proptype
+                                     )
 {
     TProperty   Dummy;
     TProperty * pProp;
@@ -180,8 +181,8 @@ const char * TPropertyHolder::GetPropertyName(int no)
 BOOL TPropertyHolder::GetProperty(const char    *  name,
                                   EValueType     & valuetype,
                                   const void    *& value, // returns pointer to inner location
-                                  EPropertyType    proptype 
-                                  )       
+                                  EPropertyType    proptype
+                                  )
 {
     BOOL        Ok = FALSE;
 
@@ -220,7 +221,7 @@ BOOL TPropertyHolder::GetProperty(const char    *  name,
         }
         SSDummy.m_key = NULL;
     }
-    
+
     return Ok;
 }
 
@@ -228,8 +229,8 @@ BOOL TPropertyHolder::GetProperty(const char    *  name,
 
 int  TPropertyHolder::SetProperty(const char  *  name,
                                   EValueType     type,
-                                  const void  *  value, 
-                                  EPropertyType  proptype 
+                                  const void  *  value,
+                                  EPropertyType  proptype
                                  )
 {
     TProperty   Dummy;
@@ -257,7 +258,7 @@ int  TPropertyHolder::SetProperty(const char  *  name,
         pProp = new TProperty(name, type, value);
         m_Properties.Insert(pProp);
     }
-    
+
     Dummy.m_name = NULL;
     return err;
 }
@@ -294,7 +295,7 @@ void TPropertyHolder::ResetNormalProperties()
 
 //===================================================================
 
-TPropertyHolderColl::TPropertyHolderColl() : CResortableCollection() 
+TPropertyHolderColl::TPropertyHolderColl() : CResortableCollection()
 {
     m_bDuplicates = TRUE;
     m_KeyCount    = 0;
@@ -309,7 +310,7 @@ TPropertyHolderColl::TPropertyHolderColl(int nDelta) : CResortableCollection(nDe
     m_KeyCount    = 0;
     memset(m_Key, 0, sizeof(m_Key));
 }
-                                   
+
 //-------------------------------------------------------------------
 
 TPropertyHolderColl::~TPropertyHolderColl()
@@ -323,7 +324,7 @@ void TPropertyHolderColl::ClearKeys()
 {
     int i;
 
-    for (i=0; i<min(m_KeyCount,MAX_PROP_COLL_KEYS); i++)
+    for (i=0; i<std::min(m_KeyCount,MAX_PROP_COLL_KEYS); i++)
         if (m_Key[i])
         {
             free(m_Key[i]);
@@ -339,7 +340,7 @@ void TPropertyHolderColl::SetSortMode(const char ** keys, int keycount)
     int i;
 
     ClearKeys();
-    for (i=0; i<min(keycount,MAX_PROP_COLL_KEYS); i++)
+    for (i=0; i<std::min(keycount,MAX_PROP_COLL_KEYS); i++)
         if (keys[i] && *keys[i])
             m_Key[m_KeyCount++] = strdup(keys[i]);
 
@@ -361,7 +362,7 @@ int TPropertyHolderColl::Compare(void * pItem1, void * pItem2)
     int               n, x;
     const void      * p1,  * p2;
     BOOL              Ok1,   Ok2;
-    EValueType        t1,    t2; 
+    EValueType        t1,    t2;
 
     // are both pointers ok?
     if (!pItem1)
@@ -373,11 +374,11 @@ int TPropertyHolderColl::Compare(void * pItem1, void * pItem2)
         if (!pItem2)
             return 1;
 
-    for (n=0; n<min(m_KeyCount, MAX_PROP_COLL_KEYS); n++)
+    for (n=0; n<std::min(m_KeyCount, MAX_PROP_COLL_KEYS); n++)
     {
         Ok1 = ((TPropertyHolder*)pItem1)->GetProperty(m_Key[n], t1, p1);
         Ok2 = ((TPropertyHolder*)pItem2)->GetProperty(m_Key[n], t2, p2);
-    
+
         // do we have both properties?
         if (!Ok1)
             if (!Ok2)
@@ -387,14 +388,14 @@ int TPropertyHolderColl::Compare(void * pItem1, void * pItem2)
         else
             if (!Ok2)
                 return 1;
-        
+
         // are the properties of the same type?
         if (t1!=t2)
             continue;
 
         switch (t1)
         {
-        case eLong:  
+        case eLong:
             if ( (long)p1 > (long)p2 )
                 return 1;
             else
@@ -417,7 +418,7 @@ int TPropertyHolderColl::Compare(void * pItem1, void * pItem2)
             break;
         default:
             return 0; // can not compare...
-        
+
         }
     }
     return 0;
