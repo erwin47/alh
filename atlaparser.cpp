@@ -4650,7 +4650,10 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     S1 = SkipSpaces(++p);
                     S1.TrimRight(TRIM_ALL);
                     skiperror = (0==stricmp(S1.GetData(),"ne") || 0==stricmp(S1.GetData(),"$ne"));
-                    RunPseudoComment(sequence, pLand, pUnit, S1.GetData());
+                    if (!nNestingMode)
+                    {
+                        RunPseudoComment(sequence, pLand, pUnit, S1.GetData());
+                    }
                     Line.DelSubStr(p-Line.GetData()-1, Line.GetLength() - (p-Line.GetData()-1) );
                 }
                 else
