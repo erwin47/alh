@@ -54,6 +54,10 @@ const char * STD_UNIT_PROPS [] =
     PRP_STRUCT_NAME          ,
     PRP_TEACHING             ,
     PRP_WEIGHT               ,
+    PRP_WEIGHT_WALK          ,
+    PRP_WEIGHT_RIDE          ,
+    PRP_WEIGHT_FLY           ,
+    PRP_WEIGHT_SWIM          ,
     PRP_MOVEMENT             ,
     PRP_DESCRIPTION          ,
     PRP_COMBAT               ,
@@ -1079,6 +1083,26 @@ BOOL CUnit::GetProperty(const char  *  name,
         {
             type  = eLong;
             value = (void*)Weight[0];
+        }
+        else if (0==stricmp(name, PRP_WEIGHT_WALK ))
+        {
+            type  = eLong;
+            value = (void*)(Weight[1] - Weight[0]);
+        }
+        else if (0==stricmp(name, PRP_WEIGHT_RIDE ))
+        {
+            type  = eLong;
+            value = (void*)(Weight[2] - Weight[0]);
+        }
+        else if (0==stricmp(name, PRP_WEIGHT_FLY ))
+        {
+            type  = eLong;
+            value = (void*)(Weight[3] - Weight[0]);
+        }
+        else if (0==stricmp(name, PRP_WEIGHT_SWIM ))
+        {
+            type  = eLong;
+            value = (void*)(Weight[4] - Weight[0]);
         }
         else if (0==stricmp(name, PRP_TEACHING ))
         {

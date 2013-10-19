@@ -49,6 +49,10 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define PRP_STRUCT_NAME                 "structname"
 #define PRP_TEACHING                    "teaching"
 #define PRP_WEIGHT                      "weight"
+#define PRP_WEIGHT_WALK                 "weight_walk"
+#define PRP_WEIGHT_RIDE                 "weight_ride"
+#define PRP_WEIGHT_FLY                  "weight_fly"
+#define PRP_WEIGHT_SWIM                 "weight_swim"
 #define PRP_MOVEMENT                    "movement"
 #define PRP_SILVER                      "silv"
 #define PRP_LEADER                      "leadership"
@@ -378,7 +382,7 @@ public:
     virtual void DebugPrint(CStr & sDest);
 protected:
     void    AddWeight(int nitems, int * weights, const char ** movenames, int nweights);
-    
+
     static CStr     m_CustomFlagNames[UNIT_CUSTOM_FLAG_COUNT];
     static BOOL     m_CustomFlagNamesLoaded;
 

@@ -447,7 +447,7 @@ void CAhApp::CreateAccelerator()
     entries[2].Set(wxACCEL_CTRL,  (int)'P',     accel_PrevUnit );
     entries[3].Set(wxACCEL_CTRL,  (int)'U',     accel_UnitList );
     entries[4].Set(wxACCEL_CTRL,  (int)'O',     accel_Orders   );
-    
+
     m_pAccel = new wxAcceleratorTable(5, entries);
 }
 
@@ -492,7 +492,7 @@ void CAhApp::ApplyIcons()
 {
     if (m_Panes[AH_PANE_MAP          ]) ((CMapPane *)m_Panes[AH_PANE_MAP          ])->ApplyIcons();
 }
-        
+
 //-------------------------------------------------------------------------
 
 void CAhApp::OpenOptionsDlg()
@@ -2213,7 +2213,7 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
         for (x=0; x<pLand->Units.Count(); x++)
         {
             pUnit = (CUnit*)pLand->Units.At(x);
-            if (pUnit->Flags & UNIT_FLAG_PRODUCING) 
+            if (pUnit->Flags & UNIT_FLAG_PRODUCING)
             {
                 Dummy.FactionId = pUnit->FactionId;
                 if (TradeDetails.Search(&Dummy, idx))
@@ -2532,6 +2532,10 @@ void CAhApp::PostLoadReport()
     SET_UNIT_PROP_NAME(PRP_SEQUENCE          , eLong   )
     SET_UNIT_PROP_NAME(PRP_FRIEND_OR_FOE     , eLong   )
     SET_UNIT_PROP_NAME(PRP_WEIGHT            , eLong   )
+    SET_UNIT_PROP_NAME(PRP_WEIGHT_WALK       , eLong   )
+    SET_UNIT_PROP_NAME(PRP_WEIGHT_RIDE       , eLong   )
+    SET_UNIT_PROP_NAME(PRP_WEIGHT_FLY        , eLong   )
+    SET_UNIT_PROP_NAME(PRP_WEIGHT_SWIM       , eLong   )
     SET_UNIT_PROP_NAME(PRP_DESCRIPTION       , eCharPtr)
     SET_UNIT_PROP_NAME(PRP_COMBAT            , eCharPtr)
     SET_UNIT_PROP_NAME(PRP_MOVEMENT          , eCharPtr)
@@ -2609,7 +2613,7 @@ void CAhApp::PostLoadReport()
         pUnitPaneF->Update(NULL);
 
     CheckRedirectedOutputFiles();
-    
+
     if (!m_pAtlantis->m_SecurityEvents.Description.IsEmpty())
         m_pAtlantis->m_SecurityEvents.Description << EOL_SCR << EOL_SCR;
 }
@@ -2817,7 +2821,7 @@ void CAhApp::SelectTempUnit(CUnit * pUnit)
     CEditPane   * pOrders      = (CEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS];
     CEditPane   * pComments    = (CEditPane*)m_Panes[AH_PANE_UNIT_COMMENTS];
 
-    OnUnitHexSelectionChange(-1); // unselect   
+    OnUnitHexSelectionChange(-1); // unselect
     m_UnitDescrSrc.Empty();
 
     if (pUnit)
@@ -3107,18 +3111,18 @@ BOOL CAhApp::CanSwitchToRep(eRepSeq whichrep, int & RepIdx)
 BOOL CAhApp::GetPrevTurnReport(CAtlaParser *& pPrevTurn)
 {
     int idx;
-    
+
     pPrevTurn = NULL;
-        
+
     if (CanSwitchToRep(repPrev, idx))
     {
         char          Dummy[sizeof(CAtlaParser)];
         CAtlaParser * pDummy  = (CAtlaParser *)Dummy;
         int           i;
         CStr          S, S2;
-    
+
         long YearMon = (long)m_ReportDates.At(idx);
-    
+
         pDummy->m_YearMon = YearMon;
         if (m_Reports.Search(pDummy, i))
         {
@@ -3128,7 +3132,7 @@ BOOL CAhApp::GetPrevTurnReport(CAtlaParser *& pPrevTurn)
         {
             S.Empty();
             S << YearMon;
-    
+
             S2 = GetConfig(SZ_SECT_REPORTS, S.GetData());
             const char * p = S2.GetData();
             BOOL         join = FALSE;
@@ -3619,7 +3623,7 @@ void CAhApp::ViewSecurityEvents()
     ShowDescriptionList(Coll, "Security Events");
 
     Coll.DeleteAll();*/
-    
+
         m_MsgSrc.Empty();
         ShowError(m_pAtlantis->m_SecurityEvents.Description.GetData(), m_pAtlantis->m_SecurityEvents.Description.GetLength(), TRUE);
 }
@@ -3764,7 +3768,7 @@ void CAhApp::ViewFactionOverview_IncrementValue(long FactionId, const char * fac
     int             idx;
     EValueType      type;
     const void    * valuetot;
-    
+
     Dummy.Id = FactionId;
     if (Factions.Search(&Dummy, idx))
         pFaction = (CBaseObject*)Factions.At(idx);
@@ -3785,7 +3789,7 @@ void CAhApp::ViewFactionOverview_IncrementValue(long FactionId, const char * fac
     else
         valuetot = (void*)((long)valuetot + (long)value);
     pFaction->SetProperty(propname, eLong, valuetot, eNormal);
-}                    
+}
 
 //--------------------------------------------------------------------------
 
@@ -3864,19 +3868,19 @@ void CAhApp::ViewFactionOverview()
                         if (propname.FindSubStrR(PRP_SKILL_POSTFIX) == propname.GetLength()-skilllen)
                         {
                                 // it is a skill
-    
+
                             propname << (long)value;
                             value    = (void*)men;
                         }
-                        else 
+                        else
                             if (IsASkillRelatedProperty(propname.GetData()))
                                 break;
-    
+
                         if (propname.GetLength() > maxproplen)
                             maxproplen = propname.GetLength();
-    
+
                         ViewFactionOverview_IncrementValue(pUnit->FactionId, pUnit->pFaction ? pUnit->pFaction->Name.GetData() : NULL, Factions, propname.GetData(), (long)value);
-                        
+
                     } while (FALSE);
 
             }
@@ -3890,7 +3894,7 @@ void CAhApp::ViewFactionOverview()
                 else
                     ViewFactionOverview_IncrementValue(pUnit->FactionId, pUnit->pFaction ? pUnit->pFaction->Name.GetData() : NULL, Factions, "Front Line", men);
             }
-            
+
 
             /*
             propidx  = 0;
@@ -4337,20 +4341,20 @@ void CAhApp::AddTempHex(int X, int Y, int Plane)
     CLand  * pCurLand = m_pAtlantis->GetLand(X, Y, Plane, TRUE);
     if (pCurLand)
         return;
-        
+
     CPlane * pPlane = (CPlane*)m_pAtlantis->m_Planes.At(Plane);
     if (!pPlane)
         return;
-        
+
     assert(Plane == pPlane->Id);
-    
+
     CStr     sTerrain;
     wxString strTerrain = wxGetTextFromUser(wxT("Terrain"), wxT("Please specify terrain type"));
     sTerrain = strTerrain.mb_str();
-        
+
     if (sTerrain.IsEmpty())
-        return;    
-        
+        return;
+
     CLand * pLand       = new CLand;
     pLand->ExitBits     = 0xFF;
     pLand->Id           = LandCoordToId ( X,Y, pPlane->Id );
@@ -4370,13 +4374,13 @@ void CAhApp::DelTempHex(int X, int Y, int Plane)
     CLand  * pCurLand = m_pAtlantis->GetLand(X, Y, Plane, TRUE);
     if (!pCurLand)
         return;
-        
+
     CPlane * pPlane = (CPlane*)m_pAtlantis->m_Planes.At(Plane);
     if (!pPlane)
         return;
-        
+
     assert(Plane == pPlane->Id);
-    
+
     if (pPlane->Lands.Search(pCurLand, idx))
         pPlane->Lands.AtFree(idx);
 }
@@ -4595,51 +4599,51 @@ void CAhApp::FindTradeRoutes()
     const void  * value;
     CStr          GoodsName(32), PropName(32), sCoord(32);
     long          nSaleAmount, nSalePrice, nBuyAmount, nBuyPrice;
-    
+
     if (!pMapPane)
         return;
     wxBeginBusyCursor();
-    
+
     pMapPane->GetSelectedOrAllHexes(Hexes, TRUE);
     if (0==Hexes.Count())
         wxMessageBox(wxT("Please select area on the map first."));
     for (i=0; i<Hexes.Count(); i++)
     {
         pSellLand = (CLand*)Hexes.At(i);
-        
+
         idx      = 0;
         propnameprice = pSellLand->GetPropertyName(idx);
         while (propnameprice)
         {
-            if (pSellLand->GetProperty(propnameprice, type, value, eOriginal) && 
-                eLong==type && 
+            if (pSellLand->GetProperty(propnameprice, type, value, eOriginal) &&
+                eLong==type &&
                 0==strncmp(propnameprice, PRP_SALE_PRICE_PREFIX, sizeof(PRP_SALE_PRICE_PREFIX)-1))
             {
                 nSalePrice = (long)value;
                 GoodsName = &(propnameprice[sizeof(PRP_SALE_PRICE_PREFIX)-1]);
-                
-                PropName.Empty(); 
+
+                PropName.Empty();
                 PropName << PRP_SALE_AMOUNT_PREFIX << GoodsName;
                 if (!pSellLand->GetProperty(PropName.GetData(), type, value, eOriginal) || eLong!=type)
                     continue;
                 nSaleAmount = (long)value;
-                
+
                 for (j=0; j<Hexes.Count(); j++)
                 {
                     pBuyLand = (CLand*)Hexes.At(j);
-                    
-                    PropName.Empty(); 
+
+                    PropName.Empty();
                     PropName << PRP_WANTED_PRICE_PREFIX << GoodsName;
                     if (!pBuyLand->GetProperty(PropName.GetData(), type, value, eOriginal) || eLong!=type)
                         continue;
                     nBuyPrice = (long)value;
-                    
-                    PropName.Empty(); 
+
+                    PropName.Empty();
                     PropName << PRP_WANTED_AMOUNT_PREFIX << GoodsName;
                     if (!pBuyLand->GetProperty(PropName.GetData(), type, value, eOriginal) || eLong!=type)
                         continue;
                     nBuyAmount = (long)value;
-                    
+
                     if (nBuyPrice > nSalePrice)
                     {
                         m_pAtlantis->ComposeLandStrCoord(pSellLand, sCoord);
@@ -4655,7 +4659,7 @@ void CAhApp::FindTradeRoutes()
             propnameprice = pSellLand->GetPropertyName(++idx);
         }
     }
-    
+
     if (Report.IsEmpty())
         wxMessageBox(wxT("No trade routes found."));
     else
@@ -4846,7 +4850,7 @@ void CAhApp::InitMoveModes()
 
 void CAhApp::SelectNextUnit()
 {
-    if (m_Panes[AH_PANE_UNITS_HEX]) 
+    if (m_Panes[AH_PANE_UNITS_HEX])
         ((CUnitPane*)m_Panes[AH_PANE_UNITS_HEX])->SelectNextUnit();
 }
 
@@ -4854,7 +4858,7 @@ void CAhApp::SelectNextUnit()
 
 void CAhApp::SelectPrevUnit()
 {
-    if (m_Panes[AH_PANE_UNITS_HEX]) 
+    if (m_Panes[AH_PANE_UNITS_HEX])
         ((CUnitPane*)m_Panes[AH_PANE_UNITS_HEX])->SelectPrevUnit();
 }
 
@@ -4862,7 +4866,7 @@ void CAhApp::SelectPrevUnit()
 
 void CAhApp::SelectUnitsPane()
 {
-    if (m_Panes[AH_PANE_UNITS_HEX]) 
+    if (m_Panes[AH_PANE_UNITS_HEX])
         ((CUnitPane*)m_Panes[AH_PANE_UNITS_HEX])->SetFocus();
 }
 
@@ -4870,7 +4874,7 @@ void CAhApp::SelectUnitsPane()
 
 void CAhApp::SelectOrdersPane()
 {
-    if (m_Panes[AH_PANE_UNIT_COMMANDS]) 
+    if (m_Panes[AH_PANE_UNIT_COMMANDS])
         ((CUnitPane*)m_Panes[AH_PANE_UNIT_COMMANDS])->SetFocus();
 }
 
@@ -5198,7 +5202,7 @@ void MakePathFull(const char * cur_dir, CStr & path)
 {
     CStr full_path;
     CStr rel_path;
-    
+
     full_path = cur_dir;
     rel_path = path;
 
@@ -5210,7 +5214,7 @@ void MakePathFull(const char * cur_dir, CStr & path)
         if (rel_path.GetData()[0]=='.' && rel_path.GetData()[1]==SEP)
             rel_path.DelSubStr(0,2);
     }
-    
+
     path = full_path;
     path << rel_path;
 }
@@ -5246,7 +5250,7 @@ void GetDirFromPath(const char * path, CStr & dir)
 void GetFileFromPath(const char * path, CStr & file)
 {
     const char * p = strrchr(path, SEP);
-    
+
     file.Empty();
     if (p && *p)
     {
