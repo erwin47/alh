@@ -6193,6 +6193,7 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
             if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitmoney, eNormal) )
             {
                 unitmoney = 0;
+                type = eLong;
                 if (PE_OK!=pUnit->SetProperty(PRP_SILVER, type, (const void*)unitmoney, eBoth))
                     SHOW_WARN_CONTINUE(NOSETUNIT << pUnit->Id << BUG);
             }
