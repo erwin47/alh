@@ -6444,14 +6444,14 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
         }
 
     SomeChecks:
+        if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal) || (eLong!=type) || (nmen<=0))
+            SHOW_WARN_CONTINUE(" - There are no men in the unit!");
+
         if (O_SAIL == order)
         {
             // ship's sailing power
             if (!pUnit->GetProperty(PRP_STRUCT_ID, type, (const void *&)structid, eNormal) || (eLong!=type))
                 SHOW_WARN_CONTINUE(" - Must be in a ship to issue SAIL order!");
-
-            if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal) || (eLong!=type) || (nmen<=0))
-                SHOW_WARN_CONTINUE(" - There are no men in the unit!");
 
             S = "SAIL"; S << PRP_SKILL_POSTFIX;
             if (!pUnit->GetProperty(S.GetData(), type, (const void *&)skill, eNormal) || (eLong!=type) || (skill<=0))
