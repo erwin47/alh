@@ -4786,7 +4786,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                             pUnitNew->Flags      = pUnit->Flags;
                             pUnitNew->IsOurs     = TRUE;
                             pUnitNew->Name        << "NEW " << N1;
-                            pUnitNew->Description << "Created by " << pUnit->Id;
+                            pUnitNew->Description << "Created by " << pUnit->Name << " (" << pUnit->Id << ")";
 
                             // set attitude:
                             int attitude = gpDataHelper->GetAttitudeForFaction(pUnit->FactionId);
@@ -5867,7 +5867,7 @@ void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
         }
         else
             SHOW_WARN_CONTINUE(" - Invalid unit id");
-         
+
         if (pUnit2 && pUnit->FactionId!=pUnit2->FactionId)
             SHOW_WARN_CONTINUE(" - Target unit must belong to the same faction");
 
