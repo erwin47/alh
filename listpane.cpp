@@ -205,15 +205,16 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
                 info.m_format = (layoutitem->m_Flags&LIST_FLAG_ALIGN_RIGHT)?wxLIST_FORMAT_RIGHT:wxLIST_FORMAT_LEFT;
                 info.m_mask  |= wxLIST_MASK_FORMAT;
 
+                if (dataitem->GetProperty( PRP_ID, valuetype, value ) && (eLong==valuetype))
+                {
+                    info.m_data  = (long)value;
+                    info.m_mask |= wxLIST_MASK_DATA;
+                    if ((sel_by_id==selmode) && (selno<0) && ((long)value==seldata))
+                        selno = row;
+                }
+
                 if ( (0==col) && (row>=GetItemCount()) )
                 {
-                    if (dataitem->GetProperty( PRP_ID, valuetype, value ) && (eLong==valuetype))
-                    {
-                        info.m_data  = (long)value;
-                        info.m_mask |= wxLIST_MASK_DATA;
-                        if ((sel_by_id==selmode) && (selno<0) && ((long)value==seldata))
-                            selno = row;
-                    }
                     if ((sel_by_no==selmode) && (selno<0) && (row==seldata))
                         selno = row;
 
