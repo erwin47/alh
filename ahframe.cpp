@@ -19,6 +19,8 @@
 
 #include "stdhdr.h"
 
+#include <wx/display.h>
+
 #include "cstr.h"
 #include "collection.h"
 #include "cfgfile.h"
@@ -97,6 +99,12 @@ void CAhFrame::Init(int layout, const char * szConfigSection)
             y = y_old;
         }
         gpApp->SetConfig(szConfigSection, SZ_KEY_USE_SAVED_POS, "1");
+    }
+
+    if (wxDisplay::GetFromPoint(wxPoint(x, y)) == wxNOT_FOUND)
+    {
+        x = 0;
+        y = 0;
     }
 
     SetSize(x, y, w, h, wxSIZE_ALLOW_MINUS_ONE);
@@ -208,6 +216,12 @@ void CResizableDlg::SetSize()
         h = atol(gpApp->GetConfig(m_sConfigSection.GetData(), SZ_KEY_Y2)) - y;
     }
 
+    if (wxDisplay::GetFromPoint(wxPoint(x, y)) == wxNOT_FOUND)
+    {
+        x = 0;
+        y = 0;
+    }
+
     wxDialog::SetSize(x, y, w, h, wxSIZE_ALLOW_MINUS_ONE);
 }
 
@@ -217,6 +231,12 @@ void CResizableDlg::SetPos()
 
     x = atol(gpApp->GetConfig(m_sConfigSection.GetData(), SZ_KEY_X1));
     y = atol(gpApp->GetConfig(m_sConfigSection.GetData(), SZ_KEY_Y1));
+
+    if (wxDisplay::GetFromPoint(wxPoint(x, y)) == wxNOT_FOUND)
+    {
+        x = 0;
+        y = 0;
+    }
 
     wxDialog::Move(x, y);
 }
