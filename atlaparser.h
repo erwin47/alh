@@ -165,6 +165,7 @@ public:
     CFaction * GetFaction(int id);
     BOOL       SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane, SAVE_HEX_OPTIONS * pOptions);
     long       SkillDaysToLevel(long days);
+    CUnit *    SplitUnit(CUnit * pOrigUnit, long newId);
     BOOL       CheckResourcesForProduction(CUnit * pUnit, CLand * pLand, CStr & Error);
 
 

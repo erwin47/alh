@@ -191,7 +191,7 @@ void CUnitSplitDlg::OnOk(wxCommandEvent& event)
     while (p && *p)
     {
         p = SkipSpaces(S.GetToken(p, '\n', TRIM_ALL));
-        Cmd << "   " << S << EOL_SCR;
+        Cmd << S << EOL_SCR;
     }
 
     m_pUnit->Orders.TrimRight(TRIM_ALL);
@@ -200,9 +200,9 @@ void CUnitSplitDlg::OnOk(wxCommandEvent& event)
 
     for (i=0; i<m_spinUnitCount->GetValue(); i++)
     {
-        m_pUnit->Orders << "FORM " << (long)(id+i) << EOL_SCR;
-        m_pUnit->Orders << Cmd;
-        m_pUnit->Orders << "END" << EOL_SCR;
+        CUnit * pUnitNew = gpApp->m_pAtlantis->SplitUnit(m_pUnit, id+i);
+        if (pUnitNew)
+            pUnitNew->Orders << Cmd;
 
         for (idx=0; idx<m_SplitControls.Count(); idx++ )
         {

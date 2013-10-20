@@ -204,11 +204,11 @@ void CUnitPaneFltr::Update(CUnitFilterDlg * pFilter)
     {
         if (!gpApp->GetPrevTurnReport(pPrevTurn))
             goto Failed;
-        
+
         CUnitPane * pUnitPane = (CUnitPane*)gpApp->m_Panes[AH_PANE_UNITS_HEX];
         if (!pUnitPane)
             goto Failed;
-            
+
         if (Selected)
             pMapPane->GetSelectedOrAllHexes(Hexes, Selected);
         else
@@ -218,14 +218,14 @@ void CUnitPaneFltr::Update(CUnitFilterDlg * pFilter)
                 goto Failed;
             Hexes.Insert(pLand);
         }
-            
+
         for (nl=0; nl<Hexes.Count(); nl++)
         {
             pLand = (CLand*)Hexes.At(nl);
             pPrevLand = pPrevTurn->GetLand(pLand->Id);
             if (!pPrevLand)
                 goto Failed;
-                
+
             for (unitidx=0; unitidx<pPrevLand->Units.Count(); unitidx++)
             {
                 ok    = FALSE;
@@ -247,7 +247,7 @@ void CUnitPaneFltr::Update(CUnitFilterDlg * pFilter)
                     pUnit->Description.InsStr("-=DISAPPEARED=- ", 0);
                     pUnit->Flags |= UNIT_FLAG_TEMP;
                 }
-    
+
                 if (ok)
                 {
                     InsertUnit(pUnit);
@@ -271,7 +271,7 @@ void CUnitPaneFltr::Update(CUnitFilterDlg * pFilter)
             {
                 pUnit = (CUnit*)pLand->Units.At(unitidx);
                 ok    = TRUE;
-    
+
                 if (!TrackingGroup.IsEmpty())
                     ok = Tracking.Search((void*)pUnit->Id, i);
                 else if (bUsePython)
@@ -282,7 +282,7 @@ void CUnitPaneFltr::Update(CUnitFilterDlg * pFilter)
                 }
                 else
                     ok = EvaluateBaseObjectByBoxes(pUnit, Property, CompareOp, sValue, lValue, UNIT_SIMPLE_FLTR_COUNT);
-    
+
                 if (ok)
                 {
                     InsertUnit(pUnit);
@@ -359,11 +359,6 @@ void CUnitPaneFltr::InsertUnitInit()
 
 void CUnitPaneFltr::InsertUnit(CUnit * pUnit)
 {
-    if (IS_NEW_UNIT(pUnit))
-    {
-        pUnit = pUnit->AllocSimpleCopy();
-        m_NewUnits.Insert(pUnit); // Store copy.
-    }
     if (pUnit->Flags & UNIT_FLAG_TEMP)
         m_NewUnits.Insert(pUnit); // this is temp unit, we will need to kill it later
 

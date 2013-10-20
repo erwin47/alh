@@ -212,10 +212,8 @@ void CHexFilterDlg::Init()
     int          count;
     int          i;
     const char * item;
-    int          skilllen;
     CStr         S;
 
-    skilllen    = strlen(PRP_SKILL_POSTFIX);
     for (count=0; count < HEX_SIMPLE_FLTR_COUNT; count++)
     {
         m_cbProperty[count]->Append(wxT(""));

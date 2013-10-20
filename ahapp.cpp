@@ -3491,6 +3491,10 @@ void CAhApp::LoadOrders()
         GetDirFromPath(S.GetData(), Dir);
         SetConfig(SZ_SECT_FOLDERS, SZ_KEY_FOLDER_ORDERS, Dir.GetData() );
 
+        CUnitPane * pUnitPane = (CUnitPane*)m_Panes[AH_PANE_UNITS_HEX];
+        if (pUnitPane)
+            pUnitPane->Update(NULL);
+
         LoadOrders(S.GetData());
         SetOrdersChanged(FALSE);
     }

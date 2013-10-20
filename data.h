@@ -428,6 +428,7 @@ public:
 
     BOOL      AddUnit(CUnit * pUnit);
     void      RemoveUnit(CUnit * pUnit);
+    void      DeleteAllNewUnits();
     void      ResetUnitsAndStructs();
     CStruct * GetStructById(long id);
     void      CalcStructsLoad();
@@ -524,36 +525,6 @@ public:
     CBaseCollByName(int nDelta) : CBaseCollById(nDelta) {};
 protected:
     virtual int Compare(void * pItem1, void * pItem2) ;
-};
-
-//-----------------------------------------------------------------
-
-class CUnitsByHex : public CSortedCollection
-{
-public:
-    CUnitsByHex() : CSortedCollection() {};
-    CUnitsByHex(int nDelta) : CSortedCollection(nDelta) {};
-protected:
-    virtual void FreeItem(void * pItem) {};
-    virtual int Compare(void * pItem1, void * pItem2)
-    {
-        CUnit * p1 = (CUnit*)pItem1;
-        CUnit * p2 = (CUnit*)pItem2;
-
-        if (p1->LandId > p2->LandId)
-            return 1;
-        else
-            if (p1->LandId < p2->LandId)
-                return -1;
-            else
-                if (p1->Id > p2->Id)
-                    return 1;
-                else
-                    if (p1->Id < p2->Id)
-                        return -1;
-                    else
-                        return 0;
-    };
 };
 
 //-----------------------------------------------------------------

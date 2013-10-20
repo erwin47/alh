@@ -134,8 +134,6 @@ void CUnitPane::Update(CLand * pLand)
             info.m_col    = 0;
             info.m_mask   = wxLIST_MASK_DATA;
             GetItem(info);
-            if (IS_NEW_UNIT_ID(info.m_data))
-                DeleteItem(i);
         }
 
     if (pLand)
@@ -143,15 +141,7 @@ void CUnitPane::Update(CLand * pLand)
         for (i=0; i<pLand->Units.Count(); i++)
         {
             pUnit = (CUnit*)pLand->Units.At(i);
-            if (IS_NEW_UNIT(pUnit))
-                NewUnits.Insert(pUnit);
-            else
-            {
-                m_pUnits->AtInsert(m_pUnits->Count(), pUnit);
-                //if (pUnit->pFaction)
-                //    m_pFactions->Insert(pUnit->pFaction);
-
-            }
+            m_pUnits->AtInsert(m_pUnits->Count(), pUnit);
         }
         m_pUnits->SetSortMode(m_SortKey, NUM_SORTS);
 
@@ -206,24 +196,9 @@ void CUnitPane::SelectUnit(long UnitId)
 
 void CUnitPane::Sort()
 {
-    // new formed units are at the end of the list, they do not depend on sort order
     long              idx;
     long              data=0;
     wxListItem        info;
-    CBaseCollById     NewUnits(64);
-    int               i;
-    CUnit           * pUnit;
-
-    // remove new units
-    for (i=m_pUnits->Count()-1; i>=0; i--)
-    {
-        pUnit = (CUnit*)m_pUnits->At(i);
-        if (IS_NEW_UNIT(pUnit))
-        {
-            m_pUnits->AtDelete(i);
-            NewUnits.Insert(pUnit);
-        }
-    }
 
     idx = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
     if (idx>=0)
@@ -234,17 +209,6 @@ void CUnitPane::Sort()
         data = info.m_data;
     }
     m_pUnits->SetSortMode(m_SortKey, NUM_SORTS);
-
-
-    // insert new units at the end
-    for (i=NewUnits.Count()-1; i>=0; i--)
-    {
-        pUnit = (CUnit *)NewUnits.At(i);
-        m_pUnits->AtInsert(m_pUnits->Count(), pUnit);
-    }
-    NewUnits.DeleteAll();
-
-
     SetData(sel_by_id, data, TRUE);
 }
 
@@ -375,7 +339,7 @@ CUnit * CUnitPane::GetUnit(long index)
     if (GetItem(info))
     {
         pUnit = (CUnit*)m_pUnits->At(info.m_itemId);
-        wxASSERT(pUnit && (pUnit->Id == info.m_data));  // just make sure we've got the right unit
+        wxASSERT(pUnit && (pUnit->Id == (long)info.m_data));  // just make sure we've got the right unit
     }
 
     return pUnit;
@@ -386,7 +350,7 @@ CUnit * CUnitPane::GetUnit(long index)
 void CUnitPane::SelectNextUnit()
 {
     long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    
+
     if (idx < GetItemCount()-1)
     {
         CUnit      * pUnit = GetUnit(idx+1);
@@ -400,7 +364,7 @@ void CUnitPane::SelectNextUnit()
 void CUnitPane::SelectPrevUnit()
 {
     long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    
+
     if (idx>0)
     {
         CUnit      * pUnit = GetUnit(idx-1);
@@ -495,17 +459,25 @@ void CUnitPane::OnRClick(wxListEvent& event)
             // single unit
             if (pUnit->IsOurs)
             {
-                menu.Append(menu_Popup_ShareSilv     , wxT("Share SILV")        );
+                if (!IS_NEW_UNIT(pUnit))
+                {
+                    menu.Append(menu_Popup_ShareSilv     , wxT("Share SILV")        );
+                    menu.Append(menu_Popup_Split         , wxT("Split")             );
+                }
                 menu.Append(menu_Popup_Teach         , wxT("Teach")             );
-                menu.Append(menu_Popup_Split         , wxT("Split")             );
-                menu.Append(menu_Popup_DiscardJunk   , wxT("Discard junk items"));
-                menu.Append(menu_Popup_GiveEverything, wxT("Give everything")   );
-                menu.Append(menu_Popup_DetectSpies   , wxT("Detect spies")      );
+                if (IS_NEW_UNIT(pUnit))
+                {
+                    menu.Append(menu_Popup_DiscardJunk   , wxT("Discard This Unit") );
+                }
+                if (!IS_NEW_UNIT(pUnit))
+                {
+                    menu.Append(menu_Popup_DiscardJunk   , wxT("Discard junk items"));
+                    menu.Append(menu_Popup_GiveEverything, wxT("Give everything")   );
+                    menu.Append(menu_Popup_DetectSpies   , wxT("Detect spies")      );
+                }
             }
-
             menu.Append(menu_Popup_UnitFlags       , wxT("Set custom flags")    );
             menu.Append(menu_Popup_AddToTracking   , wxT("Add to a tracking group"));
-
 
             PopupMenu( &menu, event.GetPoint().x, y);
         }
@@ -542,7 +514,7 @@ void CUnitPane::OnPopupMenuSplit(wxCommandEvent& event)
     CUnit      * pUnit = GetUnit(idx);
     CEditPane  * pOrders;
 
-    if (pUnit)
+    if (pUnit && !IS_NEW_UNIT(pUnit))
     {
         pOrders = (CEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
         if (pOrders)
@@ -620,6 +592,8 @@ void CUnitPane::OnPopupMenuDiscardJunk(wxCommandEvent& WXUNUSED(event))
     CUnit      * pUnit = GetUnit(idx);
     CEditPane  * pOrders;
 
+    // For new units: delete the entire unit
+    // For normal units: issue orders to give away all useless items
     if (pUnit)
     {
         pOrders = (CEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
@@ -629,7 +603,15 @@ void CUnitPane::OnPopupMenuDiscardJunk(wxCommandEvent& WXUNUSED(event))
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
-        gpApp->SetOrdersChanged(gpApp->m_pAtlantis->DiscardJunkItems(pUnit, gpApp->GetConfig(SZ_SECT_UNITPROP_GROUPS, PRP_JUNK_ITEMS))
+        if (IS_NEW_UNIT(pUnit))
+        {
+            m_pCurLand->RemoveUnit(pUnit);
+            DeleteItem(idx);
+            delete pUnit;
+            gpApp->SetOrdersChanged(true);
+        }
+        else
+            gpApp->SetOrdersChanged(gpApp->m_pAtlantis->DiscardJunkItems(pUnit, gpApp->GetConfig(SZ_SECT_UNITPROP_GROUPS, PRP_JUNK_ITEMS))
                                || gpApp->GetOrdersChanged());
         Update(m_pCurLand);
     }

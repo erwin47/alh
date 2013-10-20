@@ -338,19 +338,16 @@ void CLand::RemoveUnit(CUnit * pUnit)
 
 //-------------------------------------------------------------
 
-void CLand::ResetUnitsAndStructs()
+void CLand::DeleteAllNewUnits()
 {
-    int       i, k;
+    int       i;
     CUnit   * pUnit;
-    CStruct * pStruct;
 
     for (i=UnitsSeq.Count()-1; i>=0; i--)
     {
         pUnit = (CUnit*)UnitsSeq.At(i);
         if (IS_NEW_UNIT(pUnit))
             UnitsSeq.AtDelete(i);
-//        else                   this creates problems when joining reports, first has FORM orders,
-//            break;             second has units invisible in the first one, so new units are left in the middle - pointer to released memory
     }
 
     for (i=Units.Count()-1; i>=0; i--)
@@ -358,22 +355,32 @@ void CLand::ResetUnitsAndStructs()
         pUnit = (CUnit*)Units.At(i);
         if (IS_NEW_UNIT(pUnit))
             Units.AtFree(i);
-        else
+    }
+}
+
+
+void CLand::ResetUnitsAndStructs()
+{
+    int       i, k;
+    CUnit   * pUnit;
+    CStruct * pStruct;
+
+    for (i=Units.Count()-1; i>=0; i--)
+    {
+        pUnit = (CUnit*)Units.At(i);
+        pUnit->ResetNormalProperties();
+        if (pUnit->pMovement)
         {
-            pUnit->ResetNormalProperties();
-            if (pUnit->pMovement)
-            {
-                delete pUnit->pMovement;
-                pUnit->pMovement = NULL;
-            }
-            if (pUnit->pMoveA3Points)
-            {
-                delete pUnit->pMoveA3Points;
-                pUnit->pMoveA3Points = NULL;
-            }
-            if (pUnit->pStudents)
-                pUnit->pStudents->DeleteAll(); // probably deleting it would not be very usefull
+            delete pUnit->pMovement;
+            pUnit->pMovement = NULL;
         }
+        if (pUnit->pMoveA3Points)
+        {
+            delete pUnit->pMoveA3Points;
+            pUnit->pMoveA3Points = NULL;
+        }
+        if (pUnit->pStudents)
+            pUnit->pStudents->DeleteAll(); // probably deleting it would not be very usefull
     }
 
     for (k=0; k<Structs.Count(); k++)

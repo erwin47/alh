@@ -18,9 +18,15 @@
  */
 
 #include <algorithm>
+#include <map>
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+#include "wx/string.h"
+
 #include "files.h"
 #include "consts.h"
 #include "cstr.h"
@@ -32,8 +38,6 @@
 #include "atlaparser.h"
 #include "errs.h"
 #include "consts_ah.h" // not very good, but will do for now
-#include <time.h>
-#include <math.h>
 
 #define IN          "in "
 #define CONTAINS    "contains "
@@ -3763,8 +3767,7 @@ BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane,
 
 int  CAtlaParser::SaveOrders(const char * FNameOut, const char * password, BOOL decorate, int factid)
 {
-    CUnitsByHex   Coll;
-    int           i, n, idx;
+    int           i, n, idx, x;
     CUnit       * pUnit;
     CFileWriter   Dest;
     CStr          S(64), S1(64);
@@ -3781,14 +3784,6 @@ int  CAtlaParser::SaveOrders(const char * FNameOut, const char * password, BOOL 
     if (Dest.Open(FNameOut))
     {
         pFaction =  GetFaction(factid);
-
-        // get our units and sort them
-        for (i=0; i<m_Units.Count(); i++)
-        {
-            pUnit = (CUnit*)m_Units.At(i);
-            if (pUnit->FactionId == factid)
-                Coll.Insert(pUnit);
-        }
 
         // write orders
 
@@ -3807,57 +3802,109 @@ int  CAtlaParser::SaveOrders(const char * FNameOut, const char * password, BOOL 
         }
         Dest.WriteBuf(S.GetData(), S.GetLength());
 
-        for (i=0; i<Coll.Count(); i++)
+        std::map<long, wxString> FormOrders; // [unit number] = Form Orders
+
+        // Loop through all our units, per region.
+        for (n=0; n<m_Planes.Count(); n++)
         {
-            pUnit = (CUnit*)Coll.At(i);
-            if (!pUnit->Orders.IsEmpty() && !IS_NEW_UNIT(pUnit))
+            pPlane = (CPlane*)m_Planes.At(n);
+            for (i=0; i<pPlane->Lands.Count(); i++)
             {
-                // land comment
-                if (decorate && (OldLand!=pUnit->LandId))
+                pLand = (CLand*)pPlane->Lands.At(i);
+
+                // Store the new units orders, then append the orders to the creating unit
+                for (x=0; x<pLand->Units.Count(); x++)
                 {
-                    OldLand      = pUnit->LandId;
-                    DummyLand.Id = OldLand;
-                    for (n=0; n<m_Planes.Count(); n++)
+                    pUnit = (CUnit*)pLand->Units.At(x);
+                    if (pUnit->FactionId == factid && IS_NEW_UNIT(pUnit))
                     {
-                        pPlane = (CPlane*)m_Planes.At(n);
-                        if (pPlane->Lands.Search(&DummyLand, idx))
+                        // Parse the number from the description
+                        wxString s = wxString::FromUTF8(pUnit->Description.GetData());
+                        long unitNumber;
+                        if (s.AfterFirst('(').BeforeFirst(')').ToLong(&unitNumber))
                         {
-                            pLand = (CLand*)pPlane->Lands.At(idx);
+                            std::map<long, wxString>::iterator mi = FormOrders.find(unitNumber);
+                            wxString value;
+                            if (mi != FormOrders.end())
+                            {
+                                value = mi->second;
+                            }
+                            value << wxString::FromUTF8(EOL_SCR)
+                              << wxT("FORM ") << REVERSE_NEW_UNIT_ID(pUnit->Id) << wxString::FromUTF8(EOL_SCR)
+                              << wxString::FromUTF8(pUnit->Orders.GetData());
+                            value.Trim();
+                            value << wxString::FromUTF8(EOL_SCR) << wxT("END") << wxString::FromUTF8(EOL_SCR);
+                            FormOrders[unitNumber] = value;
+                        }
+                        else
+                        {
+                            wxString landDescr = wxString::FromUTF8(pLand->Description.GetData());
+                            wxString s = wxString::Format(wxT("Unable to save new unit orders in %s."), landDescr.BeforeFirst('.').c_str());
+                            OrderErr(1, pUnit->Id, s.ToUTF8(), pUnit->Name.GetData());
+                        }
+                    }
+                }
+
+                bool LandDecorationShown = false;
+                for (x=0; x<pLand->Units.Count(); x++)
+                {
+                    pUnit = (CUnit*)pLand->Units.At(x);
+                    if (pUnit->FactionId == factid && !IS_NEW_UNIT(pUnit))
+                    {
+                        if (decorate && !LandDecorationShown)
+                        {
                             S1.GetToken(pLand->Description.GetData(), '\n');
                             S1.TrimRight(TRIM_ALL);
                             S.Empty();
                             S << EOL_FILE << ORDER_CMNT << S1 << EOL_FILE;
                             Dest.WriteBuf(S.GetData(), S.GetLength());
-                            break;
+                            LandDecorationShown = true;
+                        }
+                        // unit orders
+                        S.Empty();
+                        S << EOL_FILE << "unit " << pUnit->Id << " ; " << pUnit->Name << EOL_FILE;
+                        Dest.WriteBuf(S.GetData(), S.GetLength());
+
+                        p = pUnit->Orders.GetData();
+                        while (p && *p)
+                        {
+                            p = S.GetToken(p, '\n', TRIM_NONE);
+                            S.TrimRight(TRIM_ALL);
+                            S << EOL_FILE;
+                            Dest.WriteBuf(S.GetData(), S.GetLength());
+                        }
+                        std::map<long, wxString>::iterator mi = FormOrders.find(pUnit->Id);
+                        if (mi != FormOrders.end())
+                        {
+                            p = mi->second.ToUTF8();
+                            while (p && *p)
+                            {
+                                p = S.GetToken(p, '\n', TRIM_NONE);
+                                S.TrimRight(TRIM_ALL);
+                                S << EOL_FILE;
+                                Dest.WriteBuf(S.GetData(), S.GetLength());
+                            }
+                            FormOrders.erase(mi);
                         }
                     }
                 }
-
-                // unit orders
-                S.Empty();
-                S << EOL_FILE << "unit " << pUnit->Id << EOL_FILE;
-                Dest.WriteBuf(S.GetData(), S.GetLength());
-
-                p = pUnit->Orders.GetData();
-                while (p && *p)
+                if (!FormOrders.empty())
                 {
-                    p = S.GetToken(p, '\n', TRIM_NONE);
-                    S.TrimRight(TRIM_ALL);
-                    S << EOL_FILE;
-                    Dest.WriteBuf(S.GetData(), S.GetLength());
+                    wxString landDescr = wxString::FromUTF8(pLand->Description.GetData());
+                    wxString s = wxString::Format(wxT("Unable to save new unit orders in %s."), landDescr.BeforeFirst('.').c_str());
+                    OrderErr(1, 0, s.ToUTF8(), "");
+                    FormOrders.clear();
                 }
             }
         }
+        OrderErrFinalize();
         S.Empty();
         S << EOL_FILE << "#end" << EOL_FILE;
         Dest.WriteBuf(S.GetData(), S.GetLength());
         Dest.Close();
-
     }
     else
         err = ERR_FOPEN;
-
-    Coll.DeleteAll();
 
     return err;
 }
@@ -3904,24 +3951,83 @@ void CAtlaParser::CountMenForTheFaction(int FactionId)
 
 //-------------------------------------------------------------
 
+CUnit * CAtlaParser::SplitUnit(CUnit * pOrigUnit, long newId)
+{
+    CUnit         Dummy;
+    int           idx;
+    CUnit       * pUnitNew;
+
+    Dummy.Id = NEW_UNIT_ID(newId, pOrigUnit->FactionId);
+
+    CLand * pLand = GetLand(pOrigUnit->LandId);
+    wxASSERT(pLand);
+
+    if (pLand->Units.Search(&Dummy, idx))
+        pUnitNew = (CUnit*)pLand->Units.At(idx);
+    else
+    {
+        CStr            propname;
+        EValueType      type;
+        const void    * value;
+
+        pUnitNew = new CUnit;
+        pUnitNew->Id = Dummy.Id;
+        pUnitNew->FactionId = pOrigUnit->FactionId;
+        pUnitNew->pFaction = pOrigUnit->pFaction;
+        pUnitNew->Flags = pOrigUnit->Flags;
+        pUnitNew->FlagsOrg = pOrigUnit->FlagsOrg;
+        pUnitNew->IsOurs = pOrigUnit->IsOurs;
+        pUnitNew->Name << "NEW " << newId;
+        pUnitNew->Description << "Created by " << pOrigUnit->Name << " (" << pOrigUnit->Id << ")";
+
+        // Copy persistent settings from the creating unit
+        if (pOrigUnit->GetProperty(PRP_FRIEND_OR_FOE, type, value, eNormal) && eLong==type)
+            SetUnitProperty(pUnitNew,PRP_FRIEND_OR_FOE, type, value, eNormal);
+        if (pOrigUnit->GetProperty(PRP_STRUCT_ID, type, value, eOriginal) && eLong==type)
+            SetUnitProperty(pUnitNew,PRP_STRUCT_ID, type, value, eBoth);
+        if (pOrigUnit->GetProperty(PRP_STRUCT_NAME, type, value, eOriginal) && eCharPtr==type)
+            SetUnitProperty(pUnitNew,PRP_STRUCT_NAME, type, value, eBoth);
+        // add new unit to the land of pOrigUnit
+        pLand->AddUnit(pUnitNew);
+    }
+    return pUnitNew;
+}
+
+//-------------------------------------------------------------
+
 int CAtlaParser::LoadOrders  (CFileReader & F, int FactionId, BOOL GetComments)
 {
     CStr          Line(64), S(64), No(32);
     const char  * p;
+    CPlane      * pPlane;
+    CLand       * pLand;
     CUnit       * pUnit;
+    CUnit       * pOrigUnit;
     CUnit         Dummy;
     int           idx;
     char          ch;
 
     m_CrntFactionPwd.Empty();
-
-    for (idx=0; idx<m_Units.Count(); idx++)
+    for (int nPlane=0; nPlane<m_Planes.Count(); nPlane++)
     {
-        pUnit = (CUnit*)m_Units.At(idx);
-        if (pUnit->FactionId == FactionId)
-            pUnit->Orders.Empty();
+        pPlane = (CPlane*)m_Planes.At(nPlane);
+        for (int nLand=0; nLand<pPlane->Lands.Count(); nLand++)
+        {
+            pLand = (CLand*)pPlane->Lands.At(nLand);
+            pLand->DeleteAllNewUnits();
+            for (int nUnit=0; nUnit<pLand->Units.Count(); nUnit++)
+            {
+                pUnit = (CUnit*)pLand->Units.At(nUnit);
+                if (FactionId == pUnit->FactionId)
+                {
+                    pUnit->Orders.Empty();
+                }
+            }
+        }
     }
+
     pUnit = NULL;
+    pOrigUnit = NULL;
 
     while (F.GetNextLine(Line))
     {
@@ -3942,6 +4048,17 @@ int CAtlaParser::LoadOrders  (CFileReader & F, int FactionId, BOOL GetComments)
                 pUnit = (CUnit*)m_Units.At(idx);
             else
                 pUnit = NULL;
+        }
+        else if (0==stricmp(S.GetData(),"form") && !pOrigUnit)
+        {
+            p = No.GetToken(p, " \t", ch);
+            pOrigUnit = pUnit;
+            pUnit = SplitUnit(pOrigUnit, atol(No.GetData()));
+        }
+        else if (0==stricmp(S.GetData(),"end") && pOrigUnit)
+        {
+            pUnit = pOrigUnit;
+            pOrigUnit = NULL;
         }
         else
             if (0==stricmp(S.GetData(),"#atlantis"))
@@ -4294,7 +4411,7 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
 
     do
     {
-        if (!pMainUnit || IS_NEW_UNIT(pMainUnit) || !pMainUnit->IsOurs)
+        if (!pMainUnit || !pMainUnit->IsOurs)
             break;
 
         pLand = GetLand(pMainUnit->LandId);
@@ -4632,8 +4749,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
             nNestingMode = 0; // Shar1 Support for TURN/ENDTURN
             pUnitMaster = NULL;
             pUnit       = (CUnit*)pLand->UnitsSeq.At(mainidx);
-            if (IS_NEW_UNIT(pUnit))
-                continue;
 
             LandIdToCoord(pLand->Id, X, Y, Z);
             LocA3 = NO_LOCATION;
@@ -4775,6 +4890,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 
                         if (SQ_FORM==sequence)
                         {
+                            SHOW_WARN_CONTINUE(" - Do not manually enter a FORM command - use the split context-menu");
+                            break;
                             if (!IS_NEW_UNIT_ID(n1))
                                 SHOW_WARN_CONTINUE(" - Invalid new unit number!");
                             if (pLand->Units.Search(&Dummy, idx))
@@ -4802,6 +4919,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         }
                         else
                         {
+                            break;
                             if (!IS_NEW_UNIT_ID(n1))
                                 continue;
                             if (pUnitMaster)
@@ -5270,41 +5388,20 @@ void CAtlaParser::RunOrder_Study(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
 
 void CAtlaParser::RunOrder_Name(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params)
 {
-    CStr                What, Name, NewName;
-//     long                id;
-//     EValueType          type;
-//     const char        * isowner;
-//     CStruct           * pStruct;
+    CStr  What, Name, NewName;
 
-    do
+    params = SkipSpaces(What.GetToken(params, ' ', TRIM_ALL));
+    params = Name.GetToken(params, ' ', TRIM_ALL);
+
+    if (0==stricmp(What.GetData(), "unit"))
     {
-        params = SkipSpaces(What.GetToken(params, ' ', TRIM_ALL));
-        params = Name.GetToken(params, ' ', TRIM_ALL);
-
-        if (0==stricmp(What.GetData(), "unit"))
+        if (IS_NEW_UNIT(pUnit))
         {
-            if (IS_NEW_UNIT(pUnit))
-            {
-                NewName << "NEW " << (long)REVERSE_NEW_UNIT_ID(pUnit->Id) << " - " << Name;
-                Name = NewName;
-            }
-            pUnit->SetName(Name.GetData());
+            NewName << Name << " - " << "NEW " << (long)REVERSE_NEW_UNIT_ID(pUnit->Id);
+            Name = NewName;
         }
-//         else if (0==stricmp(What.GetData(), "object"))
-//         {
-//             if (!pUnit->GetProperty(PRP_STRUCT_ID, type, (const void *&)id) || eLong!=type)
-//                 SHOW_WARN_CONTINUE(" - Is not inside an object!");
-//             if (!pUnit->GetProperty(PRP_STRUCT_OWNER, type, (const void *&)isowner) || eCharPtr!=type || 0!=stricmp(isowner, YES))
-//                 SHOW_WARN_CONTINUE(" - Is not an object owner!");
-//
-//             pStruct  = pLand->GetStructById(id);
-//             if (!pStruct)
-//                 SHOW_WARN_CONTINUE(" - Can not locate structure!" << BUG);
-//             pStruct->SetName(Name.GetData());
-//             pUnit->SetProperty(PRP_STRUCT_NAME,  eCharPtr, pStruct->Name.GetData(), eNormal);
-//         }
-
-    } while (FALSE);
+        pUnit->SetName(Name.GetData());
+    }
 }
 
 
