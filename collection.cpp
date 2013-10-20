@@ -100,7 +100,7 @@ void CCollection::AtDelete(int nIndex)
     if ( (nIndex>=0) && (nIndex<m_nCount) )
     {
         if (nIndex<m_nCount-1)
-            memcpy(&m_pItems[nIndex], &m_pItems[nIndex+1], sizeof(void*)*(m_nCount-1-nIndex));
+            memmove(&m_pItems[nIndex], &m_pItems[nIndex+1], sizeof(void*)*(m_nCount-1-nIndex));
         m_nCount--;
 #ifndef KEEP_MEM
         Reallocate();
