@@ -61,6 +61,7 @@ enum
     ID_D1_BTN_OK                ,
     ID_D1_CB_FONT               ,
     ID_D1_RADIO_1_WIN           ,
+    ID_D1_RADIO_1_WIN_WIDE      ,
     ID_D1_RADIO_2_WIN           ,
     ID_D1_RADIO_3_WIN           ,
     ID_D1_CHK_CHK_PROD_REQ      ,
@@ -117,6 +118,7 @@ COptionsDialog::COptionsDialog(wxWindow * parent)
     m_pTxtPassword              = new wxTextCtrl(this, ID_D1_TXT_PASSWORD);
 
     m_pRadio1Win                = new wxRadioButton(this, ID_D1_RADIO_1_WIN, wxT("1 window"), wxDefaultPosition, wxDefaultSize, wxRB_GROUP);
+    m_pRadio1WinWide            = new wxRadioButton(this, ID_D1_RADIO_1_WIN_WIDE, wxT("1 window (wide)"));
     m_pRadio2Win                = new wxRadioButton(this, ID_D1_RADIO_2_WIN, wxT("2 windows"));
     m_pRadio3Win                = new wxRadioButton(this, ID_D1_RADIO_3_WIN, wxT("3 windows"));
 
@@ -181,6 +183,7 @@ COptionsDialog::COptionsDialog(wxWindow * parent)
             colsizer->Add(stLayout         , 0, wxALIGN_CENTER | wxALL | wxGROW, space );
             layoutsizer = new wxBoxSizer( wxVERTICAL );
                 layoutsizer->Add(m_pRadio1Win       , 0, wxALIGN_LEFT | wxALL, space);
+                layoutsizer->Add(m_pRadio1WinWide   , 0, wxALIGN_LEFT | wxALL, space);
                 layoutsizer->Add(m_pRadio2Win       , 0, wxALIGN_LEFT | wxALL, space);
                 layoutsizer->Add(m_pRadio3Win       , 0, wxALIGN_LEFT | wxALL, space);
             colsizer->Add(layoutsizer      , 0, wxALIGN_CENTER | wxALL | wxGROW, space );
@@ -277,9 +280,10 @@ void COptionsDialog::Init()
 
     switch(atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_LAYOUT)))
     {
-      case AH_LAYOUT_1_WIN:   m_pRadio1Win->SetValue(TRUE);   break;
-      case AH_LAYOUT_2_WIN:   m_pRadio2Win->SetValue(TRUE);   break;
-      default             :   m_pRadio3Win->SetValue(TRUE);   break;
+      case AH_LAYOUT_1_WIN     : m_pRadio1Win->SetValue(TRUE);     break;
+      case AH_LAYOUT_1_WIN_WIDE: m_pRadio1WinWide->SetValue(TRUE); break;
+      case AH_LAYOUT_2_WIN     : m_pRadio2Win->SetValue(TRUE);     break;
+      default                  : m_pRadio3Win->SetValue(TRUE);     break;
     }
 
     if (0==stricmp(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_ICONS), SZ_ICONS_ADVANCED))
@@ -322,6 +326,8 @@ void COptionsDialog::OnOk    (wxCommandEvent& event)
 
         if (m_pRadio1Win->GetValue())
             layout = AH_LAYOUT_1_WIN;
+        else if (m_pRadio1WinWide->GetValue())
+            layout = AH_LAYOUT_1_WIN_WIDE;
         else if (m_pRadio2Win->GetValue())
             layout = AH_LAYOUT_2_WIN;
         else

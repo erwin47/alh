@@ -51,6 +51,7 @@ enum
     AH_LAYOUT_2_WIN        = 0,
     AH_LAYOUT_3_WIN           ,
     AH_LAYOUT_1_WIN           ,
+    AH_LAYOUT_1_WIN_WIDE      ,
 
     AH_LAYOUT_COUNT
 };
@@ -257,7 +258,7 @@ public:
     void                 EditListColumns(int command);
     const char         * GetListColSection(const char * sectprefix, const char * key);
     void                 ViewMovedUnits();
-    BOOL                 GetPrevTurnReport(CAtlaParser *& pPrevTurn); 
+    BOOL                 GetPrevTurnReport(CAtlaParser *& pPrevTurn);
 
     void                 CreateAccelerator();
 
@@ -271,7 +272,7 @@ public:
     void                 ShowLandFinancial(CLand * pCurLand);
     void                 AddTempHex(int X, int Y, int Plane);
     void                 DelTempHex(int X, int Y, int Plane);
-    
+
     void                 SelectNextUnit();
     void                 SelectPrevUnit();
     void                 SelectUnitsPane();

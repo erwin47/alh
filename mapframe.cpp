@@ -323,6 +323,7 @@ const char * CMapFrame::GetConfigSection(int layout)
     {
     case AH_LAYOUT_2_WIN:        return SZ_SECT_WND_MAP_2_WIN;
     case AH_LAYOUT_3_WIN:        return SZ_SECT_WND_MAP_3_WIN;
+    case AH_LAYOUT_1_WIN_WIDE:   // Same Section as 1 window
     case AH_LAYOUT_1_WIN:        return SZ_SECT_WND_MAP_1_WIN;
     default:                     return "";
     }
@@ -342,6 +343,7 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
     switch (layout)
     {
     case AH_LAYOUT_1_WIN:
+    case AH_LAYOUT_1_WIN_WIDE:
         {
             CMapPane          * p1;
             CUnitPane         * p2;
@@ -349,17 +351,34 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
             CEditPane         * p4;
             CEditPane         * p5;
             CEditPane         * p6;
-            int                 x;
+            int                 x,y;
+            const bool          wide = (layout == AH_LAYOUT_1_WIN_WIDE);
+            // The WIDE layout is for wide screens, the Hex,Unit,Orders pane takes the entire height.
 
-            m_Splitter = new wxSplitterWindow(this       , -1, wxDefaultPosition, wxDefaultSize, wxSP_3D     | wxCLIP_CHILDREN);
-            m_Splitter1= new wxSplitterWindow(m_Splitter , -1, wxDefaultPosition, wxDefaultSize, wxSP_3DSASH | wxCLIP_CHILDREN);
+            if (wide)
+            {
+                m_Splitter1= new wxSplitterWindow(this       , -1, wxDefaultPosition, wxDefaultSize, wxSP_3DSASH | wxCLIP_CHILDREN);
+                m_Splitter = new wxSplitterWindow(m_Splitter1, -1, wxDefaultPosition, wxDefaultSize, wxSP_3D     | wxCLIP_CHILDREN);
+            }
+            else
+            {
+                m_Splitter = new wxSplitterWindow(this       , -1, wxDefaultPosition, wxDefaultSize, wxSP_3D     | wxCLIP_CHILDREN);
+                m_Splitter1= new wxSplitterWindow(m_Splitter , -1, wxDefaultPosition, wxDefaultSize, wxSP_3DSASH | wxCLIP_CHILDREN);
+            }
             m_Splitter2= new wxSplitterWindow(m_Splitter1, -1, wxDefaultPosition, wxDefaultSize, wxSP_3DSASH | wxCLIP_CHILDREN);
             m_Splitter3= new wxSplitterWindow(m_Splitter2, -1, wxDefaultPosition, wxDefaultSize, wxSP_3DSASH | wxCLIP_CHILDREN);
-            m_Splitter4= new wxSplitterWindow(m_Splitter3, -1, wxDefaultPosition, wxDefaultSize, wxSP_3DSASH | wxCLIP_CHILDREN);
+            m_Splitter4= new wxSplitterWindow(m_Splitter2, -1, wxDefaultPosition, wxDefaultSize, wxSP_3DSASH | wxCLIP_CHILDREN);
 
-            p1 = new CMapPane (m_Splitter1, -1, layout  );
+            if (wide)
+            {
+                p1 = new CMapPane (m_Splitter, -1, layout  );
+            }
+            else
+            {
+                p1 = new CMapPane (m_Splitter1, -1, layout  );
+            }
             p2 = new CUnitPane(m_Splitter);
-            p3 = new CEditPane(m_Splitter2, wxT("Hex description")        , FALSE, FONT_EDIT_DESCR);
+            p3 = new CEditPane(m_Splitter3, wxT("Hex description")        , FALSE, FONT_EDIT_DESCR);
             p4 = new CEditPane(m_Splitter3, wxT("Unit description")       , FALSE, FONT_EDIT_DESCR);
             p5 = new CEditPane(m_Splitter4, wxT("Orders")                 , FALSE, FONT_EDIT_ORDER);
             p6 = new CEditPane(m_Splitter4, wxT("Comments/Default orders"), TRUE , FONT_EDIT_ORDER);
@@ -391,18 +410,28 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
             m_Splitter3->SetMinimumPaneSize(2);
             m_Splitter4->SetMinimumPaneSize(2);
 
-            x = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_HEIGHT_0));
-            m_Splitter->SplitHorizontally(m_Splitter1, p2, x);
+            m_Splitter1->SetSashGravity(1.0); // The map will resize in width with application window.
+            m_Splitter2->SetSashGravity(1.0); // The orderspane will keep their window height.
 
-            x  = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_WIDTH_0));
-            m_Splitter1->SplitVertically(p1, m_Splitter2, x);
+            x = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_WIDTH_0));
+            y = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_HEIGHT_0));
+
+            if (wide)
+            {
+                m_Splitter1->SplitVertically(m_Splitter, m_Splitter2, x);
+                m_Splitter->SplitHorizontally(p1, p2, y);
+            }
+            else
+            {
+                m_Splitter->SplitHorizontally(m_Splitter1, p2, y);
+                m_Splitter1->SplitVertically(p1, m_Splitter2, x);
+            }
 
             x  = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_HEIGHT_1));
-            m_Splitter2->SplitHorizontally(p3, m_Splitter3, x);
+            m_Splitter2->SplitHorizontally(m_Splitter3, m_Splitter4, x);
 
             x  = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_HEIGHT_2));
-            m_Splitter3->SplitHorizontally(p4, m_Splitter4, x);
-
+            m_Splitter3->SplitHorizontally(p3, p4, x);
 
             x  = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_WIDTH_1));
             m_Splitter4->SplitVertically(p5, p6, x);
@@ -457,6 +486,7 @@ void CMapFrame::Done(BOOL SetClosedFlag)
     switch (m_Layout)
     {
     case AH_LAYOUT_1_WIN:
+    case AH_LAYOUT_1_WIN_WIDE:
         gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_HEIGHT_0, m_Splitter ->GetSashPosition());
         gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_WIDTH_0 , m_Splitter1->GetSashPosition());
         gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_HEIGHT_1, m_Splitter2->GetSashPosition());

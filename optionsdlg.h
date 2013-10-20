@@ -74,6 +74,7 @@ private:
     wxTextCtrl    * m_pTxtPassword;
 
     wxRadioButton * m_pRadio1Win;
+    wxRadioButton * m_pRadio1WinWide;
     wxRadioButton * m_pRadio2Win;
     wxRadioButton * m_pRadio3Win;
 
