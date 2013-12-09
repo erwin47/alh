@@ -644,20 +644,6 @@ inline BOOL CMapPane::ValidHexNo(int NoX, int NoY)
 
 //--------------------------------------------------------------------------
 
-int  CMapPane::NormalizeHexX(int NoX, CPlane * pPlane)
-{
-    if (pPlane && pPlane->Width>0)
-    {
-        while (NoX < pPlane->WestEdge)
-            NoX += pPlane->Width;
-        while (NoX > pPlane->EastEdge)
-            NoX -= pPlane->Width;
-    }
-    return NoX;
-}
-
-//--------------------------------------------------------------------------
-
 void CMapPane::GetHexNo(int & NoX, int & NoY, int WinX, int WinY)
 {
     // center of (0,0) hex has 0,0 Atla coordinates
@@ -2175,7 +2161,6 @@ void CMapPane::DrawHex(int NoX, int NoY, wxDC * pDC, CLand * pLand, CPlane * pPl
     int           x0, y0;  // hex center
     int           dwx;
 
-    //NormalizeHexX(NoX, pPlane);
     GetHexCenter(NoX, NoY, x0, y0);
 
     if (pPlane && (pPlane->Width>0) )
@@ -2272,7 +2257,6 @@ void CMapPane::DrawHexBorder(int NoX, int NoY, wxDC * pDC, CLand * pLand, BOOL F
 
 
 
-    //NormalizeHexX(NoX, pPlane);
     GetHexCenter(NoX, NoY, x0, y0);
     if (IsSelected)
         pPen = m_pPenSel;
@@ -2302,16 +2286,7 @@ void CMapPane::DrawHexBorder(int NoX, int NoY, wxDC * pDC, CLand * pLand, BOOL F
                 x = NoX;
                 y = NoY;
 
-                switch (i)
-                {
-                case North     : y -= 2;     break;
-                case Northeast : y--; x++;   break;
-                case Southeast : y++; x++;   break;
-                case South     : y += 2;     break;
-                case Southwest : y++; x--;   break;
-                case Northwest : y--; x--;   break;
-                }
-
+                gpApp->m_pAtlantis->ExtrapolateLandCoord(x, y, m_SelPlane, i);
                 pLand = gpApp->m_pAtlantis->GetLand(x, y, m_SelPlane, TRUE);
                 if ( pLand && (pLand->Flags&LAND_VISITED) )
                 {
@@ -2531,16 +2506,7 @@ void CMapPane::DrawOneHexWeatherLine(int NoX, int NoY, wxDC * pDC, int DrawBits)
     {
         x = NoX;
         y = NoY;
-
-        switch (Dir[i])
-        {
-        case North     : y -= 2;     break;
-        case Northeast : y--; x++;   break;
-        case Southeast : y++; x++;   break;
-        case South     : y += 2;     break;
-        case Southwest : y++; x--;   break;
-        case Northwest : y--; x--;   break;
-        }
+        gpApp->m_pAtlantis->ExtrapolateLandCoord(x, y, m_SelPlane, i);
 
         if ( (DrawBits & ExitFlags[Dir[i]] ) > 0)
         {
@@ -2807,7 +2773,7 @@ void CMapPane::DrawCoordPanes(wxDC * pDC, int mapwidth, int mapheight, CPlane * 
     {
         nx++;
         GetHexCenter(nx, ny, x, y);
-        sprintf(buf, "%d", NormalizeHexX(nx, pPlane));
+        sprintf(buf, "%d", gpApp->m_pAtlantis->NormalizeHexX(nx, pPlane));
         pDC->GetTextExtent(wxString::FromAscii(buf), &w, &h, &descent, &ext);
         txtx = x - w/2;
         if (txtx < left)
@@ -3026,6 +2992,7 @@ void CMapPane::DrawSingleTrack(int X, int Y, int wx, int wy, wxDC * pDC, CUnit *
             AdjustForA3Location(wx_a, wy_a, LocA3);
         }
 
+        X1 = gpApp->m_pAtlantis->NormalizeHexX(X1, pPlane);
         if (pPlane->Width>0)
         {
             if (X1>pPlane->EastEdge)
@@ -3528,7 +3495,7 @@ void CMapPane::OnMouseEvent(wxMouseEvent& event)
 
         StartRectangle(xpos, ypos);
         GetHexNo(nx, ny, xpos, ypos);
-        nx = NormalizeHexX(nx, pPlane);
+        nx = gpApp->m_pAtlantis->NormalizeHexX(nx, pPlane);
         SetSelection(nx, ny, gpApp->GetSelectedUnit(), pPlane, FALSE);
     }
 

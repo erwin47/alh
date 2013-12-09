@@ -154,7 +154,6 @@ protected:
     void      DrawOneHexWeatherLine(int NoX, int NoY, wxDC * pDC, int DrawBits);
     void      DrawEdgeStructures(wxDC * pDC, CLand * pLand, wxPoint * point, int x0, int y0);
     void      NormalizeCoordinates(CPlane * pPlane, wxRect * pRect);
-    int       NormalizeHexX(int NoX, CPlane * pPlane);
     void      DrawEdge(wxDC * pDC, CPlane * pPlane);
     void      DrawUnitColumn(wxDC * pDC, int x0, int y0, int height);
     void      DrawCoastalLine(wxDC * pDC, wxPoint * point, int direction);

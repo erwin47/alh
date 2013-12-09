@@ -163,6 +163,7 @@ public:
     void       CountMenForTheFaction(int FactionId);
     void       ComposeProductsLine(CLand * pLand, const char * eol, CStr & S);
     BOOL       LandStrCoordToId(const char * landcoords, long & id) const;
+    int        NormalizeHexX(int NoX, CPlane *) const;
     void       ComposeLandStrCoord(CLand * pLand, CStr & LandStr);
     CFaction * GetFaction(int id);
     BOOL       SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane, SAVE_HEX_OPTIONS * pOptions);
@@ -171,6 +172,7 @@ public:
     bool       LinkShaft(CLand * pLand, CLand * pLandDest, int structIdx);
     wxString   getFullStrLandCoord(CLand *);
     BOOL       CheckResourcesForProduction(CUnit * pUnit, CLand * pLand, CStr & Error);
+    void       ExtrapolateLandCoord(int &x, int &y, int z, int direction) const;
 
 
     int               m_CrntFactionId;

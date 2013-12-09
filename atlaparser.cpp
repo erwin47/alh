@@ -3388,15 +3388,7 @@ void CAtlaParser::SetExitFlagsAndTropicZone()
                         x = x0;
                         y = y0;
 
-                        switch (i)
-                        {
-                        case North     : y -= 2;     break;
-                        case Northeast : y--; x++;   break;
-                        case Southeast : y++; x++;   break;
-                        case South     : y += 2;     break;
-                        case Southwest : y++; x--;   break;
-                        case Northwest : y--; x--;   break;
-                        }
+                        ExtrapolateLandCoord(x, y, np, i);
 
                         pLandSrc = GetLand(x, y, np, TRUE);
                         if ( pLandSrc && (pLandSrc->Flags&LAND_VISITED) )
@@ -3469,8 +3461,40 @@ CFaction * CAtlaParser::GetFaction(int id)
         return NULL;
 }
 
+//--------------------------------------------------------------------------
+
+int  CAtlaParser::NormalizeHexX(int NoX, CPlane * pPlane) const
+{
+    if (pPlane && pPlane->Width>0)
+    {
+        while (NoX < pPlane->WestEdge)
+            NoX += pPlane->Width;
+        while (NoX > pPlane->EastEdge)
+            NoX -= pPlane->Width;
+    }
+    return NoX;
+}
+
 //-------------------------------------------------------------
 
+void CAtlaParser::ExtrapolateLandCoord(int &x, int &y, int z, int direction) const
+{
+    // Try to go in a direction on the map by assuming a simple grid.
+    switch (direction % 6)
+    {
+        case North     : y -= 2;     break;
+        case Northeast : y--; x++;   break;
+        case Southeast : y++; x++;   break;
+        case South     : y += 2;     break;
+        case Southwest : y++; x--;   break;
+        case Northwest : y--; x--;   break;
+    }
+
+    CPlane * pPlane = (CPlane*)m_Planes.At(z);
+    x = NormalizeHexX(x, pPlane);
+}
+
+//-------------------------------------------------------------
 CLand * CAtlaParser::GetLand(int x, int y, int nPlane, BOOL AdjustForEdge) const
 {
     char     dummy[sizeof(CLand)];
@@ -3481,12 +3505,9 @@ CLand * CAtlaParser::GetLand(int x, int y, int nPlane, BOOL AdjustForEdge) const
     if (!pPlane)
         return NULL;
 
-    if (AdjustForEdge && (pPlane->Width > 0))
+    if (AdjustForEdge)
     {
-        while (x>pPlane->EastEdge)
-            x-=pPlane->Width;
-        while (x<pPlane->WestEdge)
-            x+=pPlane->Width;
+        x = NormalizeHexX(x, pPlane);
     }
 
     ((CLand*)&dummy)->Id = LandCoordToId(x,y, pPlane->Id);
@@ -3669,15 +3690,7 @@ BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane,
             x = x0;
             y = y0;
 
-            switch (i)
-            {
-            case North     : y -= 2;     break;
-            case Northeast : y--; x++;   break;
-            case Southeast : y++; x++;   break;
-            case South     : y += 2;     break;
-            case Southwest : y++; x--;   break;
-            case Northwest : y--; x--;   break;
-            }
+            ExtrapolateLandCoord(x, y, z, i);
 
             pLandExit = GetLand(x, y, z, TRUE);
             if ( pLandExit && (pLandExit->ExitBits&EntryFlags[i]))
@@ -5861,30 +5874,15 @@ BOOL CAtlaParser::FindTargetsForSend(CStr & Line, CStr & ErrorLine, BOOL skiperr
             LandIdToCoord(pLand->Id, X, Y, Z);
 
             for (i=0; i<(int)sizeof(Directions)/(int)sizeof(const char*); i++)
+            {
                 if (0==stricmp(S1.GetData(), Directions[i]))
                 {
-                    switch (i%6)
-                    {
-                    case North     : Y -= 2;     break;
-                    case Northeast : Y--; X++;   break;
-                    case Southeast : Y++; X++;   break;
-                    case South     : Y += 2;     break;
-                    case Southwest : Y++; X--;   break;
-                    case Northwest : Y--; X--;   break;
-                    }
-
-                    if (pLand->pPlane->Width > 0)
-                        if (X>pLand->pPlane->EastEdge)
-                            X = pLand->pPlane->WestEdge;
-                        else
-                            if (X<pLand->pPlane->WestEdge)
-                                X = pLand->pPlane->EastEdge;
-
+                    ExtrapolateLandCoord(X, Y, Z, i);
                     ID = LandCoordToId(X,Y, pLand->pPlane->Id);
                     pLand2 = GetLand(ID);
-
                     break;
                 }
+            }
             if (!pLand2)
                 SHOW_WARN_CONTINUE(" - Can not find land in given direction");
 
@@ -6559,28 +6557,11 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
             for (i=0; i<(int)sizeof(Directions)/(int)sizeof(const char*); i++)
                 if (0==stricmp(S1.GetData(), Directions[i]))
                 {
-                    switch (i%6)
-                    {
-                    case North     : Y -= 2;     break;
-                    case Northeast : Y--; X++;   break;
-                    case Southeast : Y++; X++;   break;
-                    case South     : Y += 2;     break;
-                    case Southwest : Y++; X--;   break;
-                    case Northwest : Y--; X--;   break;
-                    }
-
-                    if (pLand->pPlane->Width > 0)
-                        if (X>pLand->pPlane->EastEdge)
-                            X = pLand->pPlane->WestEdge;
-                        else
-                            if (X<pLand->pPlane->WestEdge)
-                                X = pLand->pPlane->EastEdge;
-
+                    ExtrapolateLandCoord(X, Y, pLand->pPlane->Id, i);
                     ID = LandCoordToId(X,Y, pLand->pPlane->Id);
                     if (!pUnit->pMovement)
                         pUnit->pMovement = new CLongColl;
                     pUnit->pMovement->Insert((void*)ID);
-
                     break;
                 }
         }
@@ -6714,14 +6695,7 @@ void CAtlaParser::RunOrder_SailAIII(CStr & Line, CStr & ErrorLine, BOOL skiperro
                 if (!GoodSail)
                     break;
 
-
-                if (pLand->pPlane->Width > 0)
-                    if (X>pLand->pPlane->EastEdge)
-                        X = pLand->pPlane->WestEdge;
-                    else
-                        if (X<pLand->pPlane->WestEdge)
-                            X = pLand->pPlane->EastEdge;
-
+                X = NormalizeHexX(X, pLand->pPlane);
                 ID = LandCoordToId(X,Y, pLand->pPlane->Id);
 
                 pNewLand = GetLand(ID);

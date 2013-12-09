@@ -2060,15 +2060,8 @@ void CAhApp::UpdateEdgeStructs()
                 adj_dir = (d%6)-3;
                 if(adj_dir < 0) adj_dir += 6;
                 LandIdToCoord(pLand->Id,x,y,z);
-                switch (d%6)
-                {
-                    case North     : y -= 2;     break;
-                    case Northeast : y--; x++;   break;
-                    case Southeast : y++; x++;   break;
-                    case South     : y += 2;     break;
-                    case Southwest : y++; x--;   break;
-                    case Northwest : y--; x--;   break;
-                }
+                m_pAtlantis->ExtrapolateLandCoord(x,y,z,d);
+
                 CBaseObject Dummy;
                 Dummy.Id = LandCoordToId(x, y, z);
                 if (pPlane->Lands.Search(&Dummy, adj_index))
