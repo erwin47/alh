@@ -77,7 +77,7 @@ public:
     CEdgePropColl(int nDelta) : CSortedCollection(nDelta) {};
 protected:
     virtual void FreeItem(void * pItem) { delete (CEdgeStructProperties*)pItem; };
-    virtual int  Compare(void * pItem1, void * pItem2)
+    virtual int  Compare(void * pItem1, void * pItem2) const
     {
         return stricmp( ((CEdgeStructProperties*)pItem1)->name.GetData(),
                         ((CEdgeStructProperties*)pItem2)->name.GetData() );
@@ -190,8 +190,8 @@ protected:
     void      OnPopupWhoMovesHere(wxCommandEvent & event);
     void      OnPopupFinancial   (wxCommandEvent & event);
     void      OnPopupNewHex      (wxCommandEvent & event);
-    void      OnPopupDeleteHex   (wxCommandEvent & event); 
-    void      OnPopupDistanceRing(wxCommandEvent & event); 
+    void      OnPopupDeleteHex   (wxCommandEvent & event);
+    void      OnPopupDistanceRing(wxCommandEvent & event);
 
     void      StartRectangle(int x, int y);
     void      EndRectangle  (int x, int y);
@@ -217,8 +217,8 @@ protected:
     wxPen        * m_pPenGrey;
     wxPen        * m_pPenFlag[LAND_FLAG_COUNT];
     wxPen        * m_pPenCoastline;
-    wxBrush      * m_pBrushBlack; 
-    wxBrush      * m_pBrushWhite; 
+    wxBrush      * m_pBrushBlack;
+    wxBrush      * m_pBrushWhite;
     wxBrush      * m_pBrushRed  ;
     wxColour     * m_pUnitColor[ATT_UNDECLARED];
     wxColour     * m_pDarkColor[ATT_UNDECLARED];
@@ -247,7 +247,7 @@ protected:
     int            m_Rect_y1;
     int            m_Rect_x2;
     int            m_Rect_y2;
-    
+
     int            m_RingRadius;
     int            m_RingX;
     int            m_RingY;

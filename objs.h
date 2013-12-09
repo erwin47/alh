@@ -79,7 +79,7 @@ public:
     virtual ~CStrIntColl() {FreeAll();};
 protected:
     virtual void FreeItem(void * pItem) {if (pItem) delete (CStrInt*)pItem;};
-    virtual int Compare(void * pItem1, void * pItem2)
+    virtual int Compare(void * pItem1, void * pItem2) const
     {
         return SafeCmp( ((CStrInt*)pItem1)->m_key,  ((CStrInt*)pItem2)->m_key );
     };
@@ -120,7 +120,7 @@ public:
     virtual ~CStrStrColl() {FreeAll();};
 protected:
     virtual void FreeItem(void * pItem) {if (pItem) delete (CStrStr*)pItem;};
-    virtual int Compare(void * pItem1, void * pItem2)
+    virtual int Compare(void * pItem1, void * pItem2) const
     {
         return SafeCmp( ((CStrStr*)pItem1)->m_key,  ((CStrStr*)pItem2)->m_key );
     };
@@ -137,7 +137,7 @@ public:
     virtual ~CStrStrColl2() {FreeAll();};
 protected:
     virtual void FreeItem(void * pItem) {if (pItem) delete (CStrStr*)pItem;};
-    virtual int Compare(void * pItem1, void * pItem2)
+    virtual int Compare(void * pItem1, void * pItem2) const
     {
         int x = SafeCmp( ((CStrStr*)pItem1)->m_key,  ((CStrStr*)pItem2)->m_key );
         if (0==x)
@@ -196,7 +196,7 @@ public:
     TPropertyColl(int nDelta) : CSortedCollection(nDelta) {};
 protected:
     virtual void FreeItem(void * pItem) {if (pItem) delete (TProperty*)pItem;};
-    virtual int  Compare(void * pItem1, void * pItem2);
+    virtual int  Compare(void * pItem1, void * pItem2) const;
 };
 
 //-------------------------------------------------------------------
@@ -247,7 +247,7 @@ public:
 
 protected:
     virtual void FreeItem(void * pItem);
-    virtual int  Compare(void * pItem1, void * pItem2);
+    virtual int  Compare(void * pItem1, void * pItem2) const;
 
     void         ClearKeys();
 

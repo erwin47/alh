@@ -39,7 +39,7 @@
 #else
     #define EOL_CFG "\n"
 #endif
- 
+
 
 //====================================================================
 
@@ -75,7 +75,7 @@ void CConfigFile::FreeItem(void * pItem)
 
 //---------------------------------------------------------------------------------
 
-int  CConfigFile::Compare (void * pItem1, void * pItem2)
+int  CConfigFile::Compare (void * pItem1, void * pItem2) const
 {
     int x;
 
@@ -110,20 +110,20 @@ CONFIG_PARAM * NewParam(const char * szSection, const char * szName, const char 
         pPrm->szSection  = NULL;
         pPrm->SectionLen = 0;
     }
-    
+
     pPrm->szName      = strdup(szName);
     pPrm->szValue     = strdup(szValue);
     pPrm->NameLen     = strlen(szName);
-    pPrm->ValueLen    = strlen(szValue); 
+    pPrm->ValueLen    = strlen(szValue);
     if (szComment && *szComment)
     {
         pPrm->szComment   = strdup(szComment);
-        pPrm->CommentLen  = strlen(szComment); 
+        pPrm->CommentLen  = strlen(szComment);
     }
     else
     {
         pPrm->szComment   = NULL;
-        pPrm->CommentLen  = 0; 
+        pPrm->CommentLen  = 0;
     }
 
     return pPrm;
@@ -168,7 +168,7 @@ BOOL CConfigFile::Load(const char * szFName)
                                     State = name;
                          }
                          break;
-            
+
             case name:   switch (ch)
                          {
                          case '=' : State = value;
@@ -179,7 +179,7 @@ BOOL CConfigFile::Load(const char * szFName)
                          default  : Name.AddCh(ch);
                          }
                          break;
-            
+
             case value:  switch (ch)
                          {
                          case '\n': Section.TrimLeft (TRIM_ALL);
@@ -201,7 +201,7 @@ BOOL CConfigFile::Load(const char * szFName)
                          default :  Value.AddCh(ch);
                          }
                          break;
-            
+
             case sect:   switch (ch)
                          {
                          case ']':  State = start;
@@ -225,8 +225,8 @@ BOOL CConfigFile::Load(const char * szFName)
 
     if (!Name.IsEmpty())
     {
-        Section.TrimLeft(TRIM_ALL);    
-        Section.TrimRight(TRIM_ALL);   
+        Section.TrimLeft(TRIM_ALL);
+        Section.TrimRight(TRIM_ALL);
         Name.TrimRight(TRIM_ALL);
         Value.TrimLeft(TRIM_ALL);
         Value.TrimRight(TRIM_ALL);
@@ -234,7 +234,7 @@ BOOL CConfigFile::Load(const char * szFName)
         if (pPrm && !Insert(pPrm))
             FreeItem(pPrm);
     }
-    
+
     F.Close();
 
     return Ok;
@@ -251,7 +251,7 @@ BOOL CConfigFile::Save(const char * szFName)
     int                 MaxNameLen = 0;
     int                 MinNameLen = 0x7FFFFFFF;
     char                Spaces[]   = "                                   ";
-    int                 nSpaces; 
+    int                 nSpaces;
     CStr                CrntSection;
 
     Ok =  F.Open(szFName);
@@ -303,7 +303,7 @@ BOOL CConfigFile::Save(const char * szFName)
                 nSpaces = MaxNameLen - pParam->NameLen;
             if (Ok)
                 Ok = F.WriteBuf(pParam->szName, pParam->NameLen);
-            
+
             if (Ok && (nSpaces>0))
                 Ok = F.WriteBuf(Spaces, nSpaces);
 
@@ -315,7 +315,7 @@ BOOL CConfigFile::Save(const char * szFName)
             if (!Ok)
                 break;
         }
-    
+
 
     }
     F.Close();
@@ -328,7 +328,7 @@ BOOL CConfigFile::Save(const char * szFName)
 const char * CConfigFile::GetByName(const char * szSection, const char * szName)
 {
     CONFIG_PARAM * pPrm, Test;
-    int            i; 
+    int            i;
 
     Test.szSection = szSection;
     Test.szName    = szName;
@@ -346,7 +346,7 @@ const char * CConfigFile::GetByName(const char * szSection, const char * szName)
 void CConfigFile::SetByName(const char * szSection, const char * szName, const char * szNewValue, const char * szComment)
 {
     CONFIG_PARAM * pPrm, Test;
-    int            i; 
+    int            i;
 
     Test.szSection = szSection;
     Test.szName    = szName;
@@ -360,7 +360,7 @@ void CConfigFile::SetByName(const char * szSection, const char * szName, const c
             if (pPrm->szValue)
                 free((void*)(pPrm->szValue));
             pPrm->szValue = strdup(szNewValue);
-            pPrm->ValueLen= strlen(szNewValue); 
+            pPrm->ValueLen= strlen(szNewValue);
         }
     }
     else
@@ -377,7 +377,7 @@ void CConfigFile::SetByName(const char * szSection, const char * szName, const c
 int CConfigFile::GetFirstInSection(const char * szSection, const char *& szName, const char *& szValue)
 {
     CONFIG_PARAM * pPrm, Test;
-    int            i; 
+    int            i;
 
     Test.szSection = szSection;
     Test.szName    = "";
@@ -418,7 +418,7 @@ int CConfigFile::GetNextInSection (int idx, const char * szSection, const char *
 void CConfigFile::RemoveSection(const char * szSection)
 {
     CONFIG_PARAM * pPrm, Test;
-    int            idx; 
+    int            idx;
 
     Test.szSection = szSection;
     Test.szName    = "";
@@ -440,7 +440,7 @@ BOOL CConfigFile::GetNextSection(const char * szPrevSection, const char *& szNex
     char         * p;
     int            n;
     CONFIG_PARAM * pPrm, Test;
-    int            i; 
+    int            i;
 
     S = szPrevSection;
     n = S.GetLength();

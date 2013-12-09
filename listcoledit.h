@@ -40,10 +40,10 @@ public:
     CUnitColDataColl(int nDelta) : CSortedCollection(nDelta) {};
 protected:
     virtual void FreeItem(void * pItem) { if (pItem) delete (TUnitColData*)pItem; };
-    virtual int Compare(void * pItem1, void * pItem2) 
+    virtual int Compare(void * pItem1, void * pItem2) const
     {
-        return stricmp(((TUnitColData*)pItem1)->PropName.GetData(), 
-                       ((TUnitColData*)pItem2)->PropName.GetData()); 
+        return stricmp(((TUnitColData*)pItem1)->PropName.GetData(),
+                       ((TUnitColData*)pItem2)->PropName.GetData());
     };
 };
 
@@ -68,7 +68,7 @@ private:
     void  SaveListDest();
     void  LoadSetCombo();
     void  ProcessCaption(int oldidx, int newidx);
-    
+
     void  AddItem();
     void  DeleteItem();
 
@@ -86,8 +86,8 @@ private:
     wxListCtrl * m_lstSource;
     wxListCtrl * m_lstDest;
     wxComboBox * m_cbSetName;
-    wxTextCtrl * m_txtCaption;  
-    
+    wxTextCtrl * m_txtCaption;
+
     DECLARE_EVENT_TABLE()
 };
 

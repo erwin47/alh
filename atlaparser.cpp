@@ -3427,7 +3427,7 @@ CFaction * CAtlaParser::GetFaction(int id)
 
 //-------------------------------------------------------------
 
-CLand * CAtlaParser::GetLand(int x, int y, int nPlane, BOOL AdjustForEdge)
+CLand * CAtlaParser::GetLand(int x, int y, int nPlane, BOOL AdjustForEdge) const
 {
     char     dummy[sizeof(CLand)];
     int      idx;
@@ -3455,7 +3455,7 @@ CLand * CAtlaParser::GetLand(int x, int y, int nPlane, BOOL AdjustForEdge)
 
 //-------------------------------------------------------------
 
-CLand * CAtlaParser::GetLand(long LandId)
+CLand * CAtlaParser::GetLand(long LandId) const
 {
     int x, y, z;
 
@@ -3487,7 +3487,7 @@ void CAtlaParser::ComposeLandStrCoord(CLand * pLand, CStr & LandStr)
 
 //-------------------------------------------------------------
 
-BOOL CAtlaParser::LandStrCoordToId(const char * landcoords, long & id)
+BOOL CAtlaParser::LandStrCoordToId(const char * landcoords, long & id) const
 {
     CStr                 S;
     long                 x, y;
@@ -3525,7 +3525,7 @@ BOOL CAtlaParser::LandStrCoordToId(const char * landcoords, long & id)
 
 //-------------------------------------------------------------
 
-CLand * CAtlaParser::GetLand(const char * landcoords) //  "48,52[,somewhere]"
+CLand * CAtlaParser::GetLand(const char * landcoords) const //  "48,52[,somewhere]"
 {
     long                 id;
 
@@ -7254,6 +7254,54 @@ void CAtlaParser::LookupAdvancedResourceVisibility(CUnit * pUnit, CLand * pLand)
 
     Levels.FreeAll();
     Resources.FreeAll();
+}
+
+//-------------------------------------------------------------
+
+CLand * CAtlaParser::GetLandFlexible(const wxString & description) const
+{
+    // Used for parsing a location entered by the user:
+    //   "text text (coords)"
+    //   "coords"
+    //   "cityname"
+    const wxString WorkStr = description.BeforeFirst(')');
+    CLand * pLand = GetLand(WorkStr.AfterFirst('(').ToUTF8());
+
+    if (!pLand)
+    {
+        pLand = GetLand(WorkStr.ToUTF8());
+    }
+    if (!pLand)
+    {
+        pLand = GetLandWithCity(WorkStr.BeforeFirst(' '));
+    }
+    return pLand;
+}
+
+//-------------------------------------------------------------
+
+CLand * CAtlaParser::GetLandWithCity(const wxString & cityName) const
+{
+    // Try to find the city named by cityName.
+    if (cityName.IsEmpty()) return NULL;
+
+    int                np,nl;
+    CPlane           * pPlane;
+    CLand            * pLand;
+
+    for (np=0; np<m_Planes.Count(); ++np)
+    {
+        pPlane = (CPlane*)m_Planes.At(np);
+        for (nl=0; nl<pPlane->Lands.Count(); ++nl)
+        {
+            pLand    = (CLand*)pPlane->Lands.At(nl);
+            if (cityName.CmpNoCase(pLand->CityName.GetData()) == 0)
+            {
+                return pLand;
+            }
+        }
+    }
+    return NULL;
 }
 
 //-------------------------------------------------------------

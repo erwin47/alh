@@ -110,7 +110,7 @@ int TProperty::SetValue(EValueType     type,
 
 //===================================================================
 
-int TPropertyColl::Compare(void * pItem1, void * pItem2)
+int TPropertyColl::Compare(void * pItem1, void * pItem2) const
 {
     return stricmp( ((TProperty*)pItem1)->m_name,  ((TProperty*)pItem2)->m_name );
 }
@@ -357,7 +357,7 @@ void TPropertyHolderColl::FreeItem(void * pItem)
 
 //-------------------------------------------------------------------
 
-int TPropertyHolderColl::Compare(void * pItem1, void * pItem2)
+int TPropertyHolderColl::Compare(void * pItem1, void * pItem2) const
 {
     int               n, x;
     const void      * p1,  * p2;

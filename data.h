@@ -278,7 +278,7 @@ public:
     CBaseCollById(int nDelta);
 protected:
     virtual void FreeItem(void * pItem);
-    virtual int Compare(void * pItem1, void * pItem2) ;
+    virtual int Compare(void * pItem1, void * pItem2) const;
 };
 
 //-----------------------------------------------------------------
@@ -300,7 +300,7 @@ public:
     CProductColl(int nDelta)  : CSortedCollection(nDelta){};
 protected:
     virtual void FreeItem(void * pItem) {delete (CProduct*)pItem;};
-    virtual int Compare(void * pItem1, void * pItem2)
+    virtual int Compare(void * pItem1, void * pItem2) const
     {return(SafeCmp( ((CProduct*)pItem1)->ShortName.GetData(),
                      ((CProduct*)pItem2)->ShortName.GetData() ));};
 };
@@ -524,7 +524,7 @@ public:
     CBaseCollByName()           : CBaseCollById()       {};
     CBaseCollByName(int nDelta) : CBaseCollById(nDelta) {};
 protected:
-    virtual int Compare(void * pItem1, void * pItem2) ;
+    virtual int Compare(void * pItem1, void * pItem2) const;
 };
 
 //-----------------------------------------------------------------
@@ -605,7 +605,7 @@ class CTaxProdDetailsCollByFaction : public CSortedCollection
             CTaxProdDetails * p = (CTaxProdDetails*)pItem;
             delete p;
         };
-        virtual int Compare(void * pItem1, void * pItem2)
+        virtual int Compare(void * pItem1, void * pItem2) const
         {
             CTaxProdDetails * p1 = (CTaxProdDetails*)pItem1;
             CTaxProdDetails * p2 = (CTaxProdDetails*)pItem2;

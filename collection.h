@@ -31,7 +31,7 @@ public:
     CCollection(int nDelta);
     virtual ~CCollection();
 
-    void * At(int nIndex);
+    void * At(int nIndex) const;
     virtual BOOL Insert(void * pItem);
     //virtual void Delete(void * pItem);  Delete and Free are removed because they are slow
     //virtual void Free(void * pItem);
@@ -41,9 +41,9 @@ public:
     void AtFree(int nIndex);
     void DeleteAll();
     void FreeAll();
-    inline int  Count() {return m_nCount;};
+    inline int  Count() const {return m_nCount;}
     inline void ** GetItems() {return m_pItems;};
-    
+
 
 protected:
     virtual void FreeItem(void * pItem)=0;
@@ -92,13 +92,13 @@ public:
 
 
 
-    BOOL Search(void * pItem, int & nIndex);
+    BOOL Search(void * pItem, int & nIndex) const;
     //BOOL FindFirst(void * pItem, int & nIndex); Removed since Search always finds first matching item (if m_bDuplicates)
-    
-    BOOL m_bDuplicates; 
+
+    BOOL m_bDuplicates;
 
 protected:
-    virtual int Compare(void * pItem1, void * pItem2) = 0;
+    virtual int Compare(void * pItem1, void * pItem2) const = 0;
 
 };
 
@@ -112,7 +112,7 @@ public:
     CLongSortColl(int nDelta) : CSortedCollection(nDelta) {};
 protected:
     virtual void FreeItem(void * pItem) {};
-    virtual int Compare(void * pItem1, void * pItem2) 
+    virtual int Compare(void * pItem1, void * pItem2) const
     {
         if ((long)pItem1 > (long)pItem2)
             return 1;
@@ -133,7 +133,7 @@ public:
     CStringSortColl(int nDelta) : CSortedCollection(nDelta) {};
 protected:
     virtual void FreeItem(void * pItem) { if (pItem) free(pItem); };
-    virtual int Compare(void * pItem1, void * pItem2) {return stricmp((const char*)pItem1, (const char*)pItem2);};
+    virtual int Compare(void * pItem1, void * pItem2) const {return stricmp((const char*)pItem1, (const char*)pItem2);}
 };
 
 

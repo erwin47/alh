@@ -154,13 +154,15 @@ public:
     int        ParseCBDataFile(const char * FNameIn);
     void       WriteMagesCSV(const char * FName, BOOL vertical, const char * separator, int format);
 
-    CLand    * GetLand(int x, int y, int nPlane, BOOL AdjustForEdge=FALSE);
-    CLand    * GetLand(long LandId);
-    CLand    * GetLand(const char * landcoords); //  "48,52[,somewhere]"
+    CLand    * GetLand(int x, int y, int nPlane, BOOL AdjustForEdge=FALSE) const;
+    CLand    * GetLand(long LandId) const;
+    CLand    * GetLand(const char * landcoords) const; //  "48,52[,somewhere]"
+    CLand    * GetLandFlexible(const wxString & description) const;
+    CLand    * GetLandWithCity(const wxString & cityName) const;
     void       GetUnitList(CCollection * pResultColl, int x, int y, int z);
     void       CountMenForTheFaction(int FactionId);
     void       ComposeProductsLine(CLand * pLand, const char * eol, CStr & S);
-    BOOL       LandStrCoordToId(const char * landcoords, long & id);
+    BOOL       LandStrCoordToId(const char * landcoords, long & id) const;
     void       ComposeLandStrCoord(CLand * pLand, CStr & LandStr);
     CFaction * GetFaction(int id);
     BOOL       SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane, SAVE_HEX_OPTIONS * pOptions);

@@ -77,7 +77,7 @@ CCollection::~CCollection()
 
 //--------------------------------------------------------------------
 
-void * CCollection::At(int nIndex)
+void * CCollection::At(int nIndex) const
 {
     if ( (nIndex>=0) && (nIndex<m_nCount) )
         return m_pItems[nIndex];
@@ -243,7 +243,7 @@ BOOL CSortedCollection::Insert(void * pItem)
 
 //--------------------------------------------------------------------
 
-BOOL CSortedCollection::Search(void * pItem, int & nIndex)
+BOOL CSortedCollection::Search(void * pItem, int & nIndex) const
 {
     int   L, H, I, C;
     BOOL  Ok;

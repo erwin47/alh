@@ -116,7 +116,7 @@ protected:
         if (pItem)
             delete (CAtlaParser*)pItem;
     };
-    virtual int Compare(void * pItem1, void * pItem2)
+    virtual int Compare(void * pItem1, void * pItem2) const
     {
         if ( ((CAtlaParser*)pItem1)->m_YearMon > ((CAtlaParser*)pItem2)->m_YearMon)
             return 1;
@@ -153,7 +153,7 @@ protected:
             delete (ItemWeights*)pItem;
         }
     };
-    virtual int Compare(void * pItem1, void * pItem2)
+    virtual int Compare(void * pItem1, void * pItem2) const
     {
         return SafeCmp(((ItemWeights*)pItem1)->name, ((ItemWeights*)pItem2)->name);
     };

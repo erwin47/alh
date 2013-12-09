@@ -1238,7 +1238,7 @@ void CBaseCollById::FreeItem(void * pItem)
 
 //-------------------------------------------------------------
 
-int  CBaseCollById::Compare(void * pItem1, void * pItem2)
+int  CBaseCollById::Compare(void * pItem1, void * pItem2) const
 {
     CBaseObject * pBase1 = (CBaseObject*)pItem1;
     CBaseObject * pBase2 = (CBaseObject*)pItem2;
@@ -1262,7 +1262,7 @@ CPlane::~CPlane()
 
 //-------------------------------------------------------------
 
-int  CBaseCollByName::Compare(void * pItem1, void * pItem2)
+int  CBaseCollByName::Compare(void * pItem1, void * pItem2) const
 {
     CBaseObject * pBase1 = (CBaseObject*)pItem1;
     CBaseObject * pBase2 = (CBaseObject*)pItem2;

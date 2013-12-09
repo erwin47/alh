@@ -54,7 +54,7 @@ public:
 
 protected:
     virtual void FreeItem(void * pItem);
-    virtual int  Compare (void * pItem1, void * pItem2);
+    virtual int  Compare (void * pItem1, void * pItem2) const;
 
 
 };
