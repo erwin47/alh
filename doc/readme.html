@@ -202,6 +202,14 @@ values:
     For example:
         Balloon = MOBILE, MIN_POWER 10, MAX_LOAD 800
 
+    [PLANE_SIZE] - ah.st.cfg. When you know the dimensions of your world, enter
+                   them and ALH can use them to wrap the map before you explore
+                   the edge. Syntax: plane_name = x-min,y-min,x-max,y-max. 
+                   For example:
+        [PLANE_SIZE]
+        Overworld  = 0,0,29,29
+        underworld = 0,0,9,9
+
 
 </pre>
                             <a name="unitprop"></a>
@@ -323,7 +331,7 @@ values:
                         Map fragments can be exported as well. It is possible to drag mouse on the map
                         selecting an area, and then export that area. <a name="python"></a>
 
-                            <h4>Pseudocomments (speciasl abilities)</h4>
+                            <h4>Pseudocomments (special abilities)</h4>
                             <a name="pseudocomments"></a>
                         Pseudocomments are special comments which allow to modify the way how a command
                         in the orders is executed. <br>

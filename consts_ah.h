@@ -222,6 +222,7 @@ enum
 #define SZ_SECT_FOLDERS                 "FOLDERS"
 #define SZ_SECT_DO_NOT_SHOW_THESE       "DO_NOT_SHOW_THESE"
 #define SZ_SECT_TROPIC_ZONE             "TROPIC_ZONE"
+#define SZ_SECT_PLANE_SIZE              "PLANE_SIZE"
 #define SZ_SECT_UNIT_FLAGS              "UNIT_FLAGS"
 
 // for 1.0 compatibility

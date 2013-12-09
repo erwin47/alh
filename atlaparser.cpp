@@ -1476,6 +1476,24 @@ CPlane * CAtlaParser::MakePlane(const char * planename)
             pPlane->TropicZoneMax  = -(TROPIC_ZONE_MAX);
         }
 
+        // Format: <x-min>,<y-min>,<x-max>,<y-max>  Eg: 0,0,31,23
+        const char * value = gpDataHelper->GetPlaneSize(pPlane->Name.GetData());
+        if (value && *value)
+        {
+            CStr S;
+            value = S.GetToken(value, ',');
+            pPlane->WestEdge = atol(S.GetData());
+
+            value = S.GetToken(value, ',');
+            //y_min = atol(S.GetData());
+
+            value = S.GetToken(value, ',');
+            pPlane->EastEdge = atol(S.GetData());
+
+            value = S.GetToken(value, ',');
+            //y_max = atol(S.GetData());
+            pPlane->Width = pPlane->EastEdge - pPlane->WestEdge + 1;
+        }
         m_PlanesNamed.Insert(pPlane);
         m_Planes.Insert(pPlane);
     }
@@ -1737,12 +1755,15 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
     m_pCurLand   = pLand;
     m_pCurStruct = NULL;
 
-    // Clear all the Edge structures which were loaded from history
-    pLand->EdgeStructs.FreeAll();
-    pLand->Exits.Empty();
+    if (pLand->Description.FindSubStr("last month") != -1)
+    {
+        // Full region report, clear all the Edge structures which were loaded from history
+        pLand->EdgeStructs.FreeAll();
+        pLand->Exits.Empty();
+        pLand->ExitBits = 0;
+    }
 
     // now is a list of exits and gates terminated by unit or structure
-    pLand->ExitBits = 0;
     while (ReadNextLine(CurLine))
     {
         if (0==SafeCmp(EOL_SCR, CurLine.GetData()))

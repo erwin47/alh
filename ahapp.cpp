@@ -136,6 +136,7 @@ bool CAhApp::OnInit()
     m_ConfigSectionsState.Insert(strdup(SZ_SECT_FOLDERS          ));
     m_ConfigSectionsState.Insert(strdup(SZ_SECT_DO_NOT_SHOW_THESE));
     m_ConfigSectionsState.Insert(strdup(SZ_SECT_TROPIC_ZONE      ));
+    m_ConfigSectionsState.Insert(strdup(SZ_SECT_PLANE_SIZE       ));
     m_ConfigSectionsState.Insert(strdup(SZ_SECT_UNIT_FLAGS       ));
 
 
@@ -4978,6 +4979,11 @@ void CGameDataHelper::SetTropicZone  (const char * plane, long y_min, long y_max
     CStr S;
     S << y_min << ',' << y_max;
     gpApp->SetConfig(SZ_SECT_TROPIC_ZONE, plane, S.GetData());
+}
+
+const char * CGameDataHelper::GetPlaneSize (const char * plane)
+{
+    return gpApp->GetConfig(SZ_SECT_PLANE_SIZE, plane);
 }
 
 void CGameDataHelper::GetProdDetails (const char * item, TProdDetails & details)
