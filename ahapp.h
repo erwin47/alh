@@ -20,6 +20,7 @@
 #ifndef __AH_APP_INCL__
 #define __AH_APP_INCL__
 
+#include <wx/app.h>
 
 enum
 {
@@ -28,6 +29,7 @@ enum
     AH_FRAME_MSG              ,
     AH_FRAME_EDITS            ,
     AH_FRAME_UNITS_FLTR       ,
+    AH_FRAME_SHAFTS           ,
 
     AH_FRAME_COUNT
 };
@@ -267,6 +269,7 @@ public:
     void                 StdRedirectReadMore(BOOL FromStdout, CStr & sData);
     void                 CheckRedirectedOutputFiles();
     void                 RerunOrders();
+    void                 ShowShaftConnectGUI();
     void                 SetAllLandUnitFlags();
     void                 ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane);
     void                 ShowLandFinancial(CLand * pCurLand);

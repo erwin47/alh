@@ -212,6 +212,11 @@ DefaultConfigRec DefaultConfig[] =
     {SZ_SECT_WND_MSG           ,     SZ_KEY_X2             ,     "500"               },
     {SZ_SECT_WND_MSG           ,     SZ_KEY_Y2             ,     "500"               },
 
+    {SZ_SECT_WND_SHAFTS        ,     SZ_KEY_X1             ,     "200"               },
+    {SZ_SECT_WND_SHAFTS        ,     SZ_KEY_Y1             ,     "100"               },
+    {SZ_SECT_WND_SHAFTS        ,     SZ_KEY_X2             ,     "675"               },
+    {SZ_SECT_WND_SHAFTS        ,     SZ_KEY_Y2             ,     "340"               },
+
     {SZ_SECT_WND_LST_COLEDIT_DLG,     SZ_KEY_X1             ,     "250"               },
     {SZ_SECT_WND_LST_COLEDIT_DLG,     SZ_KEY_Y1             ,     "150"               },
     {SZ_SECT_WND_LST_COLEDIT_DLG,     SZ_KEY_X2             ,     "750"               },

@@ -116,6 +116,7 @@ BEGIN_EVENT_TABLE(CMapFrame, CAhFrame)
 
     EVT_MENU     (menu_ApplyDefaultOrders , CMapFrame::OnApplyDefaultOrders    )
     EVT_MENU     (menu_RerunOrders        , CMapFrame::OnRerunOrders           )
+    EVT_MENU     (menu_ShaftConnect       , CMapFrame::OnShaftConnect          )
 
     EVT_MENU     (menu_WriteMagesCSV      , CMapFrame::OnWriteMagesCSV         )
     EVT_MENU     (menu_ExportHexes        , CMapFrame::OnExportHexes           )
@@ -233,6 +234,7 @@ void CMapFrame::MakeMenu(int layout)
     menuItem = new wxMenu;
     menuItem->Append(menu_ApplyDefaultOrders, wxT("Apply default orders")          , wxT(""));
     menuItem->Append(menu_RerunOrders       , wxT("Rerun orders")                  , wxT(""));
+    menuItem->Append(menu_ShaftConnect      , wxT("Connect shafts")                , wxT(""));
     menuItem->Append(menu_CheckMonthLongOrd , wxT("Check month long orders")       , wxT(""));
     menuItem->Append(menu_CheckTaxTrade     , wxT("Check tax, trade for next turn"), wxT(""));
     menuItem->Append(menu_CheckProduction   , wxT("Check production requirements") , wxT(""));
@@ -885,6 +887,13 @@ void CMapFrame::OnApplyDefaultOrders(wxCommandEvent& event)
 void CMapFrame::OnRerunOrders(wxCommandEvent& event)
 {
     gpApp->RerunOrders();
+}
+
+//--------------------------------------------------------------------
+
+void CMapFrame::OnShaftConnect(wxCommandEvent& event)
+{
+    gpApp->ShowShaftConnectGUI();
 }
 
 //--------------------------------------------------------------------

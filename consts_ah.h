@@ -66,6 +66,7 @@ enum
     menu_ListColumns        ,
     menu_ApplyDefaultOrders ,
     menu_RerunOrders        ,
+    menu_ShaftConnect       ,
     menu_WriteMagesCSV      ,
     menu_CheckMonthLongOrd  ,
     menu_CheckTaxTrade      ,
@@ -173,6 +174,7 @@ enum
 #define SZ_SECT_WND_MAP_2_WIN           "WINDOW_MAP"
 #define SZ_SECT_WND_MAP_3_WIN           "WINDOW_MAP_1"
 #define SZ_SECT_WND_MAP_1_WIN           "WINDOW_MAP_2"
+#define SZ_SECT_WND_SHAFTS              "WINDOW_SHAFTS"
 #define SZ_SECT_WND_UNITS_2_WIN         "WINDOW_UNITS"
 #define SZ_SECT_WND_UNITS_3_WIN         "WINDOW_UNITS_1"
 #define SZ_SECT_WND_UNITS_FLTR          "WINDOW_UNITS_FLTR"

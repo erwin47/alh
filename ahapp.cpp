@@ -43,6 +43,7 @@
 #include "editpane.h"
 #include "mappane.h"
 #include "listpane.h"
+#include "shaftsframe.h"
 #include "unitpane.h"
 #include "utildlgs.h"
 #include "unitfilterdlg.h"
@@ -537,6 +538,20 @@ void CAhApp::OpenUnitFrame()
     }
     else
         m_Frames[AH_FRAME_UNITS]->Raise();
+}
+
+//--------------------------------------------------------------------------
+
+void CAhApp::ShowShaftConnectGUI()
+{
+    if (!m_Frames[AH_FRAME_SHAFTS])
+    {
+        m_Frames[AH_FRAME_SHAFTS] = new ShaftsFrame(m_Frames[AH_FRAME_MAP]);
+        m_Frames[AH_FRAME_SHAFTS]->Init(m_layout, NULL);
+        m_Frames[AH_FRAME_SHAFTS]->Show(TRUE);
+    }
+    else
+        m_Frames[AH_FRAME_SHAFTS]->Raise();
 }
 
 //-------------------------------------------------------------------------

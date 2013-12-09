@@ -64,6 +64,7 @@ private:
     void OnViewFactionOverview (wxCommandEvent& event);
     void OnApplyDefaultOrders  (wxCommandEvent& event);
     void OnRerunOrders         (wxCommandEvent& event);
+    void OnShaftConnect        (wxCommandEvent& event);
     void OnWriteMagesCSV       (wxCommandEvent& event);
     void OnCheckMonthLongOrd   (wxCommandEvent& event);
     void OnCheckTaxTrade       (wxCommandEvent& event);

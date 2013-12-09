@@ -20,6 +20,8 @@
 #ifndef __AH_FRAME_INCL__
 #define __AH_FRAME_INCL__
 
+#include <wx/dialog.h>
+#include <wx/panel.h>
 
 //-------------------------------------------------------------------
 

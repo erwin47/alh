@@ -2442,16 +2442,67 @@ Exit:
 
 //----------------------------------------------------------------------
 
+wxString CAtlaParser::getFullStrLandCoord(CLand * pLand)
+{
+    CStr sCoord;
+    wxString s;
+
+    ComposeLandStrCoord(pLand, sCoord);
+    s.Printf(wxT("%s (%s)"), pLand->TerrainType.GetData(), sCoord.GetData());
+    if (!pLand->CityName.IsEmpty())
+        s+= wxString::Format(wxT(" contains %s"), pLand->CityName.GetData());
+    return s;
+}
+
+//----------------------------------------------------------------------
+
+bool CAtlaParser::LinkShaft(CLand * pLand, CLand * pLandDest, int structIdx)
+{
+    CStruct    * pStruct;
+    CStr         S, T;
+    int          n;
+    const char * p;
+
+    if (pLand && pLandDest && structIdx >=0 && structIdx < pLand->Structs.Count())
+    {
+        pStruct = (CStruct*)pLand->Structs.At(structIdx);
+        if (pStruct->Attr & SA_SHAFT)
+        {
+            ComposeLandStrCoord(pLandDest, S);
+            // Strip the trailing dot
+            if ('.' ==  pStruct->Description.GetData()[ pStruct->Description.GetLength()-1])
+                 pStruct->Description.DelCh( pStruct->Description.GetLength()-1);
+
+            // Remove any previous links
+            n = pStruct->Description.FindSubStr("; links to");
+            if (n > 0) pStruct->Description.DelSubStr(n, 9999);
+
+            // Get the start of the last line into n, so it can be wordwrapped
+            p = strrchr( pStruct->Description.GetData(), '\n');
+            n = p ? ( pStruct->Description.GetData()-p) : 0;
+
+            T.Empty();
+            T << "; links to (" << S << ").";
+            if (n+T.GetLength() > 64)
+                 pStruct->Description << EOL_SCR << "  ";
+            pStruct->Description << T;
+            return true;
+        }
+    }
+    return false;
+}
+
+//----------------------------------------------------------------------
+
 void CAtlaParser::SetShaftLinks()
 {
     CLand      * pLand;
     CLand      * pLandDest;
     CStruct    * pStruct;
-    int          i,j,n;
+    int          i,j;
     EValueType   type;
     const void * value;
-    CStr         S, T;
-    const char * p;
+    int          subStrResult;
 
     for (i=0; i<m_LandsToBeLinked.Count(); i++)
     {
@@ -2460,32 +2511,25 @@ void CAtlaParser::SetShaftLinks()
         if (!pLand->GetProperty(PRP_LAND_LINK, type, value, eOriginal) || eLong!=type)
             continue;
 
+        // Change the description of the first shaft which is not linked yet to the hex given, avoiding duplicates.
         for (j=0; j<pLand->Structs.Count(); j++)
         {
             pStruct = (CStruct*)pLand->Structs.At(j);
             if (pStruct->Attr & SA_SHAFT  )
             {
                 pLandDest = GetLand((long)value);
-                if (pLandDest && pStruct->Description.FindSubStr("links")<0)
+                subStrResult = pStruct->Description.FindSubStr("links");
+                if (pLandDest && subStrResult >= 0 && GetLandFlexible(wxString::FromUTF8(pStruct->Description.GetData())) == pLandDest)
+                    break;
+
+                if (pLandDest && subStrResult < 0)
                 {
-                    ComposeLandStrCoord(pLandDest, S);
-                    if ('.' ==  pStruct->Description.GetData()[ pStruct->Description.GetLength()-1])
-                         pStruct->Description.DelCh( pStruct->Description.GetLength()-1);
-
-                    p = strrchr( pStruct->Description.GetData(), '\n');
-                    n = p ? ( pStruct->Description.GetData()-p) : 0;
-
-                    T.Empty();
-                    T << "; links to (" << S << ").";
-                    if (n+T.GetLength() > 64)
-                         pStruct->Description << EOL_SCR << "  ";
-                     pStruct->Description << T;
+                    LinkShaft(pLand, pLandDest, j);
+                    break;
                 }
-                break;
             }
         }
     }
-
     m_LandsToBeLinked.DeleteAll();
 }
 
@@ -7295,7 +7339,7 @@ CLand * CAtlaParser::GetLandWithCity(const wxString & cityName) const
         for (nl=0; nl<pPlane->Lands.Count(); ++nl)
         {
             pLand    = (CLand*)pPlane->Lands.At(nl);
-            if (cityName.CmpNoCase(pLand->CityName.GetData()) == 0)
+            if (cityName.CmpNoCase(wxString::FromUTF8(pLand->CityName.GetData())) == 0)
             {
                 return pLand;
             }
