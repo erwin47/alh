@@ -437,6 +437,9 @@ public:
     void      RemoveEdgeStructs(int direction);
     void      AddNewEdgeStruct(const char * name, int direction);
     int       GetNextNewUnitNo();
+    void      SetExit(int direction, int x, int y);
+    void      CloseAllExits(); // disable all exits
+    void      ResetAllExits(); // assume all exits would exist
 
 
     virtual void DebugPrint(CStr & sDest);
@@ -458,7 +461,8 @@ public:
     unsigned long Flags;
     unsigned long AlarmFlags;
     unsigned long EventFlags;
-    int           ExitBits;
+    int           xExit[6]; // storage for the coordinates of the exit
+    int           yExit[6]; // storage for the coordinates of the exit
     int           CoastBits;
     CPlane      * pPlane;
     int           AtlaclientsLastTurnNo;
@@ -470,6 +474,10 @@ public:
     long          guiUnit;  // will be used by GUI only
     int           guiColor; // will be used by GUI only
 };
+
+const int EXIT_CLOSED = -255;
+const int EXIT_MAYBE  = -254;
+
 
 //-----------------------------------------------------------------
 

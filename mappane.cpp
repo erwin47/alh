@@ -2255,7 +2255,7 @@ void CMapPane::DrawHexBorder(int NoX, int NoY, wxDC * pDC, CLand * pLand, BOOL F
        return;
 
 
-
+    // int ExitFlags [] = { 0x01,    0x02,        0x04,        0x08,    0x10,        0x20      };
 
     GetHexCenter(NoX, NoY, x0, y0);
     if (IsSelected)
@@ -2269,11 +2269,12 @@ void CMapPane::DrawHexBorder(int NoX, int NoY, wxDC * pDC, CLand * pLand, BOOL F
 
     if (pLand)
     {
-        ExitBits = pLand->ExitBits;
-        //if (ExitBits!=63)
-        //{
-        //    int x = 0;
-        //}
+        ExitBits = 0;
+        for (int i=0; i<6; ++i)
+        {
+            bool exitBlocked = gpApp->m_pAtlantis->IsLandExitClosed(pLand, i);
+            if (!exitBlocked) ExitBits |= ExitFlags[i];
+        }
     }
     else
         if (AutoEmpty)
@@ -2290,7 +2291,7 @@ void CMapPane::DrawHexBorder(int NoX, int NoY, wxDC * pDC, CLand * pLand, BOOL F
                 pLand = gpApp->m_pAtlantis->GetLand(x, y, m_SelPlane, TRUE);
                 if ( pLand && (pLand->Flags&LAND_VISITED) )
                 {
-                    if (pLand->ExitBits&EntryFlags[i])
+                    if (!gpApp->m_pAtlantis->IsLandExitClosed(pLand, (i+3)%6))
                         ExitBits |= ExitFlags[i];
                 }
                 else
@@ -2901,7 +2902,7 @@ void CMapPane::RedrawTracksForUnit(CPlane * pPlane, CUnit * pUnit, wxDC * pDC, B
 
     pDC->SetPen(*m_pPenSel);
 
-    // draw new tracks and remeber hexes
+    // draw new tracks and remember hexes
     if (pUnit && pUnit->pMovement)
     {
         m_pTrackHexes->Insert((void*)pUnit->LandId);
@@ -2972,17 +2973,25 @@ void CMapPane::DrawSingleTrack(int X, int Y, int wx, int wy, wxDC * pDC, CUnit *
         wy0_a = wy_a;
 
         HexId = (long)pUnit->pMovement->At(i);
+        LandIdToCoord(HexId, X1, Y1, Z);
+
         if (0==copyno)
             m_pTrackHexes->Insert((void*)HexId);
 
-        LandIdToCoord(HexId, X1, Y1, Z);
+        // Real map coords used for drawing; will contain wrapping adjustments.
+        int XDraw = X1;
+        int YDraw = Y1;
 
-        if (X1-X > 1)
-            X1 = X-1;
-        if (X-X1 > 1)
-            X1 = X+1;
+        // Change the X-Coord for movement past the wrapping point.
+        if (pPlane->Width > 0)
+        {
+            if (X1-X > pPlane->Width/2)
+                XDraw = X1 - pPlane->Width;
+            else if (X-X1 > pPlane->Width/2)
+                XDraw = pPlane->Width + X1;
+        }
 
-        wx += (m_HexSize * 3 / 2)*(X1-X);
+        wx += (m_HexSize * 3 / 2)*(XDraw-X);
         wy += m_HexHalfHeight*(Y1-Y);
 
         if (Arcadia3Sail)
@@ -2992,14 +3001,6 @@ void CMapPane::DrawSingleTrack(int X, int Y, int wx, int wy, wxDC * pDC, CUnit *
             AdjustForA3Location(wx_a, wy_a, LocA3);
         }
 
-        X1 = gpApp->m_pAtlantis->NormalizeHexX(X1, pPlane);
-        if (pPlane->Width>0)
-        {
-            if (X1>pPlane->EastEdge)
-                X1 = pPlane->WestEdge;
-            if (X1<pPlane->WestEdge)
-                X1 = pPlane->EastEdge;
-        }
         X = X1;
         Y = Y1;
 
@@ -3024,6 +3025,9 @@ void CMapPane::DrawTrackArrow(wxDC * pDC, int wx0, int wy0, int wx, int wy)
 {
     int wxa, wya, wx1, wy1;
     int scale = 4;
+
+    if (wx < wx0) wx0 = wx + (m_HexSize * 3 / 2);
+    else if (wx > wx0) wx0 = wx - (m_HexSize * 3 / 2);
 
     wxa = wx - (wx-wx0)/scale;
     wya = wy - (wy-wy0)/scale;

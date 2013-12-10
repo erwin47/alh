@@ -267,7 +267,6 @@ CLand::CLand() : CBaseObject(), Units(32), UnitsSeq(32)
     EventFlags=0;
     guiUnit=0;
     pPlane=NULL;
-    ExitBits=0;
     CoastBits=0;
     AtlaclientsLastTurnNo=0;
     guiColor=-1;
@@ -275,6 +274,7 @@ CLand::CLand() : CBaseObject(), Units(32), UnitsSeq(32)
     Wages = 0.0;
     MaxWages = 0;
     for(int i=0; i<=ATT_UNDECLARED; i++) Troops[i]=0;
+    ResetAllExits();
 }
 
 //-------------------------------------------------------------
@@ -628,6 +628,31 @@ void CLand::SetFlagsFromUnits()
         }
         if(men >= minimen) Troops[i]++;
     }
+}
+
+//-------------------------------------------------------------
+
+void CLand::SetExit(int direction, int x, int y)
+{
+    if (direction >= 0 && direction < 6)
+    {
+        xExit[direction] = x;
+        yExit[direction] = y;
+    }
+}
+
+//-------------------------------------------------------------
+
+void CLand::CloseAllExits()
+{
+    for(int i=0; i<6; ++i) { xExit[i]=EXIT_CLOSED; yExit[i]=EXIT_CLOSED; }
+}
+
+//-------------------------------------------------------------
+
+void CLand::ResetAllExits()
+{
+    for(int i=0; i<6; ++i) { xExit[i]=EXIT_MAYBE; yExit[i]=EXIT_MAYBE; }
 }
 
 //-------------------------------------------------------------

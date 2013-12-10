@@ -154,6 +154,8 @@ public:
     int        ParseCBDataFile(const char * FNameIn);
     void       WriteMagesCSV(const char * FName, BOOL vertical, const char * separator, int format);
 
+    bool       IsLandExitClosed(CLand * pLand, int direction) const;
+    CLand    * GetLandExit(CLand * pLand, int direction) const;
     CLand    * GetLand(int x, int y, int nPlane, BOOL AdjustForEdge=FALSE) const;
     CLand    * GetLand(long LandId) const;
     CLand    * GetLand(const char * landcoords) const; //  "48,52[,somewhere]"
