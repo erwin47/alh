@@ -564,6 +564,7 @@ public:
     BOOL         GetItemWeights    (const char * item, int *& weights, const char **& movenames, int & movecount );
     void         GetMoveNames      (const char **& movenames);
     BOOL         GetTropicZone     (const char * plane, long & y_min, long & y_max);
+    const char * GetPlaneSize      (const char * plane);
     void         SetTropicZone     (const char * plane, long y_min, long y_max);
     void         GetProdDetails    (const char * item, TProdDetails & details);
     long         MaxSkillLevel     (const char * race, const char * skill, const char * leadership, BOOL IsArcadiaSkillSystem);
