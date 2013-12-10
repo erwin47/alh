@@ -314,6 +314,7 @@ private:
     void                 UpdateEdgeStructs();
     void                 LoadUnitFlags();
     void                 SaveUnitFlags();
+    void                 LoadTerrainCostConfig();
 
     void                 UpdateHexEditPane(CLand * pLand);
     void                 UpdateHexUnitList(CLand * pLand);

@@ -215,7 +215,6 @@ CAtlaParser::CAtlaParser(CGameDataHelper * pHelper)
     m_UnitFlagsHash.Insert("flying battle spoils"        ,     (void*)UNIT_FLAG_SPOILS            );
     m_UnitFlagsHash.Insert("walking battle spoils"       ,     (void*)UNIT_FLAG_SPOILS            );
     m_UnitFlagsHash.Insert("riding battle spoils"        ,     (void*)UNIT_FLAG_SPOILS            );
-
 }
 
 //----------------------------------------------------------------------
@@ -3456,6 +3455,8 @@ CFaction * CAtlaParser::GetFaction(int id)
 // Closed means that a unit will never be able to pass here.
 bool CAtlaParser::IsLandExitClosed(CLand * pLand, int direction) const
 {
+    if (!pLand) return false;
+
     if (pLand->xExit[direction] == EXIT_CLOSED)
     {
         return true;
@@ -6564,6 +6565,8 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
     CStr                sErr(32), S;
     CBaseObject         Dummy;
     long                skill, nmen, structid;
+    const void        * value;
+
     CLand             * pLandExit = NULL;
     CLand             * pLandCurrent = pLand;
     long                hexId = 0;
@@ -6575,6 +6578,33 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
     const int           startMonth = m_YearMon % 100 - 1;
     bool                noCross = true;
     bool                throughWall = false;
+
+    if (pUnit->GetProperty(PRP_MOVEMENT, type, value, eNormal) && eCharPtr==type)
+    {
+        const char * movementModeStr = (const char *)value;
+        if (strstr(movementModeStr, "Swim"))
+            noCross = false;
+
+        if (strstr(movementModeStr, "Fly"))
+        {
+            movementMode = 6;
+            noCross = (pUnit->Flags & UNIT_FLAG_NO_CROSS_WATER);
+        }
+        else
+        if (strstr(movementModeStr, "Ride"))
+            movementMode = 4;
+        else
+        if (strstr(movementModeStr, "Walk"))
+            movementMode = 2;
+        else
+            movementMode = 2;
+    }
+
+    if (O_SAIL == order)
+    {
+        noCross = false;
+        movementMode = 4;
+    }
 
     do
     {
@@ -6635,20 +6665,124 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                         currentStruct = 0;
                         pLandExit = GetLand(newHexId);
                     }
+                    if (pLandExit && IsLandExitClosed(pLandExit, (i+3)%6) && (pLandExit->FindExit(hexId) < 0))
+                    {
+                        throughWall = true;
+                    }
+                    if (pLandExit && pLandCurrent && pathCanBeTraced)
+                    {
+                        int terrainCost = GetTerrainMovementCost(wxString::FromUTF8(pLandExit->TerrainType.GetData()));
+                        if (noCross && terrainCost == 999)
+                        {
+                            pathCanBeTraced = false;
+                            SHOW_WARN(" - Trying to move into the ocean!");
+                        }
+                        else
+                        {
+                            bool weather = IsBadWeatherHex(pLandExit, startMonth);
+                            bool road = IsRoadConnected(pLandCurrent, pLandExit, i%6);
+                            int cost = GetMovementCost(terrainCost, weather, road, movementMode, noCross);
+                            totalMovementCost += cost;
+                        }
+                    }
+                    else totalMovementCost += 1;
 
                     pLandCurrent = pLandExit;
                     hexId = newHexId;
                     newHexId = 0;
-                    pLandExit = 0;
+                    pLandExit = NULL;
                     if (throughWall)
                         SHOW_WARN_CONTINUE(" - Hexes are not connected - going through a wall perhaps!");
 
                     break;
                 }
             }
+            if (0==stricmp(S1.GetData(), "IN"))
+            {
+                // Find structure, and validate that it is a shaft.
+                // Determine where it leads to.
+                if (0 == currentStruct)
+                {
+                    SHOW_WARN_CONTINUE(" - Going IN without being in a structure!");
+                }
+                else  if (pLandCurrent && pathCanBeTraced)
+                {
+                    if (0==(pLandCurrent->Flags&LAND_VISITED))
+                    {
+                        SHOW_WARN_CONTINUE(" - Going through shaft in unvisited hex!");
+                    }
+                    else if (pLandCurrent->Structs.Count() < currentStruct)
+                    {
+                        SHOW_WARN_CONTINUE(" - No such structure!");
+                    }
+                    else
+                    {
+                        CStruct * pStruct = (CStruct*)pLandCurrent->Structs.At(currentStruct-1);
+                        if (pStruct->Attr & SA_SHAFT)
+                        {
+                            if (pStruct->Description.FindSubStr("links to (") >= 0)
+                            {
+                                pLandExit = GetLandFlexible(wxString::FromUTF8(pStruct->Description.GetData()));
+                                if (pLandExit)
+                                {
+                                    if (!pUnit->pMovement)
+                                        pUnit->pMovement = new CLongColl;
+                                    pUnit->pMovement->Insert((void*)pLandExit->Id);
+                                    currentStruct = 0;
+                                    if (pathCanBeTraced && pLandExit && pLandCurrent)
+                                    {
+                                        int terrainCost = GetTerrainMovementCost(wxString::FromUTF8(pLandExit->TerrainType.GetData()));
+                                        bool weather = IsBadWeatherHex(pLandExit, startMonth);
+                                        bool road = false;
+                                        int cost = GetMovementCost(terrainCost, weather, road, movementMode, noCross);
+                                        totalMovementCost += cost;
+                                    }
+                                    int z;
+                                    LandIdToCoord(pLandExit->Id, X, Y, z);
+                                    pLandCurrent = pLandExit;
+                                }
+                                else
+                                {
+                                    totalMovementCost += 1;
+                                    pathCanBeTraced = false;
+                                    SHOW_WARN_CONTINUE(" - Cannot find hex at other side of shaft, description broken!");
+                                }
+                            }
+                            else
+                            {
+                                totalMovementCost += 1;
+                                pathCanBeTraced = false;
+                                if (!pUnit->pMovement)
+                                    pUnit->pMovement = new CLongColl;
+                                pUnit->pMovement->Insert((void*)pLandCurrent->Id);
+                                // SHOW_WARN_CONTINUE(" - Proceeding through unknown shaft!");
+                            }
+                        }
+                        else
+                        {
+                            totalMovementCost += 1;
+                            pathCanBeTraced = false;
+                            SHOW_WARN_CONTINUE(" - Structure is not a shaft!");
+                        }
+                    }
+                }
+                else totalMovementCost += 1;
+            }
+            else
+            {
+                // Try to parse a structure number.
+                int structNumber = atoi(S1.GetData());
+                if (structNumber > 0 && structNumber < 10000)
+                    currentStruct = structNumber;
+            }
         }
 
     SomeChecks:
+        if (totalMovementCost > movementMode)
+        {
+            wxString msg = wxString::Format(wxT(" - Unit is moving further than it can! [%d/%d]"), totalMovementCost, movementMode);
+            SHOW_WARN_CONTINUE(msg.ToUTF8());
+        }
         if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal) || (eLong!=type) || (nmen<=0))
             SHOW_WARN_CONTINUE(" - There are no men in the unit!");
 
@@ -6677,7 +6811,6 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 pUnit->CheckWeight(sErr);
                 if (!sErr.IsEmpty())
                     SHOW_WARN_CONTINUE(sErr);
-                    //OrderErr(1, pUnit->Id, sErr.GetData());
             }
         }
     } while (FALSE);
@@ -7354,6 +7487,136 @@ void CAtlaParser::LookupAdvancedResourceVisibility(CUnit * pUnit, CLand * pLand)
 
     Levels.FreeAll();
     Resources.FreeAll();
+}
+
+//-------------------------------------------------------------
+
+int CAtlaParser::GetTerrainMovementCost(wxString Terrain) const
+{
+    int MovementCost = 2;
+
+    std::map<wxString, int>::const_iterator i = TerrainMovementCost.find(Terrain.Lower());
+    if (i != TerrainMovementCost.end())
+    {
+        MovementCost = i->second;
+    }
+    return MovementCost;
+}
+
+//-------------------------------------------------------------
+
+bool CAtlaParser::IsRoadConnected(CLand * pLand0, CLand * pLand1, int direction) const
+{
+    // Result only valid if land0 is connected to land1 in direction
+    int road0 = SA_ROAD_N;
+    int road1 = SA_ROAD_N;
+    int i;
+    CStruct* pStruct;
+
+    switch (direction)
+    {
+        case North     : road0 = SA_ROAD_N;  road1 = SA_ROAD_S;     break;
+        case Northeast : road0 = SA_ROAD_NE; road1 = SA_ROAD_SW;    break;
+        case Southeast : road0 = SA_ROAD_SE; road1 = SA_ROAD_NW;    break;
+        case South     : road0 = SA_ROAD_S;  road1 = SA_ROAD_N;     break;
+        case Southwest : road0 = SA_ROAD_SW; road1 = SA_ROAD_NE;    break;
+        case Northwest : road0 = SA_ROAD_NW; road1 = SA_ROAD_SE;    break;
+    }
+
+    bool Found = false;
+    bool BadRoad = false;
+
+    for (i=0; i<pLand0->Structs.Count(); i++)
+    {
+        pStruct = (CStruct*)pLand0->Structs.At(i);
+        if (pStruct->Attr & road0)
+        {
+            BadRoad = ((pStruct->Attr & SA_ROAD_BAD) > 0);
+            if (!BadRoad) Found = true;
+        }
+    }
+    if (!Found) return false;
+    Found = false;
+    for (i=0; i<pLand1->Structs.Count(); i++)
+    {
+        pStruct = (CStruct*)pLand1->Structs.At(i);
+        if (pStruct->Attr & road1)
+        {
+            BadRoad = ((pStruct->Attr & SA_ROAD_BAD) > 0);
+            if (!BadRoad) Found = true;
+        }
+    }
+    return Found;
+}
+
+//-------------------------------------------------------------
+
+// Month is zero-based 0-11
+bool CAtlaParser::IsBadWeatherHex(CLand * pLand, int month) const
+{
+    int x, y, z;
+    LandIdToCoord(pLand->Id, x, y, z);
+
+    CPlane * pPlane = pLand->pPlane;
+    if (pPlane && pPlane->TropicZoneMin <= pPlane->TropicZoneMax)
+    {
+        // Weather is known
+        if (y < pPlane->TropicZoneMin)
+        {
+            // Northern Hemisphere
+            switch (month)
+            {
+                case 0: case 9: case 10: case 11:
+                    return true;
+            }
+        }
+        else if (y > pPlane->TropicZoneMax)
+        {
+            // Southern Hemisphere
+            switch (month)
+            {
+                case 3: case 4: case 5: case 6:
+                    return true;
+            }
+        }
+        else
+        {
+            // Tropic Zone
+            switch (month)
+            {
+                case 4: case 5: case 10: case 11:
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+
+//-------------------------------------------------------------
+
+int CAtlaParser::GetMovementCost(int terrainCost, bool isBadWeather, bool hasRoad, int movementMode, bool noCross) const
+{
+    int MovementCost;
+
+    if ((movementMode >= 6 && terrainCost < 999) || !noCross)
+    {
+        MovementCost = 1;
+    }
+    else
+    {
+        MovementCost = terrainCost;
+    }
+
+    if (isBadWeather)
+    {
+        MovementCost *= 2;
+    }
+    if (hasRoad && movementMode < 6)
+    {
+        MovementCost = (MovementCost + 1) / 2;
+    }
+
+    return MovementCost;
 }
 
 //-------------------------------------------------------------

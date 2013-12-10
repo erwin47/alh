@@ -440,7 +440,7 @@ public:
     void      SetExit(int direction, int x, int y);
     void      CloseAllExits(); // disable all exits
     void      ResetAllExits(); // assume all exits would exist
-
+    int       FindExit(long hexId) const; // returns direction or negative if not found.
 
     virtual void DebugPrint(CStr & sDest);
 

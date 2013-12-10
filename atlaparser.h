@@ -20,6 +20,8 @@
 #ifndef __AH_REP_PARSER_H__
 #define __AH_REP_PARSER_H__
 
+#include <map>
+
 #include "data.h"
 #include "hash.h"
 
@@ -176,6 +178,11 @@ public:
     BOOL       CheckResourcesForProduction(CUnit * pUnit, CLand * pLand, CStr & Error);
     void       ExtrapolateLandCoord(int &x, int &y, int z, int direction) const;
 
+    // Movement
+    int        GetTerrainMovementCost(wxString Terrain) const;
+    bool       IsRoadConnected(CLand *, CLand *, int direction) const;
+    bool       IsBadWeatherHex(CLand * pLand, int month) const;
+    int        GetMovementCost(int terrainCost, bool isBadWeather, bool hasRoad, int movementMode, bool noCross) const;
 
     int               m_CrntFactionId;
     CStr              m_CrntFactionPwd;
@@ -207,6 +214,7 @@ public:
     BOOL              m_OrdersLoaded;
     CStr              m_FactionInfo;
     BOOL              m_ArcadiaSkills;
+    std::map<wxString, int> TerrainMovementCost;
 
 protected:
     int          ParseFactionInfo(BOOL GetNo, BOOL Join);

@@ -113,7 +113,21 @@ DefaultConfigRec DefaultConfig[] =
     {SZ_SECT_COLORS            ,     "MAP_ROAD"        ,     "112, 128, 144"   },
     {SZ_SECT_COLORS            ,     "MAP_Rocks"       ,     "255, 0, 0"       },
 
-
+    {SZ_SECT_TERRAIN_COST      ,     "ocean"         ,   "999"     },
+    {SZ_SECT_TERRAIN_COST      ,     "lake"          ,   "999"     },
+    {SZ_SECT_TERRAIN_COST      ,     "plain"         ,     "1"     },
+    {SZ_SECT_TERRAIN_COST      ,     "desert"        ,     "1"     },
+    {SZ_SECT_TERRAIN_COST      ,     "swamp"         ,     "2"     },
+    {SZ_SECT_TERRAIN_COST      ,     "forest"        ,     "2"     },
+    {SZ_SECT_TERRAIN_COST      ,     "mountain"      ,     "2"     },
+    {SZ_SECT_TERRAIN_COST      ,     "tundra"        ,     "2"     },
+    {SZ_SECT_TERRAIN_COST      ,     "jungle"        ,     "2"     },
+    {SZ_SECT_TERRAIN_COST      ,     "cavern"        ,     "1"     },
+    {SZ_SECT_TERRAIN_COST      ,     "underforest"   ,     "2"     },
+    {SZ_SECT_TERRAIN_COST      ,     "tunnels"       ,     "2"     },
+    {SZ_SECT_TERRAIN_COST      ,     "grotto"        ,     "2"     },
+    {SZ_SECT_TERRAIN_COST      ,     "chasm"         ,     "4"     },
+    {SZ_SECT_TERRAIN_COST      ,     "deepforest"    ,     "4"     },
 
     {SZ_SECT_WEATHER           ,     SZ_KEY_WEATHER_CUR_GOOD_TROPIC ,     "The weather was clear last month"     },
     {SZ_SECT_WEATHER           ,     SZ_KEY_WEATHER_CUR_GOOD_MEDIUM ,     "The weather was clear last month"     },

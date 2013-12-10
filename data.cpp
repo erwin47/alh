@@ -655,6 +655,18 @@ void CLand::ResetAllExits()
     for(int i=0; i<6; ++i) { xExit[i]=EXIT_MAYBE; yExit[i]=EXIT_MAYBE; }
 }
 
+int CLand::FindExit(long hexId) const
+{
+    int x, y, z;
+    LandIdToCoord(hexId, x, y, z);
+    for(int i=0; i<6; ++i)
+    {
+        if (xExit[i] == x && yExit[i] == y)
+            return i;
+    }
+    return -1;
+}
+
 //-------------------------------------------------------------
 
 void CLand::CalcStructsLoad()

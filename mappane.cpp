@@ -2975,6 +2975,15 @@ void CMapPane::DrawSingleTrack(int X, int Y, int wx, int wy, wxDC * pDC, CUnit *
         HexId = (long)pUnit->pMovement->At(i);
         LandIdToCoord(HexId, X1, Y1, Z);
 
+        // Prevent painting on a different level.
+        if (Z != pPlane->Id || (X==X1 && Y == Y1))
+        {
+            int size = m_HexHalfHeight * 2 / 3;
+            pDC->SetBrush(*m_pBrushBlack);
+            pDC->DrawRectangle(wx-size/2, wy-size/2, size, size);
+            break;
+        }
+
         if (0==copyno)
             m_pTrackHexes->Insert((void*)HexId);
 

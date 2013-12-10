@@ -203,6 +203,8 @@ enum
 #define SZ_SECT_UNIT_FILTER             "UNIT_FLTR_"
 #define SZ_SECT_HEX_FILTER              "HEX_FLTR_"
 #define SZ_SECT_EDGE_STRUCTS            "EDGE_STRUCTURES"
+
+#define SZ_SECT_TERRAIN_COST            "TERRAIN_COST"
 #define SZ_SECT_WEATHER                 "WEATHER"
 #define SZ_SECT_RESOURCE_SKILL          "RESOURCE_SKILL"
 #define SZ_SECT_RESOURCE_LAND           "RESOURCE_LAND"

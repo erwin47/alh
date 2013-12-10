@@ -340,7 +340,7 @@ bool CAhApp::OnInit()
 
 
 
-
+    LoadTerrainCostConfig();
 
     StdRedirectInit();
 
@@ -3511,6 +3511,22 @@ void CAhApp::LoadOrders()
 
 //-------------------------------------------------------------------------
 
+void CAhApp::LoadTerrainCostConfig()
+{
+    const char * szName, * szValue;
+    int sectidx = GetSectionFirst(SZ_SECT_TERRAIN_COST, szName, szValue);
+    while (sectidx >= 0)
+    {
+        if (szValue && *szValue)
+        {
+            m_pAtlantis->TerrainMovementCost[wxString::FromUTF8(szName)] = atoi(szValue);
+        }
+        sectidx = GetSectionNext(sectidx, SZ_SECT_TERRAIN_COST, szName, szValue);
+    }
+}
+
+//-------------------------------------------------------------------------
+
 BOOL CAhApp::CanCloseApp()
 {
     SaveLandFlags();
@@ -5279,4 +5295,3 @@ void GetFileFromPath(const char * path, CStr & file)
 }
 
 //-------------------------------------------------------------------------
-
