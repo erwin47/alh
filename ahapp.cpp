@@ -4176,23 +4176,30 @@ void CAhApp::ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane)
 {
     CLand          * pLand;
     CUnit          * pUnit;
-    int              nl, nu, i;
+    int              nl, nu, i, np;
     long             HexId;
     CUnitPaneFltr  * pUnitPaneF = NULL;
     CStr             UnitText(128), S(16);
     CBaseColl        FoundUnits;
 
-    for (nl=0; nl<pCurPlane->Lands.Count(); nl++)
+    for (np=0; np<m_pAtlantis->m_Planes.Count(); np++)
     {
-        pLand = (CLand*)pCurPlane->Lands.At(nl);
-        for (nu=0; nu<pLand->Units.Count(); nu++)
+        CPlane * pPlane = (CPlane*)m_pAtlantis->m_Planes.At(np);
+        if (pPlane)
         {
-            pUnit = (CUnit*)pLand->Units.At(nu);
-            if (pUnit->pMovement && pUnit->pMovement->Count()>0)
+            for (nl=0; nl<pPlane->Lands.Count(); nl++)
             {
-                HexId = (long)pUnit->pMovement->At(pUnit->pMovement->Count()-1);
-                if (HexId==CurHexId)
-                    FoundUnits.Insert(pUnit);
+                pLand = (CLand*)pPlane->Lands.At(nl);
+                for (nu=0; nu<pLand->Units.Count(); nu++)
+                {
+                    pUnit = (CUnit*)pLand->Units.At(nu);
+                    if (pUnit->pMovement && pUnit->pMovement->Count()>0)
+                    {
+                        HexId = (long)pUnit->pMovement->At(pUnit->pMovement->Count()-1);
+                        if (HexId==CurHexId)
+                            FoundUnits.Insert(pUnit);
+                    }
+                }
             }
         }
     }
