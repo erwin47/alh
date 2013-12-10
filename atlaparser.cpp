@@ -1760,7 +1760,7 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
         // Full region report, clear all the Edge structures which were loaded from history
         pLand->EdgeStructs.FreeAll();
         pLand->Exits.Empty();
-        pLand->ExitBits = 0;
+        pLand->CloseAllExits();
     }
 
     // now is a list of exits and gates terminated by unit or structure
@@ -1788,8 +1788,14 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
                     pPlane->ExitsCount++;
                     S = p;
                     S.TrimLeft();
-                    ParseTerrain(pLand, i, S, FALSE, NULL);
-                    pLand->ExitBits |= ExitFlags[i];
+                    CLand * pLandRef = NULL;
+                    ParseTerrain(pLand, i, S, FALSE, &pLandRef);
+                    if (pLandRef)
+                    {
+                        int x, y, z;
+                        LandIdToCoord(pLandRef->Id, x, y, z);
+                        pLand->SetExit(i, x, y);
+                    }
                     DoBreak = FALSE;
                     break;
                 }
@@ -3375,14 +3381,8 @@ Done:
 
 void CAtlaParser::SetExitFlagsAndTropicZone()
 {
-
-    CLand       * pLand;
-    CLand       * pLandSrc;
-    int           nl, np, i;
-    int           x, y, z;
-    int           x0, y0;
+    int           np;
     CPlane      * pPlane;
-    BOOL          SetAllExits; // if reading 1.0.0 history file
 
     for (np=0; np<m_Planes.Count(); np++)
     {
@@ -3391,37 +3391,6 @@ void CAtlaParser::SetExitFlagsAndTropicZone()
         //tropic zone
         if (!m_IsHistory && m_CurYearMon>0 && pPlane->TropicZoneMin <= pPlane->TropicZoneMax)
             gpDataHelper->SetTropicZone(pPlane->Name.GetData(), pPlane->TropicZoneMin, pPlane->TropicZoneMax);
-
-        // exit flags
-        SetAllExits = ( (pPlane->ExitsCount<2) && (pPlane->Lands.Count()>2) );
-        for (nl=0; nl<pPlane->Lands.Count(); nl++)
-        {
-            pLand = (CLand*)pPlane->Lands.At(nl);
-            if (SetAllExits)
-                pLand->ExitBits = 0xFF;
-            else
-                if ( (0==(pLand->Flags&LAND_VISITED)) || (pLand->Flags&LAND_SET_EXITS)  )
-                {
-                    pLand->ExitBits = 0;
-                    LandIdToCoord(pLand->Id, x0, y0, z);
-                    for (i=0; i<6; i++)
-                    {
-                        x = x0;
-                        y = y0;
-
-                        ExtrapolateLandCoord(x, y, np, i);
-
-                        pLandSrc = GetLand(x, y, np, TRUE);
-                        if ( pLandSrc && (pLandSrc->Flags&LAND_VISITED) )
-                        {
-                            if (pLandSrc->ExitBits&EntryFlags[i])
-                                pLand->ExitBits |= ExitFlags[i];
-                        }
-                        else
-                            pLand->ExitBits |= ExitFlags[i]; // assume there is an exit if nothing is known
-                    }
-                }
-        }
     }
 }
 
@@ -3484,6 +3453,33 @@ CFaction * CAtlaParser::GetFaction(int id)
 
 //--------------------------------------------------------------------------
 
+// Closed means that a unit will never be able to pass here.
+bool CAtlaParser::IsLandExitClosed(CLand * pLand, int direction) const
+{
+    if (pLand->xExit[direction] == EXIT_CLOSED)
+    {
+        return true;
+    }
+    if (pLand->xExit[direction] == EXIT_MAYBE)
+    {
+        // Should try to extend the map and see if we can get more information.
+        int x, y, z;
+        LandIdToCoord(pLand->Id, x, y, z);
+        ExtrapolateLandCoord(x, y, z, direction);
+        CLand * pLand = GetLand(x, y, z, TRUE);
+        if (pLand)
+        {
+            if (pLand->xExit[(direction+3)%6] == EXIT_CLOSED)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+//--------------------------------------------------------------------------
+
 int  CAtlaParser::NormalizeHexX(int NoX, CPlane * pPlane) const
 {
     if (pPlane && pPlane->Width>0)
@@ -3513,6 +3509,25 @@ void CAtlaParser::ExtrapolateLandCoord(int &x, int &y, int z, int direction) con
 
     CPlane * pPlane = (CPlane*)m_Planes.At(z);
     x = NormalizeHexX(x, pPlane);
+}
+
+//-------------------------------------------------------------
+
+CLand * CAtlaParser::GetLandExit(CLand * pLand, int direction) const
+{
+    if (pLand->xExit[direction] == EXIT_MAYBE)
+    {
+        // Should try to extend the map and proceed
+        int x, y, z;
+        LandIdToCoord(pLand->Id, x, y, z);
+        ExtrapolateLandCoord(x, y, z, direction);
+        return GetLand(x, y, z, FALSE);
+    }
+    if (pLand->xExit[direction] == EXIT_CLOSED)
+    {
+        return NULL;
+    }
+    return GetLand(pLand->xExit[direction], pLand->yExit[direction], pLand->pPlane->Id, TRUE);
 }
 
 //-------------------------------------------------------------
@@ -3686,7 +3701,6 @@ BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane,
 {
     CLand            * pLandExit;
     int                i;
-    int                x, y, z, x0, y0;
     int                g;
 
     CStr               sLine (128);
@@ -3703,44 +3717,31 @@ BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane,
 
     IsLinked = FALSE;
     sExits.Empty();
-    LandIdToCoord(pLand->Id, x0, y0, z);
     for (i=0; i<6; i++)
     {
-        if (pLand->ExitBits&ExitFlags[i])
+        pLandExit = GetLandExit(pLand, i);
+        if (pLandExit)
         {
-            x = x0;
-            y = y0;
-
-            ExtrapolateLandCoord(x, y, z, i);
-
-            pLandExit = GetLand(x, y, z, TRUE);
-            if ( pLandExit && (pLandExit->ExitBits&EntryFlags[i]))
+            CStr sCoord;
+            if (pLandExit->Flags&LAND_VISITED)
             {
-                CStr sCoord;
-
-                if (pLandExit->Flags&LAND_VISITED)
-                    IsLinked = TRUE;
-
-//  Northeast : mountain (20,0) in Lautaro, contains Krod [city].
-
-
-                //LandIdToCoord(pLandExit->Id, x, y, z);
-                ComposeLandStrCoord(pLandExit, sCoord);
-                sExits << "  " << Directions[i] << " : "
-                      << pLandExit->TerrainType << " (" << sCoord << ") in " << pLandExit->Name;
-                if (!pLandExit->CityName.IsEmpty())
-                    sExits << ", contains " << pLandExit->CityName << " [" << pLandExit->CityType << "]";
-
-                // save edge structs
-                for (nstr = 0; nstr < pLand->EdgeStructs.Count(); nstr++)
-                {
-                    pEdge = (CStruct*)pLand->EdgeStructs.At(nstr);
-                    if (pEdge->Location == i)
-                        sExits << ", " << pEdge->Kind;
-                }
-
-                sExits  << "." << EOL_FILE;;
+                IsLinked = TRUE;
             }
+            //  Northeast : mountain (20,0) in Lautaro, contains Krod [city].
+            ComposeLandStrCoord(pLandExit, sCoord);
+            sExits << "  " << Directions[i] << " : "
+                  << pLandExit->TerrainType << " (" << sCoord << ") in " << pLandExit->Name;
+            if (!pLandExit->CityName.IsEmpty())
+                sExits << ", contains " << pLandExit->CityName << " [" << pLandExit->CityType << "]";
+
+            // save edge structs
+            for (nstr = 0; nstr < pLand->EdgeStructs.Count(); nstr++)
+            {
+                pEdge = (CStruct*)pLand->EdgeStructs.At(nstr);
+                if (pEdge->Location == i)
+                    sExits << ", " << pEdge->Kind;
+            }
+            sExits  << "." << EOL_FILE;;
         }
     }
 
@@ -4746,6 +4747,16 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
         ErrorLine << Line << msg;                    \
         OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData()); \
         continue;                                    \
+    }                                                \
+}
+
+#define SHOW_WARN(msg)                               \
+{                                                    \
+    if (!skiperror)                                  \
+    {                                                \
+        ErrorLine.Empty();                           \
+        ErrorLine << Line << msg;                    \
+        OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData()); \
     }                                                \
 }
 
@@ -6553,6 +6564,17 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
     CStr                sErr(32), S;
     CBaseObject         Dummy;
     long                skill, nmen, structid;
+    CLand             * pLandExit = NULL;
+    CLand             * pLandCurrent = pLand;
+    long                hexId = 0;
+    long                newHexId = 0;
+    int                 currentStruct = 0;
+    int                 totalMovementCost = 0;
+    bool                pathCanBeTraced = true;
+    int                 movementMode = 0;
+    const int           startMonth = m_YearMon % 100 - 1;
+    bool                noCross = true;
+    bool                throughWall = false;
 
     do
     {
@@ -6576,15 +6598,54 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
         {
             params        = SkipSpaces(S1.GetToken(params, " \t", ch, TRIM_ALL));
             for (i=0; i<(int)sizeof(Directions)/(int)sizeof(const char*); i++)
+            {
                 if (0==stricmp(S1.GetData(), Directions[i]))
                 {
-                    ExtrapolateLandCoord(X, Y, pLand->pPlane->Id, i);
-                    ID = LandCoordToId(X,Y, pLand->pPlane->Id);
-                    if (!pUnit->pMovement)
-                        pUnit->pMovement = new CLongColl;
-                    pUnit->pMovement->Insert((void*)ID);
+                    // In this loop pLandCurrent is set, or hexId is set.
+                    if (pLandCurrent)
+                    {
+                        hexId = pLandCurrent->Id;
+                    }
+                    if (pLandCurrent)
+                    {
+                        pLandExit = GetLandExit(pLandCurrent, i%6);
+                        if (pLandExit)
+                        {
+                            newHexId = pLandExit->Id;
+                        }
+                        else if (IsLandExitClosed(pLandCurrent, i%6))
+                        {
+                            throughWall = true;
+                        }
+                    }
+                    if (!pLandExit)
+                    {
+                        // Going into unknown terrain.
+                        int x,y,z;
+                        LandIdToCoord(hexId, x, y, z);
+                        ExtrapolateLandCoord(x, y, z, i%6);
+                        newHexId = LandCoordToId(x, y, z);
+                    }
+                    if (newHexId)
+                    {
+                        if (!pUnit->pMovement)
+                            pUnit->pMovement = new CLongColl;
+
+                        pUnit->pMovement->Insert((void*)newHexId);
+                        currentStruct = 0;
+                        pLandExit = GetLand(newHexId);
+                    }
+
+                    pLandCurrent = pLandExit;
+                    hexId = newHexId;
+                    newHexId = 0;
+                    pLandExit = 0;
+                    if (throughWall)
+                        SHOW_WARN_CONTINUE(" - Hexes are not connected - going through a wall perhaps!");
+
                     break;
                 }
+            }
         }
 
     SomeChecks:

@@ -4369,7 +4369,6 @@ void CAhApp::AddTempHex(int X, int Y, int Plane)
         return;
 
     CLand * pLand       = new CLand;
-    pLand->ExitBits     = 0xFF;
     pLand->Id           = LandCoordToId ( X,Y, pPlane->Id );
     pLand->pPlane       = pPlane;
     pLand->Name         = SZ_MANUAL_HEX_PROVINCE;
