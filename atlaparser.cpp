@@ -1477,7 +1477,7 @@ CPlane * CAtlaParser::MakePlane(const char * planename)
 
         // Format: <x-min>,<y-min>,<x-max>,<y-max>  Eg: 0,0,31,23
         const char * value = gpDataHelper->GetPlaneSize(pPlane->Name.GetData());
-        if (value && *value)
+        if (value && strlen(value)>4)
         {
             CStr S;
             value = S.GetToken(value, ',');
@@ -6778,7 +6778,7 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
         }
 
     SomeChecks:
-        if (totalMovementCost > movementMode)
+        if (totalMovementCost > movementMode && gpDataHelper->ShowMoveWarnings())
         {
             wxString msg = wxString::Format(wxT(" - Unit is moving further than it can! [%d/%d]"), totalMovementCost, movementMode);
             SHOW_WARN_CONTINUE(msg.ToUTF8());

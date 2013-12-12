@@ -984,7 +984,7 @@ void CUnit::CheckWeight(CStr & sErr)
             }
     }
 
-    if (broken)
+    if (broken && broken == MOVE_MODE_MAX-4)
         sErr << " - Could " << movenames[broken] << " but is overloaded.";
 
 
