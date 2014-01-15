@@ -72,6 +72,11 @@ enum
     menu_CheckTaxTrade      ,
     menu_CheckProduction    ,
     menu_CheckSailing       ,
+    menu_TaxPillage         ,
+    menu_ShareAfterBuy      ,
+    menu_Work               ,
+    menu_MaintainanceCosts  ,
+    menu_ShareMaintainance  ,
     menu_FindHexes          ,
     menu_ExportHexes        ,
     menu_FlagNames          ,
@@ -380,6 +385,7 @@ enum
 #define SZ_KEY_FLTR_SET                  "FILTER_SET"
 #define SZ_KEY_LEAD_SKILL_BONUS          "LEAD_SKILL_BONUS"
 #define SZ_KEY_TAX_PER_TAXER             "TAX_PER_TAXER"
+#define SZ_KEY_ENTERTAINMENT_SILVER      "ENTERTAINMENT_SILVER"
 
 #define SZ_KEY_ICONS                     "ICONS"
 #define SZ_KEY_BATTLE_STATISTICS         "BATTLE_STATISTICS"

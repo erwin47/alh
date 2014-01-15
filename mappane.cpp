@@ -2905,8 +2905,9 @@ void CMapPane::RedrawTracksForUnit(CPlane * pPlane, CUnit * pUnit, wxDC * pDC, B
     // draw new tracks and remember hexes
     if (pUnit && pUnit->pMovement)
     {
-        m_pTrackHexes->Insert((void*)pUnit->LandId);
         LandIdToCoord(pUnit->LandId, X, Y, Z);
+        if (Z == pPlane->Id)
+            m_pTrackHexes->Insert((void*)pUnit->LandId);
         GetHexCenter(X, Y, wx0, wy0);
 
         if (pPlane->Width>0)
@@ -2917,12 +2918,12 @@ void CMapPane::RedrawTracksForUnit(CPlane * pPlane, CUnit * pUnit, wxDC * pDC, B
             wx0+=dx;
             while (wx0+m_HexSize <= rect.x + rect.width)
             {
-                DrawSingleTrack(X, Y, wx0, wy0, pDC, pUnit, pPlane, copyno++);
+                DrawSingleTrack(X, Y, Z, wx0, wy0, pDC, pUnit, pPlane, copyno++);
                 wx0 += dx;
             }
         }
         else
-            DrawSingleTrack(X, Y, wx0, wy0, pDC, pUnit, pPlane, copyno);
+            DrawSingleTrack(X, Y, Z, wx0, wy0, pDC, pUnit, pPlane, copyno);
     }
 
     if (DoDrawCitiesAndWeather)
@@ -2934,9 +2935,9 @@ void CMapPane::RedrawTracksForUnit(CPlane * pPlane, CUnit * pUnit, wxDC * pDC, B
 
 //--------------------------------------------------------------------------
 
-void CMapPane::DrawSingleTrack(int X, int Y, int wx, int wy, wxDC * pDC, CUnit * pUnit, CPlane * pPlane,int copyno)
+void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, CUnit * pUnit, CPlane * pPlane,int copyno)
 {
-    int            i, X1, Y1, Z;
+    int            i, X1, Y1, Z1;
     long           HexId;
     int            wx0, wy0;
     int            wx_a, wy_a, wx0_a, wy0_a;
@@ -2973,10 +2974,10 @@ void CMapPane::DrawSingleTrack(int X, int Y, int wx, int wy, wxDC * pDC, CUnit *
         wy0_a = wy_a;
 
         HexId = (long)pUnit->pMovement->At(i);
-        LandIdToCoord(HexId, X1, Y1, Z);
+        LandIdToCoord(HexId, X1, Y1, Z1);
 
         // Prevent painting on a different level.
-        if (Z != pPlane->Id || (X==X1 && Y == Y1))
+        if ((Z1 != pPlane->Id || (X==X1 && Y == Y1)) && (Z == pPlane->Id))
         {
             int size = m_HexHalfHeight * 2 / 3;
             pDC->SetBrush(*m_pBrushBlack);
@@ -2984,7 +2985,7 @@ void CMapPane::DrawSingleTrack(int X, int Y, int wx, int wy, wxDC * pDC, CUnit *
             break;
         }
 
-        if (0==copyno)
+        if (0==copyno && Z1 == pPlane->Id)
             m_pTrackHexes->Insert((void*)HexId);
 
         // Real map coords used for drawing; will contain wrapping adjustments.
@@ -3010,21 +3011,31 @@ void CMapPane::DrawSingleTrack(int X, int Y, int wx, int wy, wxDC * pDC, CUnit *
             AdjustForA3Location(wx_a, wy_a, LocA3);
         }
 
+
+        if (Z == pPlane->Id)
+        {
+            if (Arcadia3Sail)
+            {
+                pDC->DrawLine(wx0_a, wy0_a, wx_a, wy_a);
+                if (i == pUnit->pMovement->Count()-1)
+                    DrawTrackArrow(pDC, wx0_a, wy0_a, wx_a, wy_a);
+            }
+            else
+            {
+                pDC->DrawLine(wx0, wy0, wx, wy);
+                if (i == pUnit->pMovement->Count()-1)
+                    DrawTrackArrow(pDC, wx0, wy0, wx, wy);
+            }
+        }
+        if (Z1 == pPlane->Id && Z != pPlane->Id)
+        {
+            int size = m_HexHalfHeight * 2 / 3;
+            pDC->SetBrush(*m_pBrushWhite);
+            pDC->DrawRectangle(wx-size/2, wy-size/2, size, size);
+        }
         X = X1;
         Y = Y1;
-
-        if (Arcadia3Sail)
-        {
-            pDC->DrawLine(wx0_a, wy0_a, wx_a, wy_a);
-            if (i == pUnit->pMovement->Count()-1)
-                DrawTrackArrow(pDC, wx0_a, wy0_a, wx_a, wy_a);
-        }
-        else
-        {
-            pDC->DrawLine(wx0, wy0, wx, wy);
-            if (i == pUnit->pMovement->Count()-1)
-                DrawTrackArrow(pDC, wx0, wy0, wx, wy);
-        }
+        Z = Z1;
     }
 }
 

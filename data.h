@@ -20,6 +20,7 @@
 #ifndef __DATA_H_INCL__
 #define __DATA_H_INCL__
 
+#include "wx/string.h"
 
 #include "cstr.h"
 #include "collection.h"
@@ -53,6 +54,8 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define PRP_WEIGHT_RIDE                 "weight_ride"
 #define PRP_WEIGHT_FLY                  "weight_fly"
 #define PRP_WEIGHT_SWIM                 "weight_swim"
+#define PRP_BEST_SKILL                  "best_skill"
+#define PRP_BEST_SKILL_DAYS             "best_skill_days"
 #define PRP_MOVEMENT                    "movement"
 #define PRP_SILVER                      "silv"
 #define PRP_LEADER                      "leadership"
@@ -62,6 +65,7 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define PRP_FLAGS_CUSTOM_ABBR           "flags_custom_abbr"
 
 
+#define PRP_GUI_COLOR                   "gui_color"
 #define PRP_MEN                         "men"
 #define PRP_SKILLS                      "skills"
 #define PRP_MAG_SKILLS                  "mag_skills"
@@ -166,22 +170,25 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define SA_ROAD_BAD 0x0400
 
 // unit flags - standard flags from the top, custom from the bottom
-#define UNIT_FLAG_GIVEN             0x80000000
-#define UNIT_FLAG_TAXING            0x40000000
-#define UNIT_FLAG_PRODUCING         0x20000000
-#define UNIT_FLAG_GUARDING          0x10000000
-#define UNIT_FLAG_AVOIDING          0x08000000
-#define UNIT_FLAG_BEHIND            0x04000000
-#define UNIT_FLAG_REVEALING_UNIT    0x02000000
-#define UNIT_FLAG_REVEALING_FACTION 0x01000000
-#define UNIT_FLAG_HOLDING           0x00800000
-#define UNIT_FLAG_RECEIVING_NO_AID  0x00400000
-#define UNIT_FLAG_CONSUMING_UNIT    0x00200000
-#define UNIT_FLAG_CONSUMING_FACTION 0x00100000
-#define UNIT_FLAG_NO_CROSS_WATER    0x00080000
-#define UNIT_FLAG_SPOILS            0x00040000
-#define UNIT_FLAG_SHARING           0x00020000
-#define UNIT_FLAG_TEMP              0x00010000
+#define UNIT_FLAG_GIVEN             0x10000000
+#define UNIT_FLAG_PILLAGING         0x08000000
+#define UNIT_FLAG_TAXING            0x04000000
+#define UNIT_FLAG_PRODUCING         0x02000000
+#define UNIT_FLAG_GUARDING          0x01000000
+#define UNIT_FLAG_AVOIDING          0x00800000
+#define UNIT_FLAG_BEHIND            0x00400000
+#define UNIT_FLAG_REVEALING_UNIT    0x00200000
+#define UNIT_FLAG_REVEALING_FACTION 0x00100000
+#define UNIT_FLAG_HOLDING           0x00080000
+#define UNIT_FLAG_RECEIVING_NO_AID  0x00040000
+#define UNIT_FLAG_CONSUMING_UNIT    0x00020000
+#define UNIT_FLAG_CONSUMING_FACTION 0x00010000
+#define UNIT_FLAG_NO_CROSS_WATER    0x00008000
+#define UNIT_FLAG_SPOILS            0x00004000
+#define UNIT_FLAG_SHARING           0x00002000
+#define UNIT_FLAG_TEMP              0x00001000
+#define UNIT_FLAG_ENTERTAINING      0x00000800
+#define UNIT_FLAG_WORKING           0x00000400
 
 
 #define UNIT_CUSTOM_FLAG_COUNT   8
@@ -335,6 +342,7 @@ class CUnit : public CBaseObject
 public:
     CUnit();
     virtual ~CUnit();
+    void GetBestSkill(wxString &name, long &days);
     virtual BOOL GetProperty(const char  *  name,
                              EValueType   & type,
                              const void  *& value, // returns pointer to inner location
@@ -373,9 +381,6 @@ public:
     unsigned long   Flags;
     unsigned long   FlagsOrg;
     unsigned long   FlagsLast;
-
-    // potentially can be moved to some bitflags field
-    bool            IsWorking;
 
     static CStrStrColl * m_PropertyGroupsColl;
 
@@ -469,6 +474,7 @@ public:
     BOOL          WeatherWillBeGood;
     double        Wages;
     long          MaxWages;
+    long          Entertainment;
     long          Troops[ATT_UNDECLARED+1];
 
     long          guiUnit;  // will be used by GUI only

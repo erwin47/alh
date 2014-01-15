@@ -122,6 +122,12 @@ BEGIN_EVENT_TABLE(CMapFrame, CAhFrame)
     EVT_MENU     (menu_ExportHexes        , CMapFrame::OnExportHexes           )
     EVT_MENU     (menu_FindTradeRoutes    , CMapFrame::OnFindTradeRoutes       )
 
+    EVT_MENU     (menu_TaxPillage         , CMapFrame::OnTaxPillage            )
+    EVT_MENU     (menu_ShareAfterBuy      , CMapFrame::OnShareAfterBuy         )
+    EVT_MENU     (menu_Work               , CMapFrame::OnWork                  )
+    EVT_MENU     (menu_MaintainanceCosts  , CMapFrame::OnMaintainceCosts       )
+    EVT_MENU     (menu_ShareMaintainance  , CMapFrame::OnShareMaintaince       )
+
     EVT_MENU     (menu_CheckMonthLongOrd  , CMapFrame::OnCheckMonthLongOrd     )
     EVT_MENU     (menu_CheckTaxTrade      , CMapFrame::OnCheckTaxTrade         )
     EVT_MENU     (menu_CheckProduction    , CMapFrame::OnCheckProduction       )
@@ -230,7 +236,6 @@ void CMapFrame::MakeMenu(int layout)
     menuItem->Append(menu_Options           , wxT("Options")                     , wxT("") );
     menuBar->Append(menuItem, wxT("&View"));
 
-
     menuItem = new wxMenu;
     menuItem->Append(menu_ApplyDefaultOrders, wxT("Apply default orders")          , wxT(""));
     menuItem->Append(menu_RerunOrders       , wxT("Rerun orders")                  , wxT(""));
@@ -272,6 +277,15 @@ void CMapFrame::MakeMenu(int layout)
     menuItem->Append(menu_ListColUnitsFltr  , wxT("Columns for Unit Locator")    , wxT(""));
 
     menuBar->Append(menuItem, wxT("&Windows"));
+
+
+    menuItem = new wxMenu;
+    menuItem->AppendCheckItem(menu_TaxPillage        , wxT("Tax and Pillage")         , wxEmptyString);
+    menuItem->AppendCheckItem(menu_ShareAfterBuy     , wxT("Share silver after Buy")  , wxEmptyString);
+    menuItem->AppendCheckItem(menu_Work              , wxT("Work income")             , wxEmptyString);
+    menuItem->AppendCheckItem(menu_MaintainanceCosts , wxT("Pay Maintainance costs")  , wxEmptyString);
+    menuItem->AppendCheckItem(menu_ShareMaintainance , wxT("Share Study and Maintainance costs")  , wxEmptyString);
+    menuBar->Append(menuItem, wxT("&Economy"));
 
 
     menuItem = new wxMenu;
@@ -894,6 +908,46 @@ void CMapFrame::OnRerunOrders(wxCommandEvent& event)
 void CMapFrame::OnShaftConnect(wxCommandEvent& event)
 {
     gpApp->ShowShaftConnectGUI();
+}
+
+//--------------------------------------------------------------------
+
+void CMapFrame::OnTaxPillage(wxCommandEvent& event)
+{
+    gpApp->m_pAtlantis->m_EconomyTaxPillage = event.IsChecked();
+    gpApp->RerunOrders();
+}
+
+//--------------------------------------------------------------------
+
+void CMapFrame::OnShareAfterBuy(wxCommandEvent& event)
+{
+    gpApp->m_pAtlantis->m_EconomyShareAfterBuy = event.IsChecked();
+    gpApp->RerunOrders();
+}
+
+//--------------------------------------------------------------------
+
+void CMapFrame::OnWork(wxCommandEvent& event)
+{
+    gpApp->m_pAtlantis->m_EconomyWork = event.IsChecked();
+    gpApp->RerunOrders();
+}
+
+//--------------------------------------------------------------------
+
+void CMapFrame::OnMaintainceCosts(wxCommandEvent& event)
+{
+    gpApp->m_pAtlantis->m_EconomyMaintainanceCosts = event.IsChecked();
+    gpApp->RerunOrders();
+}
+
+//--------------------------------------------------------------------
+
+void CMapFrame::OnShareMaintaince(wxCommandEvent& event)
+{
+    gpApp->m_pAtlantis->m_EconomyShareMaintainance = event.IsChecked();
+    gpApp->RerunOrders();
 }
 
 //--------------------------------------------------------------------

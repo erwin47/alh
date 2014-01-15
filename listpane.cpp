@@ -195,7 +195,7 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
                         info.m_text << (long)value;
                         break;
                     case eCharPtr:
-                        info.m_text = wxString::FromAscii((const char*)value);
+                        info.m_text = wxString::FromUTF8((const char*)value);
                         break;
                     default:
                         break;
@@ -225,7 +225,23 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
                 else
                     SetItem(info);
             }
+            if (dataitem->GetProperty(PRP_GUI_COLOR, valuetype, value ) && (eLong==valuetype))
+            {
+                switch ((long)value)
+                {
+                    case 1:
+                        SetItemBackgroundColour(row, wxColor("#82B4FF")); // Light Blue
+                    break;
+                    case 2:
+                        SetItemBackgroundColour(row, wxColor("#FFFF94")); // Light Yellow
+                    break;
+                    default:
+                        SetItemBackgroundColour(row, wxColor("#FFFFFF")); // White
+                }
+            }
         }
+        while (m_pData->Count() < GetItemCount())
+            DeleteItem(m_pData->Count());
 
     if (FullUpdate && (selno>=0))
     {

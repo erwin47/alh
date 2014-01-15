@@ -154,6 +154,7 @@ void CUnitSplitDlg::ScanProperties()
             eLong==type &&
             !IsASkillRelatedProperty(propname.GetData()) &&
             0!=stricmp(PRP_SEQUENCE     , propname.GetData()) &&
+            0!=stricmp(PRP_GUI_COLOR    , propname.GetData()) &&
             0!=stricmp(PRP_STRUCT_ID    , propname.GetData())&&
             0!=stricmp(PRP_FRIEND_OR_FOE, propname.GetData())
            )

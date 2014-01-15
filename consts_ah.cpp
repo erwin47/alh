@@ -61,6 +61,7 @@ DefaultConfigRec DefaultConfig[] =
     {SZ_SECT_COMMON            ,     SZ_KEY_LEAD_SKILL_BONUS,    "2,4"               },
     {SZ_SECT_COMMON            ,     SZ_KEY_CHECK_MOVE_MODE,     "1"                 },
     {SZ_SECT_COMMON            ,     SZ_KEY_TAX_PER_TAXER  ,     "50"                },
+    {SZ_SECT_COMMON            ,     SZ_KEY_ENTERTAINMENT_SILVER,"20"                },
     {SZ_SECT_COMMON            ,     SZ_KEY_CHECK_NEW_UNIT_FACTION, "0"              },
     {SZ_SECT_COMMON            ,     SZ_KEY_WATER_TERRAINS ,     "Ocean,Lake"        },
     {SZ_SECT_COMMON            ,     SZ_KEY_ICONS          ,     SZ_ICONS_ADVANCED   },

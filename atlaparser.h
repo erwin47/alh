@@ -23,6 +23,7 @@
 #include <map>
 
 #include "data.h"
+#include "files.h"
 #include "hash.h"
 
 extern const char * Monthes[];
@@ -122,6 +123,11 @@ enum {
     NORDERS
 };
 
+enum SHARE_TYPE {
+    SHARE_BUY,
+    SHARE_STUDY,
+    SHARE_UPKEEP
+};
 
 typedef struct SAVE_HEX_OPTIONS_STRUCT
 {
@@ -216,6 +222,12 @@ public:
     BOOL              m_ArcadiaSkills;
     std::map<wxString, int> TerrainMovementCost;
 
+    bool              m_EconomyTaxPillage;
+    bool              m_EconomyShareAfterBuy;
+    bool              m_EconomyWork;
+    bool              m_EconomyMaintainanceCosts;
+    bool              m_EconomyShareMaintainance;
+
 protected:
     int          ParseFactionInfo(BOOL GetNo, BOOL Join);
     int          ParseEvents(BOOL IsEvents=TRUE);
@@ -287,6 +299,13 @@ protected:
     BOOL         FindTargetsForSend        (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char *& params, CUnit *& pUnit2, CLand *& pLand2);
     BOOL         GetItemAndAmountForGive   (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, CStr & Item, int & amount, const char * command, CUnit * pUnit2);
     void         RunOrder_Withdraw         (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
+    void         RunOrder_TaxPillage       (CLand *);
+    void         RunOrder_Entertain        (CLand *);
+    void         RunOrder_Work             (CLand *);
+    void         RunOrder_ShareSilver      (CStr & Line, CStr & ErrorLine, BOOL skiperror, CLand *, SHARE_TYPE, wxString shareName);
+    void         RunOrder_Upkeep           (CLand *);
+    void         DistributeSilver          (CLand *, int unitFlag, int silver, int menCount);
+    int          CountMenWithFlag          (CLand *, int unitFlag) const;
 
     void         AdjustSkillsAfterGivingMen(CUnit * pUnitGive, CUnit * pUnitTake, CStr & item, long AmountGiven);
     void         LookupAdvancedResourceVisibility(CUnit * pUnit, CLand * pLand);

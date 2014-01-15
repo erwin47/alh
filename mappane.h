@@ -166,7 +166,7 @@ protected:
     void      DrawRing(wxDC * pDC, wxRect * pRect, CPlane * pPlane);
     void      DrawRingSegment(wxDC * pDC, wxRect * pRect, CPlane * pPlane, int dx, int dy, int DirFlags);
 
-    void      DrawSingleTrack(int X, int Y, int wx, int wy, wxDC * pDC, CUnit * pUnit, CPlane * pPlane, int copyno);
+    void      DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, CUnit * pUnit, CPlane * pPlane, int copyno);
     void      DrawTrackArrow(wxDC * pDC, int wx0, int wy0, int wx, int wy);
     void      CenterClick(wxPoint point);
     wxBrush * GetLandBrush(CLand * pLand, BOOL GetHatched);

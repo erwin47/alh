@@ -119,8 +119,10 @@ void CUnitPane::Update(CLand * pLand)
     eSelMode          selmode = sel_by_no;
     long              seldata = 0;
     BOOL              FullUpdate = (pLand != m_pCurLand); // if not full mode, refresh new units only
-    CBaseCollById     NewUnits(64);
     wxListItem        info;
+    CBaseColl         ArrivingUnits;
+    long              GuiColor;
+
 
     // It is a must, since some locations pointed to by stored pointers may be invalid at the moment.
     // Namely all new units are deleted when orders are processed.
@@ -141,18 +143,26 @@ void CUnitPane::Update(CLand * pLand)
         for (i=0; i<pLand->Units.Count(); i++)
         {
             pUnit = (CUnit*)pLand->Units.At(i);
+            if (pUnit && pUnit->pMovement)
+                GuiColor = 1;
+            else
+                GuiColor = 0;
+            pUnit->SetProperty(PRP_GUI_COLOR, eLong, (void*)GuiColor, eBoth);
             m_pUnits->AtInsert(m_pUnits->Count(), pUnit);
         }
         m_pUnits->SetSortMode(m_SortKey, NUM_SORTS);
 
-        // insert new units at the end
-        for (i=NewUnits.Count()-1; i>=0; i--)
+        gpApp->GetUnitsMovingIntoHex(pLand->Id, ArrivingUnits);
+        for (i=0; i<ArrivingUnits.Count(); ++i)
         {
-            pUnit = (CUnit *)NewUnits.At(i);
-            m_pUnits->AtInsert(m_pUnits->Count(), pUnit);
+            pUnit = (CUnit*)ArrivingUnits.At(i);
+            if (pUnit->LandId != pLand->Id)
+            {
+                GuiColor = 2;
+                pUnit->SetProperty(PRP_GUI_COLOR, eLong, (void*)GuiColor, eBoth);
+                m_pUnits->AtInsert(m_pUnits->Count(), pUnit);
+            }
         }
-        NewUnits.DeleteAll();
-
 
         if (pLand->guiUnit)
         {
@@ -163,7 +173,6 @@ void CUnitPane::Update(CLand * pLand)
     m_pCurLand = pLand;
 
     SetData(selmode, seldata, FullUpdate);
-
 
     if ((0==m_pUnits->Count()) || !FullUpdate) // otherwise will be called from OnSelected()
         gpApp->OnUnitHexSelectionChange(GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED));
@@ -315,13 +324,56 @@ void CUnitPane::SaveUnitListHdr()
 
 void CUnitPane::OnSelected(wxListEvent& event)
 {
+    CEditPane  * pOrders;
     CUnit      * pUnit = GetUnit(event.m_itemIndex);
+    bool         changed = false;
+    int          idx, i;
 
     if (pUnit)
     {
+        pOrders = (CEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
+        if (pOrders)
+            changed = pOrders->SaveModifications();
+
+        if (changed && m_pCurLand)
+        {
+            CBaseObject Dummy;
+            CUnit * pOldUnit = NULL;
+
+            Dummy.Id = m_pCurLand->guiUnit;
+            if (m_pCurLand->Units.Search(&Dummy, idx))
+                pOldUnit = (CUnit*)m_pCurLand->Units.At(idx);
+            else
+            {
+                CBaseColl         ArrivingUnits;
+
+                gpApp->GetUnitsMovingIntoHex(m_pCurLand->Id, ArrivingUnits);
+                for (i=0; i<ArrivingUnits.Count(); ++i)
+                {
+                    pOldUnit = (CUnit*)ArrivingUnits.At(i);
+                    if (pOldUnit->Id == m_pCurLand->guiUnit)
+                    {
+                        CLand * pEditedLand = gpApp->m_pAtlantis->GetLand(pOldUnit->LandId);
+                        if (pEditedLand)
+                        {
+                            gpApp->m_pAtlantis->RunOrders(pEditedLand);
+                            if (m_pCurLand != pEditedLand)
+                                gpApp->m_pAtlantis->RunOrders(m_pCurLand);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
+        if (changed)
+        {
+            gpApp->EditPaneChanged(pOrders);
+        }
+//        Update(m_pCurLand);
         gpApp->OnUnitHexSelectionChange(event.m_itemIndex);
     }
 }

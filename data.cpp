@@ -61,7 +61,10 @@ const char * STD_UNIT_PROPS [] =
     PRP_MOVEMENT             ,
     PRP_DESCRIPTION          ,
     PRP_COMBAT               ,
+    PRP_GUI_COLOR            ,
     PRP_MEN                  ,
+    PRP_BEST_SKILL           ,
+    PRP_BEST_SKILL_DAYS      ,
     PRP_SKILLS               ,
     PRP_MAG_SKILLS           ,
     PRP_STUFF                ,
@@ -273,6 +276,7 @@ CLand::CLand() : CBaseObject(), Units(32), UnitsSeq(32)
     WeatherWillBeGood=FALSE;
     Wages = 0.0;
     MaxWages = 0;
+    Entertainment = 0;
     for(int i=0; i<=ATT_UNDECLARED; i++) Troops[i]=0;
     ResetAllExits();
 }
@@ -522,7 +526,7 @@ void CLand::SetFlagsFromUnits()
         armours=0;
         pUnit = (CUnit*)UnitsSeq.At(i);
         if (pUnit->FactionId==player_id) AlarmFlags |= PRESENCE_OWN;
-        if ((pUnit->Flags & UNIT_FLAG_TAXING) && !(pUnit->Flags & UNIT_FLAG_GIVEN))
+        if (((pUnit->Flags & UNIT_FLAG_TAXING) || (pUnit->Flags & UNIT_FLAG_PILLAGING)) && !(pUnit->Flags & UNIT_FLAG_GIVEN))
             Flags |= LAND_TAX_NEXT;
         if ((pUnit->Flags & UNIT_FLAG_PRODUCING) && !(pUnit->Flags & UNIT_FLAG_GIVEN))
             Flags |= LAND_TRADE_NEXT;
@@ -536,7 +540,7 @@ void CLand::SetFlagsFromUnits()
             if(((long) stance > guard_stance) && ((long) stance < ATT_UNDECLARED))
                 guard_stance = (long) stance; // stance of guards, if any
         }
-        if (((pUnit->Flags & UNIT_FLAG_TAXING) || (pUnit->Flags & UNIT_FLAG_PRODUCING))
+        if (((pUnit->Flags & UNIT_FLAG_TAXING) || (pUnit->Flags & UNIT_FLAG_PILLAGING) || (pUnit->Flags & UNIT_FLAG_PRODUCING))
               && !(pUnit->Flags & UNIT_FLAG_GIVEN))
         {
             if(((long) stance > claim) && ((long) stance < ATT_UNDECLARED))
@@ -747,7 +751,6 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
     Flags         = 0;
     FlagsOrg      = 0;
     FlagsLast     = ~Flags;
-    IsWorking     = false;
     memset(Weight, 0, sizeof(Weight));
 };
 
@@ -792,7 +795,6 @@ CUnit * CUnit::AllocSimpleCopy()
     pUnit->Flags                  = Flags                ;
     pUnit->FlagsOrg               = FlagsOrg             ;
     pUnit->FlagsLast              = FlagsLast            ;
-    pUnit->IsWorking              = IsWorking            ;
 
     memcpy(pUnit->Weight, Weight, sizeof(Weight))        ;
 
@@ -849,8 +851,6 @@ void CUnit::ResetNormalProperties()
 
     Flags     = FlagsOrg;
     FlagsLast = ~Flags;
-
-    IsWorking = false;
 
     // calc weight;
     CalcWeightsAndMovement();
@@ -992,6 +992,40 @@ void CUnit::CheckWeight(CStr & sErr)
 
 //-------------------------------------------------------------
 
+void CUnit::GetBestSkill(wxString &name, long &days)
+{
+    int idx = 0;
+    EValueType type;
+    const wxString Suffix = wxString::FromUTF8(PRP_SKILL_DAYS_POSTFIX);
+    wxString skillName;
+    long daysCurrent;
+    name = wxEmptyString;
+    days = 0;
+
+    const char * propname_days = GetPropertyName(idx);
+    while (propname_days)
+    {
+        skillName = wxString::FromUTF8(propname_days);
+        if (skillName.EndsWith(Suffix))
+        {
+            if (GetProperty(skillName.ToUTF8(), type, (const void*&)daysCurrent, eNormal) )
+            {
+                if (daysCurrent > days)
+                {
+                    days = daysCurrent;
+                    name = skillName;
+                }
+            }
+        }
+        propname_days = GetPropertyName(++idx);
+    }
+    if (days > 0)
+        name.Truncate(name.Length() - Suffix.Length());
+
+    name.MakeLower();
+}
+
+//-------------------------------------------------------------
 BOOL CUnit::GetProperty(const char  *  name,
                         EValueType   & type,
                         const void  *& value,
@@ -1020,6 +1054,7 @@ BOOL CUnit::GetProperty(const char  *  name,
         CStr sValue, sValueAbbr, sKey;
         int  i, x;
 
+        if (Flags & UNIT_FLAG_PILLAGING        )  sValue << "€";
         if (Flags & UNIT_FLAG_TAXING           )  sValue << '$';
         if (Flags & UNIT_FLAG_PRODUCING        )  sValue << 'P';
         if (Flags & UNIT_FLAG_GUARDING         )  sValue << 'g';
@@ -1147,6 +1182,44 @@ BOOL CUnit::GetProperty(const char  *  name,
         {
             type  = eLong;
             value = (void*)(Weight[4] - Weight[0]);
+        }
+        else if (0==stricmp(name, PRP_BEST_SKILL))
+        {
+            wxString S;
+            long days;
+            GetBestSkill(S, days);
+            type = eCharPtr;
+            const char * s = S.ToUTF8().data();
+
+            // Need a storage for all these skill-strings
+            static char * arr[200];
+            static int arrMax = 0;
+            bool found = false;
+
+            for (int i = 0; i < arrMax; ++i)
+            {
+                if (0 == strcmp(arr[i], s))
+                {
+                    s = arr[i];
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                arr[arrMax] = strdup(s);
+                s = arr[arrMax++];
+            }
+
+            value = (void*)(s);
+        }
+        else if (0==stricmp(name, PRP_BEST_SKILL_DAYS))
+        {
+            wxString S;
+            long days;
+            GetBestSkill(S, days);
+            type = eLong;
+            value = (void*)days;
         }
         else if (0==stricmp(name, PRP_TEACHING ))
         {

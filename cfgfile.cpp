@@ -19,7 +19,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "collection.h"
 #include "cfgfile.h"
 #include "files.h"
 #include "compat.h"

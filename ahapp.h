@@ -20,7 +20,13 @@
 #ifndef __AH_APP_INCL__
 #define __AH_APP_INCL__
 
+#include <wx/accel.h>
 #include <wx/app.h>
+
+#include "atlaparser.h"
+#include "cfgfile.h"
+#include "collection.h"
+#include "cstr.h"
 
 enum
 {
@@ -271,6 +277,8 @@ public:
     void                 RerunOrders();
     void                 ShowShaftConnectGUI();
     void                 SetAllLandUnitFlags();
+
+    void                 GetUnitsMovingIntoHex(long HexId, CBaseColl &FoundUnits) const;
     void                 ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane);
     void                 ShowLandFinancial(CLand * pCurLand);
     void                 AddTempHex(int X, int Y, int Plane);

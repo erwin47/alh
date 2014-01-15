@@ -23,11 +23,7 @@
 #include "wx/listctrl.h"
 //#include "wx/resource.h"
 
-#include "cstr.h"
-#include "collection.h"
-#include "cfgfile.h"
 #include "files.h"
-#include "atlaparser.h"
 #include "consts.h"
 #include "consts_ah.h"
 #include "objs.h"
@@ -252,7 +248,9 @@ bool CAhApp::OnInit()
     m_OrderHash.Insert("teach"      ,     (void*)O_TEACH      );
     m_OrderHash.Insert("turn"       ,     (void*)O_TURN       );
 
+    m_OrderHash.Insert("pillage"    ,     (void*)O_PILLAGE    );
     m_OrderHash.Insert("tax"        ,     (void*)O_TAX        );
+    m_OrderHash.Insert("entertain"  ,     (void*)O_ENTERTAIN  );
     m_OrderHash.Insert("work"       ,     (void*)O_WORK       );
 
     m_OrderHash.Insert("guard"      ,     (void*)O_GUARD      );
@@ -1100,14 +1098,23 @@ BOOL CAhApp::GetItemWeights(const char * item, int *& weights, const char **& mo
     if (!Ok)
     {
         CStr S;
-
+        bool skipit;
         if (!IsASkillRelatedProperty(item))
         {
-            S.Empty();
-            S << "Warning! Weight and capacities for " << item <<
-                 " are unknown and assumed to be zero. Movement modes can not be calculated correct. Update your " <<
-                 SZ_CONFIG_FILE << " file!" <<EOL_SCR;
-            ShowError(S.GetData(), S.GetLength(), TRUE);
+            for (i=0; i<STD_UNIT_PROPS_COUNT; i++)
+                if (0==stricmp(item, STD_UNIT_PROPS[i]))
+                {
+                    skipit = TRUE;
+                    break;
+                }
+            if (!skipit)
+            {
+                S.Empty();
+                S << "Warning! Weight and capacities for " << item <<
+                     " are unknown and assumed to be zero. Movement modes can not be calculated correct. Update your " <<
+                     SZ_CONFIG_FILE << " file!" <<EOL_SCR;
+                ShowError(S.GetData(), S.GetLength(), TRUE);
+            }
         }
     }
 
@@ -2545,14 +2552,17 @@ void CAhApp::PostLoadReport()
     SET_UNIT_PROP_NAME(PRP_WEIGHT_RIDE       , eLong   )
     SET_UNIT_PROP_NAME(PRP_WEIGHT_FLY        , eLong   )
     SET_UNIT_PROP_NAME(PRP_WEIGHT_SWIM       , eLong   )
+    SET_UNIT_PROP_NAME(PRP_BEST_SKILL        , eLong   )
+    SET_UNIT_PROP_NAME(PRP_BEST_SKILL_DAYS   , eLong   )
     SET_UNIT_PROP_NAME(PRP_DESCRIPTION       , eCharPtr)
     SET_UNIT_PROP_NAME(PRP_COMBAT            , eCharPtr)
+    SET_UNIT_PROP_NAME(PRP_GUI_COLOR         , eLong   )
     SET_UNIT_PROP_NAME(PRP_MOVEMENT          , eCharPtr)
     SET_UNIT_PROP_NAME(PRP_FLAGS_STANDARD    , eCharPtr)
     SET_UNIT_PROP_NAME(PRP_FLAGS_CUSTOM      , eCharPtr)
     SET_UNIT_PROP_NAME(PRP_FLAGS_CUSTOM_ABBR , eCharPtr)
 
-
+    LoadTerrainCostConfig();
 
     // If no orders loaded, no movement will be calculated. Force it.
     if (!m_pAtlantis->m_OrdersLoaded)
@@ -2804,6 +2814,7 @@ void CAhApp::EditPaneChanged(CEditPane * pPane)
             // selected unit's orders have been changed
 
             // TBD: is it needed? m_pCurLand->guiUnit = m_pUnitListPane->GetCurrentUnitId();
+            if (pLand->guiUnit)
             m_pAtlantis->RunOrders(pLand);
             UpdateHexUnitList(pLand);
             UpdateHexEditPane(pLand);
@@ -3426,17 +3437,17 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
         {
             long    Id = 0;
             CLand * pLand = NULL;
-
+/*
             if (pUnit)
             {
                 Id = pUnit->Id;
                 pLand = m_pAtlantis->GetLand(pUnit->LandId);
 
             }
-
+*/
             // OnKillFocus event for the editor did not fire up
             pOrders->OnKillFocus();
-
+/*
             // OnKillFocus kills all new units!
             pUnit = NULL;
             if (Id != 0 && pLand)
@@ -3450,8 +3461,8 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
                     pUnit = (CUnit*)pLand->Units.At(idx);
                     SelectUnit(pUnit);
                 }
-
             }
+*/
         }
 
         pOrders->SetSource(pUnit?&pUnit->Orders:NULL,      &m_OrdersAreChanged);
@@ -3883,6 +3894,14 @@ void CAhApp::ViewFactionOverview()
                     0==stricmp(propname.GetData(), PRP_TEACHING  ) ||
                     0==stricmp(propname.GetData(), PRP_SKILLS    ) ||
                     0==stricmp(propname.GetData(), PRP_MAG_SKILLS) ||
+                    0==stricmp(propname.GetData(), PRP_WEIGHT_WALK) ||
+                    0==stricmp(propname.GetData(), PRP_WEIGHT_RIDE) ||
+                    0==stricmp(propname.GetData(), PRP_WEIGHT_FLY) ||
+                    0==stricmp(propname.GetData(), PRP_WEIGHT_SWIM) ||
+                    0==stricmp(propname.GetData(), PRP_BEST_SKILL) ||
+                    0==stricmp(propname.GetData(), PRP_BEST_SKILL_DAYS) ||
+                    0==stricmp(propname.GetData(), PRP_MAG_SKILLS) ||
+                    0==stricmp(propname.GetData(), PRP_GUI_COLOR ) ||
                     0==stricmp(propname.GetData(), PRP_SEQUENCE  ) ||
                     0==stricmp(propname.GetData(), PRP_FRIEND_OR_FOE  )
 
@@ -4172,15 +4191,12 @@ void CAhApp::CheckMonthLongOrders()
 
 //--------------------------------------------------------------------------
 
-void CAhApp::ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane)
+void CAhApp::GetUnitsMovingIntoHex(long HexId, CBaseColl &FoundUnits) const
 {
     CLand          * pLand;
     CUnit          * pUnit;
-    int              nl, nu, i, np;
-    long             HexId;
-    CUnitPaneFltr  * pUnitPaneF = NULL;
-    CStr             UnitText(128), S(16);
-    CBaseColl        FoundUnits;
+    int              nl, nu, np;
+    int             unitHexId;
 
     for (np=0; np<m_pAtlantis->m_Planes.Count(); np++)
     {
@@ -4195,16 +4211,26 @@ void CAhApp::ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane)
                     pUnit = (CUnit*)pLand->Units.At(nu);
                     if (pUnit->pMovement && pUnit->pMovement->Count()>0)
                     {
-                        HexId = (long)pUnit->pMovement->At(pUnit->pMovement->Count()-1);
-                        if (HexId==CurHexId)
+                        unitHexId = (long)pUnit->pMovement->At(pUnit->pMovement->Count()-1);
+                        if (HexId==unitHexId)
                             FoundUnits.Insert(pUnit);
                     }
                 }
             }
         }
     }
+}
 
-    // now display our findings
+void CAhApp::ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane)
+{
+    CUnit          * pUnit;
+    int              i;
+    CUnitPaneFltr  * pUnitPaneF = NULL;
+    CStr             UnitText(128), S(16);
+    CBaseColl        FoundUnits;
+
+    GetUnitsMovingIntoHex(CurHexId, FoundUnits);
+
     if (FoundUnits.Count() > 0)
     {
         if (1==atol(SkipSpaces(GetConfig(SZ_SECT_COMMON, SZ_KEY_CHECK_OUTPUT_LIST))))
@@ -4319,7 +4345,7 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
                     else
                         TaxTheir += men*TaxPerTaxer;
 
-                if (pUnit->IsWorking)
+                if (pUnit->Flags & UNIT_FLAG_WORKING)
                     if (pUnit->FactionId == CurFaction)
                     {
                         Workers += men;

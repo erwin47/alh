@@ -27,6 +27,7 @@
 
 #include "wx/string.h"
 
+#include "ahapp.h"
 #include "files.h"
 #include "consts.h"
 #include "cstr.h"
@@ -39,7 +40,6 @@
 #include "errs.h"
 #include "consts_ah.h" // not very good, but will do for now
 
-#define IN          "in "
 #define CONTAINS    "contains "
 #define SILVER      "silver"
 
@@ -196,6 +196,12 @@ CAtlaParser::CAtlaParser(CGameDataHelper * pHelper)
     m_HexEvents.Name  = "Hex Events";
     m_Errors.Name     = "Errors";
     m_ArcadiaSkills   = FALSE;
+
+    m_EconomyTaxPillage=false;
+    m_EconomyShareAfterBuy = false;
+    m_EconomyWork     = false;
+    m_EconomyMaintainanceCosts = false;
+    m_EconomyShareMaintainance = false;
 
     m_UnitFlagsHash.Insert("taxing"                      ,     (void*)UNIT_FLAG_TAXING            );
     m_UnitFlagsHash.Insert("on guard"                    ,     (void*)UNIT_FLAG_GUARDING          );
@@ -1213,6 +1219,13 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
                 {
                     // Wages does not match the common pattern
                     ParseWages(pLand, str, src);
+                }
+                else if (0==stricmp("Entertainment available", p))
+                {
+                    // Entertainment available: $1125.
+                    const char * pTmp = strstr(str, "$");
+                    if (pTmp)
+                        pLand->Entertainment = atoi(++pTmp);
                 }
                 else
                     SectType = eNone;
@@ -4133,6 +4146,11 @@ int CAtlaParser::LoadOrders  (CFileReader & F, int FactionId, BOOL GetComments)
         {
             p = No.GetToken(p, " \t", ch);
             pOrigUnit = pUnit;
+            if (pUnit == NULL)
+            {
+                pOrigUnit = pUnit;
+            }
+
             pUnit = SplitUnit(pOrigUnit, atol(No.GetData()));
         }
         else if (0==stricmp(S.GetData(),"end") && pOrigUnit)
@@ -4782,11 +4800,13 @@ enum
        SQ_ENTER  ,
        SQ_PROMOTE,
        SQ_GIVE   ,
+       SQ_TAX_PILLAGE,
        SQ_SELL   , // Shar1 Extrict SELL/BUY check. Sell is executed before buy
        SQ_BUY    ,
        SQ_STUDY  ,
        SQ_TEACH  ,
        SQ_MOVE   ,
+       SQ_WORK   ,
        SQ_MAX
 };
 
@@ -4834,6 +4854,42 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
         if (errors)
             break;
 
+        if (SQ_TAX_PILLAGE == sequence)
+        {
+             if (m_EconomyTaxPillage && pLand->Taxable > 0)
+             {
+                RunOrder_TaxPillage(pLand);
+             }
+             continue;
+        }
+
+/*        if (SQ_MOVE+1 == sequence)
+        {
+            CBaseColl         ArrivingUnits;
+
+            gpApp->GetUnitsMovingIntoHex(m_pCurLand->Id, ArrivingUnits);
+            for (i=0; i<ArrivingUnits.Count(); ++i)
+            {
+                pOldUnit = (CUnit*)ArrivingUnits.At(i);
+                if (pOldUnit->Id == m_pCurLand->guiUnit)
+                {
+                    CLand * pEditedLand = gpApp->m_pAtlantis->GetLand(pOldUnit->LandId);
+                    if (pEditedLand)
+                        gpApp->m_pAtlantis->RunOrders(pEditedLand);
+                    break;
+                }
+            }
+        }*/
+
+        if (SQ_WORK == sequence)
+        {
+            if (m_EconomyWork)
+            {
+                RunOrder_Entertain(pLand);
+                RunOrder_Work(pLand);
+            }
+        }
+
         for (mainidx=0; mainidx<pLand->UnitsSeq.Count(); mainidx++)
         {
             nNestingMode = 0; // Shar1 Support for TURN/ENDTURN
@@ -4847,6 +4903,17 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
             while (src && *src)
             {
                 src  = Line.GetToken(src, '\n', TRIM_ALL);
+
+                // execute all lines starting with @;;
+                p = strstr(Line.GetData(), "@;;");
+                if (p)
+                {
+                    Line.DelSubStr(0, 3);
+                }
+                while (Line.GetData()[0] == ' ')
+                {
+                    Line.DelSubStr(0, 1);
+                }
 
                 // trim all the comments
                 p = strchr(Line.GetData(), ';');
@@ -5172,7 +5239,9 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     case O_SAIL:
                     case O_ADVANCE:
                         if (SQ_MOVE==sequence)
+                        {
                             RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, p, X, Y, LocA3, order);
+                        }
                         break;
 
                     // autotax flag must be removed in the very first pass, or land flag will be set and never removed
@@ -5343,14 +5412,24 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         break;
 
 
+                    case O_PILLAGE:
+                        if (SQ_CLAIM ==sequence )
+                            pUnit->Flags |=  UNIT_FLAG_PILLAGING;
+                        break;
+
                     case O_TAX:
                         if (SQ_CLAIM ==sequence )
                             pUnit->Flags |=  UNIT_FLAG_TAXING;
                         break;
 
+                    case O_ENTERTAIN:
+                        if (SQ_CLAIM ==sequence )
+                            pUnit->Flags |=  UNIT_FLAG_ENTERTAINING;
+                        break;
+
                     case O_WORK:
-                        if (SQ_MAX-1==sequence)
-                            pUnit->IsWorking = true;
+                        if (SQ_CLAIM ==sequence)
+                            pUnit->Flags |=  UNIT_FLAG_WORKING;
                         break;
 
                     case O_BUILD:
@@ -5385,12 +5464,289 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
             //}
 
         }   // units loop
+        if (SQ_BUY==sequence)
+        {
+            if (m_EconomyShareAfterBuy)
+            {
+                RunOrder_ShareSilver(Line, ErrorLine, skiperror, pLand, SHARE_BUY, wxT("purchases"));
+            }
+        }
+        if (SQ_STUDY==sequence)
+        {
+            if (m_EconomyShareMaintainance)
+            {
+                RunOrder_ShareSilver(Line, ErrorLine, skiperror, pLand, SHARE_STUDY, wxT("study"));
+            }
+        }
+        if (SQ_MAX-1==sequence)
+        {
+            if (m_EconomyMaintainanceCosts)
+            {
+                RunOrder_Upkeep(pLand);
+            }
+            if (m_EconomyShareMaintainance)
+            {
+                RunOrder_ShareSilver(Line, ErrorLine, skiperror, pLand, SHARE_UPKEEP, wxT("maintainance"));
+            }
+        }
     }   // phases loop
     pLand->CalcStructsLoad();
     pLand->SetFlagsFromUnits();
     OrderErrFinalize();
 }
 
+//-------------------------------------------------------------
+
+int CAtlaParser::CountMenWithFlag(CLand * pLand, int unitFlag) const
+{
+    EValueType          type;
+    CUnit * pUnit;
+    long nmen;
+    int headCount = 0;
+    int skill;
+
+    for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
+    {
+        pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
+        if (pUnit->Flags & unitFlag)
+        {
+            if (pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal) && (nmen>0))
+            {
+                if (UNIT_FLAG_ENTERTAINING == unitFlag)
+                {
+                    if (pUnit->GetProperty("ENTE_", type, (const void *&)skill, eNormal))
+                    {
+                        nmen *= skill;
+                    }
+                }
+                headCount += nmen;
+            }
+        }
+    }
+    return headCount;
+}
+
+//-------------------------------------------------------------
+
+void CAtlaParser::DistributeSilver(CLand * pLand, int unitFlag, int silver, int menCount)
+{
+    EValueType          type;
+    CUnit * pUnit;
+    long nmen;
+
+    int unitSilver;
+    int unitReceives;
+    int skill;
+
+    if (menCount == 0)
+        return;
+
+    for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
+    {
+        pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
+        if (pUnit->Flags & unitFlag)
+        {
+            if (pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal) && (nmen>0))
+            {
+                if (UNIT_FLAG_ENTERTAINING == unitFlag)
+                {
+                    if (pUnit->GetProperty("ENTE_", type, (const void *&)skill, eNormal))
+                    {
+                        nmen *= skill;
+                    }
+                }
+                if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
+                {
+                    unitSilver = 0;
+                    pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eBoth);
+                }
+                unitReceives = (silver * nmen) / menCount;
+                unitSilver += unitReceives;
+                silver -= unitReceives;
+                menCount -= nmen;
+                pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
+                if (menCount == 0)
+                    return;
+            }
+        }
+    }
+}
+
+//-------------------------------------------------------------
+
+void CAtlaParser::RunOrder_TaxPillage(CLand * pLand)
+{
+    if (pLand->Taxable == 0)
+        return;
+
+    long pillagers = CountMenWithFlag(pLand, UNIT_FLAG_PILLAGING);
+    long taxers = CountMenWithFlag(pLand, UNIT_FLAG_TAXING);
+
+    if (pillagers || taxers)
+    {
+        const int maxTaxPerTaxer = atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER));
+
+        if (pillagers && (pillagers * maxTaxPerTaxer * 2 >= pLand->Taxable))
+        {
+            long silver = pLand->Taxable * 2;
+            DistributeSilver(pLand, UNIT_FLAG_PILLAGING, silver, pillagers);
+        }
+        else if (taxers)
+        {
+            long silver = std::min(pLand->Taxable, maxTaxPerTaxer * taxers);
+            DistributeSilver(pLand, UNIT_FLAG_TAXING, silver, taxers);
+        }
+    }
+}
+
+//-------------------------------------------------------------
+
+void CAtlaParser::RunOrder_Entertain(CLand * pLand)
+{
+    if (pLand->Entertainment == 0)
+        return;
+
+    long men = CountMenWithFlag(pLand, UNIT_FLAG_ENTERTAINING);
+
+    if (men)
+    {
+        const int entertainmentPerMan = atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_ENTERTAINMENT_SILVER));
+        long silver = std::min(pLand->Entertainment, entertainmentPerMan * men);
+        DistributeSilver(pLand, UNIT_FLAG_ENTERTAINING, silver, men);
+    }
+}
+
+//-------------------------------------------------------------
+
+void CAtlaParser::RunOrder_Work(CLand * pLand)
+{
+    if (pLand->MaxWages == 0 || pLand->Wages == 0)
+        return;
+
+    long men = CountMenWithFlag(pLand, UNIT_FLAG_WORKING);
+
+    if (men)
+    {
+        long silver = std::min((double)pLand->MaxWages, pLand->Wages * men);
+        DistributeSilver(pLand, UNIT_FLAG_WORKING, silver, men);
+    }
+}
+
+//-------------------------------------------------------------
+
+void CAtlaParser::RunOrder_Upkeep(CLand * pLand)
+{
+    EValueType          type;
+    CUnit * pUnit;
+    long nmen;
+
+    int unitSilver;
+    int Maintainance;
+    const char * leadership;
+
+    for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
+    {
+        pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
+        if (pUnit->FactionId == m_CrntFactionId)
+        {
+            if (pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal) && (nmen>0))
+            {
+                if (pUnit->GetProperty(PRP_LEADER, type, (const void *&)leadership, eNormal) && eCharPtr==type &&
+                    (0==strcmp(leadership, SZ_LEADER) || 0==strcmp(leadership, SZ_HERO)))
+                    Maintainance = nmen * 20;
+                else
+                    Maintainance = nmen * 10;
+                if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
+                {
+                    unitSilver = 0;
+                    pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eBoth);
+                }
+                unitSilver -= Maintainance;
+                pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
+            }
+        }
+    }
+}
+
+//-------------------------------------------------------------
+
+void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL skiperror, CLand * pLand, SHARE_TYPE shareType, wxString shareName)
+{
+    EValueType          type;
+    CUnit * pUnit;
+    long silverNeeded = 0;
+    long unitSilver;
+    long shareSilver;
+    long silverNeededOrig;
+    // CStr ErrorLine;
+    CStr Line;
+
+    // Share silver between units which have a shortage.
+    // Normally only silver is shared between units with the share flag set.
+    // When shareAll is set silver will be shared by all units (such as for upkeep costs).
+
+    for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
+    {
+        pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
+        if (shareType == SHARE_BUY || !pUnit->pMovement || pUnit->pMovement->Count() == 0)
+        if (pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
+        {
+            if (unitSilver < 0)
+            {
+                silverNeeded -= unitSilver;
+            }
+        }
+    }
+
+    if (!silverNeeded) return;
+    silverNeededOrig = silverNeeded;
+
+    for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
+    {
+        pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
+        if (shareType == SHARE_BUY || !pUnit->pMovement || pUnit->pMovement->Count() == 0)
+        if ((shareType == SHARE_UPKEEP || pUnit->Flags & UNIT_FLAG_SHARING) && pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
+        {
+            if (unitSilver > 0)
+            {
+                shareSilver = std::min(unitSilver, silverNeeded);
+                silverNeeded -= shareSilver;
+                unitSilver -= shareSilver;
+                pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
+                if (!silverNeeded)
+                    break;
+            }
+        }
+    }
+
+    long silverAvailable = silverNeededOrig - silverNeeded;
+    long shortage = silverNeeded;
+
+    for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
+    {
+        pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
+        if (shareType == SHARE_BUY || !pUnit->pMovement || pUnit->pMovement->Count() == 0)
+        if (pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
+        {
+            if (unitSilver < 0)
+            {
+                shareSilver = std::min(-unitSilver, silverAvailable);
+                silverAvailable -= shareSilver;
+                unitSilver += shareSilver;
+                pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
+            }
+        }
+    }
+
+    if (shortage > 0)
+    {
+        CStr sCoord;
+        ComposeLandStrCoord(pLand, sCoord);
+        wxString message = wxT(" - ") + wxString::FromUTF8(sCoord.GetData());
+        message += wxString::Format(" - Shortage of %d silver for %s.", shortage, shareName);
+        SHOW_WARN(message.ToUTF8());
+    }
+}
 
 //-------------------------------------------------------------
 
@@ -6575,7 +6931,7 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
     int                 totalMovementCost = 0;
     bool                pathCanBeTraced = true;
     int                 movementMode = 0;
-    const int           startMonth = m_YearMon % 100 - 1;
+    const int           startMonth = (m_YearMon % 100) - 1;
     bool                noCross = true;
     bool                throughWall = false;
 
@@ -6622,6 +6978,12 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 //return;
                 goto SomeChecks;
             }
+        }
+
+        // Determine whether the unit is currently in a structure
+        if (pUnit->GetProperty(PRP_STRUCT_ID, type, value, eNormal) && eLong==type)
+        {
+            currentStruct = (int)value;
         }
 
         while (params)
@@ -7558,7 +7920,7 @@ bool CAtlaParser::IsBadWeatherHex(CLand * pLand, int month) const
     LandIdToCoord(pLand->Id, x, y, z);
 
     CPlane * pPlane = pLand->pPlane;
-    if (pPlane && pPlane->TropicZoneMin <= pPlane->TropicZoneMax)
+    if (pPlane && pPlane->TropicZoneMin < pPlane->TropicZoneMax)
     {
         // Weather is known
         if (y < pPlane->TropicZoneMin)
