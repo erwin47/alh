@@ -479,6 +479,10 @@ public:
 
     long          guiUnit;  // will be used by GUI only
     int           guiColor; // will be used by GUI only
+
+    int           TotalMovementCost; // Used for calculating routes
+    long          ArrivedFromHexId; // HexId we came from
+    CStr          MoveDirection; // Direction we came from
 };
 
 const int EXIT_CLOSED = -255;
