@@ -2377,8 +2377,7 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
     }
 
     // now check if this guy can see any advanced resources
-    if (pUnit->IsOurs)
-        LookupAdvancedResourceVisibility(pUnit, m_pCurLand);
+    LookupAdvancedResourceVisibility(pUnit, m_pCurLand);
 
     return err;
 }
