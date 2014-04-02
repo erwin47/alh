@@ -589,8 +589,6 @@ void CAhApp::OpenMsgFrame()
         m_MsgSrc.Empty();
         m_Frames[AH_FRAME_MSG]->Show(TRUE);
     }
-    else
-        m_Frames[AH_FRAME_MSG]->Raise();
 }
 
 //-------------------------------------------------------------------------
@@ -1699,10 +1697,6 @@ int  CAhApp::LoadOrders  (const char * FNameIn)
         OnMapSelectionChange();
         RedrawTracks();
     }
-    else
-       if (m_Frames[AH_FRAME_MSG])
-           ((CAhFrame*)m_Frames[AH_FRAME_MSG])->Raise();
-
     return err;
 }
 
