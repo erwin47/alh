@@ -2802,6 +2802,7 @@ void CAhApp::EditPaneChanged(CEditPane * pPane)
     if (pPane && pMapPane)
     {
         pLand = m_pAtlantis->GetLand(pMapPane->m_SelHexX, pMapPane->m_SelHexY, pMapPane->m_SelPlane, TRUE);
+        if (!pLand) return;
 
         if (pPane == m_Panes[AH_PANE_UNIT_COMMANDS])
         {
