@@ -127,7 +127,7 @@ void CEditPane::SetSource(CStr * pSource, BOOL * pChanged)
 {
     m_pSource   = pSource;
     m_pChanged  = pChanged;
-    m_pEditor->SetValue(pSource?wxString::FromAscii(pSource->GetData()):wxT(""));
+    m_pEditor->SetValue(pSource?wxString::FromUTF8(pSource->GetData()):wxT(""));
 }
 
 //--------------------------------------------------------------------
