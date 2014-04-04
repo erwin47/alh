@@ -6040,7 +6040,10 @@ BOOL CAtlaParser::GetItemAndAmountForGive(CStr & Line, CStr & ErrorLine, BOOL sk
             {
                 pUnit2->GetProperty(Item.GetData(), type, (const void*&)item_avail, eNormal);
                 if (eLong!=type)
+                {
                     SHOW_WARN_CONTINUE(" - Can not take that!");
+                    break;
+                }
             }
             else
             {
@@ -6123,7 +6126,10 @@ void CAtlaParser::RunOrder_Withdraw(CStr & Line, CStr & ErrorLine, BOOL skiperro
                     SHOW_WARN_CONTINUE(NOSETUNIT << BUG);
             }
             else if (eLong!=type)
+            {
                 SHOW_WARN_CONTINUE(NOTNUMERIC << BUG);
+                break;
+            }
 
             if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value+amount), eNormal))
                 SHOW_WARN_CONTINUE(NOSETUNIT << BUG);
