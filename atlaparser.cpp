@@ -4893,6 +4893,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
         {
             nNestingMode = 0; // Shar1 Support for TURN/ENDTURN
             pUnitMaster = NULL;
+            bool isSimCmd = false;
             pUnit       = (CUnit*)pLand->UnitsSeq.At(mainidx);
 
             LandIdToCoord(pLand->Id, X, Y, Z);
@@ -4907,8 +4908,14 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                 p = strstr(Line.GetData(), "@;;");
                 if (p)
                 {
+                    isSimCmd = true;
                     Line.DelSubStr(0, 3);
                 }
+                else
+                {
+                    isSimCmd = false;
+                }
+
                 while (Line.GetData()[0] == ' ')
                 {
                     Line.DelSubStr(0, 1);
@@ -5240,6 +5247,27 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         if (SQ_MOVE==sequence)
                         {
                             RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, p, X, Y, LocA3, order);
+                        }
+                        break;
+
+                    case O_TRAVEL:
+                        if (SQ_CLAIM==sequence && isSimCmd)
+                        {
+                            p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
+                            if (0==stricmp(N1.GetData(), "walk"))
+                            {
+                                pUnit->reqMovementSpeed = 2;
+                            }
+                            else if (0==stricmp(N1.GetData(), "ride"))
+                            {
+                                pUnit->reqMovementSpeed = 4;
+                            }
+                            else if (0==stricmp(N1.GetData(), "fly"))
+                            {
+                                pUnit->reqMovementSpeed = 6;
+                            }
+                            else
+                                SHOW_WARN_CONTINUE(" - Invalid parameter");
                         }
                         break;
 
@@ -7145,7 +7173,15 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
         }
 
     SomeChecks:
-        if (totalMovementCost > movementMode && gpDataHelper->ShowMoveWarnings())
+        if (pUnit->reqMovementSpeed > 0)
+        {
+            if (movementMode < pUnit->reqMovementSpeed)
+            {
+                wxString msg = wxString::Format(wxT(" - Unit is moving at slower speed than specified! [%d/%d]"), movementMode, pUnit->reqMovementSpeed);
+                SHOW_WARN_CONTINUE(msg.ToUTF8());
+            }
+        }
+        else if (totalMovementCost > movementMode && gpDataHelper->ShowMoveWarnings())
         {
             wxString msg = wxString::Format(wxT(" - Unit is moving further than it can! [%d/%d]"), totalMovementCost, movementMode);
             SHOW_WARN_CONTINUE(msg.ToUTF8());

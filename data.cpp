@@ -751,6 +751,7 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
     Flags         = 0;
     FlagsOrg      = 0;
     FlagsLast     = ~Flags;
+    reqMovementSpeed = 0;
     memset(Weight, 0, sizeof(Weight));
 };
 
@@ -851,6 +852,7 @@ void CUnit::ResetNormalProperties()
 
     Flags     = FlagsOrg;
     FlagsLast = ~Flags;
+    reqMovementSpeed = 0;
 
     // calc weight;
     CalcWeightsAndMovement();

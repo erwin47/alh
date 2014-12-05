@@ -381,6 +381,7 @@ public:
     unsigned long   Flags;
     unsigned long   FlagsOrg;
     unsigned long   FlagsLast;
+    int             reqMovementSpeed; // When moving, it must have this speed. Long paths are allowed.
 
     static CStrStrColl * m_PropertyGroupsColl;
 
