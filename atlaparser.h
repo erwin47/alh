@@ -229,6 +229,8 @@ public:
     bool              m_EconomyMaintainanceCosts;
     bool              m_EconomyShareMaintainance;
 
+    const char * ReadPropertyName(const char * src, CStr & Name);
+
 protected:
     int          ParseFactionInfo(BOOL GetNo, BOOL Join);
     int          ParseEvents(BOOL IsEvents=TRUE);
@@ -260,7 +262,6 @@ protected:
     int          SetUnitProperty(CUnit * pUnit, const char * name, EValueType type, const void * value, EPropertyType proptype);
     int          SetLandProperty(CLand * pLand, const char * name, EValueType type, const void * value, EPropertyType proptype);
     int          LoadOrders  (CFileReader & F, int FactionId, BOOL GetComments);
-    const char * ReadPropertyName(const char * src, CStr & Name);
     void         StoreBattle(CStr & Source);
     void         AnalyzeBattle(const char * src, CStr & Details);
     void         AnalyzeBattle_OneSide(const char * src, CStr & Details);

@@ -20,6 +20,13 @@
 #ifndef __AH_UNIT_PANE_INCL__
 #define __AH_UNIT_PANE_INCL__
 
+enum ScoutType {
+    SCOUT_SIMPLE
+,   SCOUT_MOVE
+,   SCOUT_OBSERVER
+,   SCOUT_STEALTH
+,   SCOUT_GUARD
+};
 
 class CUnitPane: public CListPane
 {
@@ -48,6 +55,7 @@ protected:
     void         OnColClicked(wxListEvent& event);
     void         OnIdle(wxIdleEvent& event);
     void         OnRClick(wxListEvent& event);
+    bool         CreateScout(CUnit *, ScoutType);
 
     CAhFrame            * m_pFrame;
     //CCollection         * m_pFactions;
@@ -68,6 +76,12 @@ public:
     void OnPopupMenuAddUnitToTracking (wxCommandEvent& event);
     void OnPopupMenuUnitFlags         (wxCommandEvent& event);
     void OnPopupMenuIssueOrders       (wxCommandEvent& event);
+
+    void OnPopupMenuScoutSimple       (wxCommandEvent& event);
+    void OnPopupMenuScoutMove         (wxCommandEvent& event);
+    void OnPopupMenuScoutObserver     (wxCommandEvent& event);
+    void OnPopupMenuScoutStealth      (wxCommandEvent& event);
+    void OnPopupMenuScoutGuard        (wxCommandEvent& event);
 
 
     DECLARE_EVENT_TABLE()

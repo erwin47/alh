@@ -54,6 +54,12 @@ BEGIN_EVENT_TABLE(CUnitPane, wxListCtrl)
     EVT_MENU             (menu_Popup_DetectSpies   , CUnitPane::OnPopupMenuDetectSpies    )
     EVT_MENU             (menu_Popup_GiveEverything, CUnitPane::OnPopupMenuGiveEverything )
 
+    EVT_MENU             (menu_Popup_ScoutSimple   , CUnitPane::OnPopupMenuScoutSimple    )
+    EVT_MENU             (menu_Popup_ScoutMove     , CUnitPane::OnPopupMenuScoutMove      )
+    EVT_MENU             (menu_Popup_ScoutObserver , CUnitPane::OnPopupMenuScoutObserver  )
+    EVT_MENU             (menu_Popup_ScoutStealth  , CUnitPane::OnPopupMenuScoutStealth   )
+    EVT_MENU             (menu_Popup_ScoutGuard    , CUnitPane::OnPopupMenuScoutGuard     )
+
     EVT_MENU             (menu_Popup_AddToTracking , CUnitPane::OnPopupMenuAddUnitToTracking)
     EVT_MENU             (menu_Popup_UnitFlags     , CUnitPane::OnPopupMenuUnitFlags      )
     EVT_MENU             (menu_Popup_IssueOrders   , CUnitPane::OnPopupMenuIssueOrders    )
@@ -525,7 +531,16 @@ void CUnitPane::OnRClick(wxListEvent& event)
                 {
                     menu.Append(menu_Popup_DiscardJunk   , wxT("Discard junk items"));
                     menu.Append(menu_Popup_GiveEverything, wxT("Give everything")   );
-                    menu.Append(menu_Popup_DetectSpies   , wxT("Detect spies")      );
+
+                    wxMenu * menuScouts = new wxMenu();
+                    menuScouts->Append(menu_Popup_ScoutSimple , wxT("Scout"));
+                    menuScouts->Append(menu_Popup_ScoutMove   , wxT("Scout North"));
+                    menuScouts->Append(menu_Popup_ScoutObserver, wxT("Scout Observer"));
+                    menuScouts->Append(menu_Popup_ScoutStealth, wxT("Scout Stealth"));
+                    menuScouts->Append(menu_Popup_ScoutGuard  , wxT("Scout Guard"));
+
+                    menu.AppendSubMenu(menuScouts, wxT("Create"), wxT("Create a new unit with a simple task"));
+                    // menu.Append(menu_Popup_DetectSpies   , wxT("Detect spies")      );
                 }
             }
             menu.Append(menu_Popup_UnitFlags       , wxT("Set custom flags")    );
@@ -582,6 +597,210 @@ void CUnitPane::OnPopupMenuSplit(wxCommandEvent& event)
             gpApp->SetOrdersChanged(TRUE);
 
         Update(m_pCurLand);
+    }
+}
+
+//--------------------------------------------------------------------------
+
+bool CUnitPane::CreateScout(CUnit * pUnit, ScoutType scoutType)
+{
+    CStr         race(32), racemarket;
+    EValueType   type;
+    long         peritem;
+    wxString    newUnitOrders;
+    int         newUnitId;
+
+    // Create a scout in the current hex, and issue orders for the new unit and the originating unit.
+    // m_pCurLand must be set to the hex the unit is in.
+
+    if (!m_pCurLand) return false;
+
+    newUnitOrders << wxT("name unit scout\n");
+
+    gpApp->m_pAtlantis->ReadPropertyName(m_pCurLand->PeasantRace.GetData(), race);
+
+    if (race.IsEmpty())
+        return false; // When there is no race to buy, we cannot make a scout.
+
+    if (race.FindSubStr("ORCS") != -1) race = "ORC";
+
+    peritem = 0;
+    MakeQualifiedPropertyName(PRP_SALE_PRICE_PREFIX, race.GetData(), racemarket);
+    m_pCurLand->GetProperty(racemarket.GetData(), type, (const void *&)peritem, eNormal);
+
+    newUnitOrders << wxString::Format("buy 1 %s\n", wxString::FromAscii(race.GetData()).Lower());
+
+    if (   pUnit->FlagsOrg & UNIT_FLAG_TAXING)             newUnitOrders << wxT("autotax 0\n");
+    if (! (pUnit->FlagsOrg & UNIT_FLAG_AVOIDING))          newUnitOrders << wxT("avoid 1\n");
+    if (! (pUnit->FlagsOrg & UNIT_FLAG_BEHIND))            newUnitOrders << wxT("behind 1\n");
+    if (   pUnit->FlagsOrg & UNIT_FLAG_CONSUMING_UNIT)     newUnitOrders << wxT("consume\n");
+    if (   pUnit->FlagsOrg & UNIT_FLAG_CONSUMING_FACTION)  newUnitOrders << wxT("consume\n");
+    if (   pUnit->FlagsOrg & UNIT_FLAG_GUARDING)           newUnitOrders << wxT("guard 0\n");
+    if (   pUnit->FlagsOrg & UNIT_FLAG_HOLDING)            newUnitOrders << wxT("hold 0\n");
+    if (   pUnit->FlagsOrg & UNIT_FLAG_RECEIVING_NO_AID)   newUnitOrders << wxT("noaid 0\n");
+    if (   pUnit->FlagsOrg & UNIT_FLAG_NO_CROSS_WATER)     newUnitOrders << wxT("nocross 0\n");
+    if (! (pUnit->FlagsOrg & UNIT_FLAG_REVEALING_FACTION)) newUnitOrders << wxT("reveal faction\n");
+    if (   pUnit->FlagsOrg & UNIT_FLAG_SHARING)            newUnitOrders << wxT("share 0\n");
+    newUnitOrders << wxT("spoils none\n");
+
+    newUnitId = m_pCurLand->GetNextNewUnitNo();
+
+    switch (scoutType)
+    {
+        case SCOUT_SIMPLE:
+            newUnitOrders << wxT("@work\n");
+        break;
+        case SCOUT_MOVE:
+            peritem += 10;
+            newUnitOrders << wxT("MOVE N\n");
+            newUnitOrders << wxT("TURN\n@work\nENDTURN\n");
+        break;
+        case SCOUT_OBSERVER:
+            peritem += 60;
+            newUnitOrders << wxT("STUDY OBSERVATION\n");
+            newUnitOrders << wxT("@;; name unit \"scout observer\"\n");
+            newUnitOrders << wxT("TURN\n@work\nENDTURN\n");
+        break;
+        case SCOUT_STEALTH:
+            peritem += 60;
+            newUnitOrders << wxT("STUDY STEALTH\n");
+            newUnitOrders << wxT("@;; name unit \"scout stealth\"\n");
+            newUnitOrders << wxT("TURN\n@work\nENDTURN\n");
+        break;
+        case SCOUT_GUARD:
+            peritem += 20;
+            newUnitOrders << wxT("STUDY COMBAT\n");
+            newUnitOrders << wxT("@;; name unit guard\n");
+            newUnitOrders << wxT("TURN\navoid 0\nhold 1\n@guard 1\n@work\nENDTURN\n");
+        default: ;
+    }
+
+    CUnit * pUnitNew = gpApp->m_pAtlantis->SplitUnit(pUnit, newUnitId);
+    if (pUnitNew)
+        pUnitNew->Orders << newUnitOrders.ToUTF8();
+
+    pUnit->Orders.TrimRight(TRIM_ALL);
+    if (!pUnit->Orders.IsEmpty())
+        pUnit->Orders << EOL_SCR;
+
+    if (peritem)
+    {
+        pUnit->Orders << "GIVE NEW " << (long)(newUnitId) << " " << (long)peritem << " SILV" << EOL_SCR;
+    }
+
+    if (m_pCurLand)
+        gpApp->m_pAtlantis->RunOrders(m_pCurLand);
+
+    gpApp->SetOrdersChanged(TRUE);
+
+    return true;
+}
+
+void CUnitPane::OnPopupMenuScoutSimple(wxCommandEvent& event)
+{
+    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    CUnit      * pUnit = GetUnit(idx);
+    CEditPane  * pOrders;
+
+    if (pUnit && !IS_NEW_UNIT(pUnit))
+    {
+        pOrders = (CEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
+        if (pOrders)
+            pOrders->SaveModifications();
+
+        if (m_pCurLand)
+            m_pCurLand->guiUnit = pUnit->Id;
+
+        if (CreateScout(pUnit, SCOUT_SIMPLE))
+            Update(m_pCurLand);
+    }
+}
+
+//--------------------------------------------------------------------------
+
+void CUnitPane::OnPopupMenuScoutMove(wxCommandEvent& event)
+{
+    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    CUnit      * pUnit = GetUnit(idx);
+    CEditPane  * pOrders;
+
+    if (pUnit && !IS_NEW_UNIT(pUnit))
+    {
+        pOrders = (CEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
+        if (pOrders)
+            pOrders->SaveModifications();
+
+        if (m_pCurLand)
+            m_pCurLand->guiUnit = pUnit->Id;
+
+        if (CreateScout(pUnit, SCOUT_MOVE))
+            Update(m_pCurLand);
+    }
+}
+
+//--------------------------------------------------------------------------
+
+void CUnitPane::OnPopupMenuScoutObserver(wxCommandEvent& event)
+{
+    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    CUnit      * pUnit = GetUnit(idx);
+    CEditPane  * pOrders;
+
+    if (pUnit && !IS_NEW_UNIT(pUnit))
+    {
+        pOrders = (CEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
+        if (pOrders)
+            pOrders->SaveModifications();
+
+        if (m_pCurLand)
+            m_pCurLand->guiUnit = pUnit->Id;
+
+        if (CreateScout(pUnit, SCOUT_OBSERVER))
+            Update(m_pCurLand);
+    }
+}
+
+//--------------------------------------------------------------------------
+
+void CUnitPane::OnPopupMenuScoutStealth(wxCommandEvent& event)
+{
+    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    CUnit      * pUnit = GetUnit(idx);
+    CEditPane  * pOrders;
+
+    if (pUnit && !IS_NEW_UNIT(pUnit))
+    {
+        pOrders = (CEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
+        if (pOrders)
+            pOrders->SaveModifications();
+
+        if (m_pCurLand)
+            m_pCurLand->guiUnit = pUnit->Id;
+
+        if (CreateScout(pUnit, SCOUT_STEALTH))
+            Update(m_pCurLand);
+    }
+}
+
+//--------------------------------------------------------------------------
+
+void CUnitPane::OnPopupMenuScoutGuard(wxCommandEvent& event)
+{
+    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    CUnit      * pUnit = GetUnit(idx);
+    CEditPane  * pOrders;
+
+    if (pUnit && !IS_NEW_UNIT(pUnit))
+    {
+        pOrders = (CEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
+        if (pOrders)
+            pOrders->SaveModifications();
+
+        if (m_pCurLand)
+            m_pCurLand->guiUnit = pUnit->Id;
+
+        if (CreateScout(pUnit, SCOUT_GUARD))
+            Update(m_pCurLand);
     }
 }
 
