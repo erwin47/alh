@@ -277,6 +277,7 @@ protected:
     CPlane     * MakePlane(const char * planename);
 
     BOOL         ReadNextLine(CStr & s);
+    BOOL         ReadNextLineMerged(CStr & s);
     void         PutLineBack (CStr & s);
 
     void         GenericErr(int Severity, const char * Msg);

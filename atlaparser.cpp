@@ -278,6 +278,11 @@ void CAtlaParser::Clear()
 
 BOOL CAtlaParser::ReadNextLine(CStr & s)
 {
+    const bool MergeLines = true;
+    if (MergeLines)
+    {
+        return ReadNextLineMerged(s);
+    }
     BOOL Ok=FALSE;
 
     if (m_pSource)
@@ -291,7 +296,60 @@ BOOL CAtlaParser::ReadNextLine(CStr & s)
         }
     }
     return Ok;
-};
+}
+
+//----------------------------------------------------------------------
+
+BOOL CAtlaParser::ReadNextLineMerged(CStr & s)
+{
+    bool ok = false;
+
+    if (!m_pSource) return false;
+    ok = m_pSource->GetNextLine(s);
+    if (!ok) return false;
+
+    m_nCurLine++;
+    s.TrimRight(TRIM_ALL);
+
+    const char * p = s.GetData();
+
+    // Do not fold the region seperator line or the region exit list
+    bool tryMerge = (strncmp(p, "---------------", 15) != 0 && strncmp(p, "Exits:", 6) != 0);
+    if (strlen(p) == 0) tryMerge = false;
+
+    int indent[2] = {0,0};
+    while ((*p) == ' ') {++p; ++indent[0]; }
+    const bool startsWithPlusSign = *p == '+';
+    CStr nextLine;
+
+    while (tryMerge)
+    {
+        if (!m_pSource) break;
+        tryMerge = m_pSource->GetNextLine(nextLine);
+        if (tryMerge)
+        {
+            m_nCurLine++;
+            p = nextLine.GetData();
+            indent[1] = 0;
+            while ((*p) == ' ') {++p; ++indent[1]; }
+
+            if ((indent[0] + 2 == indent[1]) && (!startsWithPlusSign || (*p != '-' && *p != '*')))
+            {
+                // merge
+                nextLine.TrimRight(TRIM_ALL);
+                nextLine.TrimLeft(TRIM_ALL);
+                s << " " << nextLine;
+            }
+            else
+            {
+                tryMerge = false;
+                PutLineBack(nextLine);
+            }
+        }
+    }
+    s << EOL_SCR;
+    return ok;
+}
 
 //----------------------------------------------------------------------
 
@@ -299,7 +357,7 @@ void CAtlaParser::PutLineBack (CStr & s)
 {
     m_nCurLine--;
     if (m_pSource)
-        m_pSource->QueueString(s.GetData(), s.GetLength());
+        m_pSource->QueueString(s.GetData());
 };
 
 //----------------------------------------------------------------------
@@ -921,43 +979,44 @@ int CAtlaParser::ParseAttitudes(CStr & Line, BOOL Join)
         attitude = ATT_ENEMY;
     }
 
-    while (!Line.IsEmpty()) // is this correct?
+    while (!Line.IsEmpty())
     {
         str = Line.GetData();
         m_FactionInfo << Line;
 
         if(apply_attitudes) // parse attitudes
         {
+            str = Info.GetToken(str, ":,.", ch, TRIM_ALL);
+            p   = Info.GetData();
+
+            def = FALSE;
+            if(Info.FindSubStr("(default") > 0)
+            {
+                // parse the default line
+                s = S1.GetToken(p, "(", c, TRIM_ALL);
+                S1.GetToken(s, ")" ,c , TRIM_ALL);
+                s = S1.GetData();
+                p = Info.GetToken(s, " ", c, TRIM_ALL);
+                def = TRUE;
+                m_FactionInfo << EOL_SCR;
+            }
+            // determine the attitude
+            while(attitude >= ATT_FRIEND1)
+            {
+                if(0<=attitudes[attitude].FindSubStr(p)) break;
+                attitude--;
+            }
+            if((!Join) && def && (attitude >= ATT_FRIEND1) && (attitude < ATT_UNDECLARED))
+            {
+                gpDataHelper->SetAttitudeForFaction(0, attitude);
+            }
+
             while(str)
             {
-                str = Info.GetToken(str, ":,.", ch, TRIM_ALL);
+                str = Info.GetToken(str, ",.", ch, TRIM_ALL);
                 p   = Info.GetData();
                 switch(ch)
                 {
-                    case ':': // attitude type
-                        // check for default line
-                        def = FALSE;
-                        if(Info.FindSubStr("(default") > 0)
-                        {
-                            // parse the default line
-                            s = S1.GetToken(p, "(", c, TRIM_ALL);
-                            S1.GetToken(s, ")" ,c , TRIM_ALL);
-                            s = S1.GetData();
-                            p = Info.GetToken(s, " ", c, TRIM_ALL);
-                            def = TRUE;
-                            m_FactionInfo << EOL_SCR;
-                        }
-                        // which attitude is it?
-                        while(attitude >= ATT_FRIEND1)
-                        {
-                            if(0<=attitudes[attitude].FindSubStr(p)) break;
-                            attitude--;
-                        }
-                        if((!Join) && def && (attitude >= ATT_FRIEND1) && (attitude < ATT_UNDECLARED))
-                        {   // set the default attitude
-                            gpDataHelper->SetAttitudeForFaction(0, attitude);
-                        }
-                        break;
                     case '.':
                         m_FactionInfo << EOL_SCR;
                     case ',':
@@ -977,7 +1036,7 @@ int CAtlaParser::ParseAttitudes(CStr & Line, BOOL Join)
                 }
             }
         }
-        ReadNextLine(Line);
+        ReadNextLineMerged(Line);
         Line.TrimRight(TRIM_ALL);
     }
 

@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include "cstr.h"
 
-
+#include <stack>
 
 #define RW_BUF_SIZE  8092
 
@@ -41,8 +41,7 @@ public:
     BOOL GetNextChar(char & ch);
     BOOL GetNextLine(CStr & s);
 
-    void QueueChar(char ch);
-    void QueueString(const char * p, int n=0);
+    void QueueString(const char *);
 
 protected:
     BOOL ReadMore();
@@ -51,8 +50,8 @@ protected:
     size_t   m_nPos;
     size_t   m_nSize;
     char     m_Buf[RW_BUF_SIZE];
-    CStr     m_Queue;
     CStr     m_FileName;
+    std::stack<const char *> m_stack;
 };
 
 //---------------------------------------------------------------

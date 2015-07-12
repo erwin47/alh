@@ -28,7 +28,7 @@
 
 
 
-CFileReader::CFileReader() : m_Queue(256)
+CFileReader::CFileReader()
 {
     m_f     = NULL;
     m_nPos  = 0;
@@ -73,14 +73,6 @@ void CFileReader::Close()
 
 BOOL CFileReader::GetNextChar(char & ch)
 {
-    // return first queued char
-    if (m_Queue.GetLength()>0)
-    {
-        ch = m_Queue.GetData()[0];
-        m_Queue.DelCh(0);
-        return TRUE;
-    }
-
     if (m_nPos >= m_nSize)
     {
         if ((!ReadMore()) || (m_nPos >= m_nSize))
@@ -97,16 +89,9 @@ BOOL CFileReader::GetNextChar(char & ch)
 
 //---------------------------------------------------------------------
 
-void CFileReader::QueueChar(char ch)
+void CFileReader::QueueString(const char * p)
 {
-    m_Queue.AddCh(ch);
-}
-
-//---------------------------------------------------------------------
-
-void CFileReader::QueueString(const char * p, int n)
-{
-    m_Queue.AddStr(p, n);
+    m_stack.push(strdup(p));
 }
 
 //---------------------------------------------------------------------
@@ -117,6 +102,15 @@ int CFileReader::GetNextLine(CStr & s)
 
     s.Empty();
 
+    if (!m_stack.empty())
+    {
+        const char * p = m_stack.top();
+        m_stack.pop();
+        s << p;
+        free((void *)p);
+        return true;
+    }
+
     while (GetNextChar(ch))
     {
         s.AddCh(ch);
@@ -126,62 +120,6 @@ int CFileReader::GetNextLine(CStr & s)
 
     return (!s.IsEmpty());
 }
-
-//---------------------------------------------------------------------
-/*
-BOOL CFileReader::ReadMore()
-{
-    m_nPos  = 0;
-    m_nSize = 0;
-
-    if (!m_f)
-        return FALSE;
-
-    if (feof(m_f))
-        return FALSE;
-
-    m_nSize = fread(m_Buf, 1, RW_BUF_SIZE, m_f);
-    if (0==m_nSize)
-    {
-        if (ferror(m_f))
-        {
-            CStr S;
-            S.Format("Error reading file %s", m_FileName.GetData());
-            wxMessageBox(S.GetData());
-        }
-        else
-        {
-            CStr S;
-            S.Format("No error reading file %s, but still read 0 bytes", m_FileName.GetData());
-            wxMessageBox(S.GetData());
-        }
-    }
-    else
-    {
-        FILE * f;
-        CStr   name;
-
-        name.Format("%s_read_", m_FileName.GetData());
-        if (f=fopen(name.GetData(), "ab"))
-        {
-            size_t n;
-            n = fwrite(m_Buf, 1, m_nSize, f);
-            fclose(f);
-        }
-        else
-        {
-            CStr S;
-            S.Format("can not open log file %s for writing", name.GetData());
-            wxMessageBox(S.GetData());
-        }
-
-    }
-
-    return (m_nSize>0);
-}
-*/
-//---------------------------------------------------------------------
-
 
 BOOL CFileReader::ReadMore()
 {
