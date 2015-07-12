@@ -3718,16 +3718,6 @@ if (S.GetLength() - n > 65)  \
     n = S.GetLength()-4;     \
 }                            \
 
-#define APPEND_SPACE_WRAP    \
-if (S.GetLength() - n > 65)  \
-{                            \
-    S << eol << "    ";      \
-    n = S.GetLength()-4;     \
-}                            \
-else                         \
-    S << " ";                \
-
-
 void CAtlaParser::ComposeProductsLine(CLand * pLand, const char * eol, CStr & S)
 {
     CStr       Line(64);
@@ -3746,13 +3736,11 @@ void CAtlaParser::ComposeProductsLine(CLand * pLand, const char * eol, CStr & S)
 
             if (pProd->Amount>=0)
             {
-                APPEND_SPACE_WRAP S << pProd->Amount;
-                APPEND_SPACE_WRAP S << pProd->LongName;
-                APPEND_SPACE_WRAP S << "["<< pProd->ShortName << "]";
+                S << " " << pProd->Amount << " " << pProd->LongName << " ["<< pProd->ShortName << "]";
             }
             else
             {
-                APPEND_SPACE_WRAP S << " none";
+                S << " none";
             }
 
             if (pLand->Products.Count()-1 == i)
