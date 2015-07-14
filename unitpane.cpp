@@ -639,7 +639,11 @@ bool CUnitPane::CreateScout(CUnit * pUnit, ScoutType scoutType)
     if (   pUnit->FlagsOrg & UNIT_FLAG_HOLDING)            newUnitOrders << wxT("hold 0\n");
     if (   pUnit->FlagsOrg & UNIT_FLAG_RECEIVING_NO_AID)   newUnitOrders << wxT("noaid 0\n");
     if (   pUnit->FlagsOrg & UNIT_FLAG_NO_CROSS_WATER)     newUnitOrders << wxT("nocross 0\n");
-    if (! (pUnit->FlagsOrg & UNIT_FLAG_REVEALING_FACTION)) newUnitOrders << wxT("reveal faction\n");
+    if (scoutType == SCOUT_STEALTH)
+    {
+        if ((pUnit->FlagsOrg & UNIT_FLAG_REVEALING_FACTION) || (pUnit->FlagsOrg & UNIT_FLAG_REVEALING_UNIT)) newUnitOrders << wxT("reveal\n");
+    }
+    else if (! (pUnit->FlagsOrg & UNIT_FLAG_REVEALING_FACTION)) newUnitOrders << wxT("reveal faction\n");
     if (   pUnit->FlagsOrg & UNIT_FLAG_SHARING)            newUnitOrders << wxT("share 0\n");
     newUnitOrders << wxT("spoils none\n");
 
