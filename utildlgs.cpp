@@ -52,7 +52,7 @@ CShowOneDescriptionDlg::CShowOneDescriptionDlg(wxWindow * parent, const char * t
     //wxTextCtrl * pText    = new wxTextCtrl(this, -1, description, wxDefaultPosition, wxDefaultSize,
     //                                       wxTE_MULTILINE | wxTE_READONLY | wxHSCROLL );
     wxTextCtrl * pText    = new wxTextCtrl(this, -1, wxT(""), wxDefaultPosition, wxDefaultSize,
-                                           wxTE_MULTILINE | wxTE_READONLY | wxHSCROLL );
+                                           wxTE_MULTILINE | wxTE_READONLY );
     const char * p;
     int          count = 0;
     CStr         S;
