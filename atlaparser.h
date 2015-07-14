@@ -190,6 +190,7 @@ public:
     bool       IsRoadConnected(CLand *, CLand *, int direction) const;
     bool       IsBadWeatherHex(CLand * pLand, int month) const;
     int        GetMovementCost(int terrainCost, bool isBadWeather, bool hasRoad, int movementMode, bool noCross) const;
+    void       GetMovementMode(CUnit * pUnit, int & movementMode, bool & noCross, long order) const;
 
     int               m_CrntFactionId;
     CStr              m_CrntFactionPwd;
@@ -307,6 +308,7 @@ protected:
     void         RunOrder_Work             (CLand *);
     void         RunOrder_ShareSilver      (CStr & Line, CStr & ErrorLine, BOOL skiperror, CLand *, SHARE_TYPE, wxString shareName);
     void         RunOrder_Upkeep           (CLand *);
+    void         RunOrder_Upkeep           (CUnit *, int turns);
     void         DistributeSilver          (CLand *, int unitFlag, int silver, int menCount);
     int          CountMenWithFlag          (CLand *, int unitFlag) const;
 

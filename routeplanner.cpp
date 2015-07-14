@@ -21,7 +21,6 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode)
     int bestSolution = 999; // measured in movement points required.
     std::list<CLand *> ListHex;
     std::list<CLand *> ListHexCleanup;
-
     CLand * pLandCurrent;
     CLand * pLandExit;
     std::list<CLand *>::iterator HexOld;
@@ -33,6 +32,19 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode)
     const int startMonth = gpApp->m_pAtlantis->m_YearMon % 100 - 1;
 
     ListHex.push_back(start);
+
+    // Reset all regions
+    for (int n=0; n<gpApp->m_pAtlantis->m_Planes.Count(); n++)
+    {
+        CPlane * pPlane = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(n);
+        for (i=0; i<pPlane->Lands.Count(); i++)
+        {
+            CLand * pLand = (CLand*)pPlane->Lands.At(i);
+            if (pLand)
+                pLand->TotalMovementCost = 999;
+        }
+    }
+
 
     start->ArrivedFromHexId = 0;
     start->TotalMovementCost = 0;
@@ -119,7 +131,11 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode)
         }
     }
 
-    wxString Route = wxString::Format(" ; %d moves.", end->TotalMovementCost);
+    wxString Route;
+    if (end->TotalMovementCost > movementMode)
+    {
+        Route = wxString::Format("; %d turns", (end->TotalMovementCost + movementMode - 1)/movementMode);
+    }
 
     if (end->ArrivedFromHexId)
     {

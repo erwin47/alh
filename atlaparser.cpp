@@ -39,6 +39,7 @@
 #include "atlaparser.h"
 #include "errs.h"
 #include "consts_ah.h" // not very good, but will do for now
+#include "routeplanner.h"
 
 #define CONTAINS    "contains "
 #define SILVER      "silver"
@@ -3711,13 +3712,6 @@ CLand * CAtlaParser::GetLand(const char * landcoords) const //  "48,52[,somewher
 
 //----------------------------------------------------------------------
 
-#define CHECK_REP_LEN        \
-if (S.GetLength() - n > 65)  \
-{                            \
-    S << eol << "    ";      \
-    n = S.GetLength()-4;     \
-}                            \
-
 void CAtlaParser::ComposeProductsLine(CLand * pLand, const char * eol, CStr & S)
 {
     CStr       Line(64);
@@ -4888,6 +4882,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
     BOOL                skiperror;
     int                 nNestingMode; // Shar1 Support for TURN/ENDTURN
     long                order;
+    wxString            destination;
 
 
     // Reset land and old units and remove new units
@@ -4960,7 +4955,13 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                 }
                 else
                 {
-                    isSimCmd = false;
+                    p = strstr(Line.GetData(), ";;");
+                    if (p)
+                    {
+                        isSimCmd = true;
+                        Line.DelSubStr(0, 2);
+                    }
+                    else isSimCmd = false;
                 }
 
                 while (Line.GetData()[0] == ' ')
@@ -4977,7 +4978,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     skiperror = (0==stricmp(S1.GetData(),"ne") || 0==stricmp(S1.GetData(),"$ne"));
                     if (!nNestingMode)
                     {
-                        RunPseudoComment(sequence, pLand, pUnit, S1.GetData());
+                        if ((SQ_MOVE==sequence) && (0==strncasecmp(S1.GetData(), "$move", 5)))
+                        {
+                            destination = wxString::FromUTF8((const char *)S1.GetData() + 5);
+                        }
+                        else RunPseudoComment(sequence, pLand, pUnit, S1.GetData());
                     }
                     Line.DelSubStr(p-Line.GetData()-1, Line.GetLength() - (p-Line.GetData()-1) );
                 }
@@ -5293,7 +5298,14 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     case O_ADVANCE:
                         if (SQ_MOVE==sequence)
                         {
-                            RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, p, X, Y, LocA3, order);
+                            if (isSimCmd)
+                            {
+                                destination = wxString::FromUTF8(p);
+                            }
+                            else
+                            {
+                                RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, p, X, Y, LocA3, order);
+                            }
                         }
                         break;
 
@@ -5528,6 +5540,34 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
             if  (SQ_TEACH==sequence)  // we have to collect all the students, then teach
                 OrderProcess_Teach(skiperror, pUnit);
 
+            if (SQ_MOVE==sequence && !destination.IsEmpty())
+            {
+                if (!pUnit->pMovement)
+                {
+                    CLand * pLandHexDest = GetLandFlexible(destination);
+                    if (pLandHexDest)
+                    {
+                        int movementMode;
+                        bool noCross;
+                        GetMovementMode(pUnit, movementMode, noCross, O_MOVE);
+                        wxString route = RoutePlanner::GetRoute(pLand, pLandHexDest, movementMode);
+                        if (!route.IsEmpty())
+                        {
+                            route.Replace(" r", " ", true);
+                            route.Replace(" w", " ", true);
+                            route.Replace("_ ", "", true);
+                            RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, (const char *)route.ToUTF8(), X, Y, LocA3, O_MOVE);
+                            route = wxString::Format("MOVE%s", route);
+
+                            pUnit->Orders.TrimRight(TRIM_ALL);
+                            pUnit->Orders << EOL_SCR;
+                            pUnit->Orders << (const char *)route.ToUTF8();
+                            Line = (const char *)route.ToUTF8();
+                        }
+                    }
+                }
+                destination.Clear();
+            }
             //if (SQ_MAX-1==sequence)
             //{
             //    // set land flags in the last sequence, so all unit flags are already applied
@@ -5708,36 +5748,41 @@ void CAtlaParser::RunOrder_Work(CLand * pLand)
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunOrder_Upkeep(CLand * pLand)
+void CAtlaParser::RunOrder_Upkeep(CUnit * pUnit, int turns)
 {
     EValueType          type;
-    CUnit * pUnit;
     long nmen;
-
     int unitSilver;
     int Maintainance;
     const char * leadership;
+
+    if (pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal) && (nmen>0))
+    {
+        if (pUnit->GetProperty(PRP_LEADER, type, (const void *&)leadership, eNormal) && eCharPtr==type &&
+            (0==strcmp(leadership, SZ_LEADER) || 0==strcmp(leadership, SZ_HERO)))
+            Maintainance = nmen * 20;
+        else
+            Maintainance = nmen * 10;
+        if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
+        {
+            unitSilver = 0;
+            pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eBoth);
+        }
+        unitSilver -= Maintainance * turns;
+        pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
+    }
+}
+
+void CAtlaParser::RunOrder_Upkeep(CLand * pLand)
+{
+    CUnit * pUnit;
 
     for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
     {
         pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
         if (pUnit->FactionId == m_CrntFactionId)
         {
-            if (pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal) && (nmen>0))
-            {
-                if (pUnit->GetProperty(PRP_LEADER, type, (const void *&)leadership, eNormal) && eCharPtr==type &&
-                    (0==strcmp(leadership, SZ_LEADER) || 0==strcmp(leadership, SZ_HERO)))
-                    Maintainance = nmen * 20;
-                else
-                    Maintainance = nmen * 10;
-                if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
-                {
-                    unitSilver = 0;
-                    pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eBoth);
-                }
-                unitSilver -= Maintainance;
-                pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
-            }
+            RunOrder_Upkeep(pUnit, 1);
         }
     }
 }
@@ -5754,6 +5799,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
     long silverNeededOrig;
     // CStr ErrorLine;
     CStr Line;
+    CUnit * displayUnit = NULL;
 
     // Share silver between units which have a shortage.
     // Normally only silver is shared between units with the share flag set.
@@ -5762,6 +5808,10 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
     for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
     {
         pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
+        if (pUnit->IsOurs && !IS_NEW_UNIT(pUnit))
+        {
+            displayUnit = pUnit;
+        }
         if (shareType == SHARE_BUY || !pUnit->pMovement || pUnit->pMovement->Count() == 0)
         if (pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
         {
@@ -5778,6 +5828,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
     for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
     {
         pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
+        if (!pUnit->IsOurs) continue;
         if (shareType == SHARE_BUY || !pUnit->pMovement || pUnit->pMovement->Count() == 0)
         if ((shareType == SHARE_UPKEEP || pUnit->Flags & UNIT_FLAG_SHARING) && pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
         {
@@ -5799,6 +5850,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
     for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
     {
         pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
+        if (!pUnit->IsOurs) continue;
         if (shareType == SHARE_BUY || !pUnit->pMovement || pUnit->pMovement->Count() == 0)
         if (pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
         {
@@ -5814,6 +5866,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
 
     if (shortage > 0)
     {
+        if (displayUnit) pUnit = displayUnit;
         CStr sCoord;
         ComposeLandStrCoord(pLand, sCoord);
         wxString message = wxT(" - ") + wxString::FromUTF8(sCoord.GetData());
@@ -6989,31 +7042,13 @@ void CAtlaParser::RunOrder_Promote(CStr & Line, CStr & ErrorLine, BOOL skiperror
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3, long order)
+void CAtlaParser::GetMovementMode(CUnit * pUnit, int & movementMode, bool & noCross, long order) const
 {
-    int                 ID;
-    int                 i, idx=0;
-    CStr                S1;
-    char                ch;
     EValueType          type;
-    long                n1;
-    CStruct           * pStruct;
-    CStr                sErr(32), S;
-    CBaseObject         Dummy;
-    long                skill, nmen, structid;
     const void        * value;
 
-    CLand             * pLandExit = NULL;
-    CLand             * pLandCurrent = pLand;
-    long                hexId = 0;
-    long                newHexId = 0;
-    int                 currentStruct = 0;
-    int                 totalMovementCost = 0;
-    bool                pathCanBeTraced = true;
-    int                 movementMode = 0;
-    const int           startMonth = (m_YearMon % 100) - 1;
-    bool                noCross = true;
-    bool                throughWall = false;
+    movementMode = 0;
+    noCross = true;
 
     if (pUnit->GetProperty(PRP_MOVEMENT, type, value, eNormal) && eCharPtr==type)
     {
@@ -7041,6 +7076,37 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
         noCross = false;
         movementMode = 4;
     }
+}
+
+//-------------------------------------------------------------
+
+void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3, long order)
+{
+    int                 ID;
+    int                 i, idx=0;
+    CStr                S1;
+    char                ch;
+    EValueType          type;
+    long                n1;
+    CStruct           * pStruct;
+    CStr                sErr(32), S;
+    CBaseObject         Dummy;
+    long                skill, nmen, structid;
+    const void        * value;
+
+    CLand             * pLandExit = NULL;
+    CLand             * pLandCurrent = pLand;
+    long                hexId = 0;
+    long                newHexId = 0;
+    int                 currentStruct = 0;
+    int                 totalMovementCost = 0;
+    bool                pathCanBeTraced = true;
+    int                 movementMode = 0;
+    const int           startMonth = (m_YearMon % 100) - 1;
+    bool                noCross = true;
+    bool                throughWall = false;
+
+    GetMovementMode(pUnit, movementMode, noCross, order);
 
     do
     {
@@ -7573,6 +7639,17 @@ void CAtlaParser::RunPseudoComment(int sequence, CLand * pLand, CUnit * pUnit, c
                 Command = src;
                 RunOrder_Withdraw(Command, S, FALSE, pUnit, pLand, p);
             }
+        if (SQ_MAX-1 == sequence)
+        {
+            if (0==stricmp(Command.GetData(), "$UPKEEP"))
+            {
+                Command = src;
+                int turns = atoi(p);
+                if (turns < 1) turns = 1;
+                RunOrder_Upkeep(pUnit, turns);
+            }
+        }
+
     }
     while (FALSE);
 }
@@ -8077,7 +8154,7 @@ CLand * CAtlaParser::GetLandFlexible(const wxString & description) const
     //   "text text (coords)"
     //   "coords"
     //   "cityname"
-    const wxString WorkStr = description.BeforeFirst(')');
+    const wxString WorkStr = description.BeforeFirst(')').Trim().Trim(false);
     CLand * pLand = GetLand(WorkStr.AfterFirst('(').ToUTF8());
 
     if (!pLand)
