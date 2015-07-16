@@ -3988,6 +3988,10 @@ int  CAtlaParser::SaveOrders(const char * FNameOut, const char * password, BOOL 
                         {
                             S1.GetToken(pLand->Description.GetData(), '\n');
                             S1.TrimRight(TRIM_ALL);
+                            if (S1.FindSubStr(")") > 0)
+                            {
+                                S1.DelSubStr(S1.FindSubStr(")")+1, 999);
+                            }
                             S.Empty();
                             S << EOL_FILE << ORDER_CMNT << S1 << EOL_FILE;
                             Dest.WriteBuf(S.GetData(), S.GetLength());
