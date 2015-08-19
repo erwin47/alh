@@ -9,8 +9,14 @@ class RoutePlanner
 {
     public:
 
-        static wxString GetRoute(CLand * start, CLand * end, int movementMode);
-        static bool tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, int movementMode, int startMonth, wxString moveCommand, bool hasRoad);
+        enum ROUTE_MARKUP {
+            ROUTE_MARKUP_NONE
+        ,   ROUTE_MARKUP_TURN
+        ,   ROUTE_MARKUP_ALL
+        };
+
+        static wxString GetRoute(CLand * start, CLand * end, int movementMode, ROUTE_MARKUP);
+        static bool tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, int movementMode, int startMonth, wxString moveCommand, bool hasRoad, ROUTE_MARKUP);
         static wxString GetFirstMove(wxString Route); // Returns a route for the first turn from a given route.
 
 };

@@ -1413,10 +1413,12 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
                     p = SkipSpaces(N1.GetToken(p, ' ', TRIM_ALL));
                     n1= atol(N1.GetData());
                     if (0==n1)
+                    {
                         if (0==stricmp(N1.GetData(), "none"))
                             n1 = -1;
                         else if  (0==stricmp(N1.GetData(), "unlimited"))
                             n1 = 10000000;
+                    }
                     if (n1 >= 0)
                     {
                         pProd = new CProduct;
@@ -1980,7 +1982,7 @@ plain (55,3) in Lothmarlun, contains Rudoeton [village].
 
 void CAtlaParser::ComposeHexDescriptionForArnoGame(const char * olddescr, const char * newdescr, CStr & CompositeDescr)
 {
-    const char * pnew, * pold;
+    const char * pnew;
     CStr         NewWeather(32);
     int          oldcount, newcount;
     CStr         Token(32);
@@ -1997,7 +1999,6 @@ void CAtlaParser::ComposeHexDescriptionForArnoGame(const char * olddescr, const 
     }
 
     pnew = CountTokensForArno(newdescr, newcount);
-    pold = CountTokensForArno(olddescr, oldcount);
 
     // Is new descr good?
     // We do not have to do full parsing here. Good descr has more pieces than bad
@@ -3718,8 +3719,6 @@ void CAtlaParser::ComposeProductsLine(CLand * pLand, const char * eol, CStr & S)
     int        i;
 
     CProduct * pProd;
-    int        n = S.GetLength();
-
 
     if (pLand->Products.Count() > 0)
     {
@@ -4952,7 +4951,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 
                 // execute all lines starting with @;;
                 p = strstr(Line.GetData(), "@;;");
-                if (p)
+                if (p && p == Line.GetData())
                 {
                     isSimCmd = true;
                     Line.DelSubStr(0, 3);
@@ -4962,10 +4961,10 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     p = strstr(Line.GetData(), ";;");
                     if (p)
                     {
-                        isSimCmd = true;
-                        Line.DelSubStr(0, 2);
+                        p+=2;
+                        RunPseudoComment(sequence, pLand, pUnit, p, destination);
                     }
-                    else isSimCmd = false;
+                    isSimCmd = false;
                 }
 
                 while (Line.GetData()[0] == ' ')
@@ -4982,11 +4981,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     skiperror = (0==stricmp(S1.GetData(),"ne") || 0==stricmp(S1.GetData(),"$ne"));
                     if (!nNestingMode)
                     {
-                        if ((SQ_MOVE==sequence) && (0==strncasecmp(S1.GetData(), "$move", 5)))
-                        {
-                            destination = wxString::FromUTF8((const char *)S1.GetData() + 5);
-                        }
-                        else RunPseudoComment(sequence, pLand, pUnit, S1.GetData());
+                        RunPseudoComment(sequence, pLand, pUnit, S1.GetData(), destination);
                     }
                     Line.DelSubStr(p-Line.GetData()-1, Line.GetLength() - (p-Line.GetData()-1) );
                 }
@@ -5554,11 +5549,15 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         int movementMode;
                         bool noCross;
                         GetMovementMode(pUnit, movementMode, noCross, O_MOVE);
-                        wxString route = RoutePlanner::GetRoute(pLand, pLandHexDest, movementMode);
+                        wxString route = RoutePlanner::GetRoute(pLand, pLandHexDest, movementMode, RoutePlanner::ROUTE_MARKUP_TURN);
                         if (!route.IsEmpty())
                         {
-                            route.Replace(" r", " ", true);
-                            route.Replace(" w", " ", true);
+                            if (route.Length() > 66)
+                            {
+                                // only supply first move
+                                RoutePlanner::GetFirstMove(route);
+                            }
+
                             route.Replace("_ ", "", true);
                             RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, (const char *)route.ToUTF8(), X, Y, LocA3, O_MOVE);
                             route = wxString::Format("MOVE%s", route);
@@ -6999,7 +6998,6 @@ void CAtlaParser::RunOrder_Promote(CStr & Line, CStr & ErrorLine, BOOL skiperror
     int                 idx;
     CBaseObject         Dummy;
     CUnit             * pUnit2;
-    const char        * p1;
     EValueType          type;
     CStruct           * pStruct;
 
@@ -7013,7 +7011,6 @@ void CAtlaParser::RunOrder_Promote(CStr & Line, CStr & ErrorLine, BOOL skiperror
         {
             pUnit2 = (CUnit*)pLand->Units.At(idx);
             params      = NULL;
-            p1     = NULL;
 
             if (!pUnit->GetProperty(PRP_STRUCT_ID, type, (const void *&)id1, eNormal) )
                 SHOW_WARN_CONTINUE(" - The unit is not inside a struct");
@@ -7086,7 +7083,6 @@ void CAtlaParser::GetMovementMode(CUnit * pUnit, int & movementMode, bool & noCr
 
 void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3, long order)
 {
-    int                 ID;
     int                 i, idx=0;
     CStr                S1;
     char                ch;
@@ -7623,7 +7619,7 @@ void CAtlaParser::OrderProcess_Teach(BOOL skiperror, CUnit * pUnit)
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunPseudoComment(int sequence, CLand * pLand, CUnit * pUnit, const char * src)
+void CAtlaParser::RunPseudoComment(int sequence, CLand * pLand, CUnit * pUnit, const char * src, wxString & destination)
 {
     CStr            Command;
     CStr            S;
@@ -7631,29 +7627,28 @@ void CAtlaParser::RunPseudoComment(int sequence, CLand * pLand, CUnit * pUnit, c
     const char    * p;
     do
     {
-        // just one damn pseudo comment please!
         p = Command.GetToken(SkipSpaces(src), " \t", ch, TRIM_ALL);
 
-        // it must be sequenced just like the real commands!
-        if (SQ_CLAIM == sequence)
-            if (0==stricmp(Command.GetData(), "$GET"))  // do it in CLAIM so it will affect new units too
-            {
-                // GET 100 silv
-
-                Command = src;
-                RunOrder_Withdraw(Command, S, FALSE, pUnit, pLand, p);
-            }
-        if (SQ_MAX-1 == sequence)
+        if (SQ_MOVE==sequence && (0==stricmp(Command.GetData(), "$MOVE")))
         {
-            if (0==stricmp(Command.GetData(), "$UPKEEP"))
-            {
-                Command = src;
-                int turns = atoi(p);
-                if (turns < 1) turns = 1;
-                RunOrder_Upkeep(pUnit, turns);
-            }
+            destination = wxString::FromUTF8(p);
         }
 
+        // it must be sequenced just like the real commands!
+        if (SQ_CLAIM == sequence && (0==stricmp(Command.GetData(), "$GET")))  // do it in CLAIM so it will affect new units too
+        {
+            // GET 100 silv
+            Command = src;
+            RunOrder_Withdraw(Command, S, FALSE, pUnit, pLand, p);
+        }
+
+        if (SQ_MAX-1 == sequence && (0==stricmp(Command.GetData(), "$UPKEEP")))
+        {
+            Command = src;
+            int turns = atoi(p);
+            if (turns < 1) turns = 1;
+            RunOrder_Upkeep(pUnit, turns);
+        }
     }
     while (FALSE);
 }

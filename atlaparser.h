@@ -314,7 +314,7 @@ protected:
 
     void         AdjustSkillsAfterGivingMen(CUnit * pUnitGive, CUnit * pUnitTake, CStr & item, long AmountGiven);
     void         LookupAdvancedResourceVisibility(CUnit * pUnit, CLand * pLand);
-    void         RunPseudoComment(int sequence, CLand * pLand, CUnit * pUnit, const char * src);
+    void         RunPseudoComment(int sequence, CLand * pLand, CUnit * pUnit, const char * src, wxString &destination);
 
     int          ParseCBHex   (const char * FirstLine);
     int          ParseCBStruct(const char * FirstLine);

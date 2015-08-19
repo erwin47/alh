@@ -2655,7 +2655,10 @@ int  CAhApp::LoadReport  (const char * FNameIn, BOOL Join)
         PreLoadReport();
 
         if (!m_FirstLoad && !Join)
+        {
             m_pAtlantis = new CAtlaParser(&ThisGameDataHelper);
+            LoadTerrainCostConfig();
+        }
 
         if (!Join)
         {

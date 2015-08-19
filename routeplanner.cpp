@@ -14,7 +14,7 @@
 #include "objs.h"
 #include "stdhdr.h"
 
-wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode)
+wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, ROUTE_MARKUP markup)
 {
     extern const char * Directions[]; // Definition is in atlaparser.cpp
 
@@ -77,7 +77,7 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode)
                             const bool hasRoad = gpApp->m_pAtlantis->IsRoadConnected(pLandCurrent, pLandExit, i);
                             Log << "    Found Exit to Land (" << x << " " << y << ")" << "\n";
 
-                            if (tryUpdateRoute(pLandCurrent, pLandExit, movementMode, startMonth, Directions[i + 6], hasRoad))
+                            if (tryUpdateRoute(pLandCurrent, pLandExit, movementMode, startMonth, Directions[i + 6], hasRoad, markup))
                             {
                                 ListHex.push_back(pLandExit);
                                 if (pLandExit->Id == end->Id && bestSolution > pLandExit->TotalMovementCost)
@@ -104,7 +104,7 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode)
                             if (pLandExit)
                             {
                                 Log << "      Found connection to landExit\n";
-                                if (tryUpdateRoute(pLandCurrent, pLandExit, movementMode, startMonth, wxString::Format("%ld IN", pStruct->Id), false))
+                                if (tryUpdateRoute(pLandCurrent, pLandExit, movementMode, startMonth, wxString::Format("%ld IN", pStruct->Id), false, markup))
                                 {
                                     ListHex.push_back(pLandExit);
                                     LandIdToCoord(pLandExit->Id, x, y, z);
@@ -166,7 +166,7 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode)
 }
 
 
-bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const int movementMode, const int startMonth, const wxString moveCommand, const bool hasRoad)
+bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const int movementMode, const int startMonth, const wxString moveCommand, const bool hasRoad, ROUTE_MARKUP markup)
 {
     wxString route_markers;
     // Land Found, now determine whether this route is faster than the old route.
@@ -178,8 +178,11 @@ bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const
 
     int isBadWeather = gpApp->m_pAtlantis->IsBadWeatherHex(pLandExit, currentMonth);
 
-    if (isBadWeather) route_markers += wxT("w");
-    if (hasRoad) route_markers += wxT("r");
+    if (markup == ROUTE_MARKUP_ALL)
+    {
+        if (isBadWeather) route_markers += wxT("w");
+        if (hasRoad) route_markers += wxT("r");
+    }
 
     int MovementCost = gpApp->m_pAtlantis->GetMovementCost(terrainCost, isBadWeather, hasRoad, movementMode, true);
     int newMovementCost = pLandCurrent->TotalMovementCost + MovementCost;
@@ -187,27 +190,39 @@ bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const
     if (newTurn > oldTurn)
     {
         // Switching to a new turn, lose excess movement points first, change of weather possible
-        route_markers = wxT("_ ");
+        if (markup == ROUTE_MARKUP_ALL || markup == ROUTE_MARKUP_TURN)
+        {
+            route_markers = wxT("_ ");
+        }
         currentMonth = (startMonth + oldTurn) % 12;
 
         // Recalculate cost for weather in new turn, it may have changed
         isBadWeather = gpApp->m_pAtlantis->IsBadWeatherHex(pLandExit, currentMonth);
 
-        if (isBadWeather) route_markers += wxT("w");
-        if (hasRoad) route_markers += wxT("r");
+        if (markup == ROUTE_MARKUP_ALL)
+        {
+            if (isBadWeather) route_markers += wxT("w");
+            if (hasRoad) route_markers += wxT("r");
+        }
 
         MovementCost = gpApp->m_pAtlantis->GetMovementCost(terrainCost, isBadWeather, hasRoad, movementMode, true);
         if (MovementCost > movementMode)
         {
             if (isBadWeather)
             {
-                route_markers = wxT("_ _ ");
+                if (markup == ROUTE_MARKUP_ALL || markup == ROUTE_MARKUP_TURN)
+                {
+                    route_markers = wxT("_ _ ");
+                }
                 for (int mon = 1; mon < 5; ++mon)
                 {
                     if (gpApp->m_pAtlantis->IsBadWeatherHex(pLandExit, (currentMonth + mon) % 12))
                     {
                         MovementCost += movementMode;
-                        route_markers += wxT("_ ");
+                        if (markup == ROUTE_MARKUP_ALL || markup == ROUTE_MARKUP_TURN)
+                        {
+                            route_markers += wxT("_ ");
+                        }
                     }
                     else break;
                 }
