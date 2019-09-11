@@ -1829,7 +1829,7 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
     m_pCurLand   = pLand;
     m_pCurStruct = NULL;
 
-    if (pLand->Description.FindSubStr("last month") != -1)
+    if (pLand->Description.FindSubStr("Wanted") != -1)
     {
         // Full region report, clear all the Edge structures which were loaded from history
         pLand->EdgeStructs.FreeAll();
@@ -1984,7 +1984,7 @@ void CAtlaParser::ComposeHexDescriptionForArnoGame(const char * olddescr, const 
 {
     const char * pnew;
     CStr         NewWeather(32);
-    int          oldcount, newcount;
+    int          oldcount=0, newcount;
     CStr         Token(32);
 
     if (!olddescr || !*olddescr)
@@ -5763,7 +5763,7 @@ void CAtlaParser::RunOrder_Upkeep(CUnit * pUnit, int turns)
     {
         if (pUnit->GetProperty(PRP_LEADER, type, (const void *&)leadership, eNormal) && eCharPtr==type &&
             (0==strcmp(leadership, SZ_LEADER) || 0==strcmp(leadership, SZ_HERO)))
-            Maintainance = nmen * 20;
+            Maintainance = nmen * 50;
         else
             Maintainance = nmen * 10;
         if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))

@@ -371,24 +371,24 @@ CExportMagesCSVDlg::CExportMagesCSVDlg(wxWindow * parent, const char * fname)
         colsizer->Add(m_pRadio1, 0, wxALIGN_LEFT | wxALL, 1);
         colsizer->Add(m_pRadio2, 0, wxALIGN_LEFT | wxALL, 1);
         colsizer->Add(m_pRadio3, 0, wxALIGN_LEFT | wxALL, 1);
-    horsizer->Add(colsizer, 0, wxALIGN_CENTER | wxALL | wxGROW, borderwidth*4 );
+    horsizer->Add(colsizer, 0, wxALL | wxGROW, borderwidth*4 );
 
 
     colsizer = new wxBoxSizer( wxVERTICAL );
         layoutsizer = new wxBoxSizer( wxHORIZONTAL );
             pStatic  = new wxStaticText(this, -1, wxT("Separator :"), wxDefaultPosition, wxDefaultSize);
-            layoutsizer->Add(pStatic     , 1, wxALIGN_RIGHT | wxALL, borderwidth );
-            layoutsizer->Add(m_pSeparator, 2, wxALIGN_RIGHT | wxALL, borderwidth );
+            layoutsizer->Add(pStatic     , 1, wxALL, borderwidth );
+            layoutsizer->Add(m_pSeparator, 2, wxALL, borderwidth );
         colsizer->Add(layoutsizer, 0, wxALL, borderwidth );
 
         layoutsizer = new wxBoxSizer( wxHORIZONTAL );
             pStatic  = new wxStaticText(this, -1, wxT("Orientation :"), wxDefaultPosition, wxDefaultSize);
-            layoutsizer->Add(pStatic       , 1, wxALIGN_RIGHT | wxALL, borderwidth );
-            layoutsizer->Add(m_pOrientation, 2, wxALIGN_RIGHT | wxALL, borderwidth );
+            layoutsizer->Add(pStatic       , 1, wxALL, borderwidth );
+            layoutsizer->Add(m_pOrientation, 2, wxALL, borderwidth );
         colsizer->Add(layoutsizer, 0, wxALL, borderwidth );
-    horsizer->Add(colsizer, 0, wxALIGN_CENTER | wxALL | wxGROW, borderwidth );
+    horsizer->Add(colsizer, 0, wxALL | wxGROW, borderwidth );
 
-    topsizer->Add( horsizer, 0, wxALIGN_CENTER | wxALL | wxGROW );
+    topsizer->Add( horsizer, 0, wxALL | wxGROW );
 
     // -------------
 
@@ -404,7 +404,7 @@ CExportMagesCSVDlg::CExportMagesCSVDlg(wxWindow * parent, const char * fname)
     horsizer->Add(pBtn, 0, wxALL, borderwidth );
 
 
-    topsizer->Add( horsizer, 0, wxALIGN_CENTER | wxALL | wxGROW  );
+    topsizer->Add( horsizer, 0, wxALL | wxGROW  );
 
     // -------------
 
@@ -417,7 +417,7 @@ CExportMagesCSVDlg::CExportMagesCSVDlg(wxWindow * parent, const char * fname)
     pBtn = new wxButton  (this, wxID_CANCEL    , wxT("Cancel") );
     horsizer->Add(pBtn, 0, wxALL, borderwidth );
 
-    topsizer->Add( horsizer, 0, wxALIGN_CENTER | wxALL | wxGROW  );
+    topsizer->Add( horsizer, 0, wxALL | wxGROW  );
 
     // -------------
 
@@ -643,7 +643,7 @@ CComboboxDlg::CComboboxDlg(wxWindow *parent, const char * szTitle, const char * 
     topsizer = new wxBoxSizer( wxVERTICAL );
 
     topsizer->Add(new wxStaticText(this, -1, wxString::FromAscii(szMessage)), 0, wxALIGN_LEFT | wxALL, 5);
-    topsizer->Add(m_cbChoices                          , 0, wxALIGN_CENTER | wxALL | wxGROW, 5);
+    topsizer->Add(m_cbChoices                          , 0, wxALL | wxGROW, 5);
 
     sizer     = new wxBoxSizer( wxHORIZONTAL );
     sizer->Add(btnOk    , 0, wxALIGN_CENTER | wxALL, 5);
@@ -702,7 +702,7 @@ CGetTextDlg::CGetTextDlg(wxWindow *parent, const char * szTitle, const char * sz
     topsizer = new wxBoxSizer( wxVERTICAL );
 
     topsizer->Add(new wxStaticText(this, -1, wxString::FromAscii(szMessage)), 0, wxALIGN_LEFT | wxALL, 5);
-    topsizer->Add(m_tcText                             , 1, wxALIGN_CENTER | wxALL | wxGROW, 5);
+    topsizer->Add(m_tcText                             , 1, wxALL | wxGROW, 5);
 
     sizer     = new wxBoxSizer( wxHORIZONTAL );
     sizer->Add(btnOk    , 0, wxALIGN_CENTER | wxALL, 5);

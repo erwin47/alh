@@ -59,7 +59,7 @@ END_EVENT_TABLE()
 //--------------------------------------------------------------------
 
 CEditorForPane::CEditorForPane(CEditPane * parent)
-               :wxTextCtrl(parent, -1, wxT(""), wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_AUTO_SCROLL )
+               :wxTextCtrl(parent, -1, wxT(""), wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE)
 {
     m_pParent = parent;
 }

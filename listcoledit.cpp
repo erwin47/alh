@@ -106,7 +106,7 @@ CListHeaderEditDlg::CListHeaderEditDlg(wxWindow *parent, const char * szWorkKey)
     rowsizer    = new wxBoxSizer( wxHORIZONTAL );
     rowsizer->Add(stSetName       , 1, wxALIGN_CENTER | wxALL , 5);
     rowsizer->Add(m_cbSetName     , 3, wxALIGN_CENTER | wxALL , 5);
-    topsizer->Add(rowsizer        , 0, wxALIGN_CENTER | wxALL | wxGROW, 5 );
+    topsizer->Add(rowsizer        , 0, wxALL | wxGROW, 5 );
 
     colsizer = new wxBoxSizer( wxVERTICAL );
     colsizer->Add(btnAdd     , 0, wxALIGN_CENTER | wxALL, 5);
@@ -122,13 +122,13 @@ CListHeaderEditDlg::CListHeaderEditDlg(wxWindow *parent, const char * szWorkKey)
     rowsizer->Add(m_lstSource     , 1, wxALL | wxGROW, 5);
     rowsizer->Add(colsizer        , 0, wxALIGN_CENTER | wxALL, 5 );
     rowsizer->Add(colsizer_d      , 1, wxALL | wxGROW, 5);
-    topsizer->Add(rowsizer        , 1, wxALIGN_CENTER | wxALL | wxGROW, 5 );
+    topsizer->Add(rowsizer        , 1, wxALL | wxGROW, 5 );
 
 
     rowsizer = new wxBoxSizer( wxHORIZONTAL );
     rowsizer->Add(m_btnOk     , 0, wxALIGN_CENTER | wxALL, 5);
     rowsizer->Add(m_btnCancel , 0, wxALIGN_CENTER | wxALL, 5);
-    rowsizer->Add(btnHelp     , 0, wxALIGN_RIGHT  | wxALL, 5);
+    rowsizer->Add(btnHelp     , 0, wxALIGN_CENTER | wxALL, 5);
     topsizer->Add(rowsizer    , 0, wxALIGN_CENTER | wxALL, 5 );
 
 

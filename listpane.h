@@ -79,6 +79,7 @@ public:
     const char * GetSortName(unsigned short key);
     virtual void Sort();
     virtual void ApplyFonts();
+    void OnListLostFocus(wxFocusEvent&);
 
 protected:
 

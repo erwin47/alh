@@ -30,16 +30,28 @@
 //------------------------------------------------------------------------
 
 CListPane::CListPane(wxWindow *parent, wxWindowID id, long style)
-          :wxListCtrl(parent, id, wxDefaultPosition, wxDefaultSize, style )
+          :wxListCtrl()
 {
     m_pParent        = parent;
     m_pLayout        = NULL;
     m_pData          = NULL;
 
+    // Disable the SystemTheme before calling Create
+    //   This prevents gaps in the backgroundcolor of selected rows.
+    this->EnableSystemTheme(false);
+    Create(parent, id, wxDefaultPosition, wxDefaultSize, style);
+
     for (int i=0; i<NUM_SORTS; i++)
         m_SortKey[i] = NULL;
     m_SortKey[NUM_SORTS-1] = PRP_ID;
+    Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(CListPane::OnListLostFocus), NULL);
+    SetSingleStyle(wxLC_VRULES, false);
+}
 
+void CListPane::OnListLostFocus(wxFocusEvent& event)
+{
+    // Inhibite change of selected item color when a list loses focus
+    event.Skip(false);
 }
 
 //-----------------------------------------------------------------------
@@ -234,6 +246,9 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
                     break;
                     case 2:
                         SetItemBackgroundColour(row, wxColor("#FFFF94")); // Light Yellow
+                    break;
+                    case 3:
+                        SetItemBackgroundColour(row, wxColor("#CCAA00")); // Brown, guarding unit
                     break;
                     default:
                         SetItemBackgroundColour(row, wxColor("#FFFFFF")); // White

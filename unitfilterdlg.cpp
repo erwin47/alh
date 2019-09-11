@@ -93,7 +93,7 @@ CUnitFilterDlg::CUnitFilterDlg(wxWindow *parent, const char * szConfigSection)
     m_cbSetName     = new wxComboBox   (this, ID_CB_SET_NAME);
     m_rbUseBoxes    = new wxRadioButton(this, -1, wxT("Boxes"));
     m_rbUsePython   = new wxRadioButton(this, -1, wxT("Python") );
-    m_tcFilterText  = new wxTextCtrl   (this, ID_TC_TEXT, wxT(""), wxDefaultPosition, wxSize(100,50), wxTE_MULTILINE | wxTE_AUTO_SCROLL );
+    m_tcFilterText  = new wxTextCtrl   (this, ID_TC_TEXT, wxT(""), wxDefaultPosition, wxSize(100,50), wxTE_MULTILINE);
     m_chDisplayOnMap= new wxCheckBox(this, -1, wxT("Mark results on the map"));
     m_chUseSelectedHexes = new wxCheckBox(this, -1, wxT("In the selected hexes only"));
     stSetName       = new wxStaticText (this, -1, wxT("Filter name:"));
@@ -104,7 +104,7 @@ CUnitFilterDlg::CUnitFilterDlg(wxWindow *parent, const char * szConfigSection)
     sizer    = new wxBoxSizer( wxHORIZONTAL );
     sizer->Add(stSetName       , 0, wxALIGN_CENTER | wxALL , SPACER_GENERIC);
     sizer->Add(m_cbSetName     , 1, wxALIGN_CENTER | wxALL , SPACER_GENERIC);
-    topsizer->Add(sizer        , 0, wxALIGN_CENTER | wxALL | wxGROW, SPACER_GENERIC );
+    topsizer->Add(sizer        , 0, wxALL | SPACER_GENERIC );
 
 
     gridsizer = new wxFlexGridSizer(2,2,3,3) ;
@@ -126,15 +126,15 @@ CUnitFilterDlg::CUnitFilterDlg(wxWindow *parent, const char * szConfigSection)
         sizer    = new wxBoxSizer( wxHORIZONTAL );
         sizer->Add(m_cbProperty[count], 0, wxALIGN_CENTER | wxALL, SPACER_GENERIC);
         sizer->Add(m_cbCompare [count], 0, wxALIGN_CENTER | wxALL, SPACER_GENERIC);
-        sizer->Add(m_tcValue   [count], 1, wxALIGN_CENTER | wxALL | wxGROW, SPACER_GENERIC);
-        rowsizer->Add(sizer, 1, wxALIGN_CENTER | wxGROW );
+        sizer->Add(m_tcValue   [count], 1, wxALL | wxGROW, SPACER_GENERIC);
+        rowsizer->Add(sizer, 1, wxGROW );
     }
-    gridsizer->Add(rowsizer, 1, wxALIGN_LEFT | wxGROW );
+    gridsizer->Add(rowsizer, 1, wxGROW );
 
 
     gridsizer->Add(m_rbUsePython   , 0, wxALIGN_LEFT | wxALL, SPACER_GENERIC);
-    gridsizer->Add(m_tcFilterText, 1, wxALIGN_CENTER | wxGROW | wxALL, SPACER_GENERIC);
-    topsizer->Add(gridsizer, 1, wxALIGN_CENTER | wxGROW);
+    gridsizer->Add(m_tcFilterText, 1, wxGROW | wxALL, SPACER_GENERIC);
+    topsizer->Add(gridsizer, 1, wxGROW);
 
 
 

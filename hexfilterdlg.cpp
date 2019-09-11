@@ -89,7 +89,7 @@ CHexFilterDlg::CHexFilterDlg(wxWindow *parent, const char * szConfigSection)
     m_rbUseBoxes    = new wxRadioButton(this, -1, wxT("Boxes"));
     m_rbUsePython   = new wxRadioButton(this, -1, wxT("Python") );
     m_rbUsePython->Enable(false);
-    m_tcFilterText  = new wxTextCtrl   (this, ID_TC_TEXT, wxT(""), wxDefaultPosition, wxSize(100,50), wxTE_MULTILINE | wxTE_AUTO_SCROLL );
+    m_tcFilterText  = new wxTextCtrl   (this, ID_TC_TEXT, wxT(""), wxDefaultPosition, wxSize(100,50), wxTE_MULTILINE);
 //    m_chDisplayOnMap= new wxCheckBox(this, -1, wxT("Mark results on the map"));
 //    m_chUseSelectedHexes = new wxCheckBox(this, -1, wxT("In the selected hexes only"));
     stSetName       = new wxStaticText (this, -1, wxT("Filter name:"));

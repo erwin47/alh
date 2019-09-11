@@ -3169,29 +3169,12 @@ BOOL CMapPane::EnsureLandVisible(int nx, int ny, int nz, BOOL Anyway)
         }
         GetHexCenter(nx, ny, wx, wy);
 
-        if (wx-m_HexSize < 0)
+        if ((wx-m_HexSize < 0) || (wx+m_HexSize > width) || (wy-m_HexHalfHeight < 0) || (wy+m_HexHalfHeight > height))
         {
-            m_AtlaX0 -= (0 - (wx-m_HexSize) + m_HexSize);
+            m_AtlaX0 = nx * m_HexSize * 3 / 2 - width / 2;
+            m_AtlaY0 = ny * m_HexHalfHeight - height / 2;
             NeedRefresh = TRUE;
         }
-        else
-            if ((wx+m_HexSize > width))
-            {
-                m_AtlaX0 += (wx+m_HexSize - width + m_HexSize);
-                NeedRefresh = TRUE;
-            }
-
-        if (wy-m_HexHalfHeight < 0)
-        {
-            m_AtlaY0 -= (0  - (wy-m_HexHalfHeight) + m_HexHalfHeight);
-            NeedRefresh = TRUE;
-        }
-        else
-            if ((wy+m_HexHalfHeight > height))
-            {
-                m_AtlaY0 += (wy+m_HexHalfHeight - height + m_HexHalfHeight);
-                NeedRefresh = TRUE;
-            }
     }
     return NeedRefresh;
 }

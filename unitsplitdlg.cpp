@@ -68,19 +68,19 @@ CUnitSplitDlg::CUnitSplitDlg(wxWindow *parent, CUnit * pUnit)
     m_btnOk         = new wxButton     (this, wxID_OK     , wxT("Set")    );
     m_btnCancel     = new wxButton     (this, wxID_CANCEL , wxT("Cancel") );
     m_spinUnitCount = new wxSpinCtrl   (this, -1, wxT("1"), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, 100000);
-    m_textNewCommand= new wxTextCtrl  (this, -1, wxT(""), wxDefaultPosition, wxSize(225,150), wxTE_MULTILINE | wxTE_AUTO_SCROLL );
+    m_textNewCommand= new wxTextCtrl  (this, -1, wxT(""), wxDefaultPosition, wxSize(225,150), wxTE_MULTILINE);
 
     sizer    = new wxBoxSizer( wxHORIZONTAL );
         sizer->Add(m_spinUnitCount , 0, wxALIGN_CENTER | wxALL , SPACER_GENERIC);
         st = new wxStaticText(this, -1, wxT("Number of new units to form"));
         sizer->Add(st              , 0, wxALIGN_CENTER | wxALL , SPACER_GENERIC);
-    topsizer->Add(sizer        , 0, wxALIGN_CENTER | wxALL | wxGROW, SPACER_GENERIC );
+    topsizer->Add(sizer        , 0, wxALL | wxGROW, SPACER_GENERIC );
 
     sizer    = new wxBoxSizer( wxHORIZONTAL );
-        sizer->Add(m_textNewCommand , 1, wxALIGN_CENTER | wxGROW | wxALL , SPACER_GENERIC);
+        sizer->Add(m_textNewCommand , 1, wxGROW | wxALL , SPACER_GENERIC);
         st = new wxStaticText(this, -1, wxT("Orders for each new unit"));
         sizer->Add(st              , 0, wxALIGN_CENTER | wxALL , SPACER_GENERIC);
-    topsizer->Add(sizer        , 1, wxALIGN_CENTER | wxALL | wxGROW, SPACER_GENERIC );
+    topsizer->Add(sizer        , 1, wxALL | wxGROW, SPACER_GENERIC );
 
     st = new wxStaticText(this, -1, wxT("Give each new unit:"));
     topsizer->Add(st              , 0, wxALIGN_LEFT | wxALL , SPACER_GENERIC);
@@ -103,9 +103,9 @@ CUnitSplitDlg::CUnitSplitDlg(wxWindow *parent, CUnit * pUnit)
         sizer    = new wxBoxSizer( wxHORIZONTAL );
         st       = new wxStaticText(this, -1, pSpin->GetName());
         sizer->Add(st   , 1, wxALIGN_LEFT  | wxALL, SPACER_NARROW );
-        sizer->Add(pSpin, 0, wxALIGN_RIGHT | wxALL, SPACER_NARROW );
+        sizer->Add(pSpin, 0, wxALL, SPACER_NARROW );
 
-        gridsizer->Add(sizer, 1, wxALIGN_LEFT | wxGROW);
+        gridsizer->Add(sizer, 1, wxGROW);
     }
     topsizer->Add(gridsizer, 0, wxALIGN_CENTER );
 

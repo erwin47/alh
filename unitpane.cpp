@@ -72,7 +72,7 @@ END_EVENT_TABLE()
 //--------------------------------------------------------------------------
 
 CUnitPane::CUnitPane(wxWindow *parent, wxWindowID id)
-          :CListPane(parent, id, wxLC_REPORT)
+          :CListPane(parent, id, wxLC_REPORT | wxLC_SINGLE_SEL)
 {
     m_pUnits   = NULL;
     m_pCurLand = NULL;
@@ -151,6 +151,8 @@ void CUnitPane::Update(CLand * pLand)
             pUnit = (CUnit*)pLand->Units.At(i);
             if (pUnit && pUnit->pMovement)
                 GuiColor = 1;
+            else if (pUnit && (pUnit->Flags & UNIT_FLAG_GUARDING))
+                GuiColor = 3;
             else
                 GuiColor = 0;
             pUnit->SetProperty(PRP_GUI_COLOR, eLong, (void*)GuiColor, eBoth);

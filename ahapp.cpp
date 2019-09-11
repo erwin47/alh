@@ -4662,11 +4662,15 @@ void CAhApp::FindTradeRoutes()
 
     if (!pMapPane)
         return;
-    wxBeginBusyCursor();
 
     pMapPane->GetSelectedOrAllHexes(Hexes, TRUE);
     if (0==Hexes.Count())
+    {
         wxMessageBox(wxT("Please select area on the map first."));
+        return;
+    }
+    wxBeginBusyCursor();
+
     for (i=0; i<Hexes.Count(); i++)
     {
         pSellLand = (CLand*)Hexes.At(i);

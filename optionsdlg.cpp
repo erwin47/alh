@@ -144,12 +144,12 @@ COptionsDialog::COptionsDialog(wxWindow * parent)
     rowsizer    = new wxBoxSizer( wxHORIZONTAL );
         rowsizer->Add(m_pComboFonts   , 1, wxALIGN_CENTER | wxALL , space);
         rowsizer->Add(btnFont         , 0, wxALIGN_CENTER | wxALL , space);
-    topsizer->Add(rowsizer        , 0, wxALIGN_CENTER | wxALL | wxGROW, space );
+    topsizer->Add(rowsizer        , 0, wxALL | wxGROW, space );
 
     rowsizer    = new wxBoxSizer( wxHORIZONTAL );
         rowsizer->Add(m_pComboColors   , 1, wxALIGN_CENTER | wxALL , space);
         rowsizer->Add(btnColor         , 0, wxALIGN_CENTER | wxALL , space);
-    topsizer->Add(rowsizer         , 0, wxALIGN_CENTER | wxALL | wxGROW, space );
+    topsizer->Add(rowsizer         , 0, wxALL | wxGROW, space );
 
     rowsizer    = new wxBoxSizer( wxHORIZONTAL );
 
@@ -157,7 +157,7 @@ COptionsDialog::COptionsDialog(wxWindow * parent)
         rowsizer->Add(m_pComboFactions , 1, wxALIGN_CENTER | wxALL , space);
         rowsizer->Add(stPwd            , 0, wxALIGN_CENTER | wxALL , space);
         rowsizer->Add(m_pTxtPassword   , 1, wxALIGN_CENTER | wxALL , space);
-    topsizer->Add(rowsizer         , 0, wxALIGN_CENTER | wxALL | wxGROW, space );
+    topsizer->Add(rowsizer         , 0, wxALL | wxGROW, space );
 
 
     rowsizer    = new wxBoxSizer( wxHORIZONTAL );
@@ -167,7 +167,7 @@ COptionsDialog::COptionsDialog(wxWindow * parent)
             colsizer->Add(m_pChkLoadRep            , 0, wxALIGN_LEFT | wxALL, space);
             colsizer->Add(m_pChkUnixStyle          , 0, wxALIGN_LEFT | wxALL, space);
             colsizer->Add(m_pChkHatchUnvisited     , 0, wxALIGN_LEFT | wxALL, space);
-        rowsizer->Add(colsizer         , 0, wxALIGN_CENTER | wxALL | wxGROW, space );
+        rowsizer->Add(colsizer         , 0, wxALL | wxGROW, space );
 
         colsizer = new wxBoxSizer( wxVERTICAL );
             colsizer->Add(m_pChkRClickCenters      , 0, wxALIGN_LEFT | wxALL, space);
@@ -177,26 +177,26 @@ COptionsDialog::COptionsDialog(wxWindow * parent)
             colsizer->Add(m_pChkCheckProdReq       , 0, wxALIGN_LEFT | wxALL, space);
             colsizer->Add(m_pChkMoveMode           , 0, wxALIGN_LEFT | wxALL, space);
 
-        rowsizer->Add(colsizer         , 0, wxALIGN_CENTER | wxALL | wxGROW, space );
+        rowsizer->Add(colsizer         , 0, wxALL | wxGROW, space );
 
         colsizer = new wxBoxSizer( wxVERTICAL );
-            colsizer->Add(stLayout         , 0, wxALIGN_CENTER | wxALL | wxGROW, space );
+            colsizer->Add(stLayout         , 0, wxALL | wxGROW, space );
             layoutsizer = new wxBoxSizer( wxVERTICAL );
                 layoutsizer->Add(m_pRadio1Win       , 0, wxALIGN_LEFT | wxALL, space);
                 layoutsizer->Add(m_pRadio1WinWide   , 0, wxALIGN_LEFT | wxALL, space);
                 layoutsizer->Add(m_pRadio2Win       , 0, wxALIGN_LEFT | wxALL, space);
                 layoutsizer->Add(m_pRadio3Win       , 0, wxALIGN_LEFT | wxALL, space);
-            colsizer->Add(layoutsizer      , 0, wxALIGN_CENTER | wxALL | wxGROW, space );
+            colsizer->Add(layoutsizer      , 0, wxALL | wxGROW, space );
 
-            colsizer->Add(stIcons         , 0, wxALIGN_CENTER | wxTOP | wxGROW, space+space );
+            colsizer->Add(stIcons         , 0, wxTOP | wxGROW, space+space );
             layoutsizer = new wxBoxSizer( wxVERTICAL );
                 layoutsizer->Add(m_pRadioIconsSimple       , 0, wxALIGN_LEFT | wxALL, space);
                 layoutsizer->Add(m_pRadioIconsAdvanced     , 0, wxALIGN_LEFT | wxALL, space);
-            colsizer->Add(layoutsizer      , 0, wxALIGN_CENTER | wxALL | wxGROW, space );
+            colsizer->Add(layoutsizer      , 0, wxALL | wxGROW, space );
 
-        rowsizer->Add(colsizer         , 0, wxALIGN_CENTER | wxALL | wxGROW, space );
+        rowsizer->Add(colsizer         , 0, wxALL | wxGROW, space );
 
-    topsizer->Add(rowsizer         , 1, wxALIGN_CENTER | wxALL | wxGROW, space );
+    topsizer->Add(rowsizer         , 1, wxALL | wxGROW, space );
 
 
     rowsizer = new wxBoxSizer( wxHORIZONTAL );

@@ -117,7 +117,7 @@ CUnitFlagsDlg::CUnitFlagsDlg(wxWindow *parent, E_FLAG_EDIT_MODE Mode, unsigned i
         sizer->Add(st                   , 0, wxALIGN_CENTER | wxLEFT | wxRIGHT , SPACER_GENERIC);
         sizer->Add(m_txtUnitFlagText[i] , 1, wxALIGN_CENTER | wxLEFT | wxRIGHT , SPACER_GENERIC);
 
-        topsizer->Add(sizer        , 1, wxALIGN_CENTER | wxALL | wxGROW, 2 );
+        topsizer->Add(sizer        , 1, wxALL | wxGROW, 2 );
 
         x <<= 1;
     }
@@ -145,7 +145,7 @@ CUnitFlagsDlg::CUnitFlagsDlg(wxWindow *parent, E_FLAG_EDIT_MODE Mode, unsigned i
 
             sizer    = new wxBoxSizer( wxHORIZONTAL );
                 sizer->Add(m_chbLandFlags[i]   , 0, wxALIGN_LEFT  | wxLEFT | wxRIGHT , SPACER_GENERIC );
-            topsizer->Add(sizer        , 1, wxALIGN_CENTER | wxALL | wxGROW, 2 );
+            topsizer->Add(sizer        , 1, wxALL | wxGROW, 2 );
         }
 
         m_btnSetAllLand = new wxButton     (this, ID_BTN_SET_ALL_LAND , wxT("Set for all hexes")    );
@@ -289,9 +289,9 @@ CMapFlagDlg::CMapFlagDlg(wxWindow *parent, CLand * pLand, wxPoint & position)
         st             = new wxStaticText(this, -1, wxString::FromAscii(LandFlagLabel[i]));
 
         sizer->Add(st           , 0, wxALIGN_LEFT  | wxALL           , SPACER_NARROW );
-        sizer->Add(m_FlagText[i], 1, wxALIGN_RIGHT | wxALL | wxEXPAND, SPACER_NARROW );
+        sizer->Add(m_FlagText[i], 1,                 wxALL | wxEXPAND, SPACER_NARROW );
 
-        topsizer->Add(sizer, 1, wxALIGN_LEFT | wxGROW);
+        topsizer->Add(sizer, 1, wxGROW);
     }
 
     wxBoxSizer *button_sizer = new wxBoxSizer( wxHORIZONTAL );
