@@ -4150,7 +4150,7 @@ int CAtlaParser::LoadOrders  (CFileReader & F, int FactionId, BOOL GetComments)
         for (int nLand=0; nLand<pPlane->Lands.Count(); nLand++)
         {
             pLand = (CLand*)pPlane->Lands.At(nLand);
-            pLand->DeleteAllNewUnits();
+            pLand->DeleteAllNewUnits(FactionId);
             for (int nUnit=0; nUnit<pLand->Units.Count(); nUnit++)
             {
                 pUnit = (CUnit*)pLand->Units.At(nUnit);

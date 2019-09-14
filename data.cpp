@@ -342,22 +342,23 @@ void CLand::RemoveUnit(CUnit * pUnit)
 
 //-------------------------------------------------------------
 
-void CLand::DeleteAllNewUnits()
+void CLand::DeleteAllNewUnits(int factionId)
 {
+    // Delete all new units of factionId, or all new units if factionId==0.
     int       i;
     CUnit   * pUnit;
 
     for (i=UnitsSeq.Count()-1; i>=0; i--)
     {
         pUnit = (CUnit*)UnitsSeq.At(i);
-        if (IS_NEW_UNIT(pUnit))
+        if (IS_NEW_UNIT(pUnit) && (pUnit->FactionId == factionId || 0 == factionId))
             UnitsSeq.AtDelete(i);
     }
 
     for (i=Units.Count()-1; i>=0; i--)
     {
         pUnit = (CUnit*)Units.At(i);
-        if (IS_NEW_UNIT(pUnit))
+        if (IS_NEW_UNIT(pUnit) && (pUnit->FactionId == factionId || 0 == factionId))
             Units.AtFree(i);
     }
 }

@@ -434,7 +434,7 @@ public:
 
     BOOL      AddUnit(CUnit * pUnit);
     void      RemoveUnit(CUnit * pUnit);
-    void      DeleteAllNewUnits();
+    void      DeleteAllNewUnits(int factionId);
     void      ResetUnitsAndStructs();
     CStruct * GetStructById(long id);
     void      CalcStructsLoad();
