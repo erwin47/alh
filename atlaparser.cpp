@@ -4970,7 +4970,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     if (p)
                     {
                         p+=2;
-                        RunPseudoComment(sequence, pLand, pUnit, p, destination);
+                        RunPseudoComment(Line, ErrorLine, skiperror, pUnit, pLand, p, sequence, destination);
                     }
                     isSimCmd = false;
                 }
@@ -4989,7 +4989,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     skiperror = (0==stricmp(S1.GetData(),"ne") || 0==stricmp(S1.GetData(),"$ne"));
                     if (!nNestingMode)
                     {
-                        RunPseudoComment(sequence, pLand, pUnit, S1.GetData(), destination);
+                        RunPseudoComment(Line, ErrorLine, skiperror, pUnit, pLand, S1.GetData(), sequence, destination);
                     }
                     Line.DelSubStr(p-Line.GetData()-1, Line.GetLength() - (p-Line.GetData()-1) );
                 }
@@ -5313,27 +5313,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                             {
                                 RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, p, X, Y, LocA3, order);
                             }
-                        }
-                        break;
-
-                    case O_TRAVEL:
-                        if (SQ_CLAIM==sequence && isSimCmd)
-                        {
-                            p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-                            if (0==stricmp(N1.GetData(), "walk"))
-                            {
-                                pUnit->reqMovementSpeed = 2;
-                            }
-                            else if (0==stricmp(N1.GetData(), "ride"))
-                            {
-                                pUnit->reqMovementSpeed = 4;
-                            }
-                            else if (0==stricmp(N1.GetData(), "fly"))
-                            {
-                                pUnit->reqMovementSpeed = 6;
-                            }
-                            else
-                                SHOW_WARN_CONTINUE(" - Invalid parameter");
                         }
                         break;
 
@@ -7637,7 +7616,8 @@ void CAtlaParser::OrderProcess_Teach(BOOL skiperror, CUnit * pUnit)
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunPseudoComment(int sequence, CLand * pLand, CUnit * pUnit, const char * src, wxString & destination)
+void CAtlaParser::RunPseudoComment(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand,
+                                   const char * src, int sequence, wxString & destination)
 {
     CStr            Command;
     CStr            S;
@@ -7645,12 +7625,7 @@ void CAtlaParser::RunPseudoComment(int sequence, CLand * pLand, CUnit * pUnit, c
     const char    * p;
     do
     {
-        p = Command.GetToken(SkipSpaces(src), " \t", ch, TRIM_ALL);
-
-        if (SQ_MOVE==sequence && (0==stricmp(Command.GetData(), "$MOVE")))
-        {
-            destination = wxString::FromUTF8(p);
-        }
+        p = SkipSpaces(Command.GetToken(SkipSpaces(src), " \t", ch, TRIM_ALL));
 
         // it must be sequenced just like the real commands!
         if (SQ_CLAIM == sequence && (0==stricmp(Command.GetData(), "$GET")))  // do it in CLAIM so it will affect new units too
@@ -7658,6 +7633,31 @@ void CAtlaParser::RunPseudoComment(int sequence, CLand * pLand, CUnit * pUnit, c
             // GET 100 silv
             Command = src;
             RunOrder_Withdraw(Command, S, FALSE, pUnit, pLand, p);
+        }
+        if (SQ_CLAIM == sequence && (0==stricmp(Command.GetData(), "$TRAVEL")))
+        {
+            CStr token;
+            p = SkipSpaces(token.GetToken(p, " ;\t", ch, TRIM_ALL));
+            p = token.GetData();
+            if (0==stricmp(p, "walk"))
+            {
+                pUnit->reqMovementSpeed = 2;
+            }
+            else if (0==stricmp(p, "ride"))
+            {
+                pUnit->reqMovementSpeed = 4;
+            }
+            else if (0==stricmp(p, "fly"))
+            {
+                pUnit->reqMovementSpeed = 6;
+            }
+            else
+                SHOW_WARN_CONTINUE(" - Invalid parameter");
+        }
+
+        if (SQ_MOVE==sequence && (0==stricmp(Command.GetData(), "$MOVE")))
+        {
+            destination = wxString::FromUTF8(p);
         }
 
         if (SQ_MAX-1 == sequence && (0==stricmp(Command.GetData(), "$UPKEEP")))
@@ -7667,6 +7667,7 @@ void CAtlaParser::RunPseudoComment(int sequence, CLand * pLand, CUnit * pUnit, c
             if (turns < 1) turns = 1;
             RunOrder_Upkeep(pUnit, turns);
         }
+
     }
     while (FALSE);
 }

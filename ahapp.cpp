@@ -252,7 +252,6 @@ bool CAhApp::OnInit()
     m_OrderHash.Insert("tax"        ,     (void*)O_TAX        );
     m_OrderHash.Insert("entertain"  ,     (void*)O_ENTERTAIN  );
     m_OrderHash.Insert("work"       ,     (void*)O_WORK       );
-    m_OrderHash.Insert("travel"     ,     (void*)O_TRAVEL     );
 
     m_OrderHash.Insert("guard"      ,     (void*)O_GUARD      );
     m_OrderHash.Insert("avoid"      ,     (void*)O_AVOID      );

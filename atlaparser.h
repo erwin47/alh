@@ -102,7 +102,6 @@ enum {
     O_STUDY,
     O_TAX,
     O_TEACH,
-    O_TRAVEL,
     O_WEAPON,
     O_WITHDRAW,
     O_WORK,
@@ -303,6 +302,7 @@ protected:
     BOOL         FindTargetsForSend        (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char *& params, CUnit *& pUnit2, CLand *& pLand2);
     BOOL         GetItemAndAmountForGive   (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, CStr & Item, int & amount, const char * command, CUnit * pUnit2);
     void         RunOrder_Withdraw         (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
+    void         RunPseudoComment          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int sequence, wxString &destination);
     void         RunOrder_TaxPillage       (CLand *);
     void         RunOrder_Entertain        (CLand *);
     void         RunOrder_Work             (CLand *);
@@ -314,7 +314,6 @@ protected:
 
     void         AdjustSkillsAfterGivingMen(CUnit * pUnitGive, CUnit * pUnitTake, CStr & item, long AmountGiven);
     void         LookupAdvancedResourceVisibility(CUnit * pUnit, CLand * pLand);
-    void         RunPseudoComment(int sequence, CLand * pLand, CUnit * pUnit, const char * src, wxString &destination);
 
     int          ParseCBHex   (const char * FirstLine);
     int          ParseCBStruct(const char * FirstLine);
