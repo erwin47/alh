@@ -4354,11 +4354,13 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
 
         }
 
-        if (TaxOur + TaxTheir > pCurLand->Taxable)
-            TaxOur =  (long)(((double)pCurLand->Taxable)/(TaxTheir + TaxOur)*TaxOur);
+        long TotalTax = TaxOur + TaxTheir;
+        if (TotalTax > 0 && TotalTax > pCurLand->Taxable)
+            TaxOur =  (long)(((double)pCurLand->Taxable) / TotalTax * TaxOur);
 
-        if (WorkOur + WorkTheir > pCurLand->MaxWages)
-            WorkOur =  (long)(((double)pCurLand->MaxWages)/(WorkTheir + WorkOur)*WorkOur);
+        long TotalWages = WorkOur + WorkTheir;
+        if (TotalWages > 0 && TotalWages > pCurLand->MaxWages)
+            WorkOur =  (long)(((double)pCurLand->MaxWages) / TotalWages * WorkOur);
 
         if (Maintain>0)
         {

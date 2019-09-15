@@ -560,18 +560,18 @@ void CMapFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
 #ifdef HAVE_PYTHON
     sPyVersion = wxString::FromUTF8(Py_GetVersion());
 #else
-    sPyVersion = wxT("is not supported");
+    sPyVersion = "is not supported";
 #endif
 
-    msg.Printf(wxT("Atlantis Little Helper version %s, build %d.\n\n%s.\n\nPython %s.\n\n"
-               "Please read doc/readme.html for more information."),
+    msg.Printf("Atlantis Little Helper version %s, build %d.\n\n%s.\n\nPython %s.\n\n"
+               "Please read doc/readme.html for more information.",
                wxT(AH_VERSION),
                AH_BuildNumber,
                wxVERSION_STRING,
                sPyVersion.GetData() );
 
 
-    wxMessageBox(msg, wxT("About"), wxOK | wxICON_INFORMATION, this);
+    wxMessageBox(msg, "About", wxOK | wxICON_INFORMATION, this);
 }
 
 //--------------------------------------------------------------------
