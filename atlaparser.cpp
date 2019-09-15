@@ -4890,7 +4890,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
     int                 LocA3, LocA3N=0; // support for ArcadiaIII sailing
     char                ch;
     BOOL                TeachCheckGlb = (BOOL)atoi(sCheckTeach?sCheckTeach:gpDataHelper->GetConfString(SZ_SECT_COMMON, SZ_KEY_CHECK_TEACH_LVL));
-    BOOL                skiperror;
+    BOOL                skiperror = false;
     int                 nNestingMode; // Shar1 Support for TURN/ENDTURN
     long                order;
     wxString            destination;

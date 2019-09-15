@@ -490,9 +490,6 @@ void CUnitPane::OnRClick(wxListEvent& event)
     wxMenu       menu;
     long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
     CUnit      * pUnit = GetUnit(idx);
-    int          x=0,y;
-
-    int          width, height;
 
     int nItems = GetSelectedItemCount();
 
@@ -540,7 +537,7 @@ void CUnitPane::OnRClick(wxListEvent& event)
             menu.Append(menu_Popup_UnitFlags       , wxT("Set custom flags")    );
             menu.Append(menu_Popup_AddToTracking   , wxT("Add to a tracking group"));
 
-            PopupMenu( &menu, event.GetPoint().x, y);
+            PopupMenu( &menu, event.GetPoint().x, event.GetPoint().y);
         }
 }
 

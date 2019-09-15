@@ -100,7 +100,7 @@ CHexFilterDlg::CHexFilterDlg(wxWindow *parent, const char * szConfigSection)
     sizer    = new wxBoxSizer( wxHORIZONTAL );
     sizer->Add(stSetName       , 0, wxALIGN_CENTER | wxALL , SPACER_GENERIC);
     sizer->Add(m_cbSetName     , 1, wxALIGN_CENTER | wxALL , SPACER_GENERIC);
-    topsizer->Add(sizer        , 0, wxALIGN_CENTER | wxALL | wxGROW, SPACER_GENERIC );
+    topsizer->Add(sizer        , 0, wxALL | wxGROW, SPACER_GENERIC );
 
 
     gridsizer = new wxFlexGridSizer(2,2,3,3) ;
@@ -121,17 +121,17 @@ CHexFilterDlg::CHexFilterDlg(wxWindow *parent, const char * szConfigSection)
             rowsizer->Add(new wxStaticText(this, -1, wxT("AND")), 0, wxALIGN_LEFT | wxLEFT, SPACER_GENERIC );
 
         sizer    = new wxBoxSizer( wxHORIZONTAL );
-        sizer->Add(m_cbProperty[count], 2, wxALIGN_CENTER | wxALL | wxGROW, SPACER_GENERIC);
+        sizer->Add(m_cbProperty[count], 2, wxALL | wxGROW, SPACER_GENERIC);
         sizer->Add(m_cbCompare [count], 0, wxALIGN_CENTER | wxALL, SPACER_GENERIC);
-        sizer->Add(m_tcValue   [count], 3, wxALIGN_CENTER | wxALL | wxGROW, SPACER_GENERIC);
-        rowsizer->Add(sizer, 1, wxALIGN_CENTER | wxGROW );
+        sizer->Add(m_tcValue   [count], 3, wxALL | wxGROW, SPACER_GENERIC);
+        rowsizer->Add(sizer, 1, wxGROW );
     }
     gridsizer->Add(rowsizer, 1, wxALIGN_LEFT | wxGROW );
 
 
     gridsizer->Add(m_rbUsePython   , 0, wxALIGN_LEFT | wxALL, SPACER_GENERIC);
-    gridsizer->Add(m_tcFilterText, 1, wxALIGN_CENTER | wxGROW | wxALL, SPACER_GENERIC);
-    topsizer->Add(gridsizer, 1, wxALIGN_CENTER | wxGROW);
+    gridsizer->Add(m_tcFilterText, 1, wxGROW | wxALL, SPACER_GENERIC);
+    topsizer->Add(gridsizer, 1, wxGROW);
 
     //sizer    = new wxBoxSizer( wxHORIZONTAL );
     //sizer->Add(m_chDisplayOnMap, 0, wxALIGN_LEFT | wxALL, SPACER_GENERIC);

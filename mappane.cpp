@@ -872,8 +872,8 @@ void CMapPane::DrawEdgeStructures(wxDC * pDC, CLand * pLand, wxPoint * point, in
         for (i=0; i<pLand->EdgeStructs.Count(); i++)
         {
             int x1=0, y1=0, x2=0, y2=0;
-            int xa1, ya1, xb1, yb1;
-            int xa2, ya2, xb2, yb2;
+            int xa1=0, ya1=0, xb1=0, yb1=0;
+            int xa2=0, ya2=0, xb2=0, yb2=0;
 
             CStruct               * pEdge = (CStruct*)pLand->EdgeStructs.At(i);
             CEdgeStructProperties * pProps = GetEdgeProps(pEdge->Kind.GetData());
@@ -1829,6 +1829,7 @@ void CMapPane::GetNextIconPos(wxPoint * point, int Position)
             reverse=TRUE;
             increment_x = - ICON_SIZE - (spacer / 4) - 1;
             break;
+        default:
         case(CENTER): // for consistency purposes
             x1 = (point[0].x + point[3].x) / 2 - spacer + ICON_SIZE + 1;
             x2 = (point[0].x + point[3].x) / 2 + spacer - ICON_SIZE - 1;
