@@ -1390,18 +1390,18 @@ int CAhApp::GetAttitudeForFaction(int id)
     if(id == player_id) return ATT_FRIEND2;
     int attitude = ATT_UNDECLARED;
     CAttitude * policy;
-    for(int i=m_Attitudes.Count(); i>=0; i--)
+    for(int i=m_Attitudes.Count()-1; i>=0; i--)
     {
         policy = (CAttitude *) m_Attitudes.At(i);
-        if(policy && (policy->FactionId == id)) attitude=policy->Stance;
+        if(policy->FactionId == id) attitude=policy->Stance;
     }
     if(attitude == ATT_UNDECLARED)
     {
         // check for default attitude
-        for(int i=m_Attitudes.Count(); i>=0; i--)
+        for(int i=m_Attitudes.Count()-1; i>=0; i--)
         {
             policy = (CAttitude *) m_Attitudes.At(i);
-            if(policy && (policy->FactionId == 0)) attitude=policy->Stance;
+            if(policy->FactionId == 0) attitude=policy->Stance;
         }
     }
     return attitude;
@@ -1413,7 +1413,7 @@ void CAhApp::SetAttitudeForFaction(int id, int attitude)
     int att_idx = -1;
     CAttitude * policy;
     if((attitude < ATT_FRIEND1) || (attitude >= ATT_UNDECLARED)) return;
-    for(int i=m_Attitudes.Count(); i>=0; i--)
+    for(int i=m_Attitudes.Count()-1; i>=0; i--)
     {
         policy = (CAttitude *) m_Attitudes.At(i);
         if(policy && (policy->FactionId == id)) att_idx=i;
@@ -2074,7 +2074,7 @@ void CAhApp::UpdateEdgeStructs()
                         if((pLand->Flags&LAND_IS_CURRENT) && !(adj_land->Flags&LAND_IS_CURRENT))
                         {  // set the corresponding Edge Structure in adjacent region
                             adj_land->RemoveEdgeStructs(adj_dir);
-                            for(k=pLand->EdgeStructs.Count(); k>=0; k--)
+                            for(k=pLand->EdgeStructs.Count()-1; k>=0; k--)
                             {
                                 pEdge = (CStruct*) pLand->EdgeStructs.At(k);
                                 if((pEdge != NULL) && (pEdge->Location == d))                          adj_land->AddNewEdgeStruct(pEdge->Kind.GetData(), adj_dir);

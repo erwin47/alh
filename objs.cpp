@@ -24,9 +24,9 @@
 #include "collection.h"
 #include <stdarg.h>
 #include "cstr.h"
+#include "data.h"
 #include "objs.h"
 #include "compat.h"
-
 
 //===================================================================
 
@@ -288,7 +288,7 @@ void TPropertyHolder::ResetNormalProperties()
     for (i=0; i<m_Properties.Count(); i++)
     {
         pProp = (TProperty *)m_Properties.At(i);
-        if (pProp->m_valueorg == 0)
+        if (pProp->m_valueorg == 0 && (0!=stricmp(pProp->m_name, PRP_FRIEND_OR_FOE)))
             m_Properties.AtFree(i--);
         else
             pProp->SetValue(pProp->m_type, pProp->m_valueorg, eNormal);
