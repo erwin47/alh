@@ -288,7 +288,10 @@ void TPropertyHolder::ResetNormalProperties()
     for (i=0; i<m_Properties.Count(); i++)
     {
         pProp = (TProperty *)m_Properties.At(i);
-        pProp->SetValue(pProp->m_type, pProp->m_valueorg, eNormal);
+        if (pProp->m_valueorg == 0)
+            m_Properties.AtFree(i--);
+        else
+            pProp->SetValue(pProp->m_type, pProp->m_valueorg, eNormal);
     }
 
 }

@@ -25,9 +25,9 @@
 typedef struct _AH_FONT_DATA
 {
     int            size;
-    int            family;
-    int            style;
-    int            weight;
+    wxFontFamily   family;
+    wxFontStyle    style;
+    wxFontWeight   weight;
     wxFontEncoding encoding;
     wxString       face;
 }  AH_FONT_DATA;

@@ -127,7 +127,6 @@ void CHash::ForEachCheckRemove(int (*action)(void*, void*, void*), void * user_d
 {
     int               x;
     HASH_LIST_ITEM ** ppItem;
-    HASH_LIST_ITEM  * p;
 
     for (x=0; x<m_nHashSize; x++)
     {
@@ -136,7 +135,6 @@ void CHash::ForEachCheckRemove(int (*action)(void*, void*, void*), void * user_d
         {
             if (action((*ppItem)->key, (*ppItem)->data, user_data))
             {
-                p = *ppItem;
                 *ppItem = (*ppItem)->next;
             }
             else

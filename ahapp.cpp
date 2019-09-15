@@ -3013,14 +3013,35 @@ void CAhApp::EditPaneDClicked(CEditPane * pPane)
             }
         }
 
-        // land
+        // land (5,1,2 <underworld>)
         p = &src.GetData()[position];
         p = SkipSpaces(S.GetToken(p, "(\n", ch, TRIM_ALL));
         if ('('==ch)
         {
             p = SkipSpaces(S.GetToken(p, ")\n", ch, TRIM_ALL));
-            if (')' == ch && SelectLand(S.GetData()))
-                return;
+            if (')' == ch)
+            {
+                // Try to parse a unit number as well: (5,7) NEW 1 (2883585) Warning
+                CStr U;
+                CLand * pLand = m_pAtlantis->GetLand(S.GetData());
+                p = SkipSpaces(U.GetToken(p, "(\n", ch, TRIM_ALL));
+                if ('('==ch)
+                {
+                    U.GetToken(p, ",)\n", ch, TRIM_ALL);
+                    if (')' == ch)
+                    {
+                        Dummy.Id = atol(U.GetData());
+                        if (pLand->Units.Search(&Dummy, idx))
+                        {
+                            pUnit = (CUnit*)pLand->Units.At(idx);
+                            SelectUnit(pUnit);
+                            return;
+                        }
+                    }
+                }
+                if (SelectLand(S.GetData()))
+                    return;
+            }
         }
     }
 }
@@ -3400,13 +3421,10 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
     CEditPane   * pDescription;
     CEditPane   * pOrders;
     CEditPane   * pComments;
-    CFaction    * pFaction;
     CUnit       * pUnit;
-
 
     m_SelUnitIdx = idx;
     pUnit        = GetSelectedUnit(); // depends on m_SelUnitIdx
-    pFaction     = pUnit?pUnit->pFaction:NULL;
 
     pDescription = (CEditPane*)m_Panes[AH_PANE_UNIT_DESCR   ];
     pOrders      = (CEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS];
@@ -3434,34 +3452,7 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
     {
         if (pOrders->m_pEditor->IsModified())
         {
-            long    Id = 0;
-            CLand * pLand = NULL;
-/*
-            if (pUnit)
-            {
-                Id = pUnit->Id;
-                pLand = m_pAtlantis->GetLand(pUnit->LandId);
-
-            }
-*/
-            // OnKillFocus event for the editor did not fire up
             pOrders->OnKillFocus();
-/*
-            // OnKillFocus kills all new units!
-            pUnit = NULL;
-            if (Id != 0 && pLand)
-            {
-                CBaseObject         Dummy;
-                int                 idx;
-
-                Dummy.Id = Id;
-                if (pLand->Units.Search(&Dummy, idx))
-                {
-                    pUnit = (CUnit*)pLand->Units.At(idx);
-                    SelectUnit(pUnit);
-                }
-            }
-*/
         }
 
         pOrders->SetSource(pUnit?&pUnit->Orders:NULL,      &m_OrdersAreChanged);
@@ -5156,10 +5147,10 @@ void FontToStr(const wxFont * font, CStr & s)
 wxFont * NewFontFromStr(const char * p)
 {
     int            size;
-    int            family;
-    int            style;
-    int            weight;
-    int            encoding;
+    wxFontFamily   family;
+    wxFontStyle    style;
+    wxFontWeight   weight;
+    wxFontEncoding encoding;
     wxString       facename;
     wxFont     *   font;
 
@@ -5169,23 +5160,23 @@ wxFont * NewFontFromStr(const char * p)
     if (p && *p)
     {
         p = S.GetToken(SkipSpaces(p), ',');  size     = atol(S.GetData());
-        p = S.GetToken(SkipSpaces(p), ',');  family   = atol(S.GetData());
-        p = S.GetToken(SkipSpaces(p), ',');  style    = atol(S.GetData());
-        p = S.GetToken(SkipSpaces(p), ',');  weight   = atol(S.GetData());
-        p = S.GetToken(SkipSpaces(p), ',');  encoding = atol(S.GetData());
+        p = S.GetToken(SkipSpaces(p), ',');  family   = static_cast<wxFontFamily>(atol(S.GetData()));
+        p = S.GetToken(SkipSpaces(p), ',');  style    = static_cast<wxFontStyle>( atol(S.GetData()));
+        p = S.GetToken(SkipSpaces(p), ',');  weight   = static_cast<wxFontWeight>(atol(S.GetData()));
+        p = S.GetToken(SkipSpaces(p), ',');  encoding = static_cast<wxFontEncoding>(atol(S.GetData()));
                                              facename = wxString::FromAscii(SkipSpaces(p));
     }
     else
     {
         size     = AH_DEFAULT_FONT_SIZE;
-        family   = wxDEFAULT;
-        style    = wxNORMAL;
-        weight   = wxNORMAL;
+        family   = wxFONTFAMILY_DEFAULT;
+        style    = wxFONTSTYLE_NORMAL;
+        weight   = wxFONTWEIGHT_NORMAL;
         encoding = wxFONTENCODING_SYSTEM;
         facename = wxT("");
     }
 
-    font = new wxFont(size, family, style, weight, FALSE, facename, (wxFontEncoding)encoding);
+    font = new wxFont(size, family, style, weight, FALSE, facename, encoding);
 
     return font;
 }

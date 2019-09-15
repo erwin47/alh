@@ -496,14 +496,6 @@ void CUnitPane::OnRClick(wxListEvent& event)
 
     int nItems = GetSelectedItemCount();
 
-
-    wxDisplaySize(&width, &height);
-    y = event.GetPoint().y;
-    ClientToScreen(&x, &y);
-    if (height-y < 150)
-        y = height-150;
-    ScreenToClient(&x, &y);
-
     if (nItems>1)
     {
         // multiple units
@@ -511,7 +503,7 @@ void CUnitPane::OnRClick(wxListEvent& event)
         menu.Append(menu_Popup_UnitFlags       , wxT("Set custom flags")    );
         menu.Append(menu_Popup_AddToTracking   , wxT("Add to a tracking group"));
 
-        PopupMenu( &menu, event.GetPoint().x, y);
+        PopupMenu( &menu, event.GetPoint().x, event.GetPoint().y);
     }
     else
         if (pUnit)
@@ -625,6 +617,7 @@ bool CUnitPane::CreateScout(CUnit * pUnit, ScoutType scoutType)
         return false; // When there is no race to buy, we cannot make a scout.
 
     if (race.FindSubStr("ORCS") != -1) race = "ORC";
+    if (race.FindSubStr("HUMANS") != -1) race = "MAN";
 
     peritem = 0;
     MakeQualifiedPropertyName(PRP_SALE_PRICE_PREFIX, race.GetData(), racemarket);

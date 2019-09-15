@@ -64,7 +64,6 @@ CUnitSplitDlg::CUnitSplitDlg(wxWindow *parent, CUnit * pUnit)
     ScanProperties();
 
     topsizer = new wxBoxSizer( wxVERTICAL );
-
     m_btnOk         = new wxButton     (this, wxID_OK     , wxT("Set")    );
     m_btnCancel     = new wxButton     (this, wxID_CANCEL , wxT("Cancel") );
     m_spinUnitCount = new wxSpinCtrl   (this, -1, wxT("1"), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1, 100000);
@@ -114,6 +113,11 @@ CUnitSplitDlg::CUnitSplitDlg(wxWindow *parent, CUnit * pUnit)
         sizer->Add(m_btnCancel   , 0, wxALIGN_CENTER | wxALL, SPACER_GENERIC);
     topsizer->Add(sizer, 0, wxALIGN_CENTER );
 
+    wxAcceleratorEntry entries[2];
+    entries[0].Set(wxACCEL_ALT, 13, wxID_OK);
+    entries[1].Set(wxACCEL_CTRL, 13, wxID_OK);
+    wxAcceleratorTable accel(2, entries);
+    this->SetAcceleratorTable(accel);
 
     SetAutoLayout( TRUE );     // tell dialog to use sizer
     SetSizer( topsizer );      // actually set the sizer
@@ -121,7 +125,7 @@ CUnitSplitDlg::CUnitSplitDlg(wxWindow *parent, CUnit * pUnit)
     topsizer->SetSizeHints( this );   // set size hints to honour mininum size}
 
     m_spinUnitCount->SetFocus();
-    m_btnOk->SetDefault();
+    // m_btnOk->SetDefault(); // Commented because it steals 'enter/return' from the multiline wxTextCtrl.
 
     CResizableDlg::SetPos();
 }

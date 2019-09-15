@@ -312,6 +312,10 @@ enum
 #define SZ_KEY_MAP_RING                  "DISTANCE_RING"
 #define SZ_KEY_MAP_COASTLINE             "COASTLINE"
 
+#define SZ_UNIT_MOVING_OUT               "UNIT_MOVING_OUT"
+#define SZ_UNIT_GUARDING                 "UNIT_GUARDING"
+#define SZ_UNIT_ARRIVING                 "UNIT_ARRIVING"
+
 #define SZ_KEY_MAP_ROAD_OLD              "MAP_ROADS"
 #define SZ_KEY_MAP_ROAD_BAD_OLD          "MAP_ROADS_BAD"
 
@@ -398,6 +402,9 @@ enum
 #define SZ_KEY_WAGONS                    "WAGONS"
 #define SZ_KEY_WAGON_PULLERS             "WAGON_PULLERS"
 #define SZ_KEY_WAGON_CAPACITY            "WAGON_CAPACITY"
+
+#define SZ_UPKEEP_LEADER                 "UPKEEP_LEADER"
+#define SZ_UPKEEP_PEASANT                "UPKEEP_PEASANT"
 
 #define SZ_VERTICAL                      "Vertical"
 #define SZ_HORIZONTAL                    "Horizontal"

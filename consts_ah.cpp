@@ -70,7 +70,8 @@ DefaultConfigRec DefaultConfig[] =
     {SZ_SECT_COMMON            ,     SZ_KEY_WAGONS         ,     "WAGO"              },
     {SZ_SECT_COMMON            ,     SZ_KEY_WAGON_PULLERS  ,     "HORS"              },
     {SZ_SECT_COMMON            ,     SZ_KEY_WAGON_CAPACITY ,     "250"               },
-
+    {SZ_SECT_COMMON            ,     SZ_UPKEEP_LEADER      ,     "50"                },
+    {SZ_SECT_COMMON            ,     SZ_UPKEEP_PEASANT     ,     "10"                },
 
 
     {SZ_SECT_COLORS            ,     SZ_KEY_COLOR_RED      ,     "255,   0,   0"     },
@@ -106,6 +107,9 @@ DefaultConfigRec DefaultConfig[] =
     {SZ_SECT_COLORS            ,     SZ_KEY_MAP_FLAG_1     ,     "255,   0,   0"     },
     {SZ_SECT_COLORS            ,     SZ_KEY_MAP_FLAG_2     ,     "128, 255,   0"     },
     {SZ_SECT_COLORS            ,     SZ_KEY_MAP_FLAG_3     ,     "0,     0, 128"     },
+    {SZ_SECT_COLORS            ,     SZ_UNIT_MOVING_OUT    ,     "160, 192, 255"     },
+    {SZ_SECT_COLORS            ,     SZ_UNIT_GUARDING      ,     "255, 208, 176"     },
+    {SZ_SECT_COLORS            ,     SZ_UNIT_ARRIVING      ,     "255, 255, 144"     },
 
     {SZ_SECT_COLORS            ,     "MAP_Beach"       ,     "255, 255, 0"     },
     {SZ_SECT_COLORS            ,     "MAP_Harbour"     ,     "0, 255, 255"     },

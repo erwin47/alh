@@ -33,10 +33,6 @@
 #include "editpane.h"
 #include "msgframe.h"
 
-BEGIN_EVENT_TABLE(CMsgFrame, CAhFrame)
-    EVT_CLOSE  (              CMsgFrame::OnCloseWindow)
-END_EVENT_TABLE()
-
 
 //--------------------------------------------------------------------
 
@@ -56,7 +52,23 @@ void CMsgFrame::Init(int layout, const char * szConfigSection)
 
     p = new CEditPane(this, wxEmptyString, FALSE, FONT_ERR_DLG);
     SetPane(AH_PANE_MSG    , p);
+
+    Bind(wxEVT_COMMAND_MENU_SELECTED, &CMsgFrame::OnEscape, this, wxID_CLOSE);
+    Bind(wxEVT_CLOSE_WINDOW, &CMsgFrame::OnCloseWindow, this, wxID_ANY);
+
+    wxAcceleratorEntry entries[1];
+    entries[0].Set(wxACCEL_NORMAL, WXK_ESCAPE, wxID_CLOSE);
+    wxAcceleratorTable accel(1, entries);
+    this->SetAcceleratorTable(accel);
+
     p->Init();
+}
+
+//--------------------------------------------------------------------
+
+void CMsgFrame::OnEscape(wxCommandEvent& event)
+{
+    wxWindow::Close();
 }
 
 //--------------------------------------------------------------------
@@ -68,4 +80,3 @@ void CMsgFrame::OnCloseWindow(wxCloseEvent& event)
 }
 
 //--------------------------------------------------------------------
-

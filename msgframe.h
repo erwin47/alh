@@ -30,9 +30,8 @@ public:
 
 private:
     void OnCloseWindow(wxCloseEvent& event);
+    void OnEscape(wxCommandEvent&);
 
-
-    DECLARE_EVENT_TABLE()
 };
 
 

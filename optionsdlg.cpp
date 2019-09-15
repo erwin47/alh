@@ -390,12 +390,6 @@ void COptionsDialog::OnCancel(wxCommandEvent& event)
         {
             if (m_bFontChanged[i])
             {
-/*              gpApp->m_Fonts[i]->SetPointSize(m_FontData[i].size    ) ;
-                gpApp->m_Fonts[i]->SetFamily   (m_FontData[i].family  ) ;
-                gpApp->m_Fonts[i]->SetStyle    (m_FontData[i].style   ) ;
-                gpApp->m_Fonts[i]->SetWeight   (m_FontData[i].weight  ) ;
-                gpApp->m_Fonts[i]->SetEncoding (m_FontData[i].encoding) ;
-                gpApp->m_Fonts[i]->SetFaceName (m_FontData[i].face    ) ;*/
                 delete gpApp->m_Fonts[i];
                 gpApp->m_Fonts[i] = new wxFont(m_FontData[i].size,
                                             m_FontData[i].family,
@@ -404,8 +398,6 @@ void COptionsDialog::OnCancel(wxCommandEvent& event)
                                             FALSE,
                                             m_FontData[i].face,
                                             m_FontData[i].encoding   );
-//            font = new wxFont(size, family, style, weight, FALSE, facename, (wxFontEncoding)encoding);
-
             }
         }
 

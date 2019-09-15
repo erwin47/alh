@@ -21,8 +21,10 @@
 
 #include "wx/listctrl.h"
 
+#include "ahapp.h"
 #include "objs.h"
 #include "data.h"
+#include "consts_ah.h"
 
 #include "listpane.h"
 
@@ -239,20 +241,22 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
             }
             if (dataitem->GetProperty(PRP_GUI_COLOR, valuetype, value ) && (eLong==valuetype))
             {
+                wxColour backgroundColor;
                 switch ((long)value)
                 {
                     case 1:
-                        SetItemBackgroundColour(row, wxColor("#82B4FF")); // Light Blue
+                        StrToColor(&backgroundColor, gpApp->GetConfig(SZ_SECT_COLORS, SZ_UNIT_MOVING_OUT));
                     break;
                     case 2:
-                        SetItemBackgroundColour(row, wxColor("#FFFF94")); // Light Yellow
+                        StrToColor(&backgroundColor, gpApp->GetConfig(SZ_SECT_COLORS, SZ_UNIT_ARRIVING));
                     break;
                     case 3:
-                        SetItemBackgroundColour(row, wxColor("#CCAA00")); // Brown, guarding unit
+                        StrToColor(&backgroundColor, gpApp->GetConfig(SZ_SECT_COLORS, SZ_UNIT_GUARDING));
                     break;
                     default:
-                        SetItemBackgroundColour(row, wxColor("#FFFFFF")); // White
+                        backgroundColor = wxColor("#FFFFFF");
                 }
+                SetItemBackgroundColour(row, backgroundColor);
             }
         }
         while (m_pData->Count() < GetItemCount())

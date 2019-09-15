@@ -3899,13 +3899,12 @@ BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane,
 
 int  CAtlaParser::SaveOrders(const char * FNameOut, const char * password, BOOL decorate, int factid)
 {
-    int           i, n, idx, x;
+    int           i, n, x;
     CUnit       * pUnit;
     CFileWriter   Dest;
     CStr          S(64), S1(64);
     int           err = ERR_OK;
     const char  * p;
-    long          OldLand = -1;
     CLand       * pLand, DummyLand;
     CPlane      * pPlane;
     char          buf[64];
@@ -4289,19 +4288,27 @@ void CAtlaParser::OrderErrFinalize()
     m_sOrderErrors.Empty();
 }
 
-void CAtlaParser::OrderErr(int Severity, int UnitId, const char * Msg, const char * UnitName)
+void CAtlaParser::OrderErr(int Severity, int UnitId, const char * Msg, const char * UnitName, CUnit * pUnit)
 {
     const char * type;
     CStr         S(32);
+    CStr         prefix;
+    CStr         land;
 
     if (0==Severity)
         type = "Error  ";
     else
         type = "Warning";
+
+    if (pUnit && IS_NEW_UNIT(pUnit))
+    {
+        ComposeLandStrCoord(GetLand(pUnit->LandId), land);
+        prefix.Format("(%s) ", land.GetData());
+    }
     if (UnitName)
-        S.Format("%s (%d) %s : %s%s", UnitName, UnitId, type, Msg, EOL_SCR);
+        S.Format("%s%s (%d) %s : %s%s", prefix.GetData(), UnitName, UnitId, type, Msg, EOL_SCR);
     else
-        S.Format("Unit % 5d %s : %s%s", UnitId, type, Msg, EOL_SCR);
+        S.Format("%sUnit % 5d %s : %s%s", prefix.GetData(), UnitId, type, Msg, EOL_SCR);
 
 
     m_sOrderErrors << S;
@@ -4807,7 +4814,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     {                                                \
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
-        OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData()); \
+        OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData(), pUnit); \
         continue;                                    \
     }                                                \
 }
@@ -4818,7 +4825,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     {                                                \
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
-        OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData()); \
+        OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData(), pUnit); \
     }                                                \
 }
 
@@ -4828,7 +4835,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     {                                                \
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
-        OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData()); \
+        OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData(), pUnit); \
         break;                                       \
     }                                                \
 }
@@ -5763,9 +5770,9 @@ void CAtlaParser::RunOrder_Upkeep(CUnit * pUnit, int turns)
     {
         if (pUnit->GetProperty(PRP_LEADER, type, (const void *&)leadership, eNormal) && eCharPtr==type &&
             (0==strcmp(leadership, SZ_LEADER) || 0==strcmp(leadership, SZ_HERO)))
-            Maintainance = nmen * 50;
+            Maintainance = nmen * atoi(gpApp->GetConfig(SZ_SECT_COMMON, SZ_UPKEEP_LEADER));
         else
-            Maintainance = nmen * 10;
+            Maintainance = nmen * atoi(gpApp->GetConfig(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT));
         if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
         {
             unitSilver = 0;
@@ -6835,6 +6842,10 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
             if (!pLand->PeasantRace.IsEmpty())
                 ReadPropertyName(pLand->PeasantRace.GetData(), S1);
 
+        // men/man is a category and cannot be aliased
+        if (S1.FindSubStr("HUMANS") != -1) S1 = "MAN";
+        if (S1.FindSubStr("ORCS") != -1) S1 = "ORC";
+
         MakeQualifiedPropertyName(PRP_SALE_PRICE_PREFIX, S1.GetData(), LandProp);
         if ( pLand->GetProperty(LandProp.GetData(), type, (const void *&)peritem, eNormal) && (eLong==type))
         {
@@ -6894,6 +6905,12 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
             pUnit->CalcWeightsAndMovement();
 
             AdjustSkillsAfterGivingMen(&DummyGiver, pUnit, S1, n1);
+
+            if (gpDataHelper->IsMan(S1.GetData()))
+            {
+                if (S1.FindSubStr("LEAD") >= 0)
+                    SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_LEADER, eNormal);
+            }
         }
         else
             SHOW_WARN_CONTINUE(" - Can not BUY that!");
