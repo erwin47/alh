@@ -22,7 +22,6 @@
 
 #include <math.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 
 #include "wx/string.h"
@@ -2318,12 +2317,12 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
                     p  = N1.GetToken(p, ')');
                     break;
 
-            case '[':
-                p = N1.GetInteger(Line.GetData(), Valid);
-                if (N1.IsEmpty())
-                    n1 = 1;
-                else
-                    n1 = atol(N1.GetData());
+                case '[':
+                    p = N1.GetInteger(Line.GetData(), Valid);
+                    if (N1.IsEmpty())
+                        n1 = 1;
+                    else
+                        n1 = atol(N1.GetData());
 
                     p = S1.GetToken(p, '[', TRIM_ALL);
                     p = S2.GetToken(p, ']', TRIM_ALL);
@@ -2346,9 +2345,7 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
                             if (S1.FindSubStr(SZ_HERO) >=0 )
                                 SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_HERO, eBoth);
                         }
-
                     }
-
                     break;
             }
         }
@@ -6271,23 +6268,11 @@ void CAtlaParser::RunOrder_Give(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
     CUnit             * pUnit2 = NULL;
     const void        * value;
     const void        * value2;
-
-//    int               * weights;    // calculate weight change while giving
-//    const char       ** movenames;
-//    int                 movecount;
-
     CStr                Item;
     int                 amount;
 
     do
     {
-        // GIVE               15 UNIT
-        // GIVE [NEW]         3  15 SILV
-        // GIVE FACTION X NEW Y  N  Something
-        // GIVE               15 ALL SILV EXCEPT 15 - SH-EXCPT
-        //                    n1 n2 S1
-
-
         if (!GetTargetUnitId(params, pUnit->FactionId, n1))
             SHOW_WARN_CONTINUE(" - Invalid unit id");
         if (n1==pUnit->Id)
@@ -6339,12 +6324,6 @@ void CAtlaParser::RunOrder_Give(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 AdjustSkillsAfterGivingMen(pUnit, pUnit2, Item, amount);
             }
 
-//            if ( gpDataHelper->GetItemWeights(Item.GetData(), weights, movenames, movecount) )
-//            {
-//                pUnit ->AddWeight(-amount, weights, movenames, movecount);
-//                if (pUnit2)
-//                    pUnit2->AddWeight( amount, weights, movenames, movecount);
-//            }
             pUnit->CalcWeightsAndMovement();
             if (pUnit2)
                 pUnit2->CalcWeightsAndMovement();

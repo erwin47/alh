@@ -4633,7 +4633,7 @@ void CAhApp::ExportHexes()
 
             Hexes.DeleteAll();
         }
-        Dest.Close();
+    Dest.Close();
 }
 
 //--------------------------------------------------------------------------

@@ -259,8 +259,9 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
                 SetItemBackgroundColour(row, backgroundColor);
             }
         }
-        while (m_pData->Count() < GetItemCount())
-            DeleteItem(m_pData->Count());
+
+    while (m_pData->Count() < GetItemCount())
+        DeleteItem(m_pData->Count());
 
     if (FullUpdate && (selno>=0))
     {
