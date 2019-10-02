@@ -2161,15 +2161,15 @@ void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & Ta
 
 
     // Output
-    for (x=0; x<Factions.Count(); x++)
+    for (int iFac=0; iFac<Factions.Count(); iFac++)
     {
-        pDetail = (CTaxProdDetails*)Factions.At(x);
+        pDetail = (CTaxProdDetails*)Factions.At(iFac);
         OneLine.Empty();
 
         m_pAtlantis->ComposeLandStrCoord(pLand, sCoord);
         OneLine << wxString::FromUTF8(pLand->TerrainType.GetData()) << wxT(" (") << wxString::FromUTF8(sCoord.GetData()) << wxT(") ");
         if (!pLand->CityName.IsEmpty())
-            OneLine << wxT("contains ") << wxString::FromUTF8(pLand->CityName.GetData()) << wxT(" ");
+            OneLine << wxString::FromUTF8(pLand->CityName.GetData()) << wxT(" ");
 
         wxCoord x, y;
         wxClientDC myDC(m_Frames[AH_FRAME_MAP]);
@@ -2204,7 +2204,7 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
     CStr            sCoord, Skill;
     CProduct      * pProd;
     TProdDetails    details;
-    CTaxProdDetails * pFactionInfo;
+    CTaxProdDetails * pFactionInfo = NULL;
     CTaxProdDetails   Dummy;
     int               idx;
     CTaxProdDetailsCollByFaction Factions;
@@ -2260,47 +2260,53 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
             }
         }
 
-        for (x=0; x<Factions.Count(); x++)
+        for (int iFac=0; iFac<Factions.Count(); ++iFac)
         {
-            pFactionInfo = (CTaxProdDetails*)Factions.At(x);
+            pFactionInfo = (CTaxProdDetails*)Factions.At(iFac);
 
             m_pAtlantis->ComposeLandStrCoord(pLand, sCoord);
             OneLine.Empty();
             OneLine << wxString::FromUTF8(pLand->TerrainType.GetData()) << wxT(" (") << wxString::FromUTF8(sCoord.GetData()) << wxT(") ");
             if (!pLand->CityName.IsEmpty())
-                OneLine << wxT("contains ") << wxString::FromUTF8(pLand->CityName.GetData()) << wxT(" ");
+                OneLine << wxString::FromUTF8(pLand->CityName.GetData()) << wxT(" ");
+
+            const int nettoProduction = -pFactionInfo->amount;
+            wxString prodBalance = wxString::Format("%d", nettoProduction);
+            if (nettoProduction >= 0 && nettoProduction <= 3)
+                prodBalance = "=";
 
             wxCoord x, y;
             wxClientDC myDC(m_Frames[AH_FRAME_MAP]);
+            myDC.GetTextExtent(prodBalance, &x, &y, NULL, NULL, (m_Fonts[FONT_ERR_DLG]));
+            const int prodBalanceWidth = x;
+
             do
             {
                 OneLine.Append(wxT(" "));
                 myDC.GetTextExtent(OneLine.GetData(), &x, &y, NULL, NULL, (m_Fonts[FONT_ERR_DLG]));
             }
-            while (x < 245);
+            while (x < 245 - prodBalanceWidth);
 
-            OneLine << wxString::FromUTF8(pProd->ShortName.GetData());
+            OneLine << prodBalance << " " << wxString::FromUTF8(pProd->ShortName.GetData());
 
             do
             {
                 OneLine.Append(wxT(" "));
                 myDC.GetTextExtent(OneLine, &x, &y, NULL, NULL, (m_Fonts[FONT_ERR_DLG]));
             }
-            while (x < 285);
+            while (x < 295);
 
-            if (pFactionInfo->amount > 0 && pProd->Amount > 0)
-                OneLine << wxT(" is underproduced by ") << pFactionInfo->amount << wxT(" (") << 100 * (pProd->Amount - pFactionInfo->amount) / (pProd->Amount) << wxT("% of ") << pProd->Amount << wxT(").") << wxString::FromUTF8(EOL_SCR);
-            else if (pFactionInfo->amount<0 && pProd->Amount > 0)
-                OneLine << wxT(" is overproduced  by ") << (-pFactionInfo->amount) << wxT(" (") << 100 * (pProd->Amount - pFactionInfo->amount) / (pProd->Amount) << wxT("% of ") << pProd->Amount << wxT(").") << wxString::FromUTF8(EOL_SCR);
-            else
-                OneLine << wxT(" exact amount produced ") << wxString::FromUTF8(EOL_SCR);
+            const int percentage = 100 * (pProd->Amount - pFactionInfo->amount) / (pProd->Amount);
+            const int myProductionCapacity = pProd->Amount - pFactionInfo->amount;
 
+            OneLine << " (" << percentage << "%), " << myProductionCapacity << wxT("/") << pProd->Amount << wxT(".") << wxString::FromUTF8(EOL_SCR);
             pFactionInfo->Details << OneLine.ToUTF8();
         }
-
         Factions.DeleteAll();
     }
-
+    // Add a whiteline between different regions
+    if (pFactionInfo)
+        pFactionInfo->Details << wxString::FromUTF8(EOL_SCR);
     AllFactions.DeleteAll();
 }
 
