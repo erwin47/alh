@@ -4813,8 +4813,8 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
         OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData(), pUnit); \
-        continue;                                    \
     }                                                \
+    continue;                                        \
 }
 
 #define SHOW_WARN(msg)                               \
@@ -7602,6 +7602,9 @@ void CAtlaParser::RunPseudoComment(CStr & Line, CStr & ErrorLine, BOOL skiperror
     CStr            S;
     char            ch;
     const char    * p;
+    EValueType      type;
+    const void    * value;
+
     do
     {
         p = SkipSpaces(Command.GetToken(SkipSpaces(src), " \t", ch, TRIM_ALL));
@@ -7613,7 +7616,7 @@ void CAtlaParser::RunPseudoComment(CStr & Line, CStr & ErrorLine, BOOL skiperror
             Command = src;
             RunOrder_Withdraw(Command, S, FALSE, pUnit, pLand, p);
         }
-        if (SQ_CLAIM == sequence && (0==stricmp(Command.GetData(), "$TRAVEL")))
+        else if (SQ_CLAIM == sequence && (0==stricmp(Command.GetData(), "$TRAVEL")))
         {
             CStr token;
             p = SkipSpaces(token.GetToken(p, " ;\t", ch, TRIM_ALL));
@@ -7633,22 +7636,43 @@ void CAtlaParser::RunPseudoComment(CStr & Line, CStr & ErrorLine, BOOL skiperror
             else
                 SHOW_WARN_CONTINUE(" - Invalid parameter");
         }
-
-        if (SQ_MOVE==sequence && (0==stricmp(Command.GetData(), "$MOVE")))
+        else if (SQ_MOVE==sequence && (0==stricmp(Command.GetData(), "$MOVE")))
         {
             destination = wxString::FromUTF8(p);
         }
+        else if (SQ_MAX-1 == sequence && (0==stricmp(Command.GetData(), "$checkzero")))
+        {
+            CStr itemname;
+            p = SkipSpaces(itemname.GetToken(p, " ;\t", ch, TRIM_ALL));
 
-        if (SQ_MAX-1 == sequence && (0==stricmp(Command.GetData(), "$UPKEEP")))
+            long itemCount = 0;
+            if (pUnit->GetProperty(itemname.GetData(), type, value, eNormal) && (eLong==type) )
+                itemCount = (long)value;
+            if (itemCount > 0) SHOW_WARN_CONTINUE(" - has items");
+        }
+        else if (SQ_MAX-1 == sequence && (0==stricmp(Command.GetData(), "$checkmax")))
+        {
+            CStr reqItemname;
+            p = SkipSpaces(reqItemname.GetToken(p, " ;\t", ch, TRIM_ALL));
+            CStr reqItemcount;
+            p = SkipSpaces(reqItemcount.GetToken(p, " ;\t", ch, TRIM_ALL));
+            long reqItems = atoi(reqItemcount.GetData());
+
+            long itemCount = 0;
+            if (pUnit->GetProperty(reqItemname.GetData(), type, value, eNormal) && (eLong==type) )
+                itemCount = (long)value;
+            if (itemCount > reqItems) SHOW_WARN_CONTINUE(" - has too many");
+        }
+        else if (SQ_MAX-1 == sequence && (0==stricmp(Command.GetData(), "$UPKEEP")))
         {
             Command = src;
-            int turns = atoi(p);
+            int turns = atol(p);
             if (turns < 1) turns = 1;
             RunOrder_Upkeep(pUnit, turns);
         }
 
     }
-    while (FALSE);
+    while (false);
 }
 
 
