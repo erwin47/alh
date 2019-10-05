@@ -5349,7 +5349,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
+                            {
+                                // AVOID 1 implies per game rules GUARD 0
                                 pUnit->Flags |=  UNIT_FLAG_AVOIDING;
+                                pUnit->Flags &= ~UNIT_FLAG_GUARDING;
+                            }
                             else if (0==stricmp(N1.GetData(), "0"))
                                 pUnit->Flags &= ~UNIT_FLAG_AVOIDING;
                             else
