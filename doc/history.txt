@@ -1,3 +1,42 @@
+
+2019
+
+- added pseudocommands ;$move, ;$travel, ;$upkeep, ;$checkzero
+
+- guard and avoid flags are now mutually exclusive
+
+ - The messages and errors window does not retake focus when it is already open. Escape closes the window if it has focus.
+
+ - Added simulation of tax/share/work/upkeep in the new economy menu. It adjusts the display of silver in the unitlist, and warns if there is not enough silver.
+
+ - reduced could ride/fly movement warnings
+
+ - units which are ordered to move are colored lightblue.
+ - units which are ordered to move to a hex are now listed in the unitlist at the destination hex with a yellow color
+ - units which are guarding (or ordered to guard) are colored brown.
+
+ - ALH calculates movement cost and warns when movement will take multiple turns. New warnings related to shafts. When moving through a shaft the movement trail ends in a black square. New config section [TERRAIN_COST].
+
+ - Added [PLANE_SIZE] config section, to tell ALH where the map wraps.
+
+ - when selecting a hex outside the mapview, the mapview will be centered on the hex.
+
+ - Added interface to connect shafts with a target hex, in case you know both ends but alh is not aware of the connection. Can also be used to fix issue with two shafts in the same hex.
+
+ - Added context menu create scouts
+ - New units are no longer transient; they remain till orders are loaded. Orders must now be given directly to new units. Added context menu to create (split) and remove new units.
+
+ - Ensure that all windows are placed on the visible screen
+ - Added new main window layout to the options
+ - Added unit properties PRP_WEIGHT_WALK, PRP_WEIGHT_RIDE, PRP_WEIGHT_FLY, PRP_WEIGHT_SWIM
+ - warnings now include more detail, and unit warnings can always be doubleclicked to select them.
+ - more detail in the check tax, trade for next turn report
+ - no longer adding no_orders_msg when running monthlong_orders check
+ - removal of various popups
+
+2.7.0
+ - unicode support
+
 2.6.4
  - Move order for a unit unable to walk but able to fly would give error. 
  - Find trade routes uses original amounts, so not affected by orders.
