@@ -38,11 +38,11 @@
 
 <p>If ALH knows how shafts are connected it can predict movements to the underworld. ALH learns this when one of your units travels through a shaft. If you know how shafts are connected and want to tell ALH this, you can use the <b>connect shafts</b> option from the menu.</p>
 
-<p>Another major change is that <b>new units</b>, such as NEW 1, are no longer transient. They keep exisiting even after you select another hex to look at. Instead of typing the FORM X command in the orders for another unit, ALH does this for you. Right click on the unit which should create the new unit and select "Split". In the Split Unit dialog you can directly give items from the original unit to the new one and issue orders for the new unit. After splitting, you can select the new unit and modify its orders.</p>
+<p>Another major change is that <b>new units</b>, such as NEW 1, are no longer transient. They keep exisiting even after you select another hex to look at. Instead of typing the FORM X command in the orders for another unit, ALH does this for you. Right click on the unit which should create the new unit and select "Split". In the Split Unit dialog you can directly give items from the original unit to the new one and issue orders for the new unit. After splitting, you can select the new unit and modify its orders. Repeated @FORM no longer works.</p>
 
 <p>Another feature is the economy prediction. ALH is quite good at predicting how much silver a unit will have during the various phases when the turn runs. It will calculate how much silver a unit will tax for, its study costs, which units will share silver if you use the SHARE 1 flag, and whether a unit will have enough maintenance silver to survive the maintenance phase. You can activate these options in the <b>Economy Menu</b>; when you start ALH they are always off.</p>
 
-<p>I welcome feedback, so you can leave me a message on discord @Zorky#3892 or erwin@bridgebar.nl. </p>
+<p>Feedback is welcome, you can leave me a message on discord @Zorky#3892 or erwin@bridgebar.nl. </p>
 
 <a name="intro"></a>
 <h3>Introduction</h3>
@@ -83,50 +83,46 @@
 ./configure
 make
 </pre>
-					<p>
-						<a name="install"></a>
-						<h4>Installation</h4>
-				<li>
-				ALH uses current directory for storing configuration and history files. So, you
-				will need a separate directory for every game you are playing. And that
-				directory must be a current directory when you are starting ALH.
-				<li>
-					Just copy ALH executable to some directory on the path and run it from the game
-					directory.
-					<p>
-						<a name="install_win32"></a>
-						<h4>Installation on Windows</h4>
-				<li>
-				ALH uses current directory for storing configuration and history files. So, you
-				will need a separate directory for every game you are playing. And that
-				directory must be a current directory when you are starting ALH. The simplest
-				way to do it is just to copy ah.exe in every game directory. Or desktop
-				shortcut may be created for each game, starting directory set to point to your
-				game directory. And so on.
-				<li>
-					Windows file extension association may be created, so you will just have to
-					click on a report file to run ALH. If you placed ALH into, say, d:\bin, then
-					use the next line for "Application used to perform action" when creating an
-					association: d:\bin\ah.exe "%1" This is yet another way to handle the current
-					directory requirement.
-					<p>
-						<a name="config"></a>
-						<h4>Configuration</h4>
-				<li>
-					ALH stores configuration data in two files:
-					<div style="MARGIN-LEFT: 20px">
-						ah.cfg contains client configuration, such as windows positions and sizes.<br>
-						ah.st.cfg contains game specific data, such as item descriptions or report file
-						names.<br>
-					</div>
-				<li>
-				There are user interfaces for the most common configuration tasks. For example,
-				fonts and colors can be changed from Menu/View/Options. Column sets in the unit
-				lists can be modified from Menu/Windows/List Columns/...
-				<li>
-					Config files can be modified manually as well. <a name="config_sections"></a>
-				<li>
-					Config file sections of interest are:
+	<p>
+	<a name="install"></a>
+	<h4>Installation</h4>
+	<li>ALH uses current directory for storing configuration and history files. So, you
+	will need a separate directory for every game you are playing. And that
+	directory must be a current directory when you are starting ALH.
+	<li>Just copy ALH executable to some directory on the path and run it from the game
+		directory.
+		<p>
+			<a name="install_win32"></a>
+			<h4>Installation on Windows</h4>
+	<li>ALH uses current directory for storing configuration and history files. So, you
+	will need a separate directory for every game you are playing. And that
+	directory must be a current directory when you are starting ALH. The simplest
+	way to do it is just to copy ah.exe in every game directory. Or desktop
+	shortcut may be created for each game, starting directory set to point to your
+	game directory. And so on.
+	<li>Windows file extension association may be created, so you will just have to
+	click on a report file to run ALH. If you placed ALH into, say, d:\bin, then
+	use the next line for "Application used to perform action" when creating an
+	association: d:\bin\ah.exe "%1" This is yet another way to handle the current
+	directory requirement.
+	<p>
+		<a name="config"></a>
+		<h4>Configuration</h4>
+	<li>
+		ALH stores configuration data in two files:
+		<div style="MARGIN-LEFT: 20px">
+			ah.cfg contains client configuration, such as windows positions and sizes.<br>
+			ah.st.cfg contains game specific data, such as item descriptions or report file
+			names.<br>
+		</div>
+	<li>
+	There are user interfaces for the most common configuration tasks. For example,
+	fonts and colors can be changed from Menu/View/Options. Column sets in the unit
+	lists can be modified from Menu/Windows/List Columns/...
+	<li>
+		Config files can be modified manually as well. <a name="config_sections"></a>
+	<li>
+		Config file sections of interest are:
 					<pre>    [ALIASES]        - In this section aliases must be in underscored
 			form, like Horse_Training. In orders both forms
 			are valid, so it ok to write "Horse Training"
@@ -221,24 +217,19 @@ values:
         Overworld  = 0,0,29,29
         underworld = 0,0,9,9
 
-
 </pre>
-                            <a name="unitprop"></a>
-                            <h3>Unit properties</h3>
-                        <li>
-                        Units have properties. Every item unit posess or skill it has is a property.
-                        Short form of an item/skill name is a property name. Undescore is appended to a
-                        skill name to distinguish it from an item name. For example, HORS property
-                        specifies how many horses unit has and HORS_ specifies unit's skill level in
-                        horse training.
-                        <li>
-                        Unit properties are used to display units in the lists and process orders.
-                        <li>
-                        Underscores are only used for unit's skill properties, in orders skill names
-                        are used as usual!
-                        <li>
-                            Built-in unit properties are:
-                            <pre>    id                - unit id
+	<a name="unitprop"></a>
+	<h3>Unit properties</h3>
+	<li>Units have properties. Every item unit posess or skill it has is a property.
+	Short form of an item/skill name is a property name. Undescore is appended to a
+	skill name to distinguish it from an item name. For example, HORS property
+	specifies how many horses unit has and HORS_ specifies unit's skill level in
+	horse training.
+	<li>Unit properties are used to display units in the lists and process orders.
+	<li>Underscores are only used for unit's skill properties, in orders skill names
+	are used as usual!
+	<li>Built-in unit properties are:
+	<pre>    id                - unit id
     name              - unit name
     description       - full unit description
     factionid         - faction id
@@ -292,72 +283,75 @@ values:
 			
 			
 <a name="map_legend"></a>
-				<h4>Map Legend</h4>
-			<li>
-			There is a number of icons which could be displayed in the map:
-			<li>
-			'$' specifies taxed regions.
-			<li>
-			'P' specifies regions with production activities.
-			<li>
-			Pyramid represents a generic object.
-			<li>
-			Inverted Pyramid is a ship.
-			<li>
-			Ladder is a shaft.
-			<li>
-			A square with hole in it is a gate.
-			<li>
-				Line is a road. A bad road is dashed line or thin line. Dashing does not work
-				on Windows. <a name="map_bimaps"></a>
-				<h4>Use bitmaps to display terrains</h4>
-			<li>
-			Get a set of windows bitmap files you want to use for the terrain. File names
-			must correspond to terrains, for example bitmap for forest must be called
-			'forest.bmp'.
-			<li>
-				Place bitmaps into your game folder. <a name="ally"></a>
-				<h4>Alliance support</h4>
-			<li>
-			Allies' reports can be joined to the player's report. It will combine
-			visibility of units, hexes and such.
-			<li>
-			Allies' units can be given orders just like player's units.
-			<li>
-			Joining can be done through Menu/File/Join or all the reports can be given in
-			the command line.
-			<li>
-			Map fragments can be joined as well. Of course, map fragments must be in the
-			natural format, the one used in the reports!
+	<h4>Map Legend</h4>
+	<li>
+	There is a number of icons which could be displayed in the map:
+	<li>
+	'$' specifies taxed regions.
+	<li>
+	'P' specifies regions with production activities.
+	<li>
+	Pyramid represents a generic object.
+	<li>
+	Inverted Pyramid is a ship.
+	<li>
+	Ladder is a shaft.
+	<li>
+	A square with hole in it is a gate.
+	<li>
+		Line is a road. A bad road is dashed line or thin line. Dashing does not work
+		on Windows. <a name="map_bimaps"></a>
+		<h4>Use bitmaps to display terrains</h4>
+	<li>
+	Get a set of windows bitmap files you want to use for the terrain. File names
+	must correspond to terrains, for example bitmap for forest must be called
+	'forest.bmp'.
+	<li>
+		Place bitmaps into your game folder. <a name="ally"></a>
+		<h4>Alliance support</h4>
+	<li>
+	Allies' reports can be joined to the player's report. It will combine
+	visibility of units, hexes and such.
+	<li>
+	Allies' units can be given orders just like player's units.
+	<li>
+	Joining can be done through Menu/File/Join or all the reports can be given in
+	the command line.
+	<li>
+	Map fragments can be joined as well. Of course, map fragments must be in the
+	natural format, the one used in the reports!
 
+	<li>
+	Map fragments can be exported as well. It is possible to drag mouse on the map
+	selecting an area, and then export that area. <a name="python"></a>
 
+		<h4>Pseudocomments (special abilities)</h4>
+		<a name="pseudocomments"></a>
+	Pseudocomments are special comments which allow to modify the way how a command
+	in the orders is executed. <br>
+	The following pseudocommands are supported: <br><br>
+	<li>
+	$ne - ignore warnings and errors. If error happens, it
+	will affect the command as usual, however, no indication of the error will be given. <br>
+	For example, <br><br>
+	@give 123 all iron ;$ne<br><br>
+	will not keep annoying you if unit 123 does not have any iron.
 
-			<li>
-			Map fragments can be exported as well. It is possible to drag mouse on the map
-			selecting an area, and then export that area. <a name="python"></a>
+	<li>
+	$get N itemname - will get N items. N can be negative.
+	Useful when ALH does not know about side effects of some commands, such as price of casting a spell. Example:<br><br>
+	cast Magic_Shoe_Making ;$get -100 silv<br><br>
 
-				<h4>Pseudocomments (special abilities)</h4>
-				<a name="pseudocomments"></a>
-			Pseudocomments are special comments which allow to modify the way how a command
-			in the orders is executed. <br>
-			The following pseudocommands are supported: <br><br>
-			<li>
-			$ne - ignore warnings and errors. If error happens, it
-			will affect the command as usual, however, no indication of the error will be given. <br>
-			For example, <br><br>
-			@give 123 all iron ;$ne<br><br>
-			will not keep annoying you if unit 123 does not have any iron.
-
-			<li>
-			$get N itemname - will get N items. N can be negative.
-			Useful when ALH does not know about side effects of some commands, such as price of casting a spell. Example:<br><br>
-			cast Magic_Shoe_Making ;$get -100 silv<br><br>
-
-			<li>
-			;$move &lt;location&gt; - if the unit does not have a move order, ALH will create a move order for the unit to go to the specified location. Location can be specified by coordinates or by settlement name.
-
-<li>;$upkeep &lt;X&gt; - deducts X turns of upkeep.
-<li>;$travel &lt; walk | ride | fly &gt;
+	<li>
+	;$move &lt;location&gt; 
+	<br>If the unit does not have a move order, ALH will create a move order for the unit to go to the specified location. Location can be specified by coordinates or by settlement name.<br>
+	<li>;$checkzero &lt;item&gt;
+	<br>Creates warning if unit has 'item'. Using a category such as 'stuff' works. Useful for checking that a caravan unit fully offloads all of its cargo. It is easy to forget that your iron mine suddenly gives mithril to your transport and forget to offload.
+	<li>;$upkeep &lt;X&gt; 
+	<br>deducts X turns of upkeep.
+	<li>;$travel &lt; walk | ride | fly &gt; 
+	<br>ALH by default will issue a warning if a unit tries to move further than it can travel in one turn.<br>
+	You can suppress any warnings by adding ';ne' to the move order, but the next turn it probably comes back when on a lenghty journey. The travel command will suppress warnings about multi-turn movement, and creates a warning if the unit cannot move at the specified speed.
 </ul>
 <pre>
 	examples: 
@@ -371,15 +365,19 @@ values:
 	;$move cavern (10,14,2 &lt;underworld&gt;)
 		MOVE SE SW SW S ; 4 turns
 	;$upkeep 2 ; will reduce silver count by 20 for a peasant.
-	</pre>
-	ALH will issue a warning if a unit tries to move further than it can travel in one turn.
-	You can of course suppress that warning by adding ';ne' to the move order, but the next turn it probably comes back when on a lenghty journey. The travel command solves this:
+	@;$travel ride ; do not warn about multi-turn move order
+	@;$travel walk ; quite useful for livestock transports, or perhaps for horse-pulled wagons.
 
-	@;$travel ride
-		Instructs ALH that this unit, when moving, must be able to move at riding speed minimum. The warning "Unit is moving further than it can" will be supressed. If for some reason the unit cannot move at ridingspeed a warning will be shown. 
+	One caravan:
+	@TURN
+      give 123 all iron ;$checkzero stuff
+	  give 123 all silv ;$move 4,4
+	ENDTURN
+	@TURN
+	  take from 456 2000 silv ;$move 5,7
+	ENDTURN
 
-	@;$travel walk
-		Is mostly useful for livestock transports, or perhaps for horse-pulled wagons.
+</pre>
 
 
 <h4>Python enhancements</h4>
