@@ -21,7 +21,8 @@ OBJECTS     = collection.o cfgfile.o cstr.o files.o hash.o objs.o\
               editsframe.o extend.o extend_no.o \
 			  flagsdlg.o hexfilterdlg.o listcoledit.o \
               listpane.o mapframe.o \
-              mappane.o msgframe.o optionsdlg.o shaftsframe.o \
+              mappane.o msgframe.o optionsdlg.o routeplanner.o \
+              shaftsframe.o \
               unitfilterdlg.o unitframe.o unitframefltr.o unitpane.o \
               unitpanefltr.o unitsplitdlg.o utildlgs.o
 
@@ -37,4 +38,5 @@ clean:
 	rm -f $(patsubst %.o,obj/%.o,$(OBJECTS)) $(TARGET)
 
 $(patsubst %.o,obj/%.o,$(OBJECTS)): obj/%.o: %.cpp
+	mkdir -p obj
 	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) $(DEFS) -o $@ $<
