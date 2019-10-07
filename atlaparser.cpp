@@ -7074,7 +7074,7 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
     CLand             * pLandCurrent = pLand;
     long                hexId = 0;
     long                newHexId = 0;
-    int                 currentStruct = 0;
+    long                currentStruct = 0;
     int                 totalMovementCost = 0;
     bool                pathCanBeTraced = true;
     int                 movementMode = 0;
@@ -7105,7 +7105,7 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
         // Determine whether the unit is currently in a structure
         if (pUnit->GetProperty(PRP_STRUCT_ID, type, value, eNormal) && eLong==type)
         {
-            currentStruct = (int)value;
+            currentStruct = (long)value;
         }
 
         while (params)
