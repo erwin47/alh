@@ -70,6 +70,7 @@ public:
     void OnPopupMenuShareSilv         (wxCommandEvent& event);
     void OnPopupMenuTeach             (wxCommandEvent& event);
     void OnPopupMenuSplit             (wxCommandEvent& event);
+    void OnPopupMenuCreateNew         (wxCommandEvent& event);
     void OnPopupMenuDiscardJunk       (wxCommandEvent& event);
     void OnPopupMenuDetectSpies       (wxCommandEvent& event);
     void OnPopupMenuGiveEverything    (wxCommandEvent& event);

@@ -40,7 +40,7 @@ CListPane::CListPane(wxWindow *parent, wxWindowID id, long style)
 
     // Disable the SystemTheme before calling Create
     //   This prevents gaps in the backgroundcolor of selected rows.
-    this->EnableSystemTheme(false);
+    //this->EnableSystemTheme(false);
     Create(parent, id, wxDefaultPosition, wxDefaultSize, style);
 
     for (int i=0; i<NUM_SORTS; i++)

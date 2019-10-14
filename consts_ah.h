@@ -90,6 +90,7 @@ enum
     menu_Popup_ShareSilv    ,
     menu_Popup_Teach        ,
     menu_Popup_Split        ,
+    menu_Popup_Create_New   ,
     menu_Popup_DiscardJunk  ,
     menu_Popup_DetectSpies  ,
     menu_Popup_Filter       ,
