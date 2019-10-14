@@ -19,7 +19,8 @@
 
 #include "stdhdr.h"
 
-#include "wx/listctrl.h"
+#include <wx/listctrl.h>
+#include <wx/version.h>
 
 #include "ahapp.h"
 #include "objs.h"
@@ -27,7 +28,6 @@
 #include "consts_ah.h"
 
 #include "listpane.h"
-
 
 //------------------------------------------------------------------------
 
@@ -40,7 +40,9 @@ CListPane::CListPane(wxWindow *parent, wxWindowID id, long style)
 
     // Disable the SystemTheme before calling Create
     //   This prevents gaps in the backgroundcolor of selected rows.
-    //this->EnableSystemTheme(false);
+    #if wxCHECK_VERSION(3, 1, 0)
+      this->EnableSystemTheme(false);
+    #endif
     Create(parent, id, wxDefaultPosition, wxDefaultSize, style);
 
     for (int i=0; i<NUM_SORTS; i++)

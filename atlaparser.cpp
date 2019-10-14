@@ -1249,11 +1249,23 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
     src      = Section.GetToken(srcold, '.', TRIM_ALL);
     if (!m_IsHistory && m_CurYearMon>0)
         ParseWeather(src, pLand);  // weather description should be right after the first section
+        
     while (!Section.IsEmpty())
     {
         BOOL RerunSection = FALSE;
 
         str = Section.GetData();
+        
+        // When weather is not activated the dashed (----) is not cleaned. Do it here
+	    str = SkipSpaces(str);
+	    if ('-'==str[0] && '-'==str[1] && '-'==str[2] )
+	    {
+	        while (*str > ' ')
+	            str++;
+	        str = SkipSpaces(str);
+	    }
+	    
+	    // Parse land data
         while (str)
         {
             if (RerunSection)

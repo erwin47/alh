@@ -4285,12 +4285,16 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
     CStr               sCoord;
     CLongSortColl      Factions;
     long               TaxPerTaxer;
+    long               UpkeepLeader;
+    long               UpkeepPeasant;
     const char       * leadership;
 
     if (!pCurLand)
         return;
 
     TaxPerTaxer = atol(GetConfig(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER));
+    UpkeepLeader = atol(GetConfig(SZ_SECT_COMMON, SZ_UPKEEP_LEADER));
+    UpkeepPeasant = atol(GetConfig(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT));
 
     // get faction list
     for (idx=0; idx<pCurLand->Units.Count(); idx++)
@@ -4327,7 +4331,7 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
                 {
                     SilvRes += (long)value;
 
-                    if (pUnit->pMovement && pUnit->pMovement->Count()>0)
+                    if (pUnit->pMovement && pUnit->pMovement->Count()>0 && ((long)value > 0))
                         MovedOut += (long)value;
                 }
             }
@@ -4352,9 +4356,9 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
                 if (pUnit->FactionId == CurFaction && (!pUnit->pMovement || pUnit->pMovement->Count()==0))
                     if (pUnit->GetProperty(PRP_LEADER, type, (const void *&)leadership, eNormal) && eCharPtr==type &&
                         (0==strcmp(leadership, SZ_LEADER) || 0==strcmp(leadership, SZ_HERO)))
-                        Maintain += men*20;
+                        Maintain += men*UpkeepLeader;
                     else
-                        Maintain += men*10;
+                        Maintain += men*UpkeepPeasant;
             }
 
         }
