@@ -45,21 +45,52 @@ private:
     DECLARE_EVENT_TABLE()
 };
 
+#include "data.h"
 #include <vector>
 #include <unordered_map>
 #include <string>
-#include <wx/checkbox.h>
+#include "wx/checkbox.h"
+#include "wx/spinctrl.h"
+#include "wx/dialog.h"
 
 namespace unit_control
 {
-    bool is_behind(CUnit* unit);
-    bool is_guard(CUnit* unit);
-    bool is_hold(CUnit* unit);
-    bool is_noaid(CUnit* unit);
-    bool is_avoid(CUnit* unit);
-    bool is_nocross(CUnit* unit);
-
+    namespace flags
+    {
+        bool is_behind(CUnit* unit);
+        bool is_guard(CUnit* unit);
+        bool is_hold(CUnit* unit);
+        bool is_noaid(CUnit* unit);
+        bool is_avoid(CUnit* unit);
+        bool is_nocross(CUnit* unit);
+    }
 };
+
+namespace land_control
+{
+    template<typename T>
+    void get_units_if(CLand* land, std::vector<CUnit*>& units, T Pred)
+    {
+        for (size_t i = 0; i < land->Units.Count(); i++)
+        {
+            CUnit* unit = (CUnit*)land->Units.At(i);
+            if (Pred(unit))
+                units.push_back(unit);
+        }       
+    }
+};
+
+namespace game_control
+{
+    struct Skill
+    {
+        long study_price_;
+        std::string short_name_;
+        std::string long_name_;
+    };
+
+    const std::vector<Skill>& get_skills();
+}
 
 
 
@@ -118,8 +149,7 @@ private:
     void OnCancel       (wxCommandEvent& event);
     void OnOk           (wxCommandEvent& event);
     void onAnySpinUpdate(wxSpinEvent& event);
-    void onAnyCheckBoxUpdate(wxCommandEvent& event);
-
+    void onAnyComboBoxUpdate(wxCommandEvent& event);
 
     CLongColl     m_SplitControls   ;
     wxSpinCtrl    * m_spinUnitCount ;

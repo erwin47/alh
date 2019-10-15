@@ -237,24 +237,62 @@ void CUnitSplitDlg::OnCancel(wxCommandEvent& event)
 #include <wx/statline.h>
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 
 namespace unit_control
 {
-    bool is_behind(CUnit* unit) {  return unit->Flags & UNIT_FLAG_BEHIND;  }
-    bool is_guard(CUnit* unit) {  return unit->Flags & UNIT_FLAG_GUARDING;  }
-    bool is_hold(CUnit* unit) {  return unit->Flags & UNIT_FLAG_HOLDING;  }
-    bool is_noaid(CUnit* unit) {  return unit->Flags & UNIT_FLAG_RECEIVING_NO_AID;  }
-    bool is_avoid(CUnit* unit) {  return unit->Flags & UNIT_FLAG_AVOIDING;  }
-    bool is_nocross(CUnit* unit) {  return unit->Flags & UNIT_FLAG_NO_CROSS_WATER;  }
+    namespace flags
+    {
+        bool is_behind(CUnit* unit) {  return unit->Flags & UNIT_FLAG_BEHIND;  }
+        bool is_guard(CUnit* unit) {  return unit->Flags & UNIT_FLAG_GUARDING;  }
+        bool is_hold(CUnit* unit) {  return unit->Flags & UNIT_FLAG_HOLDING;  }
+        bool is_noaid(CUnit* unit) {  return unit->Flags & UNIT_FLAG_RECEIVING_NO_AID;  }
+        bool is_avoid(CUnit* unit) {  return unit->Flags & UNIT_FLAG_AVOIDING;  }
+        bool is_nocross(CUnit* unit) {  return unit->Flags & UNIT_FLAG_NO_CROSS_WATER;  }
+    }
 
 };
 
+namespace game_control
+{
+    namespace details
+    {
+        std::vector<Skill> get_skills_()
+        {
+            std::vector<Skill> ret;
+            const char  * szName;
+            const char  * szValue;
+            int sectidx = gpApp->GetSectionFirst(SZ_SECT_SKILLS, szName, szValue);
+            while (sectidx >= 0)
+            {
+                Skill temp;
+                std::string name(szName);
+                if (name.find(" ") == std::string::npos || 
+                    name.find("[") == std::string::npos || 
+                    name.find("]") == std::string::npos )
+                    continue;
+                temp.short_name_ = name.substr(name.find("["), name.find("]") - name.find("[")); 
+                temp.long_name_ = name.substr(0, name.find(" "));
+                temp.study_price_ = gpDataHelper->GetStudyCost(temp.long_name_.c_str());
+                ret.push_back(temp);
+                sectidx = gpApp->GetSectionNext(sectidx, SZ_SECT_SKILLS, szName, szValue);
+            }
+            return ret;
+        }
+    }
+    const std::vector<Skill>& get_skills()
+    {
+        static std::vector<Skill> skills_list = details::get_skills_();
+        return skills_list;
+    }
+}
 
 BEGIN_EVENT_TABLE(CCreateNewUnit, wxDialog)
     EVT_BUTTON  (wxID_CANCEL  ,  CCreateNewUnit::OnCancel)
     EVT_BUTTON  (wxID_OK      ,  CCreateNewUnit::OnOk)
     EVT_SPINCTRL(-1           ,  CCreateNewUnit::onAnySpinUpdate)
-    EVT_CHECKBOX(-1           ,  CCreateNewUnit::onAnyCheckBoxUpdate)
+    EVT_COMBOBOX(-1           ,  CCreateNewUnit::onAnyComboBoxUpdate)
+    EVT_CHECKBOX(-1           ,  CCreateNewUnit::onAnyComboBoxUpdate)
 END_EVENT_TABLE()
 
 CCreateNewUnit::CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand) : 
@@ -274,6 +312,7 @@ CCreateNewUnit::CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     //name unit
     wxBoxSizer* unit_names_sizer = new wxBoxSizer( wxVERTICAL );
     text_alias_ = new wxTextCtrl(this, -1, wxT(""));
+    *text_alias_ << pLand->GetNextNewUnitNo();
     text_name_ = new wxTextCtrl(this, -1, wxT(""));
     text_loc_description_ = new wxTextCtrl(this, -1, wxT(""));
     text_description_ = new wxTextCtrl(this, -1, wxT(""));
@@ -308,6 +347,9 @@ CCreateNewUnit::CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
         combobox_buy_units_type_->Append( temp );
         sale_products_.insert({temp, item.second});
     }
+    if (combobox_buy_units_type_->GetCount() > 0)
+        combobox_buy_units_type_->SetSelection(0);
+
     flag_buy_repeating_ = new wxCheckBox(this, -1, "repeating");
     flag_buy_all_ = new wxCheckBox(this, -1, "buy all");
 
@@ -326,18 +368,12 @@ CCreateNewUnit::CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     wxBoxSizer* unit_study_sizer = new wxBoxSizer( wxVERTICAL );
     flag_check_study_ = new wxCheckBox(this, -1, "");
     combobox_skills_ = new wxComboBox(this, -1, wxT("studying"), wxDefaultPosition, wxDefaultSize, 0, NULL);
+    const std::vector<game_control::Skill>& skills = game_control::get_skills();
+    for (const game_control::Skill& skill : skills)
+        combobox_skills_->Append(skill.long_name_);
+    if (combobox_skills_->GetCount() > 0)
+        combobox_skills_->SetSelection(0);
 
-    const char  * szName;
-    const char  * szValue;
-    //TODO: remove dependency on global variable
-    int sectidx = gpApp->GetSectionFirst(SZ_SECT_SKILLS, szName, szValue);
-    while (sectidx >= 0)
-    {
-        std::string name(szName);
-        name.erase(name.find(" "));
-        combobox_skills_->Append(name);
-        sectidx = gpApp->GetSectionNext(sectidx, SZ_SECT_SKILLS, szName, szValue);
-    }
     flag_study_repeating_ = new wxCheckBox(this, -1, "repeating");;
     temp_sizer = new wxBoxSizer( wxHORIZONTAL );
     temp_sizer->Add(flag_check_study_, 0, wxALL);
@@ -353,24 +389,26 @@ CCreateNewUnit::CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     wxBoxSizer* unit_silver_sizer = new wxBoxSizer( wxVERTICAL );
     spin_silver_amount_ = new wxSpinCtrl(this, -1, wxT("0"), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 100000);
     combobox_units_ = new wxComboBox(this, -1, wxT("units"), wxDefaultPosition, wxDefaultSize, 0, NULL);
+
     EValueType type;
     const void* value;
-    for (size_t i = 0; i < pLand->Units.Count(); i++)
+    std::vector<CUnit*> local_units;
+    land_control::get_units_if(pLand, local_units, [this](CUnit* unit) {
+        return unit->FactionId == this->unit_->FactionId;
+    });
+    for (CUnit* unit : local_units)
     {
-        CUnit* unit = (CUnit*)pLand->Units.At(i);
-        if (unit->FactionId == unit_->FactionId)
-        {
-            if (unit->GetProperty(PRP_SILVER, type, value, eNormal) && eLong==type)
-            {
-                std::string unit_and_silver = std::string(unit->Name.GetData()) + "(" + 
-                    std::to_string(unit->Id) + ") " + std::string(unit->pFaction->Name.GetData()) + 
-                    " (max: " + std::to_string((long)value) + ")";
-                
-                silver_holders_.insert({unit_and_silver, unit->Id});
-                combobox_units_->Append(unit_and_silver);
-            }            
-        }
+        value = 0;
+        unit->GetProperty(PRP_SILVER, type, value, eNormal);
+
+        std::string unit_and_silver = std::string(unit->Name.GetData()) + "(" + 
+            std::to_string(unit->Id) + ") " + std::string(unit->pFaction->Name.GetData()) + 
+            " (max: " + std::to_string((long)value) + ")";
+        
+        silver_holders_.insert({unit_and_silver, unit->Id});
+        combobox_units_->Append(unit_and_silver);
     }
+
     flag_receive_silver_repeating_ = new wxCheckBox(this, -1, "repeating");
     temp_sizer = new wxBoxSizer( wxHORIZONTAL );
     temp_sizer->Add(new wxStaticText(this, -1, wxT("Receive: ")), 0, wxALL);
@@ -408,17 +446,17 @@ CCreateNewUnit::CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     ////////////////////////////////////////////////////
     //flag section init
     flag_behind_ = new wxCheckBox(this, -1, "behind");
-    flag_behind_->SetValue(unit_control::is_behind(unit_));
+    flag_behind_->SetValue(unit_control::flags::is_behind(unit_));
     flag_avoid_ = new wxCheckBox(this, -1, "avoid");
-    flag_avoid_->SetValue(unit_control::is_avoid(unit_));
+    flag_avoid_->SetValue(unit_control::flags::is_avoid(unit_));
     flag_hold_ = new wxCheckBox(this, -1, "hold");
-    flag_hold_->SetValue(unit_control::is_hold(unit_));
+    flag_hold_->SetValue(unit_control::flags::is_hold(unit_));
     flag_noaid_ = new wxCheckBox(this, -1, "noaid");
-    flag_noaid_->SetValue(unit_control::is_noaid(unit_));
+    flag_noaid_->SetValue(unit_control::flags::is_noaid(unit_));
     flag_guard_ = new wxCheckBox(this, -1, "guard");
-    flag_guard_->SetValue(unit_control::is_guard(unit_));
+    flag_guard_->SetValue(unit_control::flags::is_guard(unit_));
     flag_nocross_ =  new wxCheckBox(this, -1, "nocross");
-    flag_nocross_->SetValue(unit_control::is_nocross(unit_));
+    flag_nocross_->SetValue(unit_control::flags::is_nocross(unit_));
 
     wxArrayString buf;
     buf.Add(wxT("none"));
@@ -499,17 +537,40 @@ CCreateNewUnit::~CCreateNewUnit()
 
 void CCreateNewUnit::UpdateExpences()
 {
-    std::string buy_unit_type(this->combobox_buy_units_type_->GetValue().mb_str());
-    CProductMarket product = this->sale_products_.at(buy_unit_type);
-    long buying_expences = spin_buy_units_amount_->GetValue() * product.price_;
+    try 
+    {
+        std::string buy_unit_type(combobox_buy_units_type_->GetValue().mb_str());
+        CProductMarket product = sale_products_.at(buy_unit_type);
+        long buying_expences = spin_buy_units_amount_->GetValue() * product.price_;
 
-    expenses_buying_->SetLabel(std::to_string(buying_expences));
-    
+        long studying_expences = 0;
+        if (flag_check_study_->IsChecked())
+        {
+            const std::vector<game_control::Skill>& skills = game_control::get_skills();
+            std::string study_skill(combobox_skills_->GetValue().mb_str());
+            for (const auto& skill : skills)
+            {
+                if (!skill.long_name_.compare(study_skill.c_str()))
+                {
+                    studying_expences = skill.study_price_;
+                    break;
+                }
+            }            
+        }
+        expenses_buying_->SetLabel(std::to_string(buying_expences));
+        expenses_studying_->SetLabel(std::to_string(studying_expences));
+        expenses_all_->SetLabel(std::to_string(buying_expences + studying_expences));
+    }
+    catch(const std::exception& ex)
+    {
+        std::cerr << ex.what() << std::endl;
+    }
 }
 
 void CCreateNewUnit::OnCancel       (wxCommandEvent& event)
 {
-
+    StoreSize();
+    EndModal(wxID_CANCEL);
 }
 void CCreateNewUnit::OnOk           (wxCommandEvent& event)
 {
@@ -519,7 +580,7 @@ void CCreateNewUnit::onAnySpinUpdate(wxSpinEvent& event)
 {
     UpdateExpences();
 }
-void CCreateNewUnit::onAnyCheckBoxUpdate(wxCommandEvent& event)
+void CCreateNewUnit::onAnyComboBoxUpdate(wxCommandEvent& event)
 {
     UpdateExpences();
 }
