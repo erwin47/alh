@@ -1405,6 +1405,18 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
 
                     if ((!S2.IsEmpty()) && (n2>0) )
                     {
+                        //temporary I'll keep both, and then I'll remove Property part
+                        CProductMarket temp_product;
+                        temp_product.price_ = n2;
+                        temp_product.amount_ = n1;
+                        temp_product.short_name_ = S2.GetData();
+                        temp_product.long_name_ = S1.GetData();
+                        
+                        if (eSale == SectType)
+                            pLand->for_sale_[S2.GetData()] = temp_product;
+                        else
+                            pLand->wanted_[S2.GetData()] = temp_product;
+
                         if (eSale == SectType)
                             MakeQualifiedPropertyName(PRP_SALE_AMOUNT_PREFIX, S2.GetData(), Buf);
                         else

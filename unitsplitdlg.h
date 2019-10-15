@@ -50,17 +50,51 @@ private:
 #include <string>
 #include <wx/checkbox.h>
 
+namespace unit_control
+{
+    bool is_behind(CUnit* unit);
+    bool is_guard(CUnit* unit);
+    bool is_hold(CUnit* unit);
+    bool is_noaid(CUnit* unit);
+    bool is_avoid(CUnit* unit);
+    bool is_nocross(CUnit* unit);
+
+};
+
+
 
 class CCreateNewUnit : public CResizableDlg
 {
     CUnit* unit_;
-    CLand* land_;
+    std::unordered_map<std::string, CProductMarket> sale_products_;
+    std::map<std::string, long> silver_holders_;
 
     //naming section
     wxTextCtrl* text_alias_;
     wxTextCtrl* text_name_;
     wxTextCtrl* text_loc_description_;
     wxTextCtrl* text_description_;
+
+    //buy section
+    wxSpinCtrl* spin_buy_units_amount_;
+    wxComboBox* combobox_buy_units_type_;
+    wxCheckBox* flag_buy_repeating_;
+    wxCheckBox* flag_buy_all_;
+
+    //study section
+    wxCheckBox* flag_check_study_;
+    wxComboBox* combobox_skills_;
+    wxCheckBox* flag_study_repeating_;
+
+    //receive silver section
+    wxSpinCtrl* spin_silver_amount_;
+    wxComboBox* combobox_units_;
+    wxCheckBox* flag_receive_silver_repeating_;
+
+    //Expenses section
+    wxStaticText* expenses_buying_; 
+    wxStaticText* expenses_studying_; 
+    wxStaticText* expenses_all_; 
 
     //flags section
     wxCheckBox* flag_behind_;
@@ -74,20 +108,18 @@ class CCreateNewUnit : public CResizableDlg
     wxRadioBox* radiobox_flag_spoils_;
     wxRadioBox* radiobox_flag_consume_;
 
-    //buy section
-    wxSpinCtrl* spin_buy_units_amount_;
-    wxComboBox* combobox_buy_units_type_;
-    wxCheckBox* flag_buy_repeating_;
-    wxCheckBox* flag_buy_all_;
-
 public:
     //flags consist of command and it's possible values
     CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand);
     ~CCreateNewUnit();
 
 private:
+    void UpdateExpences();
     void OnCancel       (wxCommandEvent& event);
     void OnOk           (wxCommandEvent& event);
+    void onAnySpinUpdate(wxSpinEvent& event);
+    void onAnyCheckBoxUpdate(wxCommandEvent& event);
+
 
     CLongColl     m_SplitControls   ;
     wxSpinCtrl    * m_spinUnitCount ;

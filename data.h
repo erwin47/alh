@@ -27,6 +27,8 @@
 #include "objs.h"
 #include <string.h>
 #include "compat.h"
+#include <vector>
+#include <map>
 
 typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 
@@ -298,6 +300,15 @@ public:
     CStr  LongName;
 };
 
+class CProductMarket
+{
+public:
+    long        price_;
+    long        amount_;
+    std::string short_name_;
+    std::string long_name_;
+};
+
 //-----------------------------------------------------------------
 
 class CProductColl : public CSortedCollection
@@ -464,6 +475,8 @@ public:
     CBaseColl     UnitsSeq; // this will keep units in the sequence they were met in the report
     CBaseColl     EdgeStructs;
     CProductColl  Products;
+    std::map<std::string, CProductMarket> wanted_;
+    std::map<std::string, CProductMarket> for_sale_;
     unsigned long Flags;
     unsigned long AlarmFlags;
     unsigned long EventFlags;
