@@ -51,7 +51,7 @@ private:
 #include <string>
 #include "wx/checkbox.h"
 #include "wx/spinctrl.h"
-#include "wx/dialog.h"
+//#include "wx/wx.h"
 
 namespace unit_control
 {
@@ -63,6 +63,9 @@ namespace unit_control
         bool is_noaid(CUnit* unit);
         bool is_avoid(CUnit* unit);
         bool is_nocross(CUnit* unit);
+        bool is_reveal(CUnit* unit, std::string flag);
+        bool is_spoils(CUnit* unit, std::string flag);
+        bool is_consume(CUnit* unit, std::string flag);
     }
 };
 
@@ -97,11 +100,12 @@ namespace game_control
 class CCreateNewUnit : public CResizableDlg
 {
     CUnit* unit_;
+    CLand* land_;
     std::unordered_map<std::string, CProductMarket> sale_products_;
     std::map<std::string, long> silver_holders_;
 
     //naming section
-    wxTextCtrl* text_alias_;
+    wxSpinCtrl* spin_new_num_alias_;
     wxTextCtrl* text_name_;
     wxTextCtrl* text_loc_description_;
     wxTextCtrl* text_description_;
@@ -139,6 +143,9 @@ class CCreateNewUnit : public CResizableDlg
     wxRadioBox* radiobox_flag_spoils_;
     wxRadioBox* radiobox_flag_consume_;
 
+    //Copies
+    wxSpinCtrl* spin_copies_amount_;
+
 public:
     //flags consist of command and it's possible values
     CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand);
@@ -150,10 +157,6 @@ private:
     void OnOk           (wxCommandEvent& event);
     void onAnySpinUpdate(wxSpinEvent& event);
     void onAnyComboBoxUpdate(wxCommandEvent& event);
-
-    CLongColl     m_SplitControls   ;
-    wxSpinCtrl    * m_spinUnitCount ;
-    wxTextCtrl    * m_textNewCommand;
 
     DECLARE_EVENT_TABLE()
 };

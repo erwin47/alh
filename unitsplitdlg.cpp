@@ -237,8 +237,9 @@ void CUnitSplitDlg::OnCancel(wxCommandEvent& event)
 #include <wx/statline.h>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <algorithm>
-
+#include <cctype>
 namespace unit_control
 {
     namespace flags
@@ -249,6 +250,30 @@ namespace unit_control
         bool is_noaid(CUnit* unit) {  return unit->Flags & UNIT_FLAG_RECEIVING_NO_AID;  }
         bool is_avoid(CUnit* unit) {  return unit->Flags & UNIT_FLAG_AVOIDING;  }
         bool is_nocross(CUnit* unit) {  return unit->Flags & UNIT_FLAG_NO_CROSS_WATER;  }
+        bool is_reveal(CUnit* unit, std::string flag) {
+            for(size_t i = 0; i < flag.size(); ++i)
+                flag[i] = std::tolower(flag[i]);
+            if (!flag.compare("unit"))
+                return unit->Flags & UNIT_FLAG_REVEALING_UNIT;
+            if (!flag.compare("faction"))
+                return unit->Flags & UNIT_FLAG_REVEALING_FACTION;
+            return false;
+        }
+        bool is_spoils(CUnit* unit, const std::string flag) {
+            // not implemented
+            return false;
+        }
+
+        bool is_consume(CUnit* unit, std::string flag) {
+            for(size_t i = 0; i < flag.size(); ++i)
+                flag[i] = std::tolower(flag[i]);
+            if (!flag.compare("unit"))
+                return unit->Flags & UNIT_FLAG_CONSUMING_UNIT;
+            if (!flag.compare("faction"))
+                return unit->Flags & UNIT_FLAG_CONSUMING_FACTION;
+            return false;
+        }
+
     }
 
 };
@@ -297,7 +322,8 @@ END_EVENT_TABLE()
 
 CCreateNewUnit::CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand) : 
     CResizableDlg( parent, wxT("Create new unit"), "WINDOW_SPLIT_UNIT_DLG" ), 
-    unit_(pUnit)
+    unit_(pUnit),
+    land_(pLand)
 {
     wxBoxSizer* temp_sizer;
 
@@ -305,21 +331,23 @@ CCreateNewUnit::CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     wxBoxSizer* buttonsizer = new wxBoxSizer( wxHORIZONTAL );    
     buttonsizer->Add(new wxButton(this, wxID_OK, wxT("Ok")), 1, wxALIGN_CENTER | wxALL);
     buttonsizer->Add(new wxButton(this, wxID_CANCEL, wxT("Cancel")), 1, wxALIGN_CENTER | wxALL);
-
+    buttonsizer->Add(new wxStaticText(this, -1, wxT("  Copies: ")), 0, wxALL);
+    spin_copies_amount_ = new wxSpinCtrl(this, -1, wxT("1"), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 100000);
+    buttonsizer->Add(spin_copies_amount_, 0, wxALL);
     //unit sizer consist of unit naming, buying, studying and silver sections
     wxBoxSizer* unitsizer = new wxBoxSizer( wxVERTICAL );
 
     //name unit
     wxBoxSizer* unit_names_sizer = new wxBoxSizer( wxVERTICAL );
-    text_alias_ = new wxTextCtrl(this, -1, wxT(""));
-    *text_alias_ << pLand->GetNextNewUnitNo();
+    spin_new_num_alias_ = new wxSpinCtrl(this, -1, wxT(""), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 100000);
+    spin_new_num_alias_->SetValue(pLand->GetNextNewUnitNo());
     text_name_ = new wxTextCtrl(this, -1, wxT(""));
     text_loc_description_ = new wxTextCtrl(this, -1, wxT(""));
     text_description_ = new wxTextCtrl(this, -1, wxT(""));
 
     temp_sizer = new wxBoxSizer( wxHORIZONTAL );
     temp_sizer->Add(new wxStaticText(this, -1, wxT("Alias(num):")), 0, wxALL);
-    temp_sizer->Add(text_alias_, 1, wxALL);
+    temp_sizer->Add(spin_new_num_alias_, 1, wxALL);
     unit_names_sizer->Add(temp_sizer, 0, wxALL);
     temp_sizer = new wxBoxSizer( wxHORIZONTAL );
     temp_sizer->Add(new wxStaticText(this, -1, wxT("Name: ")), 0, wxALL);
@@ -388,12 +416,12 @@ CCreateNewUnit::CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     //receive silver section
     wxBoxSizer* unit_silver_sizer = new wxBoxSizer( wxVERTICAL );
     spin_silver_amount_ = new wxSpinCtrl(this, -1, wxT("0"), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 100000);
-    combobox_units_ = new wxComboBox(this, -1, wxT("units"), wxDefaultPosition, wxDefaultSize, 0, NULL);
+    combobox_units_ = new wxComboBox(this, -1, wxT(""), wxDefaultPosition, wxDefaultSize, 0, NULL);
 
     EValueType type;
     const void* value;
     std::vector<CUnit*> local_units;
-    land_control::get_units_if(pLand, local_units, [this](CUnit* unit) {
+    land_control::get_units_if(land_, local_units, [this](CUnit* unit) {
         return unit->FactionId == this->unit_->FactionId;
     });
     for (CUnit* unit : local_units)
@@ -461,12 +489,12 @@ CCreateNewUnit::CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     wxArrayString buf;
     buf.Add(wxT("none"));
     buf.Add(wxT("unit"));
-    buf.Add(wxT("faction"));    
+    buf.Add(wxT("faction"));
     radiobox_flag_reveal_ = new wxRadioBox(this, -1, wxT("reveal"), wxDefaultPosition,
                         wxDefaultSize, buf, 1);
-    if (unit_->Flags & UNIT_FLAG_REVEALING_UNIT)
+    if (unit_control::flags::is_reveal(unit_, "unit"))
         radiobox_flag_reveal_->SetSelection(1);
-    else if (unit_->Flags & UNIT_FLAG_REVEALING_FACTION)
+    else if (unit_control::flags::is_reveal(unit_, "faction"))
         radiobox_flag_reveal_->SetSelection(2);
     
     buf.clear();
@@ -481,12 +509,12 @@ CCreateNewUnit::CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     buf.clear();
     buf.Add(wxT("none"));
     buf.Add(wxT("unit"));
-    buf.Add(wxT("faction"));    
+    buf.Add(wxT("faction"));
     radiobox_flag_consume_ = new wxRadioBox(this, -1, wxT("consume"), wxDefaultPosition,
                         wxDefaultSize, buf, 1);
-    if (unit_->Flags & UNIT_FLAG_CONSUMING_UNIT)
+    if (unit_control::flags::is_consume(unit_, "unit"))
         radiobox_flag_consume_->SetSelection(1);
-    else if (unit_->Flags & UNIT_FLAG_CONSUMING_FACTION)
+    else if (unit_control::flags::is_consume(unit_, "faction"))
         radiobox_flag_consume_->SetSelection(2);                        
 
     //flag section represent
@@ -574,7 +602,85 @@ void CCreateNewUnit::OnCancel       (wxCommandEvent& event)
 }
 void CCreateNewUnit::OnOk           (wxCommandEvent& event)
 {
+    std::stringstream unit_order;
+    unit_order << "behind " << (flag_behind_->IsChecked()? 1 : 0) << std::endl;
+    unit_order << "avoid " << (flag_avoid_->IsChecked()? 1 : 0) << std::endl;
+    unit_order << "hold " << (flag_hold_->IsChecked()? 1 : 0) << std::endl;
+    unit_order << "noaid " << (flag_noaid_->IsChecked()? 1 : 0) << std::endl;
+    unit_order << "guard " << (flag_guard_->IsChecked()? 1 : 0) << std::endl;
+    unit_order << "nocross " << (flag_nocross_->IsChecked()? 1 : 0) << std::endl;
+    std::string temp_flag = radiobox_flag_reveal_->GetString(radiobox_flag_reveal_->GetSelection()).ToStdString();
+    unit_order << "reveal " << (temp_flag.compare("none") ? temp_flag : "") << std::endl;
+    temp_flag = radiobox_flag_spoils_->GetString(radiobox_flag_spoils_->GetSelection()).ToStdString();
+    unit_order << "spoils " << temp_flag << std::endl;
+    temp_flag = radiobox_flag_consume_->GetString(radiobox_flag_consume_->GetSelection()).ToStdString();
+    unit_order << "consume " << (temp_flag.compare("none") ? temp_flag : "") << std::endl;
 
+    std::string unit_name(text_name_->GetValue().ToStdString());
+    if (!unit_name.empty())
+        unit_order << "name unit \"" << unit_name << "\"" << std::endl;
+
+    std::string unit_local_description(text_loc_description_->GetValue().mb_str());
+    if (!unit_local_description.empty())
+        unit_order << "@;;" << unit_local_description << std::endl;
+
+    std::string unit_description(text_description_->GetValue().mb_str());
+    if (!unit_description.empty())
+        unit_order << "describe unit \"" << unit_description << "\"" << std::endl;
+
+    int buy_units = spin_buy_units_amount_->GetValue();
+    if (buy_units > 0)
+    {
+        std::string combo_buy_unit(combobox_buy_units_type_->GetValue().mb_str());
+        CProductMarket item = sale_products_[combo_buy_unit];
+        if (flag_buy_repeating_->IsChecked())
+            unit_order << "@";
+        if (flag_buy_all_->IsChecked())
+            unit_order << "buy all " << item.short_name_ << std::endl;
+        else
+            unit_order << "buy " << buy_units << " " << item.short_name_ << std::endl;
+    }
+
+    if (flag_check_study_->IsChecked())
+    {
+        if (flag_study_repeating_->IsChecked())
+            unit_order << "@";
+        unit_order << "study " << combobox_skills_->GetValue() << std::endl;
+    }
+
+    int new_unit_id = spin_new_num_alias_->GetValue();
+    int rec_silver = spin_silver_amount_->GetValue();
+    if (rec_silver > 0) 
+    {
+        std::string unit_name = std::string(combobox_units_->GetValue().mb_str());
+        int unit_id = silver_holders_[unit_name];
+        std::vector<CUnit*> units;
+        land_control::get_units_if(land_, units, [&unit_id](CUnit* unit) {
+            return unit->Id == unit_id;
+        });
+        if (units.size() > 0) 
+        {
+            std::stringstream giver_orders;
+            giver_orders << std::endl << "give NEW " << new_unit_id << " " << rec_silver << " SILV" << std::endl;
+            units[0]->Orders << giver_orders.str().c_str();
+        }
+    }
+
+    unit_->Orders.TrimRight(TRIM_ALL);
+    if (!unit_->Orders.IsEmpty())
+        unit_->Orders << EOL_SCR;
+
+    for (size_t i=0; i<spin_copies_amount_->GetValue(); i++)
+    {
+        CUnit * pUnitNew = gpApp->m_pAtlantis->SplitUnit(unit_, new_unit_id+i);
+        if (pUnitNew)
+            pUnitNew->Orders << unit_order.str().c_str();
+    }
+
+    gpApp->m_pAtlantis->RunOrders(land_);
+
+    StoreSize();
+    EndModal(wxID_OK);
 }
 void CCreateNewUnit::onAnySpinUpdate(wxSpinEvent& event)
 {
