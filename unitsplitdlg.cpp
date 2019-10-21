@@ -280,35 +280,27 @@ namespace unit_control
 
 namespace game_control
 {
-    namespace details
+    const std::vector<Skill> get_skills()
     {
-        std::vector<Skill> get_skills_()
+        std::vector<Skill> ret;
+        const char  * szName;
+        const char  * szValue;
+        int sectidx = gpApp->GetSectionFirst(SZ_SECT_SKILLS, szName, szValue);
+        while (sectidx >= 0)
         {
-            std::vector<Skill> ret;
-            const char  * szName;
-            const char  * szValue;
-            int sectidx = gpApp->GetSectionFirst(SZ_SECT_SKILLS, szName, szValue);
-            while (sectidx >= 0)
-            {
-                Skill temp;
-                std::string name(szName);
-                if (name.find(" ") == std::string::npos || 
-                    name.find("[") == std::string::npos || 
-                    name.find("]") == std::string::npos )
-                    continue;
-                temp.short_name_ = name.substr(name.find("["), name.find("]") - name.find("[")); 
-                temp.long_name_ = name.substr(0, name.find(" "));
-                temp.study_price_ = gpDataHelper->GetStudyCost(temp.long_name_.c_str());
-                ret.push_back(temp);
-                sectidx = gpApp->GetSectionNext(sectidx, SZ_SECT_SKILLS, szName, szValue);
-            }
-            return ret;
+            Skill temp;
+            std::string name(szName);
+            if (name.find(" ") == std::string::npos || 
+                name.find("[") == std::string::npos || 
+                name.find("]") == std::string::npos )
+                continue;
+            temp.short_name_ = name.substr(name.find("[")+1, name.find("]") - name.find("[")-1); 
+            temp.long_name_ = name.substr(0, name.find(" "));
+            temp.study_price_ = gpDataHelper->GetStudyCost(temp.long_name_.c_str());
+            ret.push_back(temp);
+            sectidx = gpApp->GetSectionNext(sectidx, SZ_SECT_SKILLS, szName, szValue);
         }
-    }
-    const std::vector<Skill>& get_skills()
-    {
-        static std::vector<Skill> skills_list = details::get_skills_();
-        return skills_list;
+        return ret;
     }
 }
 
@@ -580,7 +572,7 @@ void CCreateNewUnit::UpdateExpences()
             {
                 if (!skill.long_name_.compare(study_skill.c_str()))
                 {
-                    studying_expences = skill.study_price_;
+                    studying_expences = skill.study_price_ * spin_buy_units_amount_->GetValue();
                     break;
                 }
             }            
@@ -661,7 +653,7 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
         if (units.size() > 0) 
         {
             std::stringstream giver_orders;
-            giver_orders << std::endl << "give NEW " << new_unit_id << " " << rec_silver << " SILV" << std::endl;
+            giver_orders << "give NEW " << new_unit_id << " " << rec_silver << " SILV" << std::endl;
             units[0]->Orders << giver_orders.str().c_str();
         }
     }

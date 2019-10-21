@@ -92,13 +92,23 @@ namespace game_control
         std::string long_name_;
     };
 
-    const std::vector<Skill>& get_skills();
+    const std::vector<Skill> get_skills();
 }
 
 
 
 class CCreateNewUnit : public CResizableDlg
 {
+    //1. studying should be multiplied by number of bought units
+    //1.2 and sorted out
+    //1.3 and jump to skill by letter
+    //2. need to remove duplicates in list of skills and realize why do we have them
+    //3. whitespaces at give order
+    //4. give_all_need button.
+    //4.2 units to give silver should be sorted out
+    //5. when multiply units also give should be multiplied
+
+
     CUnit* unit_;
     CLand* land_;
     std::unordered_map<std::string, CProductMarket> sale_products_;
