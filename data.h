@@ -29,6 +29,9 @@
 #include "compat.h"
 #include <vector>
 #include <map>
+#include <set>
+#include <unordered_map>
+#include <string>
 
 typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 
@@ -297,7 +300,7 @@ class CProduct
 public:
     long  Amount;
     CStr  ShortName;
-    CStr  LongName;
+    CStr  LongName;    
 };
 
 class CProductMarket
@@ -307,6 +310,15 @@ public:
     long        amount_;
     std::string short_name_;
     std::string long_name_;
+};
+
+struct Skill
+{
+    long study_price_;
+    std::string short_name_;
+    std::string long_name_;
+
+    bool operator<(const Skill& sk) const { return long_name_ < sk.long_name_; }
 };
 
 //-----------------------------------------------------------------
@@ -405,6 +417,8 @@ protected:
 
 };
 
+
+
 //-----------------------------------------------------------------
 
 class CStruct : public CBaseObject
@@ -501,7 +515,6 @@ public:
 
 const int EXIT_CLOSED = -255;
 const int EXIT_MAYBE  = -254;
-
 
 //-----------------------------------------------------------------
 

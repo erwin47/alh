@@ -39,6 +39,7 @@
 #include "utildlgs.h"
 #include "unitsplitdlg.h"
 #include "flagsdlg.h"
+#include "createnewunitdlg.h"
 
 
 BEGIN_EVENT_TABLE(CUnitPane, wxListCtrl)

@@ -22,6 +22,7 @@
 
 #include <wx/dialog.h>
 #include <wx/panel.h>
+#include <wx/combobox.h>
 
 //-------------------------------------------------------------------
 
