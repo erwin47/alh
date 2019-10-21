@@ -468,9 +468,9 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
         unit_->Orders << EOL_SCR;
 
     int new_unit_id = spin_new_num_alias_->GetValue();
-    int rec_silver = spin_silver_amount_->GetValue();
+    int recv_silver = spin_silver_amount_->GetValue();
     std::vector<CUnit*> giving_units;
-    if (rec_silver > 0) 
+    if (recv_silver > 0) 
     {
         std::string unit_name = std::string(combobox_units_->GetValue().mb_str());
         int unit_id = silver_holders_[unit_name];
@@ -484,10 +484,10 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
         if (pUnitNew)
             pUnitNew->Orders << unit_order.str().c_str();
 
-        if (rec_silver > 0 && giving_units.size() > 0) 
+        if (recv_silver > 0 && giving_units.size() > 0) 
         {
             std::stringstream giver_orders;
-            giver_orders << "give NEW " << new_unit_id+i << " " << rec_silver << " SILV" << std::endl;
+            giver_orders << "give NEW " << new_unit_id+i << " " << recv_silver << " SILV" << std::endl;
             giving_units[0]->Orders << giver_orders.str().c_str();
         }            
     }
