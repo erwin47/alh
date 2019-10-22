@@ -145,6 +145,7 @@ BEGIN_EVENT_TABLE(CMapFrame, CAhFrame)
     EVT_MENU   (accel_PrevUnit            , CMapFrame::OnPrevUnit)
     EVT_MENU   (accel_UnitList            , CMapFrame::OnUnitList)
     EVT_MENU   (accel_Orders              , CMapFrame::OnOrders  )
+    EVT_MENU   (accel_CreateNewUnit       , CMapFrame::OnCreateNewUnit  )
 
     EVT_UPDATE_UI(menu_ViewBattlesAll     , CMapFrame::OnViewBattlesAllUpdate  )
     EVT_UPDATE_UI(menu_ViewSkillsAll      , CMapFrame::OnViewSkillsAllUpdate   )
@@ -1044,6 +1045,11 @@ void CMapFrame::OnFlagNames(wxCommandEvent& event)
 void CMapFrame::OnFlagsAllSet(wxCommandEvent& event)
 {
     gpApp->SetAllLandUnitFlags();
+}
+
+void CMapFrame::OnCreateNewUnit(wxCommandEvent& event)
+{
+    gpApp->CreateNewUnit(event);
 }
 
 //--------------------------------------------------------------------

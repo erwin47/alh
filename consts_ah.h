@@ -116,6 +116,7 @@ enum
     accel_PrevUnit          ,
     accel_UnitList          ,
     accel_Orders            ,
+    accel_CreateNewUnit     ,
 
     // toolbar. order corresponds to one used in CMapFrame::MakeToolBar()
 
