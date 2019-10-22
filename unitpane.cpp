@@ -901,8 +901,8 @@ void CUnitPane::OnPopupMenuDiscardJunk(wxCommandEvent& WXUNUSED(event))
 
         if (IS_NEW_UNIT(pUnit))
         {
-            m_pCurLand->RemoveUnit(pUnit);
-            DeleteItem(idx);
+            CLand * pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
+            pLand->RemoveUnit(pUnit);
             delete pUnit;
             gpApp->SetOrdersChanged(true);
         }
