@@ -48,7 +48,7 @@ namespace unit_control
         return CProduct({0, short_name.c_str(), gpDataHelper->ResolveAlias(short_name.c_str())});
     }
 
-    std::set<CProduct> get_items(CUnit* unit)
+    std::set<CProduct>& get_items(CUnit* unit)
     {
         return unit->items_;
     }

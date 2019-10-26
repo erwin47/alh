@@ -69,7 +69,7 @@ public:
     BOOL         IsInteger();
 
     inline BOOL  IsEmpty()                           { return 0==m_nStrLen; }
-    inline int   GetLength()                         { return m_nStrLen;  }
+    inline int   GetLength() const                   { return m_nStrLen;  }
 
     inline CStr& operator<<(const char *  psz)       { AddStr(psz);  return *this;  }
     inline CStr& operator<<(char ch)                 { AddCh(ch);  return *this;  }

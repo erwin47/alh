@@ -40,6 +40,7 @@
 #include "unitsplitdlg.h"
 #include "flagsdlg.h"
 #include "createnewunitdlg.h"
+#include "receivedlg.h"
 
 
 BEGIN_EVENT_TABLE(CUnitPane, wxListCtrl)
@@ -52,6 +53,7 @@ BEGIN_EVENT_TABLE(CUnitPane, wxListCtrl)
     EVT_MENU             (menu_Popup_Teach         , CUnitPane::OnPopupMenuTeach          )
     EVT_MENU             (menu_Popup_Split         , CUnitPane::OnPopupMenuSplit          )
     EVT_MENU             (menu_Popup_Create_New    , CUnitPane::OnPopupMenuCreateNew      )
+    EVT_MENU             (menu_Popup_ReceiveItems  , CUnitPane::OnPopupMenuReceiveItems   )
     EVT_MENU             (menu_Popup_DiscardJunk   , CUnitPane::OnPopupMenuDiscardJunk    )
     EVT_MENU             (menu_Popup_DetectSpies   , CUnitPane::OnPopupMenuDetectSpies    )
     EVT_MENU             (menu_Popup_GiveEverything, CUnitPane::OnPopupMenuGiveEverything )
@@ -517,6 +519,7 @@ void CUnitPane::OnRClick(wxListEvent& event)
                     menu.Append(menu_Popup_Create_New    , wxT("Create new unit")   );
                 }
                 menu.Append(menu_Popup_Teach         , wxT("Teach")             );
+                menu.Append(menu_Popup_ReceiveItems  , wxT("Receive")             );
                 if (IS_NEW_UNIT(pUnit))
                 {
                     menu.Append(menu_Popup_DiscardJunk   , wxT("Discard This Unit") );
@@ -613,6 +616,30 @@ void CUnitPane::OnPopupMenuCreateNew(wxCommandEvent& event)
         // do it here
 
         CCreateNewUnit dlg(this, pUnit, pLand);
+        if (wxID_OK == dlg.ShowModal()) // it will modify unit's orders
+            gpApp->SetOrdersChanged(TRUE);
+
+        Update(m_pCurLand);
+    }
+}
+
+void CUnitPane::OnPopupMenuReceiveItems(wxCommandEvent& event)
+{
+    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    CUnit* pUnit = GetUnit(idx);
+    CLand* pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
+    CEditPane  * pOrders;
+
+    if (pUnit && !IS_NEW_UNIT(pUnit))
+    {
+        pOrders = (CEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
+        if (pOrders)
+            pOrders->SaveModifications();
+
+        if (m_pCurLand)
+            m_pCurLand->guiUnit = pUnit->Id;
+
+        CReceiveDlg dlg(this, pUnit, pLand);
         if (wxID_OK == dlg.ShowModal()) // it will modify unit's orders
             gpApp->SetOrdersChanged(TRUE);
 
