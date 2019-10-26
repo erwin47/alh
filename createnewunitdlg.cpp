@@ -460,7 +460,7 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
     {
         if (flag_study_repeating_->IsChecked())
             unit_order << "@";
-        unit_order << "study " << combobox_skills_->GetValue() << std::endl;
+        unit_order << "study \"" << combobox_skills_->GetValue() << "\"" << std::endl;
     }
 
     unit_->Orders.TrimRight(TRIM_ALL);
@@ -488,6 +488,8 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
         {
             std::stringstream giver_orders;
             giver_orders << "give NEW " << new_unit_id+i << " " << recv_silver << " SILV" << std::endl;
+            if (!giving_units[0]->Orders.IsEmpty())
+                giving_units[0]->Orders << EOL_SCR;
             giving_units[0]->Orders << giver_orders.str().c_str();
         }            
     }
