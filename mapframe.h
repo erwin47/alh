@@ -103,6 +103,7 @@ private:
     void OnCloseWindow         (wxCloseEvent& event);
 
     void OnCreateNewUnit(wxCommandEvent& event);
+    void OnReceiveOrder(wxCommandEvent& event);
 
     wxSplitterWindow  * m_Splitter;
     wxSplitterWindow  * m_Splitter1;

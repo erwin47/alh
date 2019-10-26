@@ -285,6 +285,7 @@ public:
     void                 DelTempHex(int X, int Y, int Plane);
 
     void                 CreateNewUnit(wxCommandEvent& event);
+    void                 UnitReceiveOrder(wxCommandEvent& event);
     void                 SelectNextUnit();
     void                 SelectPrevUnit();
     void                 SelectUnitsPane();

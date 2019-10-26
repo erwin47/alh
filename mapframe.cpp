@@ -145,7 +145,8 @@ BEGIN_EVENT_TABLE(CMapFrame, CAhFrame)
     EVT_MENU   (accel_PrevUnit            , CMapFrame::OnPrevUnit)
     EVT_MENU   (accel_UnitList            , CMapFrame::OnUnitList)
     EVT_MENU   (accel_Orders              , CMapFrame::OnOrders  )
-    EVT_MENU   (accel_CreateNewUnit       , CMapFrame::OnCreateNewUnit  )
+    EVT_MENU   (accel_CreateNewUnit       , CMapFrame::OnCreateNewUnit         )
+    EVT_MENU   (accel_ReceiveOrder       , CMapFrame::OnReceiveOrder           )
 
     EVT_UPDATE_UI(menu_ViewBattlesAll     , CMapFrame::OnViewBattlesAllUpdate  )
     EVT_UPDATE_UI(menu_ViewSkillsAll      , CMapFrame::OnViewSkillsAllUpdate   )
@@ -1051,5 +1052,11 @@ void CMapFrame::OnCreateNewUnit(wxCommandEvent& event)
 {
     gpApp->CreateNewUnit(event);
 }
+
+void CMapFrame::OnReceiveOrder(wxCommandEvent& event)
+{
+    gpApp->UnitReceiveOrder(event);
+}
+
 
 //--------------------------------------------------------------------

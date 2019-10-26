@@ -18,20 +18,24 @@ CReceiveDlg::CReceiveDlg(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     order_repeating_ = new wxCheckBox(this, -1, "repeating");
 
     combobox_item_types_->Bind(wxEVT_COMBOBOX, &CReceiveDlg::OnItemChosen, this);
-    itemssizer->Add(new wxStaticText(this, -1, wxT("Item: ")), 1, wxALL);
+    itemssizer->Add(new wxStaticText(this, -1, wxT("Item: ")), 0, wxALL);
     itemssizer->Add(combobox_item_types_, 1, wxALL);
     itemssizer->Add(spin_items_amount_, 0, wxALL);
     itemssizer->Add(order_repeating_, 0, wxALL);
     init_item_types_combobox();
 
     wxBoxSizer* unitchoosesizer = new wxBoxSizer( wxHORIZONTAL );
-    combobox_units_ = new wxComboBox(this, -1, wxT(""), wxDefaultPosition, wxDefaultSize, 0, NULL);
+    combobox_units_ = new wxComboBox(this, -1, wxT(""), wxDefaultPosition, wxSize(270,28), 0, NULL);
+    wxButton* max_possible_button = new wxButton(this, -1, wxT("max"));
+    max_possible_button->Bind(wxEVT_BUTTON, &CReceiveDlg::OnMax, this);
+    unitchoosesizer->Add(new wxStaticText(this, -1, wxT("From: ")), 0, wxALL);
     unitchoosesizer->Add(combobox_units_, 1, wxALL);
+    unitchoosesizer->Add(max_possible_button, 0, wxALL);
 
     wxBoxSizer* buttonsizer = new wxBoxSizer( wxHORIZONTAL );
-    wxButton* ok_button = new wxButton(this, wxID_OK, wxT("Ok"));
-    wxButton* add_button = new wxButton(this, wxID_OK, wxT("Add"));
-    wxButton* cancel_button = new wxButton(this, wxID_OK, wxT("Cancel"));
+    wxButton* ok_button = new wxButton(this, -1, wxT("Ok"));
+    wxButton* add_button = new wxButton(this, -1, wxT("Add"));
+    wxButton* cancel_button = new wxButton(this, -1, wxT("Cancel"));
     ok_button->Bind(wxEVT_BUTTON, &CReceiveDlg::OnOk, this);
     add_button->Bind(wxEVT_BUTTON, &CReceiveDlg::OnAdd, this);
     cancel_button->Bind(wxEVT_BUTTON, &CReceiveDlg::OnCancel, this);
@@ -125,6 +129,17 @@ void CReceiveDlg::OnItemChosen   (wxCommandEvent& event)
     combobox_units_->Clear();
     for (const std::string& unit_name : unit_names)
         combobox_units_->Append(unit_name);
+}
+
+void CReceiveDlg::OnMax          (wxCommandEvent& event)
+{
+    std::string giver_name = combobox_units_->GetValue().ToStdString();
+    if (unit_name_to_unit_.find(giver_name) == unit_name_to_unit_.end())
+        return;
+    CUnit* giver = unit_name_to_unit_[giver_name];
+
+    int amount = unit_control::get_item_amount(giver, combobox_item_types_->GetValue().ToStdString());
+    spin_items_amount_->SetValue(amount);
 }
 
 void CReceiveDlg::OnOk           (wxCommandEvent& event)

@@ -8,6 +8,14 @@
 #include <set>
 
 
+
+/*
+TODO: 
+1) add button "Add" which will add possibility to put few orders in a line.
+It will need a text space to store there orderes.
+After each such order amounts and accessible item types have to be recalculated.
+4) silv and SILV are duplicated %) resolve the issue
+*/
 class CReceiveDlg : public CResizableDlg
 {
     CUnit* unit_;
@@ -21,7 +29,6 @@ class CReceiveDlg : public CResizableDlg
     std::map<std::string, CUnit*> unit_name_to_unit_;
 
 public:
-    //flags consist of command and it's possible values
     CReceiveDlg(wxWindow *parent, CUnit * pUnit, CLand* pLand);
     ~CReceiveDlg();
 
@@ -33,12 +40,11 @@ private:
 
     //Events
     void OnItemChosen   (wxCommandEvent& event);
+    void OnMax          (wxCommandEvent& event);
     void OnOk           (wxCommandEvent& event);
     void OnAdd          (wxCommandEvent& event);
     void OnCancel       (wxCommandEvent& event);
-    //void onGiveAllButton(wxCommandEvent& event);
 
-    //DECLARE_EVENT_TABLE()
 };
 
 #endif 

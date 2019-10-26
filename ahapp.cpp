@@ -441,14 +441,15 @@ int CAhApp::OnExit()
 
 void CAhApp::CreateAccelerator()
 {
-    static wxAcceleratorEntry entries[6];
+    static wxAcceleratorEntry entries[7];
     entries[0].Set(wxACCEL_CTRL,  (int)'S',     menu_SaveOrders);
     entries[1].Set(wxACCEL_CTRL,  (int)'N',     accel_NextUnit );
     entries[2].Set(wxACCEL_CTRL,  (int)'P',     accel_PrevUnit );
     entries[3].Set(wxACCEL_CTRL,  (int)'U',     accel_UnitList );
     entries[4].Set(wxACCEL_CTRL,  (int)'O',     accel_Orders   );
-    entries[5].Set(wxACCEL_CTRL,  (int)'F',     accel_CreateNewUnit );
-    m_pAccel = new wxAcceleratorTable(6, entries);
+    entries[5].Set(wxACCEL_NORMAL,  (int)'F',     accel_CreateNewUnit );
+    entries[6].Set(wxACCEL_NORMAL,  (int)'R',     accel_ReceiveOrder );
+    m_pAccel = new wxAcceleratorTable(7, entries);
 }
 
 //-------------------------------------------------------------------------
@@ -4918,6 +4919,12 @@ void CAhApp::CreateNewUnit(wxCommandEvent& event)
 {
     if (m_Panes[AH_PANE_UNITS_HEX])
         ((CUnitPane*)m_Panes[AH_PANE_UNITS_HEX])->OnPopupMenuCreateNew(event);
+}
+
+void CAhApp::UnitReceiveOrder(wxCommandEvent& event)
+{
+    if (m_Panes[AH_PANE_UNITS_HEX])
+        ((CUnitPane*)m_Panes[AH_PANE_UNITS_HEX])->OnPopupMenuReceiveItems(event);
 }
 
 void CAhApp::SelectNextUnit()
