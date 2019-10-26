@@ -18,6 +18,10 @@ namespace unit_control
         bool is_consume(CUnit* unit, std::string flag);
         bool is_leader(CUnit* unit);
     }
+
+    std::set<CProduct> get_items(CUnit* unit);
+    long get_item_amount(CUnit* unit, const std::string& short_name);
+    void modify_item_amount(CUnit* unit, const std::string& short_name, long new_amount);
 }
 
 namespace land_control

@@ -850,6 +850,7 @@ void CUnit::ResetNormalProperties()
     StudyingSkill.Empty();
     ProducingItem.Empty();
     SilvRcvd = 0;
+    items_ = items_initial_;
 
     Flags     = FlagsOrg;
     FlagsLast = ~Flags;

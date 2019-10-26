@@ -39,6 +39,7 @@
 #include "errs.h"
 #include "consts_ah.h" // not very good, but will do for now
 #include "routeplanner.h"
+#include "data_control.h"
 
 #define CONTAINS    "contains "
 #define SILVER      "silver"
@@ -2359,6 +2360,9 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
                     }
                     else
                     {
+                        //keep Properties while they are useful, and then abandon them
+                        pUnit->items_.insert({n1, S2, S1});
+                        pUnit->items_initial_.insert({n1, S2, S1});
                         SetUnitProperty(pUnit, S2.GetData(), eLong, (void*)n1, eBoth);
                     // is this a man property?
                         if (gpDataHelper->IsMan(S2.GetData()))
@@ -5261,8 +5265,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                             else if (eLong!=type)
                                 SHOW_WARN_CONTINUE(NOTNUMERIC << pUnit->Id << BUG);
 
+                            unit_control::modify_item_amount(pUnit, PRP_SILVER, n1);
                             unitmoney += n1;
-
                             if (PE_OK!=pUnit->SetProperty(PRP_SILVER,   eLong, (const void *)unitmoney, eNormal))
                                 SHOW_WARN_CONTINUE(NOSET << BUG);
                         }
@@ -5695,6 +5699,7 @@ void CAtlaParser::DistributeSilver(CLand * pLand, int unitFlag, int silver, int 
                 }
                 unitReceives = (silver * nmen) / menCount;
                 unitSilver += unitReceives;
+                unit_control::modify_item_amount(pUnit, PRP_SILVER, unitReceives);
                 silver -= unitReceives;
                 menCount -= nmen;
                 pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
@@ -5788,6 +5793,7 @@ void CAtlaParser::RunOrder_Upkeep(CUnit * pUnit, int turns)
             pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eBoth);
         }
         unitSilver -= Maintainance * turns;
+        unit_control::modify_item_amount(pUnit, PRP_SILVER, -Maintainance * turns);
         pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
     }
 }
@@ -5856,6 +5862,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
                 shareSilver = std::min(unitSilver, silverNeeded);
                 silverNeeded -= shareSilver;
                 unitSilver -= shareSilver;
+                unit_control::modify_item_amount(pUnit, PRP_SILVER, -shareSilver);
                 pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
                 if (!silverNeeded)
                     break;
@@ -5878,6 +5885,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
                 shareSilver = std::min(-unitSilver, silverAvailable);
                 silverAvailable -= shareSilver;
                 unitSilver += shareSilver;
+                unit_control::modify_item_amount(pUnit, PRP_SILVER, -shareSilver);
                 pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
             }
         }
@@ -5967,6 +5975,7 @@ void CAtlaParser::RunOrder_Study(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
 
         unitmoney -= n1*n2;
 
+        unit_control::modify_item_amount(pUnit, PRP_SILVER, -n1*n2);
         if (PE_OK!=pUnit->SetProperty(PRP_SILVER,   eLong, (const void *)unitmoney, eNormal))
             SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6278,6 +6287,7 @@ void CAtlaParser::RunOrder_Withdraw(CStr & Line, CStr & ErrorLine, BOOL skiperro
                 break;
             }
 
+            unit_control::modify_item_amount(pUnit, Item.GetData(), amount);
             if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value+amount), eNormal))
                 SHOW_WARN_CONTINUE(NOSETUNIT << BUG);
 
@@ -6332,6 +6342,7 @@ void CAtlaParser::RunOrder_Give(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
             if (!pUnit->GetProperty(Item.GetData(), type, value, eNormal) || (eLong!=type))
                 SHOW_WARN_CONTINUE(" - Can not give " << Item);
 
+            unit_control::modify_item_amount(pUnit, Item.GetData(), -amount);
             if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
                 SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6347,6 +6358,7 @@ void CAtlaParser::RunOrder_Give(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 else if (eLong!=type)
                     SHOW_WARN_CONTINUE(NOTNUMERIC << n1 << BUG);
 
+                unit_control::modify_item_amount(pUnit2, Item.GetData(), amount);
                 if (PE_OK!=pUnit2->SetProperty(Item.GetData(), type, (const void*)((long)value2+amount), eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
                 if (0==stricmp(PRP_SILVER, Item.GetData()))
@@ -6543,6 +6555,7 @@ void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 if (!pUnit2->GetProperty(Item.GetData(), type, value, eNormal) || (eLong!=type))
                     SHOW_WARN_CONTINUE(" - Can not take " << Item);
 
+                unit_control::modify_item_amount(pUnit2, Item.GetData(), -amount);
                 if (PE_OK!=pUnit2->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6556,6 +6569,7 @@ void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 else if (eLong!=type)
                     SHOW_WARN_CONTINUE(NOTNUMERIC << n1 << BUG);
 
+                unit_control::modify_item_amount(pUnit, Item.GetData(), amount);
                 if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value2+amount), eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
                 if (0==stricmp(PRP_SILVER, Item.GetData()))
@@ -6615,6 +6629,7 @@ void CAtlaParser::RunOrder_Send(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
             if (!pUnit->GetProperty(Item.GetData(), type, value, eNormal) || (eLong!=type))
                 SHOW_WARN_CONTINUE(" - Can not send " << Item);
 
+            unit_control::modify_item_amount(pUnit, Item.GetData(), -amount);
             if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
                 SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6641,6 +6656,7 @@ void CAtlaParser::RunOrder_Send(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                     SHOW_WARN_CONTINUE(NOTNUMERIC << pUnit->Id << BUG);
 
                 unitmoney -= price;
+                unit_control::modify_item_amount(pUnit, PRP_SILVER, -price);
                 if  (PE_OK!=pUnit->SetProperty(PRP_SILVER,   type, (const void *)unitmoney, eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
                 pUnit->CalcWeightsAndMovement();
@@ -6881,6 +6897,7 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
             unitprop  += n1;         // This is the old code
             landprop  -= n1;
 
+            unit_control::modify_item_amount(pUnit, PRP_SILVER, -n1*peritem);
             if ( (PE_OK!=pUnit->SetProperty(S1.GetData(), type, (const void *)unitprop,  eNormal)) || // This is the old code
                  (PE_OK!=pUnit->SetProperty(PRP_SILVER,   type, (const void *)unitmoney, eNormal)) || // This is ALMOST the old code
                  (PE_OK!=pLand->SetProperty(LandProp.GetData(), type, (const void *)landprop,  eNormal)))
@@ -6981,6 +6998,7 @@ void CAtlaParser::RunOrder_Sell(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
          unitprop  -= n1; // This is the old code
          landprop  -= n1;
 
+        unit_control::modify_item_amount(pUnit, PRP_SILVER, n1*peritem);
          if ( (PE_OK!=pUnit->SetProperty(S1.GetData(), type, (const void *)unitprop,  eNormal)) || // This is the old code
               (PE_OK!=pUnit->SetProperty(PRP_SILVER,   type, (const void *)unitmoney, eNormal)) || // This is ALMOST the old code
               (PE_OK!=pLand->SetProperty(LandProp.GetData()  ,   type, (const void *)landprop,  eNormal)))

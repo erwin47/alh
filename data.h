@@ -300,7 +300,11 @@ class CProduct
 public:
     long  Amount;
     CStr  ShortName;
-    CStr  LongName;    
+    CStr  LongName;
+
+    bool operator<(const CProduct& prod) const {
+        return SafeCmp(ShortName.GetData(), prod.ShortName.GetData()) < 0;
+    }
 };
 
 class CProductMarket
@@ -383,6 +387,12 @@ public:
     static void         ResetCustomFlagNames();
     static const char * GetCustomFlagName(int no);
 
+    //when we load map in the beginning, we should preserve CUnit initial state.
+    //and then should have possibility to reset CUnit by preserved initial state.
+    //until we don't have that, we have to duplicate members (or have any other similar 
+    //mechanisms) to have possibility restore state of CUnit. THat's for items_initial_.
+    std::set<CProduct> items_;
+    std::set<CProduct> items_initial_;
     bool            IsOurs;
     long            FactionId;
     CFaction      * pFaction;

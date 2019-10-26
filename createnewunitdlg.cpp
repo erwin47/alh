@@ -200,23 +200,14 @@ void CCreateNewUnit::InitializeRecvSilver(int faction_id, CLand* land)
         return unit->FactionId == faction_id;
     });
     std::sort(local_units.begin(), local_units.end(), [](CUnit* u1, CUnit* u2) {
-        EValueType type;
-        long v1, v2;
-        u1->GetProperty(PRP_SILVER, type, (const void*&)v1, eNormal);
-        u2->GetProperty(PRP_SILVER, type, (const void*&)v2, eNormal);
-        return v1 > v2;
+        return unit_control::get_item_amount(u1, PRP_SILVER) > unit_control::get_item_amount(u2, PRP_SILVER);
     });
 
-    EValueType type;
-    const void* value;
     for (CUnit* unit : local_units)
     {
-        value = 0;
-        unit->GetProperty(PRP_SILVER, type, value, eNormal);
-
         std::string unit_and_silver = std::string(unit->Name.GetData()) + "(" + 
             std::to_string(unit->Id) + ") " + std::string(unit->pFaction->Name.GetData()) + 
-            " (max: " + std::to_string((long)value) + ")";
+            " (max: " + std::to_string( unit_control::get_item_amount(unit, PRP_SILVER)) + ")";
         
         silver_holders_.insert({unit_and_silver, unit->Id});
         combobox_units_->Append(unit_and_silver);

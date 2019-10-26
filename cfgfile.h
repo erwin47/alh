@@ -21,6 +21,7 @@
 #define __CONFIG_FILE_H_INCL__
 
 #include "collection.h"
+#include <string>
 
 typedef struct _CONFIG_PARAM
 {

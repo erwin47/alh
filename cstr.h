@@ -46,7 +46,7 @@ public:
     void         AddDouble(double dNum, int width, int precision);
     void         AddBuf(const void * szData, int iDataLen);
     void         InsBuf(const void * szData, int nPos, int iDataLen);
-    const char * GetData();
+    const char * GetData() const;
     void         Empty();
     const char * ToUpper();
     const char * ToLower();
