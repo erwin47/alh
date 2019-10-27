@@ -209,7 +209,7 @@ void CCreateNewUnit::InitializeRecvSilver(int faction_id, CLand* land)
             std::to_string(unit->Id) + ") " + std::string(unit->pFaction->Name.GetData()) + 
             " (max: " + std::to_string( unit_control::get_item_amount(unit, PRP_SILVER)) + ")";
         
-        silver_holders_.insert({unit_and_silver, unit->Id});
+        silver_holders_.insert({unit_and_silver, unit});
         combobox_units_->Append(unit_and_silver);
     }
 
@@ -460,28 +460,21 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
 
     int new_unit_id = spin_new_num_alias_->GetValue();
     int recv_silver = spin_silver_amount_->GetValue();
-    std::vector<CUnit*> giving_units;
-    if (recv_silver > 0) 
-    {
-        std::string unit_name = std::string(combobox_units_->GetValue().mb_str());
-        int unit_id = silver_holders_[unit_name];
-        land_control::get_units_if(land_, giving_units, [&unit_id](CUnit* unit) {
-            return unit->Id == unit_id;
-        });
-    }
     for (size_t i=0; i<spin_copies_amount_->GetValue(); i++)
     {
         CUnit * pUnitNew = gpApp->m_pAtlantis->SplitUnit(unit_, new_unit_id+i);
         if (pUnitNew)
             pUnitNew->Orders << unit_order.str().c_str();
 
-        if (recv_silver > 0 && giving_units.size() > 0) 
+        if (recv_silver > 0) 
         {
+            std::string unit_name = std::string(combobox_units_->GetValue().mb_str());
+            CUnit* giving_unit = silver_holders_[unit_name];            
             std::stringstream giver_orders;
             giver_orders << "give NEW " << new_unit_id+i << " " << recv_silver << " SILV" << std::endl;
-            if (!giving_units[0]->Orders.IsEmpty())
-                giving_units[0]->Orders << EOL_SCR;
-            giving_units[0]->Orders << giver_orders.str().c_str();
+            if (!giving_unit->Orders.IsEmpty())
+                giving_unit->Orders << EOL_SCR;
+            giving_unit->Orders << giver_orders.str().c_str();
         }            
     }
 
@@ -503,5 +496,9 @@ void CCreateNewUnit::onGiveAllButton(wxCommandEvent & event)
 {
     long expences;
     expenses_all_->GetLabel().ToLong(&expences);
-    spin_silver_amount_->SetValue(expences);
+
+    std::string unit_name = std::string(combobox_units_->GetValue().mb_str());
+    CUnit* giving_unit = silver_holders_[unit_name];
+    long unit_silver_amount = unit_control::get_item_amount(giving_unit, PRP_SILVER);
+    spin_silver_amount_->SetValue(std::min(unit_silver_amount, expences));
 }

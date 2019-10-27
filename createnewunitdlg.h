@@ -13,7 +13,7 @@ class CCreateNewUnit : public CResizableDlg
     CUnit* unit_;
     CLand* land_;
     std::unordered_map<std::string, CProductMarket> sale_products_;
-    std::map<std::string, long> silver_holders_;
+    std::map<std::string, CUnit*> silver_holders_;
 
     //naming section
     wxSpinCtrl* spin_new_num_alias_;

@@ -628,23 +628,12 @@ void CUnitPane::OnPopupMenuReceiveItems(wxCommandEvent& event)
     long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
     CUnit* pUnit = GetUnit(idx);
     CLand* pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
-    CEditPane  * pOrders;
 
-    if (pUnit && !IS_NEW_UNIT(pUnit))
-    {
-        pOrders = (CEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-        if (pOrders)
-            pOrders->SaveModifications();
+    CReceiveDlg dlg(this, pUnit, pLand);
+    if (wxID_OK == dlg.ShowModal()) // it will modify unit's orders
+        gpApp->SetOrdersChanged(TRUE);
 
-        if (m_pCurLand)
-            m_pCurLand->guiUnit = pUnit->Id;
-
-        CReceiveDlg dlg(this, pUnit, pLand);
-        if (wxID_OK == dlg.ShowModal()) // it will modify unit's orders
-            gpApp->SetOrdersChanged(TRUE);
-
-        Update(m_pCurLand);
-    }
+    Update(m_pCurLand);
 }
 
 //--------------------------------------------------------------------------

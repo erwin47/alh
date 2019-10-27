@@ -15,6 +15,7 @@ TODO:
 It will need a text space to store there orderes.
 After each such order amounts and accessible item types have to be recalculated.
 4) silv and SILV are duplicated %) resolve the issue
+6) Get item by pressing first letter
 */
 class CReceiveDlg : public CResizableDlg
 {

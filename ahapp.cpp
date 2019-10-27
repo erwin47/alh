@@ -447,8 +447,8 @@ void CAhApp::CreateAccelerator()
     entries[2].Set(wxACCEL_CTRL,  (int)'P',     accel_PrevUnit );
     entries[3].Set(wxACCEL_CTRL,  (int)'U',     accel_UnitList );
     entries[4].Set(wxACCEL_CTRL,  (int)'O',     accel_Orders   );
-    entries[5].Set(wxACCEL_NORMAL,  (int)'F',     accel_CreateNewUnit );
-    entries[6].Set(wxACCEL_NORMAL,  (int)'R',     accel_ReceiveOrder );
+    entries[5].Set(wxACCEL_CTRL,  (int)'F',     accel_CreateNewUnit );
+    entries[6].Set(wxACCEL_CTRL,  (int)'R',     accel_ReceiveOrder );
     m_pAccel = new wxAcceleratorTable(7, entries);
 }
 
