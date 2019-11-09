@@ -1229,7 +1229,7 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
     const char * srcold;
     const char * p;
     char         ch;
-    CProduct   * pProd;
+    CItem      * pProd;
     int          delpos = 0;
     int          dellen = 0;
     int          idx;
@@ -1409,9 +1409,9 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
                         //temporary I'll keep both, and then I'll remove Property part
                         CProductMarket temp_product;
                         temp_product.price_ = n2;
-                        temp_product.amount_ = n1;
-                        temp_product.short_name_ = S2.GetData();
-                        temp_product.long_name_ = S1.GetData();
+                        temp_product.item_.amount_ = n1;
+                        temp_product.item_.code_name_ = S2.GetData();
+                        //temp_product.long_name_ = S1.GetData();
                         
                         if (eSale == SectType)
                             pLand->for_sale_[S2.GetData()] = temp_product;
@@ -1446,10 +1446,13 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
                     }
                     if (n1 >= 0)
                     {
-                        pProd = new CProduct;
-                        pProd->Amount = n1;
-                        p = pProd->LongName.GetToken(p, '[', TRIM_ALL);
-                        p = pProd->ShortName.GetToken(p, ']', TRIM_ALL);
+                        pProd = new CItem;
+                        pProd->amount_ = n1;
+                        CStr LongName, ShortName;
+                        p = LongName.GetToken(p, '[', TRIM_ALL);
+                        p = ShortName.GetToken(p, ']', TRIM_ALL);
+                        pProd->code_name_ = std::string(ShortName.GetData(), ShortName.GetLength());
+
                         if (pLand->Products.Search(pProd, idx))
                             pLand->Products.AtFree(idx);
                         else
@@ -1461,9 +1464,9 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
 
                                 //LandIdToCoord(pLand->Id, x, y, z);
                                 ComposeLandStrCoord(pLand, sCoord);
-                                pNewProd->Name        << pProd->LongName << " discovered in (" << sCoord << ")";
+                                pNewProd->Name        << LongName << " discovered in (" << sCoord << ")";
                                 pNewProd->Description << pLand->TerrainType << " (" << sCoord << ")"
-                                                      << " is a new source of "  << pProd->LongName << EOL_SCR;
+                                                      << " is a new source of "  << LongName << EOL_SCR;
 
                                 m_NewProducts.Insert(pNewProd);
                             }
@@ -1471,7 +1474,7 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
                         pLand->Products.Insert(pProd);
 
                         // also set as a property to simplify searching
-                        MakeQualifiedPropertyName(PRP_RESOURCE_PREFIX, pProd->ShortName.GetData(), Buf);
+                        MakeQualifiedPropertyName(PRP_RESOURCE_PREFIX, ShortName.GetData(), Buf);
                         SetLandProperty(pLand, Buf.GetData(), eLong, (void*)n1, eBoth);
                     }
 
@@ -2360,9 +2363,21 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
                     }
                     else
                     {
-                        //keep Properties while they are useful, and then abandon them
-                        pUnit->items_.insert({n1, S2, S1});
-                        pUnit->items_initial_.insert({n1, S2, S1});
+                        //items of current unit
+                        //pUnit->items_.insert({n1, S2, S1});
+                        pUnit->items_initial_.insert({n1, std::string(S2.GetData(), S2.GetLength())});
+
+                        //add to aliases
+                        std::string codename(S2.GetData(), S2.GetLength());
+                        std::string long_name, long_name_plural;
+                        gpApp->ResolveAliasItems(codename, long_name, long_name_plural);
+                        if (n1 > 1)
+                            long_name_plural = std::string(S1.GetData(), S1.GetLength());
+                        else
+                            long_name = std::string(S1.GetData(), S1.GetLength());                        
+                        gpApp->SetAliasItems(codename, long_name, long_name_plural);
+
+                        //keep Properties while they are useful, and then replace them with items
                         SetUnitProperty(pUnit, S2.GetData(), eLong, (void*)n1, eBoth);
                     // is this a man property?
                         if (gpDataHelper->IsMan(S2.GetData()))
@@ -3744,18 +3759,26 @@ void CAtlaParser::ComposeProductsLine(CLand * pLand, const char * eol, CStr & S)
     CStr       Line(64);
     int        i;
 
-    CProduct * pProd;
+    CItem * pProd;
 
     if (pLand->Products.Count() > 0)
     {
         S << "  Products:";
         for (i=0; i<pLand->Products.Count(); i++)
         {
-            pProd = (CProduct*)pLand->Products.At(i);
+            pProd = (CItem*)pLand->Products.At(i);
 
-            if (pProd->Amount>=0)
+            if (pProd->amount_>1)
             {
-                S << " " << pProd->Amount << " " << pProd->LongName << " ["<< pProd->ShortName << "]";
+                std::string name, plural;
+                gpApp->ResolveAliasItems(pProd->code_name_, name, plural);
+                S << " " << pProd->amount_ << " " << plural.c_str() << " ["<< pProd->code_name_.c_str() << "]";
+            }
+            else if (pProd->amount_ == 1)
+            {
+                std::string name, plural;
+                gpApp->ResolveAliasItems(pProd->code_name_, name, plural);
+                S << " " << pProd->amount_ << " " << name.c_str() << " ["<< pProd->code_name_.c_str() << "]";
             }
             else
             {
@@ -8046,8 +8069,8 @@ void CAtlaParser::LookupAdvancedResourceVisibility(CUnit * pUnit, CLand * pLand)
     CBufColl            Resources;
     long                level;
     int                 i, idx;
-    CProduct            Dummy;
-    CProduct          * pProd;
+    CItem               Dummy;
+    CItem             * pProd;
 
     postlen = strlen(PRP_SKILL_POSTFIX);
     propidx = 0;
@@ -8066,13 +8089,15 @@ void CAtlaParser::LookupAdvancedResourceVisibility(CUnit * pUnit, CLand * pLand)
                     for (i=0; i<Levels.Count(); i++)
                         if (level >= (long)Levels.At(i))
                         {
-                            Dummy.ShortName = (const char *)Resources.At(i);
+                            //possible logical error:
+                            //Search actually uses first bytes ty compare.
+                            //in the past it was Amount, now it is also amount.
+                            Dummy.code_name_ = (const char *)Resources.At(i);
                             if (!pLand->Products.Search(&Dummy, idx))
                             {
-                                pProd = new CProduct;
-                                pProd->Amount    = 0;
-                                pProd->ShortName = Dummy.ShortName;
-                                pProd->LongName  = Dummy.ShortName;
+                                pProd = new CItem;
+                                pProd->amount_    = 0;
+                                pProd->code_name_ = Dummy.code_name_;
                                 pLand->Products.Insert(pProd);
                             }
                         }

@@ -70,25 +70,35 @@ CReceiveDlg::~CReceiveDlg()
 
 void CReceiveDlg::init_item_types_combobox()
 {
+    long_to_short_item_names_.clear();
     combobox_item_types_->Clear();
-    std::set<std::string> item_types = get_item_types_list(unit_, land_);
-    for (const std::string& item_type : item_types)
-        combobox_item_types_->Append(item_type);
+    std::set<CItem> items = get_item_types_list(unit_, land_);
+    for (const CItem& item : items)
+    {
+        std::string name, plural;
+        gpApp->ResolveAliasItems(item.code_name_, name, plural);
+
+        long_to_short_item_names_[plural] = item.code_name_;        
+        combobox_item_types_->Append(plural);
+    }
+        
 }
 
-std::set<std::string> CReceiveDlg::get_item_types_list(CUnit* unit, CLand* land) const
+std::set<CItem> CReceiveDlg::get_item_types_list(CUnit* unit, CLand* land) const
 {
+    //getting units belonging to current faction
     std::vector<CUnit*> other_units;
     land_control::get_units_if(land, other_units, [&unit](CUnit* cur_unit) {
         return cur_unit->IsOurs && cur_unit->Id != unit->Id && !IS_NEW_UNIT(cur_unit);
     });
 
-    std::set<std::string> item_types_list;
+    //getting set of unique by ShortName products
+    std::set<CItem> item_types_list;
     for (CUnit* cur_unit : other_units)
     {
-        std::set<CProduct>& cur_products = unit_control::get_items(cur_unit);
+        std::set<CItem>& cur_products = unit_control::get_items(cur_unit);
         for (const auto& prod : cur_products)
-            item_types_list.insert(std::string(prod.ShortName.GetData(), prod.ShortName.GetLength()));
+            item_types_list.insert(prod);
     }
     return item_types_list;
 }
@@ -104,15 +114,15 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
 
     for (CUnit* cur_unit : other_units)
     {
-        std::set<CProduct>& cur_products = unit_control::get_items(cur_unit);
+        std::set<CItem>& cur_products = unit_control::get_items(cur_unit);
         for (const auto& prod : cur_products)
         {
-            if (SafeCmp(prod.ShortName.GetData(), item_type.c_str()) == 0 && prod.Amount > 0)
+            if (prod.code_name_ == item_type && prod.amount_ > 0)
             {
                 std::stringstream unit_name;
                 unit_name << "(" << std::to_string(cur_unit->Id) << ") ";
                 unit_name << std::string(cur_unit->Name.GetData(), cur_unit->Name.GetLength());
-                unit_name << " (max: " + std::to_string(prod.Amount) + ")";
+                unit_name << " (max: " + std::to_string(prod.amount_) + ")";
                 unit_names.push_back(unit_name.str());
                 unit_name_to_unit_[unit_name.str()] = cur_unit;
             }
@@ -123,8 +133,8 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
 
 void CReceiveDlg::OnItemChosen   (wxCommandEvent& event)
 {
-    std::string item = combobox_item_types_->GetValue().ToStdString();
-    std::vector<std::string> unit_names = get_units_with_item(item, unit_, land_);
+    std::string long_name_item = combobox_item_types_->GetValue().ToStdString();
+    std::vector<std::string> unit_names = get_units_with_item(long_to_short_item_names_[long_name_item], unit_, land_);
 
     combobox_units_->Clear();
     for (const std::string& unit_name : unit_names)
@@ -138,7 +148,8 @@ void CReceiveDlg::OnMax          (wxCommandEvent& event)
         return;
     CUnit* giver = unit_name_to_unit_[giver_name];
 
-    int amount = unit_control::get_item_amount(giver, combobox_item_types_->GetValue().ToStdString());
+    std::string long_name_item = combobox_item_types_->GetValue().ToStdString();
+    int amount = unit_control::get_item_amount(giver, long_to_short_item_names_[long_name_item]);
     spin_items_amount_->SetValue(amount);
 }
 
@@ -156,7 +167,8 @@ void CReceiveDlg::OnOk           (wxCommandEvent& event)
         order << "NEW " << (long)REVERSE_NEW_UNIT_ID(unit_->Id);
     else
         order << unit_->Id;
-    order << " " << amount << " " << combobox_item_types_->GetValue().ToStdString() << std::endl;
+    std::string long_name_item = combobox_item_types_->GetValue().ToStdString();
+    order << " " << amount << " " << long_to_short_item_names_[long_name_item];
 
     std::string giver_name = combobox_units_->GetValue().ToStdString();
     if (unit_name_to_unit_.find(giver_name) == unit_name_to_unit_.end())

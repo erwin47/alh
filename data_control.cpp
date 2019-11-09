@@ -38,29 +38,30 @@ namespace unit_control
     }
 
    
-    CProduct get_item_by_name(CUnit* unit, const std::string& short_name)
+    CItem get_item_by_name(CUnit* unit, const std::string& code_name)
     {
-        auto it = std::find_if(unit->items_.begin(), unit->items_.end(), [&short_name](const CProduct& prod) {
-            return SafeCmp(short_name.c_str(), prod.ShortName.GetData()) == 0;
+        auto it = std::find_if(unit->items_.begin(), unit->items_.end(), [&code_name](const CItem& prod) {
+            return code_name == prod.code_name_;
         });
         if (it != unit->items_.end())
             return *it;
-        return CProduct({0, short_name.c_str(), gpDataHelper->ResolveAlias(short_name.c_str())});
+
+        return CItem({0, code_name.c_str()});
     }
 
-    std::set<CProduct>& get_items(CUnit* unit)
+    std::set<CItem>& get_items(CUnit* unit)
     {
         return unit->items_;
     }
 
     long get_item_amount(CUnit* unit, const std::string& short_name)
     {
-        return get_item_by_name(unit, short_name).Amount;
+        return get_item_by_name(unit, short_name).amount_;
     }
     void modify_item_amount(CUnit* unit, const std::string& short_name, long new_amount)
     {
-        CProduct item = get_item_by_name(unit, short_name);
-        item.Amount += new_amount;
+        CItem item = get_item_by_name(unit, short_name);
+        item.amount_ += new_amount;
         unit->items_.erase(item);
         unit->items_.insert(item);
     }

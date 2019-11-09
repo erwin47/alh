@@ -174,6 +174,7 @@ enum
 #define SZ_SECT_UNITPROP_GROUPS         "UNIT_PROPERTY_GROUPS"
 #define SZ_SECT_STUDY_COST              "STUDYING_COST"
 #define SZ_SECT_ALIAS                   "ALIASES"
+#define SZ_SECT_ALIAS_ITEMS             "ALIASES_ITEMS"
 #define SZ_SECT_STRUCTS                 "STRUCTURES"
 #define SZ_SECT_PROD_SKILL              "PRODUCTION_SKILL"
 #define SZ_SECT_PROD_RESOURCE           "PRODUCTION_RESOURCE"

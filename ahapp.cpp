@@ -1012,6 +1012,56 @@ const char * CAhApp::ResolveAlias(const char * alias)
     return p1;
 }
 
+bool CAhApp::ResolveAliasItems(const std::string& codename, std::string& long_name, std::string& long_name_plural)
+{
+    std::string value(SkipSpaces(GetConfig(SZ_SECT_ALIAS_ITEMS, codename.c_str())));
+    if (value.empty())
+        return false;
+
+    size_t pos = value.find(",");
+    if (pos == std::string::npos)
+        return false;
+
+    long_name = value.substr(0, pos);
+    long_name_plural = value.substr(pos+1);
+
+    //in case we never met one of names, we should use second one instead
+    if (long_name.empty())
+        long_name = long_name_plural;
+    if (long_name_plural.empty())
+        long_name_plural = long_name;
+    return true;
+}
+
+void CAhApp::SetAliasItems(const std::string& codename, const std::string& long_name, const std::string& long_name_plural)
+{
+    std::string compose = long_name + "," + long_name_plural;
+    gpApp->SetConfig(SZ_SECT_ALIAS_ITEMS, codename.c_str(), compose.c_str());
+}
+
+void CAhApp::GetAliases(const char *&alias_name, const char *&alias_value)
+{
+    if (alias_name != NULL && alias_value == NULL)
+    {
+        alias_value = SkipSpaces(GetConfig(SZ_SECT_ALIAS, alias_name));
+    }
+    else if (alias_name == NULL && alias_value != NULL)
+    {
+        const char* szName; 
+        const char* szValue;
+        int idx = GetSectionFirst(SZ_SECT_ALIAS, szName, szValue);
+        while (idx >= 0)
+        {
+            if (stricmp(alias_value, szValue) == 0)
+            {
+                alias_name = szName;
+                break;
+            }
+            idx = GetSectionNext(idx, SZ_SECT_ALIAS, szName, szValue);
+        }
+    }
+}
+
 //-------------------------------------------------------------------------
 
 long CAhApp::GetStudyCost(const char * skill)
@@ -2203,7 +2253,7 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
     EValueType      type;
     long            men, lvl, tool, canproduce;
     CStr            sCoord, Skill;
-    CProduct      * pProd;
+    CItem      * pProd;
     TProdDetails    details;
     CTaxProdDetails * pFactionInfo = NULL;
     CTaxProdDetails   Dummy;
@@ -2214,10 +2264,10 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
 
     for (k=0; k<pLand->Products.Count(); k++)
     {
-        pProd = (CProduct*)pLand->Products.At(k);
-        if (0==pProd->Amount)
+        pProd = (CItem*)pLand->Products.At(k);
+        if (0==pProd->amount_)
             continue;
-        GetProdDetails(pProd->ShortName.GetData(), details);
+        GetProdDetails(pProd->code_name_.c_str(), details);
         Skill.Empty();
         Skill << details.skillname << PRP_SKILL_POSTFIX;
 
@@ -2236,11 +2286,11 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
                     TradeDetails.Insert(pFactionInfo);
                 }
                 if (Factions.Insert(pFactionInfo))
-                    pFactionInfo->amount = pProd->Amount;
+                    pFactionInfo->amount = pProd->amount_;
                 if (AllFactions.Insert(pFactionInfo) )
                     pFactionInfo->HexCount++;
 
-                if ( 0==stricmp(pUnit->ProducingItem.GetData(), pProd->ShortName.GetData()))
+                if ( 0==stricmp(pUnit->ProducingItem.GetData(), pProd->code_name_.c_str()))
                 {
                     if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)men, eNormal) || eLong!=type)
                         continue;
@@ -2288,7 +2338,7 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
             }
             while (x < 245 - prodBalanceWidth);
 
-            OneLine << prodBalance << " " << wxString::FromUTF8(pProd->ShortName.GetData());
+            OneLine << prodBalance << " " << wxString::FromUTF8(pProd->code_name_.c_str());
 
             do
             {
@@ -2297,10 +2347,10 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
             }
             while (x < 295);
 
-            const int percentage = 100 * (pProd->Amount - pFactionInfo->amount) / (pProd->Amount);
-            const int myProductionCapacity = pProd->Amount - pFactionInfo->amount;
+            const int percentage = 100 * (pProd->amount_ - pFactionInfo->amount) / (pProd->amount_);
+            const int myProductionCapacity = pProd->amount_ - pFactionInfo->amount;
 
-            OneLine << " (" << percentage << "%), " << myProductionCapacity << wxT("/") << pProd->Amount << wxT(".") << wxString::FromUTF8(EOL_SCR);
+            OneLine << " (" << percentage << "%), " << myProductionCapacity << wxT("/") << pProd->amount_ << wxT(".") << wxString::FromUTF8(EOL_SCR);
             pFactionInfo->Details << OneLine.ToUTF8();
         }
         Factions.DeleteAll();
@@ -4983,6 +5033,11 @@ long  CGameDataHelper::GetStructAttr(const char * kind, long & MaxLoad, long & M
 const char *  CGameDataHelper::ResolveAlias(const char * alias)
 {
     return gpApp->ResolveAlias(alias);
+}
+
+bool CGameDataHelper::ResolveAliasItems (const std::string& codename, std::string& long_name, std::string& long_name_plural)
+{
+    return gpApp->ResolveAliasItems(codename, long_name, long_name_plural);
 }
 
 BOOL CGameDataHelper::GetItemWeights(const char * item, int *& weights, const char **& movenames, int & movecount )

@@ -295,15 +295,14 @@ protected:
 
 //-----------------------------------------------------------------
 
-class CProduct
+class CItem
 {
 public:
-    long  Amount;
-    CStr  ShortName;
-    CStr  LongName;
+    long  amount_;
+    std::string code_name_;
 
-    bool operator<(const CProduct& prod) const {
-        return SafeCmp(ShortName.GetData(), prod.ShortName.GetData()) < 0;
+    bool operator<(const CItem& item) const {
+        return code_name_ < item.code_name_.c_str();
     }
 };
 
@@ -311,9 +310,7 @@ class CProductMarket
 {
 public:
     long        price_;
-    long        amount_;
-    std::string short_name_;
-    std::string long_name_;
+    CItem       item_;
 };
 
 struct Skill
@@ -333,10 +330,10 @@ public:
     CProductColl()            : CSortedCollection()      {};
     CProductColl(int nDelta)  : CSortedCollection(nDelta){};
 protected:
-    virtual void FreeItem(void * pItem) {delete (CProduct*)pItem;};
+    virtual void FreeItem(void * pItem) {delete (CItem*)pItem;};
     virtual int Compare(void * pItem1, void * pItem2) const
-    {return(SafeCmp( ((CProduct*)pItem1)->ShortName.GetData(),
-                     ((CProduct*)pItem2)->ShortName.GetData() ));};
+    {return(SafeCmp( ((CItem*)pItem1)->code_name_.c_str(),
+                     ((CItem*)pItem2)->code_name_.c_str() ));};
 };
 
 //-----------------------------------------------------------------
@@ -391,8 +388,8 @@ public:
     //and then should have possibility to reset CUnit by preserved initial state.
     //until we don't have that, we have to duplicate members (or have any other similar 
     //mechanisms) to have possibility restore state of CUnit. THat's for items_initial_.
-    std::set<CProduct> items_;
-    std::set<CProduct> items_initial_;
+    std::set<CItem> items_;
+    std::set<CItem> items_initial_;
     bool            IsOurs;
     long            FactionId;
     CFaction      * pFaction;
@@ -616,6 +613,7 @@ public:
     BOOL         IsMan             (const char * item);
     const char * GetWeatherLine    (BOOL IsCurrent, BOOL IsGood, int Zone);
     const char * ResolveAlias      (const char * alias);
+    bool         ResolveAliasItems (const std::string& codename, std::string& long_name, std::string& long_name_plural);
     BOOL         GetItemWeights    (const char * item, int *& weights, const char **& movenames, int & movecount );
     void         GetMoveNames      (const char **& movenames);
     BOOL         GetTropicZone     (const char * plane, long & y_min, long & y_max);

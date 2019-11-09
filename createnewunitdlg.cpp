@@ -132,8 +132,10 @@ void CCreateNewUnit::InitializeBuyItems(CLand* land)
     combobox_buy_units_type_ = new wxComboBox(this, -1, wxT("buying"), wxDefaultPosition, wxDefaultSize, 0, NULL);
     for (auto& item : land->for_sale_)
     {
-        std::string temp = item.second.long_name_ + std::string(": ") +
-            std::to_string(item.second.amount_) + std::string(" at $") + std::to_string(item.second.price_);
+        std::string name, plural;
+        gpApp->ResolveAliasItems(item.first, name, plural);
+        std::string temp = plural + std::string(": ") +
+            std::to_string(item.second.item_.amount_) + std::string(" at $") + std::to_string(item.second.price_);
         combobox_buy_units_type_->Append( temp );
         sale_products_.insert({temp, item.second});
     }
@@ -360,6 +362,7 @@ void CCreateNewUnit::UpdateExpences()
         //buying calculation
         std::string buy_unit_type(combobox_buy_units_type_->GetValue().mb_str());
         CProductMarket product = sale_products_.at(buy_unit_type);
+        CItem& item = product.item_;
         long buying_expences = spin_buy_units_amount_->GetValue() * product.price_;
 
         //studying calculation
@@ -378,11 +381,13 @@ void CCreateNewUnit::UpdateExpences()
 
         //upkeep calculation        
         long upkeep_amount = 0;
-        if (gpDataHelper->IsMan(product.short_name_.c_str()))
+        if (gpDataHelper->IsMan(item.code_name_.c_str()))
         {
+            std::string name, plural;
+            gpApp->ResolveAliasItems(item.code_name_, name, plural);
             //actually I'd prefer to not know which section is it, needs to be refactored
-            if (product.long_name_.find(SZ_LEADER) != std::string::npos || 
-                product.long_name_.find(SZ_HERO) != std::string::npos)                
+            if (name.find(SZ_LEADER) != std::string::npos || 
+                name.find(SZ_HERO) != std::string::npos)                
                 upkeep_amount = spin_buy_units_amount_->GetValue() * atoi(gpApp->GetConfig(SZ_SECT_COMMON, SZ_UPKEEP_LEADER));
             else
                 upkeep_amount = spin_buy_units_amount_->GetValue() * atoi(gpApp->GetConfig(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT));
@@ -438,13 +443,13 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
     if (buy_units > 0)
     {
         std::string combo_buy_unit(combobox_buy_units_type_->GetValue().mb_str());
-        CProductMarket item = sale_products_[combo_buy_unit];
+        CProductMarket product = sale_products_[combo_buy_unit];
         if (flag_buy_repeating_->IsChecked())
             unit_order << "@";
         if (flag_buy_all_->IsChecked())
-            unit_order << "buy all " << item.short_name_ << std::endl;
+            unit_order << "buy all " << product.item_.code_name_ << std::endl;
         else
-            unit_order << "buy " << buy_units << " " << item.short_name_ << std::endl;
+            unit_order << "buy " << buy_units << " " << product.item_.code_name_ << std::endl;
     }
 
     if (flag_check_study_->IsChecked())

@@ -198,6 +198,11 @@ public:
     void                 ShowError (const char * msg, int msglen, BOOL ignore_disabled);
     long                 GetStudyCost   (const char * skill);
     const char         * ResolveAlias   (const char * alias);
+    //internal logic should work just with codename. Long name and plural -- for visual representation
+    //returns true on success
+    bool                 ResolveAliasItems(const std::string& codename, std::string& long_name, std::string& long_name_plural);
+    void                 SetAliasItems(const std::string& codename, const std::string& long_name, const std::string& long_name_plural);
+    void                 GetAliases(const char *&alias_name, const char *&alias_value);
     long                 GetStructAttr  (const char * kind, long & MaxLoad, long & MinSailingPower);
     BOOL                 GetItemWeights (const char * item, int *& weights, const char **& movenames, int & movecount );
     void                 GetMoveNames(const char **& movenames);
