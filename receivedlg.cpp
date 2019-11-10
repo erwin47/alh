@@ -97,6 +97,16 @@ std::string CReceiveDlg::compose_give_order(CUnit* to_whom, long amount, const s
     order << " " << amount << " " << item;
     return order.str();  
 }
+std::string CReceiveDlg::compose_give_comment(CUnit* from_whom, long amount, const std::string& item)
+{
+    std::stringstream comment;
+    comment << ";receives "<< amount << " " << item;
+    if (IS_NEW_UNIT(from_whom))
+        comment << " from NEW " << (long)REVERSE_NEW_UNIT_ID(from_whom->Id);
+    else
+        comment << " from " << from_whom->Id;
+    return comment.str();  
+}
 
 std::string CReceiveDlg::compose_take_order(CUnit* from_whom, long amount, const std::string& item)
 {
@@ -108,6 +118,17 @@ std::string CReceiveDlg::compose_take_order(CUnit* from_whom, long amount, const
         order << from_whom->Id;
     order << " " << amount << " " << item;
     return order.str();
+}
+
+std::string CReceiveDlg::compose_take_comment(CUnit* to_whom, long amount, const std::string& item)
+{
+    std::stringstream comment;
+    comment << "gives " << amount << " " << item;
+    if (IS_NEW_UNIT(to_whom))
+        comment << " to NEW " << (long)REVERSE_NEW_UNIT_ID(to_whom->Id);
+    else
+        comment << " to " << to_whom->Id;
+    return comment.str();
 }
 
 std::set<CItem> CReceiveDlg::get_item_types_list(CUnit* unit, CLand* land) const
@@ -179,8 +200,14 @@ void CReceiveDlg::OnMax          (wxCommandEvent& event)
     spin_items_amount_->SetValue(amount);
 }
 
-
-
+void CReceiveDlg::set_order(CUnit* unit, const std::string& order)
+{
+    if (!unit->Orders.IsEmpty())
+        unit->Orders << EOL_SCR;
+    if (order_repeating_->GetValue())
+        unit->Orders << "@";
+    unit->Orders << order.c_str();
+}
 
 void CReceiveDlg::OnOk           (wxCommandEvent& event)
 {
@@ -192,25 +219,25 @@ void CReceiveDlg::OnOk           (wxCommandEvent& event)
     if (long_name.empty())
         return;
 
-    std::string order; 
-    if (use_order_take_->GetValue())
-        order = compose_take_order(unit_, amount, long_to_short_item_names_[long_name]);
-    else:
-        order = compose_give_order(unit_, amount, long_to_short_item_names_[long_name]);
-
-
     std::string giver_name = combobox_units_->GetValue().ToStdString();
     if (unit_name_to_unit_.find(giver_name) == unit_name_to_unit_.end())
         return;
-    CUnit* giver = unit_name_to_unit_[giver_name];
 
-    if (!giver->Orders.IsEmpty())
-        giver->Orders << EOL_SCR;
-
-    if (order_repeating_->GetValue())
-        giver->Orders << "@";
-    giver->Orders << order.str().c_str();
-
+    CUnit* giving_unit = unit_name_to_unit_[giver_name];
+    if (use_order_take_->GetValue())
+    {
+        std::string order = compose_take_order(giving_unit, amount, long_to_short_item_names_[long_name]);
+        std::string comment = compose_take_comment(unit_, amount, long_to_short_item_names_[long_name]);
+        set_order(unit_, order);
+        set_order(giving_unit, comment);
+    }        
+    else
+    {
+        std::string order = compose_give_order(unit_, amount, long_to_short_item_names_[long_name]);
+        std::string comment = compose_give_comment(giving_unit, amount, long_to_short_item_names_[long_name]);
+        set_order(giving_unit, order);
+        set_order(unit_, comment);
+    }
     gpApp->m_pAtlantis->RunOrders(land_);
 
     StoreSize();

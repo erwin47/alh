@@ -62,7 +62,7 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define PRP_BEST_SKILL                  "best_skill"
 #define PRP_BEST_SKILL_DAYS             "best_skill_days"
 #define PRP_MOVEMENT                    "movement"
-#define PRP_SILVER                      "silv"
+#define PRP_SILVER                      "SILV"
 #define PRP_LEADER                      "leadership"
 
 #define PRP_FLAGS_STANDARD              "flags_standard"
