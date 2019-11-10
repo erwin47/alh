@@ -1039,29 +1039,6 @@ void CAhApp::SetAliasItems(const std::string& codename, const std::string& long_
     gpApp->SetConfig(SZ_SECT_ALIAS_ITEMS, codename.c_str(), compose.c_str());
 }
 
-void CAhApp::GetAliases(const char *&alias_name, const char *&alias_value)
-{
-    if (alias_name != NULL && alias_value == NULL)
-    {
-        alias_value = SkipSpaces(GetConfig(SZ_SECT_ALIAS, alias_name));
-    }
-    else if (alias_name == NULL && alias_value != NULL)
-    {
-        const char* szName; 
-        const char* szValue;
-        int idx = GetSectionFirst(SZ_SECT_ALIAS, szName, szValue);
-        while (idx >= 0)
-        {
-            if (stricmp(alias_value, szValue) == 0)
-            {
-                alias_name = szName;
-                break;
-            }
-            idx = GetSectionNext(idx, SZ_SECT_ALIAS, szName, szValue);
-        }
-    }
-}
-
 //-------------------------------------------------------------------------
 
 long CAhApp::GetStudyCost(const char * skill)
