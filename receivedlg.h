@@ -25,6 +25,7 @@ class CReceiveDlg : public CResizableDlg
     wxSpinCtrl* spin_items_amount_;
     wxComboBox* combobox_units_;
     wxCheckBox* order_repeating_;
+    wxCheckBox* use_order_take_;
 
     std::map<std::string, CUnit*> unit_name_to_unit_;
     std::map<std::string, std::string> long_to_short_item_names_;
@@ -35,6 +36,8 @@ public:
 
 private:
     void init_item_types_combobox();
+    std::string compose_give_order(CUnit* to_whom, long amount, const std::string& item);
+    std::string compose_take_order(CUnit* to_whom, long amount, const std::string& item);
 
     std::set<CItem> get_item_types_list(CUnit* unit, CLand* land) const;
     std::vector<std::string> get_units_with_item(const std::string& item_type, CUnit* unit, CLand* land);

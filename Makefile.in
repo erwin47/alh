@@ -16,9 +16,9 @@ CPPFLAGS = @CPPFLAGS@
 
 
 OBJECTS     = collection.o cfgfile.o cstr.o files.o hash.o objs.o\
-              data.o errs.o atlaparser.o \
-              ahapp.o ahframe.o consts_ah.o editpane.o \
-              editsframe.o extend.o extend_no.o \
+              data.o errs.o atlaparser.o ahapp.o ahframe.o\
+              consts_ah.o editpane.o receivedlg.o createnewunitdlg.o\
+              editsframe.o extend.o extend_no.o data_control.o \
 			  flagsdlg.o hexfilterdlg.o listcoledit.o \
               listpane.o mapframe.o \
               mappane.o msgframe.o optionsdlg.o routeplanner.o \

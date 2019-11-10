@@ -16,12 +16,14 @@ CReceiveDlg::CReceiveDlg(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     combobox_item_types_ = new wxComboBox(this, -1, wxT(""), wxDefaultPosition, wxDefaultSize, 0, NULL);
     spin_items_amount_ = new wxSpinCtrl(this, -1, wxT("0"), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 100000);
     order_repeating_ = new wxCheckBox(this, -1, "repeating");
+    use_order_take_ = new wxCheckBox(this, -1, "take");
 
     combobox_item_types_->Bind(wxEVT_COMBOBOX, &CReceiveDlg::OnItemChosen, this);
     itemssizer->Add(new wxStaticText(this, -1, wxT("Item: ")), 0, wxALL);
     itemssizer->Add(combobox_item_types_, 1, wxALL);
     itemssizer->Add(spin_items_amount_, 0, wxALL);
     itemssizer->Add(order_repeating_, 0, wxALL);
+    itemssizer->Add(use_order_take_, 0, wxALL);
     init_item_types_combobox();
 
     wxBoxSizer* unitchoosesizer = new wxBoxSizer( wxHORIZONTAL );
@@ -82,6 +84,30 @@ void CReceiveDlg::init_item_types_combobox()
         combobox_item_types_->Append(plural);
     }
         
+}
+
+std::string CReceiveDlg::compose_give_order(CUnit* to_whom, long amount, const std::string& item)
+{
+    std::stringstream order;
+    order << "give ";
+    if (IS_NEW_UNIT(to_whom))
+        order << "NEW " << (long)REVERSE_NEW_UNIT_ID(to_whom->Id);
+    else
+        order << to_whom->Id;
+    order << " " << amount << " " << item;
+    return order.str();  
+}
+
+std::string CReceiveDlg::compose_take_order(CUnit* from_whom, long amount, const std::string& item)
+{
+    std::stringstream order;
+    order << "take from ";
+    if (IS_NEW_UNIT(from_whom))
+        order << "NEW " << (long)REVERSE_NEW_UNIT_ID(from_whom->Id);
+    else
+        order << from_whom->Id;
+    order << " " << amount << " " << item;
+    return order.str();
 }
 
 std::set<CItem> CReceiveDlg::get_item_types_list(CUnit* unit, CLand* land) const
@@ -153,22 +179,25 @@ void CReceiveDlg::OnMax          (wxCommandEvent& event)
     spin_items_amount_->SetValue(amount);
 }
 
+
+
+
 void CReceiveDlg::OnOk           (wxCommandEvent& event)
 {
     long amount = spin_items_amount_->GetValue();
     if (amount <= 0)
         return;
+    
+    std::string long_name = combobox_item_types_->GetValue().ToStdString();
+    if (long_name.empty())
+        return;
 
-    std::stringstream order;
-    if (order_repeating_->GetValue())
-        order << "@";
-    order << "give ";
-    if (IS_NEW_UNIT(unit_))
-        order << "NEW " << (long)REVERSE_NEW_UNIT_ID(unit_->Id);
-    else
-        order << unit_->Id;
-    std::string long_name_item = combobox_item_types_->GetValue().ToStdString();
-    order << " " << amount << " " << long_to_short_item_names_[long_name_item];
+    std::string order; 
+    if (use_order_take_->GetValue())
+        order = compose_take_order(unit_, amount, long_to_short_item_names_[long_name]);
+    else:
+        order = compose_give_order(unit_, amount, long_to_short_item_names_[long_name]);
+
 
     std::string giver_name = combobox_units_->GetValue().ToStdString();
     if (unit_name_to_unit_.find(giver_name) == unit_name_to_unit_.end())
@@ -177,6 +206,9 @@ void CReceiveDlg::OnOk           (wxCommandEvent& event)
 
     if (!giver->Orders.IsEmpty())
         giver->Orders << EOL_SCR;
+
+    if (order_repeating_->GetValue())
+        giver->Orders << "@";
     giver->Orders << order.str().c_str();
 
     gpApp->m_pAtlantis->RunOrders(land_);
