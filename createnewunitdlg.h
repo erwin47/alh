@@ -83,11 +83,11 @@ private:
     void InitializeRecvSilver(int faction_id, CLand* land);
     wxBoxSizer* RecvSilverToForm();
 
-    void InitializeMaintanence();
-    wxBoxSizer* MaintanenceToForm();
+    void InitializeMaintenance();
+    wxBoxSizer* MaintenanceToForm();
 
     void InitializeExpences();
-    wxBoxSizer* ExpencesToForm();
+    wxBoxSizer* ExpensesToForm();
 
     void InitializeFlags(CUnit* unit);
     wxBoxSizer* FlagsToForm();

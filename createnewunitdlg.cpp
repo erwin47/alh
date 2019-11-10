@@ -28,10 +28,10 @@ CCreateNewUnit::CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     wxBoxSizer* unit_study_sizer = StudyToForm();
     InitializeRecvSilver(unit_->FactionId, land_);
     wxBoxSizer* unit_silver_sizer = RecvSilverToForm();
-    InitializeMaintanence();
-    wxBoxSizer* maintenance_sizer = MaintanenceToForm();
+    InitializeMaintenance();
+    wxBoxSizer* maintenance_sizer = MaintenanceToForm();
     InitializeExpences();
-    wxBoxSizer* unit_expenses_sizer = ExpencesToForm();
+    wxBoxSizer* unit_expenses_sizer = ExpensesToForm();
 
     wxBoxSizer* unitsizer = new wxBoxSizer( wxVERTICAL );
     unitsizer->Add(unit_names_sizer, 0, 0);
@@ -237,12 +237,12 @@ wxBoxSizer* CCreateNewUnit::RecvSilverToForm()
     return unit_silver_sizer;
 }
 
-void CCreateNewUnit::InitializeMaintanence()
+void CCreateNewUnit::InitializeMaintenance()
 {
     spin_maintenance_turns_ = new wxSpinCtrl(this, -1, wxT("0"), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 100000);
 }
 
-wxBoxSizer* CCreateNewUnit::MaintanenceToForm()
+wxBoxSizer* CCreateNewUnit::MaintenanceToForm()
 {
     wxBoxSizer* temp_sizer;
     wxBoxSizer* maintenance_sizer = new wxBoxSizer( wxVERTICAL );    
@@ -261,7 +261,7 @@ void CCreateNewUnit::InitializeExpences()
     expenses_all_ = new wxStaticText(this, -1, wxT("0")); 
 }
 
-wxBoxSizer* CCreateNewUnit::ExpencesToForm()
+wxBoxSizer* CCreateNewUnit::ExpensesToForm()
 {
     wxBoxSizer* temp_sizer;
     wxBoxSizer* unit_expenses_sizer = new wxBoxSizer( wxVERTICAL );
