@@ -1410,13 +1410,13 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
                         CProductMarket temp_product;
                         temp_product.price_ = n2;
                         temp_product.item_.amount_ = n1;
-                        temp_product.item_.code_name_ = S2.GetData();
+                        temp_product.item_.code_name_ = std::string(S2.GetData(), S2.GetLength());
                         //temp_product.long_name_ = S1.GetData();
                         
                         if (eSale == SectType)
-                            pLand->for_sale_[S2.GetData()] = temp_product;
+                            pLand->for_sale_[temp_product.item_.code_name_] = temp_product;
                         else
-                            pLand->wanted_[S2.GetData()] = temp_product;
+                            pLand->wanted_[temp_product.item_.code_name_] = temp_product;
 
                         if (eSale == SectType)
                             MakeQualifiedPropertyName(PRP_SALE_AMOUNT_PREFIX, S2.GetData(), Buf);
@@ -2364,7 +2364,6 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
                     else
                     {
                         //items of current unit
-                        //pUnit->items_.insert({n1, S2, S1});
                         pUnit->items_initial_.insert({n1, std::string(S2.GetData(), S2.GetLength())});
 
                         //add to aliases
@@ -2377,12 +2376,12 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
                             long_name = std::string(S1.GetData(), S1.GetLength());                        
                         gpApp->SetAliasItems(codename, long_name, long_name_plural);
 
-                        //keep Properties while they are useful, and then replace them with items
+                        //keep Properties while they are useful, and then remove them
                         SetUnitProperty(pUnit, S2.GetData(), eLong, (void*)n1, eBoth);
-                    // is this a man property?
+                        // is this a man property?
                         if (gpDataHelper->IsMan(S2.GetData()))
                         {
-                        //So, is it a leader?
+                            //So, is it a leader?
                             if (S1.FindSubStr(SZ_LEADER) >=0 )
                                 SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_LEADER, eBoth);
                             if (S1.FindSubStr(SZ_HERO) >=0 )

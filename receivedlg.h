@@ -14,8 +14,7 @@ TODO:
 1) add button "Add" which will add possibility to put few orders in a line.
 It will need a text space to store there orderes.
 After each such order amounts and accessible item types have to be recalculated.
-4) silv and SILV are duplicated %) resolve the issue
-6) Get item by pressing first letter
+6) Get item by pressing first letter on a keyboard, when window is opened.
 */
 class CReceiveDlg : public CResizableDlg
 {
