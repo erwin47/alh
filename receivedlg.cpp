@@ -209,6 +209,13 @@ void CReceiveDlg::set_order(CUnit* unit, const std::string& order)
     unit->Orders << order.c_str();
 }
 
+void CReceiveDlg::set_comment(CUnit* unit, const std::string& comment)
+{
+    if (!unit->Comments.IsEmpty())
+        unit->Comments << EOL_SCR;
+    unit->Comments << comment.c_str();
+}
+
 void CReceiveDlg::OnOk           (wxCommandEvent& event)
 {
     long amount = spin_items_amount_->GetValue();
@@ -229,14 +236,14 @@ void CReceiveDlg::OnOk           (wxCommandEvent& event)
         std::string order = compose_take_order(giving_unit, amount, long_to_short_item_names_[long_name]);
         std::string comment = compose_take_comment(unit_, amount, long_to_short_item_names_[long_name]);
         set_order(unit_, order);
-        set_order(giving_unit, comment);
+        set_comment(giving_unit, comment);
     }        
     else
     {
         std::string order = compose_give_order(unit_, amount, long_to_short_item_names_[long_name]);
         std::string comment = compose_give_comment(giving_unit, amount, long_to_short_item_names_[long_name]);
         set_order(giving_unit, order);
-        set_order(unit_, comment);
+        set_comment(unit_, comment);
     }
     gpApp->m_pAtlantis->RunOrders(land_);
 
