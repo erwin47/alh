@@ -200,7 +200,7 @@ public:
     const char         * ResolveAlias   (const char * alias);
     //internal logic should work just with codename. Long name and plural -- for visual representation
     //returns true on success
-    bool                 ResolveAliasItems(const std::string& codename, std::string& long_name, std::string& long_name_plural);
+    bool                 ResolveAliasItems(const std::string& phrase, std::string& codename, std::string& long_name, std::string& long_name_plural);
     void                 SetAliasItems(const std::string& codename, const std::string& long_name, const std::string& long_name_plural);
     long                 GetStructAttr  (const char * kind, long & MaxLoad, long & MinSailingPower);
     BOOL                 GetItemWeights (const char * item, int *& weights, const char **& movenames, int & movecount );

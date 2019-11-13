@@ -36,7 +36,6 @@ namespace unit_control
             return false;
         }
     }
-
    
     CItem get_item_by_name(CUnit* unit, const std::string& code_name)
     {
@@ -54,13 +53,13 @@ namespace unit_control
         return unit->items_;
     }
 
-    long get_item_amount(CUnit* unit, const std::string& short_name)
+    long get_item_amount(CUnit* unit, const std::string& codename)
     {
-        return get_item_by_name(unit, short_name).amount_;
+        return get_item_by_name(unit, codename).amount_;
     }
-    void modify_item_amount(CUnit* unit, const std::string& short_name, long new_amount)
+    void modify_item_amount(CUnit* unit, const std::string& codename, long new_amount)
     {
-        CItem item = get_item_by_name(unit, short_name);
+        CItem item = get_item_by_name(unit, codename);
         item.amount_ += new_amount;
         unit->items_.erase(item);
         unit->items_.insert(item);

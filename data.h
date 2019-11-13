@@ -613,7 +613,7 @@ public:
     BOOL         IsMan             (const char * item);
     const char * GetWeatherLine    (BOOL IsCurrent, BOOL IsGood, int Zone);
     const char * ResolveAlias      (const char * alias);
-    bool         ResolveAliasItems (const std::string& codename, std::string& long_name, std::string& long_name_plural);
+    bool         ResolveAliasItems (const std::string& phrase, std::string& codename, std::string& name, std::string& name_plural);
     BOOL         GetItemWeights    (const char * item, int *& weights, const char **& movenames, int & movecount );
     void         GetMoveNames      (const char **& movenames);
     BOOL         GetTropicZone     (const char * plane, long & y_min, long & y_max);

@@ -1012,25 +1012,46 @@ const char * CAhApp::ResolveAlias(const char * alias)
     return p1;
 }
 
-bool CAhApp::ResolveAliasItems(const std::string& codename, std::string& long_name, std::string& long_name_plural)
+bool CAhApp::ResolveAliasItems(const std::string& phrase, std::string& codename, std::string& name, std::string& name_plural)
 {
-    std::string value(SkipSpaces(GetConfig(SZ_SECT_ALIAS_ITEMS, codename.c_str())));
-    if (value.empty())
-        return false;
+    const char* pkey;
+    const char* pvalue;
+    std::string current_codename, current_name, current_name_plural, value;
+    int sectidx = gpApp->GetSectionFirst(SZ_SECT_ALIAS_ITEMS, pkey, pvalue);
+    while (sectidx >= 0)
+    {
+        if (pkey == NULL || pvalue == NULL)
+        {
+            sectidx = gpApp->GetSectionNext(sectidx, SZ_SECT_ALIAS_ITEMS, pkey, pvalue);
+            continue;
+        }
+        current_codename = pkey;
+        value = pvalue;
 
-    size_t pos = value.find(",");
-    if (pos == std::string::npos)
-        return false;
+        size_t pos = value.find(",");
+        if (pos == std::string::npos)
+        {
+            sectidx = gpApp->GetSectionNext(sectidx, SZ_SECT_ALIAS_ITEMS, pkey, pvalue);
+            continue;
+        }
+        current_name = value.substr(0, pos);
+        current_name_plural = value.substr(pos+1);
 
-    long_name = value.substr(0, pos);
-    long_name_plural = value.substr(pos+1);
+        if (current_name.empty())
+            current_name = current_name_plural;
+        if (current_name_plural.empty())
+            current_name_plural = current_name;
 
-    //in case we never met one of names, we should use second one instead
-    if (long_name.empty())
-        long_name = long_name_plural;
-    if (long_name_plural.empty())
-        long_name_plural = long_name;
-    return true;
+        if (phrase == current_codename || phrase == current_name || phrase == current_name_plural)
+        {
+            codename = current_codename;
+            name = current_name;
+            name_plural = current_name_plural;
+            return true;
+        }
+        sectidx = gpApp->GetSectionNext(sectidx, SZ_SECT_ALIAS_ITEMS, pkey, pvalue);
+    }
+    return false;
 }
 
 void CAhApp::SetAliasItems(const std::string& codename, const std::string& long_name, const std::string& long_name_plural)
@@ -5012,9 +5033,9 @@ const char *  CGameDataHelper::ResolveAlias(const char * alias)
     return gpApp->ResolveAlias(alias);
 }
 
-bool CGameDataHelper::ResolveAliasItems (const std::string& codename, std::string& long_name, std::string& long_name_plural)
+bool CGameDataHelper::ResolveAliasItems (const std::string& phrase, std::string& codename, std::string& long_name, std::string& long_name_plural)
 {
-    return gpApp->ResolveAliasItems(codename, long_name, long_name_plural);
+    return gpApp->ResolveAliasItems(phrase, codename, long_name, long_name_plural);
 }
 
 BOOL CGameDataHelper::GetItemWeights(const char * item, int *& weights, const char **& movenames, int & movecount )

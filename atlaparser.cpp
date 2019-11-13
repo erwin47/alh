@@ -2369,7 +2369,7 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
                         //add to aliases
                         std::string codename(S2.GetData(), S2.GetLength());
                         std::string long_name, long_name_plural;
-                        gpApp->ResolveAliasItems(codename, long_name, long_name_plural);
+                        gpApp->ResolveAliasItems(codename, codename, long_name, long_name_plural);
                         if (n1 > 1)
                             long_name_plural = std::string(S1.GetData(), S1.GetLength());
                         else
@@ -3770,13 +3770,13 @@ void CAtlaParser::ComposeProductsLine(CLand * pLand, const char * eol, CStr & S)
             if (pProd->amount_>1)
             {
                 std::string name, plural;
-                gpApp->ResolveAliasItems(pProd->code_name_, name, plural);
+                gpApp->ResolveAliasItems(pProd->code_name_, pProd->code_name_, name, plural);
                 S << " " << pProd->amount_ << " " << plural.c_str() << " ["<< pProd->code_name_.c_str() << "]";
             }
             else if (pProd->amount_ == 1)
             {
                 std::string name, plural;
-                gpApp->ResolveAliasItems(pProd->code_name_, name, plural);
+                gpApp->ResolveAliasItems(pProd->code_name_, pProd->code_name_, name, plural);
                 S << " " << pProd->amount_ << " " << name.c_str() << " ["<< pProd->code_name_.c_str() << "]";
             }
             else
@@ -6212,6 +6212,9 @@ BOOL CAtlaParser::GetItemAndAmountForGive(CStr & Line, CStr & ErrorLine, BOOL sk
 
         params = SkipSpaces(S1.GetToken(params, " \t", ch, TRIM_ALL));
         params = SkipSpaces(Item.GetToken(params, " \t", ch, TRIM_ALL));
+        std::string codename, name, name_plural;
+        gpApp->ResolveAliasItems(Item.GetData(), codename, name, name_plural);
+        Item = codename.c_str();
 
         if (0 != stricmp("UNIT", S1.GetData()))
             if (0 == stricmp("TAKE", command))
@@ -6290,6 +6293,9 @@ void CAtlaParser::RunOrder_Withdraw(CStr & Line, CStr & ErrorLine, BOOL skiperro
         // WITHDRAW 100 SILV
         params = N.GetToken(SkipSpaces(params), " \t", ch, TRIM_ALL);
         params = Item.GetToken(params, " \t", ch, TRIM_ALL);
+        std::string codename, name, name_plural;
+        gpApp->ResolveAliasItems(Item.GetData(), codename, name, name_plural);
+        Item = codename.c_str();
 
         amount = atol(N.GetData()); // we allow negative amounts!
 

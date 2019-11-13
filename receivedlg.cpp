@@ -2,6 +2,7 @@
 
 #include <wx/statline.h>
 #include <sstream>
+#include <algorithm>
 #include "data_control.h"
 //#include "ah_control.h"
 
@@ -77,13 +78,12 @@ void CReceiveDlg::init_item_types_combobox()
     std::set<CItem> items = get_item_types_list(unit_, land_);
     for (const CItem& item : items)
     {
-        std::string name, plural;
-        gpApp->ResolveAliasItems(item.code_name_, name, plural);
+        std::string codename, name, plural;
+        gpApp->ResolveAliasItems(item.code_name_, codename, name, plural);
 
         long_to_short_item_names_[plural] = item.code_name_;        
         combobox_item_types_->Append(plural);
-    }
-        
+    }        
 }
 
 std::string CReceiveDlg::compose_give_order(CUnit* to_whom, long amount, const std::string& item)
@@ -155,24 +155,31 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
     unit_name_to_unit_.clear();
     std::vector<std::string> unit_names;
     std::vector<CUnit*> other_units;
+    //get all our units except chosen one
     land_control::get_units_if(land, other_units, [&unit](CUnit* cur_unit) {
         return cur_unit->IsOurs && cur_unit->Id != unit->Id && !IS_NEW_UNIT(cur_unit);
     });
 
+    //sort them out by amount of items they have
+    std::vector<std::pair<long, CUnit*>> products_per_unit;
     for (CUnit* cur_unit : other_units)
+        products_per_unit.emplace_back(std::pair<long, CUnit*>{unit_control::get_item_amount(cur_unit, item_type), cur_unit});
+
+    std::sort(products_per_unit.begin(), products_per_unit.end(), 
+        [](const std::pair<long, CUnit*>& u1, const std::pair<long, CUnit*>& u2) {
+        return u1.first > u2.first;
+    });
+
+    for (const auto& ppu : products_per_unit)
     {
-        std::set<CItem>& cur_products = unit_control::get_items(cur_unit);
-        for (const auto& prod : cur_products)
+        if (ppu.first > 0)
         {
-            if (prod.code_name_ == item_type && prod.amount_ > 0)
-            {
-                std::stringstream unit_name;
-                unit_name << "(" << std::to_string(cur_unit->Id) << ") ";
-                unit_name << std::string(cur_unit->Name.GetData(), cur_unit->Name.GetLength());
-                unit_name << " (max: " + std::to_string(prod.amount_) + ")";
-                unit_names.push_back(unit_name.str());
-                unit_name_to_unit_[unit_name.str()] = cur_unit;
-            }
+            std::stringstream unit_name;
+            unit_name << "(" << std::to_string(ppu.second->Id) << ") ";
+            unit_name << std::string(ppu.second->Name.GetData(), ppu.second->Name.GetLength());
+            unit_name << " (max: " + std::to_string(ppu.first) + ")";
+            unit_names.push_back(unit_name.str());
+            unit_name_to_unit_[unit_name.str()] = ppu.second;
         }
     }
     return unit_names;
