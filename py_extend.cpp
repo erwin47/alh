@@ -35,7 +35,7 @@ void initxyzzy(void); /* Forward */
 void dotest()
 {
 	/* Pass argv[0] to the Python interpreter */
-	Py_SetProgramName("xyzzy");
+	Py_SetProgramName(L"xyzzy");
 
 	/* Initialize the Python interpreter.  Required. */
 	Py_Initialize();
@@ -47,7 +47,7 @@ void dotest()
 	   want this; you can also let it undefined (since the Python
 	   code is generally not a main program it has no business
 	   touching sys.argv...) */
-  char * argv[1] = {"xyzzy"};
+  wchar_t * argv[1] = {L"xyzzy"};
 	PySys_SetArgv(1, argv);
 
 	/* Do some application specific code */
@@ -79,7 +79,7 @@ void dotest()
 /* 'self' is not used */
 extern "C" PyObject * xyzzy_foo(PyObject *self, PyObject* args)
 {
-	return PyInt_FromLong(42L);
+	return new PyObject();//PyInt_FromLong(42L);
 }
 
 PyMethodDef xyzzy_methods[] =
@@ -91,6 +91,6 @@ PyMethodDef xyzzy_methods[] =
 void initxyzzy(void)
 {
 	PyImport_AddModule("xyzzy");
-	Py_InitModule("xyzzy", xyzzy_methods);
+	//Py_InitModule("xyzzy", xyzzy_methods);
 }
 

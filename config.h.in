@@ -16,4 +16,4 @@
 #undef HAVE_STRDUP
 
 /* Define if you have Python.  */
-#undef HAVE_PYTHON
+#cmakedefine HAVE_PYTHON
