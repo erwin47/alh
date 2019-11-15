@@ -28,6 +28,8 @@
 
 /* Example of embedding Python in another program */
 
+#ifdef USE_PYTHON
+
 #include "Python.h"
 
 void initxyzzy(void); /* Forward */
@@ -94,3 +96,4 @@ void initxyzzy(void)
 	//Py_InitModule("xyzzy", xyzzy_methods);
 }
 
+#endif

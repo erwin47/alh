@@ -91,20 +91,27 @@ set(AH_HEADERS
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-#option(HAVE_PYTHON "Python library" OFF)
+option(USE_PYTHON "Python library" OFF)
 
 find_package(wxWidgets REQUIRED)
-find_package(PythonLibs REQUIRED)
 
-#if(HAVE_PYTHON)
-#endif()
-message("${PYTHON_INCLUDE_DIRS} ${wxWidgets_USE_FILE}")
+message("wxWidgets: ${wxWidgets_USE_FILE}")
 
 configure_file(config.h.in config.h)
 
-include_directories(${PYTHON_INCLUDE_DIRS})
+set(AH_LINK_LIST
+    ${wxWidgets_LIBRARIES}
+)
+
+if(USE_PYTHON)
+    find_package(PythonLibs REQUIRED)
+    include_directories(${PYTHON_INCLUDE_DIRS})
+    list(APPEND AH_LINK_LIST ${PYTHON_LIBRARIES})
+    message("Python: ${PYTHON_INCLUDE_DIRS}")
+endif()
+
 include(${wxWidgets_USE_FILE})
 
 # add the executable
 add_executable(ah ${AH_CPP} ${AH_HEADERS})
-target_link_libraries(ah ${wxWidgets_LIBRARIES} ${PYTHON_LIBRARIES})
+target_link_libraries(ah ${AH_LINK_LIST})
