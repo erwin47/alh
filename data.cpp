@@ -748,7 +748,6 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
     pMovement     = NULL;
     pMoveA3Points = NULL;
     pStudents     = NULL;
-    SilvRcvd      = 0;
     Flags         = 0;
     FlagsOrg      = 0;
     FlagsLast     = ~Flags;
@@ -786,7 +785,6 @@ CUnit * CUnit::AllocSimpleCopy()
     pUnit->FactionId              = FactionId            ;
     pUnit->pFaction               = pFaction             ;
     pUnit->LandId                 = LandId               ;
-    pUnit->SilvRcvd               = SilvRcvd             ;
     pUnit->Teaching               = Teaching             ;
     pUnit->Comments               = Comments             ;
     pUnit->DefOrders              = DefOrders            ;
@@ -843,14 +841,12 @@ void CUnit::ExtractCommentsFromDefOrders()
 
 void CUnit::ResetNormalProperties()
 {
-
-
     CBaseObject::ResetNormalProperties();
     Teaching = 0;
     StudyingSkill.Empty();
     ProducingItem.Empty();
-    SilvRcvd = 0;
     items_ = items_initial_;
+    impact_description_.clear();
 
     Flags     = FlagsOrg;
     FlagsLast = ~Flags;
@@ -1137,12 +1133,6 @@ BOOL CUnit::GetProperty(const char  *  name,
 
             type  = eCharPtr;
             value = OrdersDecorated.GetData();
-
-
-            /*
-            type  = eCharPtr;
-            value = Orders.GetData();
-            */
         }
         else if (0==stricmp(name, PRP_FACTION_ID))
         {

@@ -1,6 +1,7 @@
 
 #include "data_control.h"
 #include <algorithm>
+#include <sstream>
 
 namespace unit_control
 {
@@ -57,12 +58,21 @@ namespace unit_control
     {
         return get_item_by_name(unit, codename).amount_;
     }
-    void modify_item_amount(CUnit* unit, const std::string& codename, long new_amount)
+    void modify_item_amount(CUnit* unit, const std::string& source_name, const std::string& codename, long new_amount)
     {
+        if (new_amount == 0)
+            return;
+
         CItem item = get_item_by_name(unit, codename);
         item.amount_ += new_amount;
         unit->items_.erase(item);
         unit->items_.insert(item);
+        
+        std::stringstream ss;
+        if (new_amount > 0)
+            ss << "receives " << new_amount << " of " << codename << " from " << source_name;
+        if (new_amount < 0)
+            ss << "loses " << new_amount << " of " << codename << " for " << source_name;
+        unit->impact_description_.push_back(ss.str());
     }
-
 }

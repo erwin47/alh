@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <map>
+#include <sstream>
 
 #include <math.h>
 #include <stdlib.h>
@@ -4424,7 +4425,7 @@ BOOL CAtlaParser::ShareSilver(CUnit * pMainUnit)
         else if (eLong!=type)
             GEN_ERR(pMainUnit, NOTNUMERIC << pMainUnit->Id << BUG);
 
-        mainmoney -= pMainUnit->SilvRcvd;
+        mainmoney -= unit_control::get_item_amount(pMainUnit, PRP_SILVER);
 
         if (mainmoney<=0)
             break;
@@ -5287,7 +5288,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                             else if (eLong!=type)
                                 SHOW_WARN_CONTINUE(NOTNUMERIC << pUnit->Id << BUG);
 
-                            unit_control::modify_item_amount(pUnit, PRP_SILVER, n1);
+                            unit_control::modify_item_amount(pUnit, "claiming", PRP_SILVER, n1);
                             unitmoney += n1;
                             if (PE_OK!=pUnit->SetProperty(PRP_SILVER,   eLong, (const void *)unitmoney, eNormal))
                                 SHOW_WARN_CONTINUE(NOSET << BUG);
@@ -5721,7 +5722,7 @@ void CAtlaParser::DistributeSilver(CLand * pLand, int unitFlag, int silver, int 
                 }
                 unitReceives = (silver * nmen) / menCount;
                 unitSilver += unitReceives;
-                unit_control::modify_item_amount(pUnit, PRP_SILVER, unitReceives);
+                unit_control::modify_item_amount(pUnit, "distribution", PRP_SILVER, unitReceives);
                 silver -= unitReceives;
                 menCount -= nmen;
                 pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
@@ -5815,7 +5816,7 @@ void CAtlaParser::RunOrder_Upkeep(CUnit * pUnit, int turns)
             pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eBoth);
         }
         unitSilver -= Maintainance * turns;
-        unit_control::modify_item_amount(pUnit, PRP_SILVER, -Maintainance * turns);
+        unit_control::modify_item_amount(pUnit, "upkeep", PRP_SILVER, -Maintainance * turns);
         pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
     }
 }
@@ -5884,7 +5885,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
                 shareSilver = std::min(unitSilver, silverNeeded);
                 silverNeeded -= shareSilver;
                 unitSilver -= shareSilver;
-                unit_control::modify_item_amount(pUnit, PRP_SILVER, -shareSilver);
+                unit_control::modify_item_amount(pUnit, "sharing", PRP_SILVER, -shareSilver);
                 pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
                 if (!silverNeeded)
                     break;
@@ -5907,7 +5908,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
                 shareSilver = std::min(-unitSilver, silverAvailable);
                 silverAvailable -= shareSilver;
                 unitSilver += shareSilver;
-                unit_control::modify_item_amount(pUnit, PRP_SILVER, -shareSilver);
+                unit_control::modify_item_amount(pUnit, "sharing", PRP_SILVER, -shareSilver);
                 pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
             }
         }
@@ -5997,7 +5998,7 @@ void CAtlaParser::RunOrder_Study(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
 
         unitmoney -= n1*n2;
 
-        unit_control::modify_item_amount(pUnit, PRP_SILVER, -n1*n2);
+        unit_control::modify_item_amount(pUnit, "studying", PRP_SILVER, -n1*n2);
         if (PE_OK!=pUnit->SetProperty(PRP_SILVER,   eLong, (const void *)unitmoney, eNormal))
             SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6315,7 +6316,7 @@ void CAtlaParser::RunOrder_Withdraw(CStr & Line, CStr & ErrorLine, BOOL skiperro
                 break;
             }
 
-            unit_control::modify_item_amount(pUnit, Item.GetData(), amount);
+            unit_control::modify_item_amount(pUnit, "withdrawal", Item.GetData(), amount);
             if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value+amount), eNormal))
                 SHOW_WARN_CONTINUE(NOSETUNIT << BUG);
 
@@ -6370,7 +6371,7 @@ void CAtlaParser::RunOrder_Give(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
             if (!pUnit->GetProperty(Item.GetData(), type, value, eNormal) || (eLong!=type))
                 SHOW_WARN_CONTINUE(" - Can not give " << Item);
 
-            unit_control::modify_item_amount(pUnit, Item.GetData(), -amount);
+            unit_control::modify_item_amount(pUnit, std::to_string(pUnit2->Id), Item.GetData(), -amount);
             if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
                 SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6386,11 +6387,9 @@ void CAtlaParser::RunOrder_Give(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 else if (eLong!=type)
                     SHOW_WARN_CONTINUE(NOTNUMERIC << n1 << BUG);
 
-                unit_control::modify_item_amount(pUnit2, Item.GetData(), amount);
+                unit_control::modify_item_amount(pUnit2, std::to_string(pUnit->Id), Item.GetData(), amount);
                 if (PE_OK!=pUnit2->SetProperty(Item.GetData(), type, (const void*)((long)value2+amount), eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
-                if (0==stricmp(PRP_SILVER, Item.GetData()))
-                    pUnit2->SilvRcvd += amount;
 
                 // check how giving men affects skills
                 AdjustSkillsAfterGivingMen(pUnit, pUnit2, Item, amount);
@@ -6583,7 +6582,7 @@ void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 if (!pUnit2->GetProperty(Item.GetData(), type, value, eNormal) || (eLong!=type))
                     SHOW_WARN_CONTINUE(" - Can not take " << Item);
 
-                unit_control::modify_item_amount(pUnit2, Item.GetData(), -amount);
+                unit_control::modify_item_amount(pUnit2, std::to_string(pUnit->Id), Item.GetData(), -amount);
                 if (PE_OK!=pUnit2->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6597,11 +6596,9 @@ void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 else if (eLong!=type)
                     SHOW_WARN_CONTINUE(NOTNUMERIC << n1 << BUG);
 
-                unit_control::modify_item_amount(pUnit, Item.GetData(), amount);
+                unit_control::modify_item_amount(pUnit, std::to_string(pUnit2->Id), Item.GetData(), amount);
                 if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value2+amount), eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
-                if (0==stricmp(PRP_SILVER, Item.GetData()))
-                    pUnit->SilvRcvd += amount;
 
                 // check how giving men affects skills
                 AdjustSkillsAfterGivingMen(pUnit2, pUnit, Item, amount);
@@ -6657,7 +6654,7 @@ void CAtlaParser::RunOrder_Send(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
             if (!pUnit->GetProperty(Item.GetData(), type, value, eNormal) || (eLong!=type))
                 SHOW_WARN_CONTINUE(" - Can not send " << Item);
 
-            unit_control::modify_item_amount(pUnit, Item.GetData(), -amount);
+            unit_control::modify_item_amount(pUnit, std::to_string(pUnit2->Id), Item.GetData(), -amount);
             if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
                 SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6684,7 +6681,7 @@ void CAtlaParser::RunOrder_Send(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                     SHOW_WARN_CONTINUE(NOTNUMERIC << pUnit->Id << BUG);
 
                 unitmoney -= price;
-                unit_control::modify_item_amount(pUnit, PRP_SILVER, -price);
+                unit_control::modify_item_amount(pUnit, "sending price", PRP_SILVER, -price);
                 if  (PE_OK!=pUnit->SetProperty(PRP_SILVER,   type, (const void *)unitmoney, eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
                 pUnit->CalcWeightsAndMovement();
@@ -6925,7 +6922,9 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
             unitprop  += n1;         // This is the old code
             landprop  -= n1;
 
-            unit_control::modify_item_amount(pUnit, PRP_SILVER, -n1*peritem);
+            std::stringstream ss;
+            ss << "buying " << landprop << " of " << LandProp.GetData();
+            unit_control::modify_item_amount(pUnit, ss.str(), PRP_SILVER, -n1*peritem);
             if ( (PE_OK!=pUnit->SetProperty(S1.GetData(), type, (const void *)unitprop,  eNormal)) || // This is the old code
                  (PE_OK!=pUnit->SetProperty(PRP_SILVER,   type, (const void *)unitmoney, eNormal)) || // This is ALMOST the old code
                  (PE_OK!=pLand->SetProperty(LandProp.GetData(), type, (const void *)landprop,  eNormal)))
@@ -7026,14 +7025,14 @@ void CAtlaParser::RunOrder_Sell(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
          unitprop  -= n1; // This is the old code
          landprop  -= n1;
 
-        unit_control::modify_item_amount(pUnit, PRP_SILVER, n1*peritem);
+        std::stringstream ss;
+        ss << "selling " << landprop << " of " << LandProp.GetData();
+        unit_control::modify_item_amount(pUnit, ss.str(), PRP_SILVER, n1*peritem);
          if ( (PE_OK!=pUnit->SetProperty(S1.GetData(), type, (const void *)unitprop,  eNormal)) || // This is the old code
               (PE_OK!=pUnit->SetProperty(PRP_SILVER,   type, (const void *)unitmoney, eNormal)) || // This is ALMOST the old code
               (PE_OK!=pLand->SetProperty(LandProp.GetData()  ,   type, (const void *)landprop,  eNormal)))
          // Shar1. End
              SHOW_WARN_CONTINUE(NOSET << BUG);
-
-         pUnit->SilvRcvd += n1*peritem;
 
          // adjust weight
 //         if (gpDataHelper->GetItemWeights(S1.GetData(), weights, movenames, movecount))

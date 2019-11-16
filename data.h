@@ -390,12 +390,15 @@ public:
     //mechanisms) to have possibility restore state of CUnit. THat's for items_initial_.
     std::set<CItem> items_;
     std::set<CItem> items_initial_;
+    
+    //list of received items, tought and so on, 
+    std::vector<std::string> impact_description_;
+
     bool            IsOurs;
     long            FactionId;
     CFaction      * pFaction;
     long            LandId;
     long            Weight[MOVE_MODE_MAX];
-    long            SilvRcvd;
     double          Teaching; // number of students per teacher / number of days per student
     CStr            Comments;
     CStr            DefOrders;

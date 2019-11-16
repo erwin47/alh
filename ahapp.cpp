@@ -47,6 +47,7 @@
 #include "listcoledit.h"
 #include "optionsdlg.h"
 #include "flagsdlg.h"
+#include "data_control.h"
 
 #ifdef __WXMAC_OSX__
 #include <unistd.h>
@@ -3488,12 +3489,57 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
 
     if (pUnit)
     {
-        m_UnitDescrSrc = pUnit->Description;
-        if (!pUnit->Errors.IsEmpty())
-            m_UnitDescrSrc << " ***** Errors:\r\n" << pUnit->Errors;
-        if (!pUnit->Events.IsEmpty())
-            m_UnitDescrSrc << " ----- Events:\r\n" << pUnit->Events;
+        if (IS_NEW_UNIT(pUnit)) 
+        {
+            m_UnitDescrSrc << pUnit->Description;
+        }
+        else
+        {
+            const char* begin = pUnit->Description.GetData();
+            const char* end = begin + pUnit->Description.GetLength();
+            const char* runner = begin;
 
+            //getting faction_and_flags line
+            while (*runner != '[' && runner < end)
+                ++runner;
+            while (*runner != ',' && runner != begin)
+                --runner;
+            m_UnitDescrSrc << std::string(begin, runner).c_str() << ".\r\n";
+
+            //getting items line
+            ++runner;
+            while (*runner == ' ')
+                ++runner;
+            begin = runner;
+            while (*runner != '.' && runner < end)
+                ++runner;
+            m_UnitDescrSrc << std::string(begin, runner).c_str() << ".\r\n";
+
+            //getting misc line
+            ++runner;
+            while (*runner == ' ')
+                ++runner;
+            begin = runner;
+            while (memcmp(runner, "Skills", 6) != 0 && runner + 6 < end)
+                ++runner;
+            while (*runner != '.' && runner != begin)
+                --runner;
+            std::string misc(begin, runner);
+
+            //getting skills line
+            while (memcmp(runner, "Skills", 6) != 0 && runner + 6 < end)
+                ++runner;
+            begin = runner;
+            while (*runner != '.' && runner < end)
+                ++runner;
+            m_UnitDescrSrc << std::string(begin, runner).c_str() << ".\r\n";
+            m_UnitDescrSrc << misc.c_str() << ".\r\n\r\n";
+
+            if (!pUnit->Errors.IsEmpty())
+                m_UnitDescrSrc << " ***** Errors:\r\n" << pUnit->Errors;
+            if (!pUnit->Events.IsEmpty())
+                m_UnitDescrSrc << " ----- Events:\r\n" << pUnit->Events;
+        }
         ReadOnly = (!pUnit->IsOurs || pUnit->Id<=0) ;
     }
 
@@ -3506,7 +3552,8 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
     {
         if (pOrders->m_pEditor->IsModified())
         {
-            pOrders->OnKillFocus();
+            pOrders->SaveModifications();
+            //pOrders->OnKillFocus();
         }
 
         pOrders->SetSource(pUnit?&pUnit->Orders:NULL,      &m_OrdersAreChanged);
@@ -3518,7 +3565,7 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
         if (pComments->m_pEditor->IsModified())
         {
             // OnKillFocus event for the editor did not fire up
-            pComments->OnKillFocus();
+            pComments->SaveModifications();
         }
         pComments->SetSource(pUnit?&pUnit->DefOrders:NULL, &m_CommentsChanged);
     }

@@ -76,9 +76,8 @@
     #include "bitmaps/findhex.xpm"
 #endif
 
-static const int AH_BuildNumber =
-#include "build_no"
-;
+static const int AH_BuildNumber = 5;
+
 
 BEGIN_EVENT_TABLE(CMapFrame, CAhFrame)
 
