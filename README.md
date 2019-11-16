@@ -6,6 +6,7 @@ Changelog:
 Nov 16 2019.
 Removed `SilvRcvd` variable -- as redundant and useless.
 Fixed bug with recursion of `Def Orders`
+Added "impact_description" functionality, recording indirect events
 
 Nov 15 2019.
 Initial message, summarizing last month.
