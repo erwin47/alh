@@ -3535,6 +3535,10 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
             m_UnitDescrSrc << std::string(begin, runner).c_str() << ".\r\n";
             m_UnitDescrSrc << misc.c_str() << ".\r\n\r\n";
 
+            for (const std::string& impact_descr : pUnit->impact_description_)
+                m_UnitDescrSrc << ";" << impact_descr.c_str() << ".\r\n";
+            m_UnitDescrSrc << "\r\n";
+
             if (!pUnit->Errors.IsEmpty())
                 m_UnitDescrSrc << " ***** Errors:\r\n" << pUnit->Errors;
             if (!pUnit->Events.IsEmpty())

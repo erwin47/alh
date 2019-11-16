@@ -21,7 +21,7 @@ namespace unit_control
 
     std::set<CItem>& get_items(CUnit* unit);
     long get_item_amount(CUnit* unit, const std::string& short_name);
-    void modify_item_amount(CUnit* unit, const std::string& short_name, long new_amount);
+    void modify_item_amount(CUnit* unit, const std::string& source_name, const std::string& short_name, long new_amount);
 }
 
 namespace land_control
