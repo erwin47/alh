@@ -142,6 +142,56 @@ typedef struct SAVE_HEX_OPTIONS_STRUCT
 
 //======================================================================
 
+enum class TurnSequence
+{
+       SQ_FORM   ,
+       SQ_CLAIM  ,
+       SQ_LEAVE  ,
+       SQ_ENTER  ,
+       SQ_PROMOTE,
+       SQ_ATTACK ,
+       SQ_STEAL  ,
+       SQ_GIVE   ,
+       SQ_JOIN   ,
+       SQ_EXCHANGE ,
+       SQ_PILLAGE,
+       SQ_TAX,
+       SQ_CAST   ,
+       SQ_SELL   , // Shar1 Extrict SELL/BUY check. Sell is executed before buy
+       SQ_BUY    ,
+       SQ_FORGET ,
+       SQ_WITHDRAW,
+       SQ_SAIL   ,
+       SQ_MOVE   ,
+       SQ_TEACH  ,
+       SQ_STUDY  ,
+       SQ_PRODUCE , //_MANUFACTURING, in future should split PRODUCE
+       SQ_BUILD  ,
+       //SQ_PRODUCE_HARVESTING,
+       SQ_ENTERTAIN,
+       SQ_WORK   ,
+       SQ_MAINTENANCE   ,
+       SQ_FIRST = SQ_FORM,
+       SQ_LAST = SQ_WORK
+};
+
+inline TurnSequence operator++(TurnSequence& x) {
+    return x = (TurnSequence)(std::underlying_type<TurnSequence>::type(x) + 1); 
+}
+
+inline TurnSequence operator*(TurnSequence c) {
+    return c;
+}
+
+inline TurnSequence begin(TurnSequence r) {
+    return TurnSequence::SQ_FIRST;
+}
+
+inline TurnSequence end(TurnSequence r) {
+    TurnSequence l=TurnSequence::SQ_LAST;
+    return ++l;
+}
+
 class CAtlaParser
 {
 public:
@@ -302,7 +352,7 @@ protected:
     BOOL         FindTargetsForSend        (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char *& params, CUnit *& pUnit2, CLand *& pLand2);
     BOOL         GetItemAndAmountForGive   (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, CStr & Item, int & amount, const char * command, CUnit * pUnit2);
     void         RunOrder_Withdraw         (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-    void         RunPseudoComment          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int sequence, wxString &destination);
+    void         RunPseudoComment          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, TurnSequence sequence, wxString &destination);
     void         RunOrder_TaxPillage       (CLand *);
     void         RunOrder_Entertain        (CLand *);
     void         RunOrder_Work             (CLand *);

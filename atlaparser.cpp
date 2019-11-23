@@ -3774,15 +3774,11 @@ void CAtlaParser::ComposeProductsLine(CLand * pLand, const char * eol, CStr & S)
                 gpApp->ResolveAliasItems(pProd->code_name_, pProd->code_name_, name, plural);
                 S << " " << pProd->amount_ << " " << plural.c_str() << " ["<< pProd->code_name_.c_str() << "]";
             }
-            else if (pProd->amount_ == 1)
+            else
             {
                 std::string name, plural;
                 gpApp->ResolveAliasItems(pProd->code_name_, pProd->code_name_, name, plural);
                 S << " " << pProd->amount_ << " " << name.c_str() << " ["<< pProd->code_name_.c_str() << "]";
-            }
-            else
-            {
-                S << " none";
             }
 
             if (pLand->Products.Count()-1 == i)
@@ -4889,25 +4885,86 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     }                                                \
 }
 
+void CAtlaParser::RunPseudoComment(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand,
+                                   const char * src, TurnSequence sequence, wxString & destination)
+{
+    CStr            Command;
+    CStr            S;
+    char            ch;
+    const char    * p;
+    EValueType      type;
+    const void    * value;
 
+    do
+    {
+        p = SkipSpaces(Command.GetToken(SkipSpaces(src), " \t", ch, TRIM_ALL));
 
-enum
-{      SQ_MIN    ,
-       SQ_FORM   ,
-       SQ_CLAIM  ,
-       SQ_LEAVE  ,
-       SQ_ENTER  ,
-       SQ_PROMOTE,
-       SQ_GIVE   ,
-       SQ_TAX_PILLAGE,
-       SQ_SELL   , // Shar1 Extrict SELL/BUY check. Sell is executed before buy
-       SQ_BUY    ,
-       SQ_STUDY  ,
-       SQ_TEACH  ,
-       SQ_MOVE   ,
-       SQ_WORK   ,
-       SQ_MAX
-};
+        // it must be sequenced just like the real commands!
+        if (TurnSequence::SQ_CLAIM == sequence && (0==stricmp(Command.GetData(), "$GET")))  // do it in CLAIM so it will affect new units too
+        {
+            // GET 100 silv
+            Command = src;
+            RunOrder_Withdraw(Command, S, FALSE, pUnit, pLand, p);
+        }
+        else if (TurnSequence::SQ_CLAIM == sequence && (0==stricmp(Command.GetData(), "$TRAVEL")))
+        {
+            CStr token;
+            p = SkipSpaces(token.GetToken(p, " ;\t", ch, TRIM_ALL));
+            p = token.GetData();
+            if (0==stricmp(p, "walk"))
+            {
+                pUnit->reqMovementSpeed = 2;
+            }
+            else if (0==stricmp(p, "ride"))
+            {
+                pUnit->reqMovementSpeed = 4;
+            }
+            else if (0==stricmp(p, "fly"))
+            {
+                pUnit->reqMovementSpeed = 6;
+            }
+            else
+                SHOW_WARN_CONTINUE(" - Invalid parameter");
+        }
+        else if (TurnSequence::SQ_MOVE==sequence && (0==stricmp(Command.GetData(), "$MOVE")))
+        {
+            destination = wxString::FromUTF8(p);
+        }
+        else if (TurnSequence::SQ_LAST == sequence && (0==stricmp(Command.GetData(), "$checkzero")))
+        {
+            CStr itemname;
+            p = SkipSpaces(itemname.GetToken(p, " ;\t", ch, TRIM_ALL));
+
+            long itemCount = 0;
+            if (pUnit->GetProperty(itemname.GetData(), type, value, eNormal) && (eLong==type) )
+                itemCount = (long)value;
+            if (itemCount > 0) SHOW_WARN_CONTINUE(" - has items");
+        }
+        else if (TurnSequence::SQ_LAST == sequence && (0==stricmp(Command.GetData(), "$checkmax")))
+        {
+            CStr reqItemname;
+            p = SkipSpaces(reqItemname.GetToken(p, " ;\t", ch, TRIM_ALL));
+            CStr reqItemcount;
+            p = SkipSpaces(reqItemcount.GetToken(p, " ;\t", ch, TRIM_ALL));
+            long reqItems = atoi(reqItemcount.GetData());
+
+            long itemCount = 0;
+            if (pUnit->GetProperty(reqItemname.GetData(), type, value, eNormal) && (eLong==type) )
+                itemCount = (long)value;
+            if (itemCount > reqItems) SHOW_WARN_CONTINUE(" - has too many");
+        }
+        else if (TurnSequence::SQ_LAST == sequence && (0==stricmp(Command.GetData(), "$UPKEEP")))
+        {
+            Command = src;
+            int turns = atol(p);
+            if (turns < 1) turns = 1;
+            RunOrder_Upkeep(pUnit, turns);
+        }
+
+    }
+    while (false);
+}
+
 
 void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 {
@@ -4928,7 +4985,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
     long                n1;
     long                unitmoney;
     int                 mainidx;
-    int                 sequence;
+    //TurnSequence        sequence;
     BOOL                errors = FALSE;
     int                 idx;
     EValueType          type;
@@ -4949,12 +5006,12 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
     pLand->ResetUnitsAndStructs();
 
     // Run Orders
-    for (sequence=SQ_MIN+1; sequence<SQ_MAX; sequence++)
+    for (TurnSequence sequence : TurnSequence())
     {
         if (errors)
             break;
 
-        if (SQ_TAX_PILLAGE == sequence)
+        if (sequence == TurnSequence::SQ_TAX)
         {
              if (m_EconomyTaxPillage && pLand->Taxable > 0)
              {
@@ -4981,7 +5038,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
             }
         }*/
 
-        if (SQ_WORK == sequence)
+        if (TurnSequence::SQ_WORK == sequence)
         {
             if (m_EconomyWork)
             {
@@ -5063,7 +5120,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     continue;
                 if (!gpDataHelper->GetOrderId(Cmd.GetData(), order))
                 {
-                    if (SQ_MIN+1 == sequence)
+                    if (TurnSequence::SQ_FIRST == sequence)
                         SHOW_WARN_CONTINUE(" - unknown order")
                     else
                         continue;
@@ -5106,32 +5163,32 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 
 
                     case O_GIVE:
-                        if (SQ_GIVE == sequence)
+                        if (TurnSequence::SQ_GIVE == sequence)
                             RunOrder_Give(Line, ErrorLine, skiperror, pUnit, pLand, p, FALSE);
                         break;
 
                     case O_GIVEIF:
-                        if (SQ_GIVE == sequence)
+                        if (TurnSequence::SQ_GIVE == sequence)
                             RunOrder_Give(Line, ErrorLine, skiperror, pUnit, pLand, p, TRUE);
                         break;
 
                     case O_TAKE:
-                        if (SQ_GIVE == sequence)
+                        if (TurnSequence::SQ_GIVE == sequence)
                             RunOrder_Take(Line, ErrorLine, skiperror, pUnit, pLand, p, TRUE);
                         break;
 
                     case O_SEND:
-                        if (SQ_BUY+1 == sequence) // send is after buy
+                        if (TurnSequence::SQ_FORGET == sequence) // send is after buy
                             RunOrder_Send(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
 
                     case O_WITHDRAW:
-                        if (SQ_BUY+1 == sequence)
+                        if (TurnSequence::SQ_WITHDRAW == sequence)
                             RunOrder_Withdraw(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
 
                     case O_RECRUIT:
-                        if (SQ_BUY+1 == sequence)
+                        if (TurnSequence::SQ_FORGET == sequence)
                         {
                             // do recruiting here
                             p        = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
@@ -5143,13 +5200,13 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 
 
                     case O_BUY:
-                        if (SQ_BUY==sequence)
+                        if (TurnSequence::SQ_BUY==sequence)
                             RunOrder_Buy(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
 
 
                     case O_SELL:
-                        if (SQ_SELL == sequence)
+                        if (TurnSequence::SQ_SELL == sequence)
                             RunOrder_Sell(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
 
@@ -5158,7 +5215,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         n1       = NEW_UNIT_ID(atol(N1.GetData()), pUnit->FactionId);
                         Dummy.Id = n1;
 
-                        if (SQ_FORM==sequence)
+                        if (TurnSequence::SQ_FORM==sequence)
                         {
                             SHOW_WARN_CONTINUE(" - Do not manually enter a FORM command - use the split context-menu");
                             break;
@@ -5207,17 +5264,18 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         break;
 
                     case O_ENDFORM:
-                        if (SQ_FORM!=sequence)
+                        //what is going on here ??
+                        if (TurnSequence::SQ_FORM!=sequence)
                         {
                             if (!pUnitMaster)
-                                if (SQ_FORM+1 == sequence)
+                                if (TurnSequence::SQ_CLAIM == sequence)
                                 {
                                     SHOW_WARN_CONTINUE(" - FORM was not called!");
                                 }
                                 else
                                     continue;
 
-                            if  (SQ_TEACH==sequence)  // have to call it here or new units teaching will not be calculated
+                            if  (TurnSequence::SQ_TEACH==sequence)  // have to call it here or new units teaching will not be calculated
                                 OrderProcess_Teach(skiperror, pUnit);
 
                             pUnit       = pUnitMaster;
@@ -5231,10 +5289,10 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     case O_ATTACK:
                     case O_ASSASSINATE:
                     case O_STEAL:
-                        if (SQ_CLAIM==sequence)
+                        if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             // just check if the target is valid
-                            // and SQ_CLAIM is good enough, no need to introduce a new phase
+                            // and TurnSequence::SQ_CLAIM is good enough, no need to introduce a new phase
                             while (p && *p)
                             {
                                 p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
@@ -5258,22 +5316,22 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 
 
                     case O_NAME:
-                        if (SQ_CLAIM==sequence)
+                        if (TurnSequence::SQ_CLAIM==sequence)
                             RunOrder_Name(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
 
                     case O_STUDY:
-                        if (SQ_STUDY==sequence)
+                        if (TurnSequence::SQ_STUDY==sequence)
                             RunOrder_Study(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
 
                     case O_TEACH:
-                        if (SQ_TEACH==sequence)
+                        if (TurnSequence::SQ_TEACH==sequence)
                             RunOrder_Teach(Line, ErrorLine, skiperror, pUnit, pLand, p, TeachCheckGlb);
                         break;
 
                     case O_CLAIM:
-                        if (SQ_CLAIM==sequence)
+                        if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p        = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
 
@@ -5297,7 +5355,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 
 
                     case O_LEAVE:
-                        if (SQ_LEAVE==sequence)
+                        if (TurnSequence::SQ_LEAVE==sequence)
                         {
                             if (pUnit->GetProperty(PRP_STRUCT_ID, type, (const void *&)n1) && eLong==type)
                             {
@@ -5315,7 +5373,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 
 
                     case O_ENTER:
-                        if (SQ_ENTER==sequence)
+                        if (TurnSequence::SQ_ENTER==sequence)
                         {
                             p        = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             n1       = atol(N1.GetData());
@@ -5343,7 +5401,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 
 
                     case O_PROMOTE:
-                        if (SQ_PROMOTE==sequence)
+                        if (TurnSequence::SQ_PROMOTE==sequence)
                             RunOrder_Promote(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
 
@@ -5351,7 +5409,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     case O_MOVE:
                     case O_SAIL:
                     case O_ADVANCE:
-                        if (SQ_MOVE==sequence)
+                        if (TurnSequence::SQ_MOVE==sequence)
                         {
                             if (isSimCmd)
                             {
@@ -5366,7 +5424,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 
                     // autotax flag must be removed in the very first pass, or land flag will be set and never removed
                     case O_AUTOTAX:
-                        if (SQ_CLAIM==sequence)
+                        if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5379,7 +5437,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         break;
 
                     case O_GUARD:
-                        if (SQ_CLAIM==sequence)
+                        if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5396,7 +5454,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         break;
 
                     case O_AVOID:
-                        if (SQ_CLAIM==sequence)
+                        if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5413,7 +5471,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         break;
 
                     case O_BEHIND:
-                        if (SQ_CLAIM==sequence)
+                        if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5426,7 +5484,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         break;
 
                     case O_HOLD:
-                        if (SQ_CLAIM==sequence)
+                        if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5439,7 +5497,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         break;
 
                     case O_NOAID:
-                        if (SQ_CLAIM==sequence)
+                        if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5452,7 +5510,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         break;
 
                     case O_NOCROSS:
-                        if (SQ_CLAIM==sequence)
+                        if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5465,7 +5523,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         break;
 
                     case O_SPOILS:
-                        if (SQ_CLAIM==sequence)
+                        if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (N1.IsEmpty() || 0==stricmp(N1.GetData(), "ALL"))
@@ -5477,7 +5535,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 
                     // MZ - Added for Arcadia
                     case O_SHARE:
-                        if (SQ_CLAIM==sequence)
+                        if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5490,7 +5548,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         break;
 
                     case O_REVEAL:
-                        if (SQ_CLAIM==sequence)
+                        if (TurnSequence::SQ_CLAIM==sequence)
                         {
 
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
@@ -5515,7 +5573,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         break;
 
                     case O_CONSUME:
-                        if (SQ_CLAIM==sequence)
+                        if (TurnSequence::SQ_CLAIM==sequence)
                         {
 
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
@@ -5541,48 +5599,48 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 
 
                     case O_PILLAGE:
-                        if (SQ_CLAIM ==sequence )
+                        if (TurnSequence::SQ_PILLAGE ==sequence )
                             pUnit->Flags |=  UNIT_FLAG_PILLAGING;
                         break;
 
                     case O_TAX:
-                        if (SQ_CLAIM ==sequence )
+                        if (TurnSequence::SQ_TAX ==sequence )
                             pUnit->Flags |=  UNIT_FLAG_TAXING;
                         break;
 
                     case O_ENTERTAIN:
-                        if (SQ_CLAIM ==sequence )
+                        if (TurnSequence::SQ_ENTERTAIN ==sequence )
                             pUnit->Flags |=  UNIT_FLAG_ENTERTAINING;
                         break;
 
                     case O_WORK:
-                        if (SQ_CLAIM ==sequence)
+                        if (TurnSequence::SQ_WORK ==sequence)
                             pUnit->Flags |=  UNIT_FLAG_WORKING;
                         break;
 
                     case O_BUILD:
-                        if (SQ_MAX-1==sequence)
+                        if (TurnSequence::SQ_BUILD==sequence)
                             pUnit->Flags |= UNIT_FLAG_PRODUCING;
                         break;
 
                     case O_PRODUCE:
-                        if (SQ_MAX-1==sequence)
+                        if (TurnSequence::SQ_PRODUCE==sequence)
                             RunOrder_Produce(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
 
                 }//switch (order)
 
                 // copy commands to the new unit
-                if (pUnitMaster && (SQ_MAX-1==sequence) && (O_FORM != order) && !errors)
+                if (pUnitMaster && (TurnSequence::SQ_LAST==sequence) && (O_FORM != order) && !errors)
                     pUnit->Orders << Line << EOL_SCR;
 
             } // commands loop
 
 
-            if  (SQ_TEACH==sequence)  // we have to collect all the students, then teach
+            if  (TurnSequence::SQ_TEACH==sequence)  // we have to collect all the students, then teach
                 OrderProcess_Teach(skiperror, pUnit);
 
-            if (SQ_MOVE==sequence && !destination.IsEmpty())
+            if (TurnSequence::SQ_MOVE==sequence && !destination.IsEmpty())
             {
                 if (!pUnit->pMovement)
                 {
@@ -5614,7 +5672,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                 }
                 destination.Clear();
             }
-            //if (SQ_MAX-1==sequence)
+            //if (TurnSequence::SQ_MAX-1==sequence)
             //{
             //    // set land flags in the last sequence, so all unit flags are already applied
             //    if ((pUnit->Flags & UNIT_FLAG_TAXING) && !(pUnit->Flags & UNIT_FLAG_GIVEN))
@@ -5624,21 +5682,21 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
             //}
 
         }   // units loop
-        if (SQ_BUY==sequence)
+        if (TurnSequence::SQ_BUY==sequence)
         {
             if (m_EconomyShareAfterBuy)
             {
                 RunOrder_ShareSilver(Line, ErrorLine, skiperror, pLand, SHARE_BUY, wxT("purchases"));
             }
         }
-        if (SQ_STUDY==sequence)
+        if (TurnSequence::SQ_STUDY==sequence)
         {
             if (m_EconomyShareMaintainance)
             {
                 RunOrder_ShareSilver(Line, ErrorLine, skiperror, pLand, SHARE_STUDY, wxT("study"));
             }
         }
-        if (SQ_MAX-1==sequence)
+        if (TurnSequence::SQ_MAINTENANCE==sequence)
         {
             if (m_EconomyMaintainanceCosts)
             {
@@ -7672,85 +7730,7 @@ void CAtlaParser::OrderProcess_Teach(BOOL skiperror, CUnit * pUnit)
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunPseudoComment(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand,
-                                   const char * src, int sequence, wxString & destination)
-{
-    CStr            Command;
-    CStr            S;
-    char            ch;
-    const char    * p;
-    EValueType      type;
-    const void    * value;
 
-    do
-    {
-        p = SkipSpaces(Command.GetToken(SkipSpaces(src), " \t", ch, TRIM_ALL));
-
-        // it must be sequenced just like the real commands!
-        if (SQ_CLAIM == sequence && (0==stricmp(Command.GetData(), "$GET")))  // do it in CLAIM so it will affect new units too
-        {
-            // GET 100 silv
-            Command = src;
-            RunOrder_Withdraw(Command, S, FALSE, pUnit, pLand, p);
-        }
-        else if (SQ_CLAIM == sequence && (0==stricmp(Command.GetData(), "$TRAVEL")))
-        {
-            CStr token;
-            p = SkipSpaces(token.GetToken(p, " ;\t", ch, TRIM_ALL));
-            p = token.GetData();
-            if (0==stricmp(p, "walk"))
-            {
-                pUnit->reqMovementSpeed = 2;
-            }
-            else if (0==stricmp(p, "ride"))
-            {
-                pUnit->reqMovementSpeed = 4;
-            }
-            else if (0==stricmp(p, "fly"))
-            {
-                pUnit->reqMovementSpeed = 6;
-            }
-            else
-                SHOW_WARN_CONTINUE(" - Invalid parameter");
-        }
-        else if (SQ_MOVE==sequence && (0==stricmp(Command.GetData(), "$MOVE")))
-        {
-            destination = wxString::FromUTF8(p);
-        }
-        else if (SQ_MAX-1 == sequence && (0==stricmp(Command.GetData(), "$checkzero")))
-        {
-            CStr itemname;
-            p = SkipSpaces(itemname.GetToken(p, " ;\t", ch, TRIM_ALL));
-
-            long itemCount = 0;
-            if (pUnit->GetProperty(itemname.GetData(), type, value, eNormal) && (eLong==type) )
-                itemCount = (long)value;
-            if (itemCount > 0) SHOW_WARN_CONTINUE(" - has items");
-        }
-        else if (SQ_MAX-1 == sequence && (0==stricmp(Command.GetData(), "$checkmax")))
-        {
-            CStr reqItemname;
-            p = SkipSpaces(reqItemname.GetToken(p, " ;\t", ch, TRIM_ALL));
-            CStr reqItemcount;
-            p = SkipSpaces(reqItemcount.GetToken(p, " ;\t", ch, TRIM_ALL));
-            long reqItems = atoi(reqItemcount.GetData());
-
-            long itemCount = 0;
-            if (pUnit->GetProperty(reqItemname.GetData(), type, value, eNormal) && (eLong==type) )
-                itemCount = (long)value;
-            if (itemCount > reqItems) SHOW_WARN_CONTINUE(" - has too many");
-        }
-        else if (SQ_MAX-1 == sequence && (0==stricmp(Command.GetData(), "$UPKEEP")))
-        {
-            Command = src;
-            int turns = atol(p);
-            if (turns < 1) turns = 1;
-            RunOrder_Upkeep(pUnit, turns);
-        }
-
-    }
-    while (false);
-}
 
 
 void CAtlaParser::RunOrders(CLand * pLand, const char * sCheckTeach)

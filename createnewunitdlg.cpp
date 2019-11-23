@@ -460,7 +460,7 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
     }
 
     unit_->Orders.TrimRight(TRIM_ALL);
-    if (!unit_->Orders.IsEmpty())
+    if (!unit_->Orders.IsEmpty() && (unit_->Orders.GetData()[unit_->Orders.GetLength()-1] != '\n'))
         unit_->Orders << EOL_SCR;
 
     int new_unit_id = spin_new_num_alias_->GetValue();
@@ -476,8 +476,8 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
             std::string unit_name = std::string(combobox_units_->GetValue().mb_str());
             CUnit* giving_unit = silver_holders_[unit_name];            
             std::stringstream giver_orders;
-            giver_orders << "give NEW " << new_unit_id+i << " " << recv_silver << " SILV" << std::endl;
-            if (!giving_unit->Orders.IsEmpty())
+            giver_orders << "give NEW " << new_unit_id+i << " " << recv_silver << " SILV";
+            if (!giving_unit->Orders.IsEmpty() && (giving_unit->Orders.GetData()[giving_unit->Orders.GetLength()-1] != '\n'))
                 giving_unit->Orders << EOL_SCR;
             giving_unit->Orders << giver_orders.str().c_str();
         }            

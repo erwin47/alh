@@ -209,7 +209,7 @@ void CReceiveDlg::OnMax          (wxCommandEvent& event)
 
 void CReceiveDlg::set_order(CUnit* unit, const std::string& order)
 {
-    if (!unit->Orders.IsEmpty())
+    if (!unit->Orders.IsEmpty() && (unit_->Orders.GetData()[unit_->Orders.GetLength()-1] != '\n'))
         unit->Orders << EOL_SCR;
     if (order_repeating_->GetValue())
         unit->Orders << "@";
@@ -218,7 +218,7 @@ void CReceiveDlg::set_order(CUnit* unit, const std::string& order)
 
 void CReceiveDlg::set_comment(CUnit* unit, const std::string& comment)
 {
-    if (!unit->Comments.IsEmpty())
+    if (!unit->Comments.IsEmpty() && (unit_->Comments.GetData()[unit_->Comments.GetLength()-1] != '\n'))
         unit->Comments << EOL_SCR;
     unit->Comments << comment.c_str();
 }

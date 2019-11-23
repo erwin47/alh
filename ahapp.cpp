@@ -21,6 +21,8 @@
 
 #include "wx/splitter.h"
 #include "wx/listctrl.h"
+#include <sstream>
+#include <algorithm>
 //#include "wx/resource.h"
 
 #include "files.h"
@@ -1000,6 +1002,8 @@ const char * CAhApp::ResolveAlias(const char * alias)
     do
     {
         p = SkipSpaces(GetConfig(SZ_SECT_ALIAS, p1));
+        if (stricmp(p1, p) == 0)
+            break; //if it's a HERB=HERB, or BAG BAG we shoult use p1, not the original alias
         if (p && *p)
             p1 = p;
         if (cnt++ > 20)  // don't play with recursy, man!
@@ -1043,7 +1047,9 @@ bool CAhApp::ResolveAliasItems(const std::string& phrase, std::string& codename,
         if (current_name_plural.empty())
             current_name_plural = current_name;
 
-        if (phrase == current_codename || phrase == current_name || phrase == current_name_plural)
+        std::string upper_phrase = phrase;
+        std::transform(upper_phrase.begin(), upper_phrase.end(),upper_phrase.begin(), ::toupper);
+        if (upper_phrase == current_codename || phrase == current_name || phrase == current_name_plural)
         {
             codename = current_codename;
             name = current_name;
@@ -1267,6 +1273,13 @@ long CAhApp::GetMaxRaceSkillLevel(const char * race, const char * skill, const c
     if (!m_MaxSkillHash.Locate(sKey.GetData(), (const void *&)level))
     {
         sVal = GetConfig(SZ_SECT_MAX_SKILL_LVL, race);
+        if (sVal.GetData() == NULL)
+        {
+            std::stringstream ss;
+            ss << "No " << SZ_SECT_MAX_SKILL_LVL << " data found for race: " << race;
+            this->ShowError(ss.str().c_str(), ss.str().size(), TRUE);
+        }            
+            
         p = sVal.GetData();
 
         p = S.GetToken(p, ',', TRIM_ALL);
