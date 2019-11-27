@@ -1,6 +1,11 @@
 # alh (Atlantis Little Helper)
 
 ## Changelog:
+### Nov 27 2019
+ReceiveDLG: removed from list of items which are already left from other units
+ReceiveDLG: fixed bug with concatinating order to previous one
+FormNewDLG: removed from list of units units which have no silver
+
 ### Nov 23 2019
 Removed empty lines at automatic order's addings
 

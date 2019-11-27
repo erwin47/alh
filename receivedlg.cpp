@@ -145,7 +145,8 @@ std::set<CItem> CReceiveDlg::get_item_types_list(CUnit* unit, CLand* land) const
     {
         std::set<CItem>& cur_products = unit_control::get_items(cur_unit);
         for (const auto& prod : cur_products)
-            item_types_list.insert(prod);
+            if (prod.amount_ > 0)
+                item_types_list.insert(prod);
     }
     return item_types_list;
 }
@@ -209,7 +210,7 @@ void CReceiveDlg::OnMax          (wxCommandEvent& event)
 
 void CReceiveDlg::set_order(CUnit* unit, const std::string& order)
 {
-    if (!unit->Orders.IsEmpty() && (unit_->Orders.GetData()[unit_->Orders.GetLength()-1] != '\n'))
+    if (!unit->Orders.IsEmpty() && (unit_->Orders.GetData()[unit_->Orders.GetLength()-2] != '\n'))
         unit->Orders << EOL_SCR;
     if (order_repeating_->GetValue())
         unit->Orders << "@";

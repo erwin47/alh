@@ -207,12 +207,15 @@ void CCreateNewUnit::InitializeRecvSilver(int faction_id, CLand* land)
 
     for (CUnit* unit : local_units)
     {
-        std::string unit_and_silver = std::string(unit->Name.GetData()) + "(" + 
-            std::to_string(unit->Id) + ") " + std::string(unit->pFaction->Name.GetData()) + 
-            " (max: " + std::to_string( unit_control::get_item_amount(unit, PRP_SILVER)) + ")";
-        
-        silver_holders_.insert({unit_and_silver, unit});
-        combobox_units_->Append(unit_and_silver);
+        if (unit_control::get_item_amount(unit, PRP_SILVER) > 0)
+        {
+            std::string unit_and_silver = std::string(unit->Name.GetData()) + "(" + 
+                std::to_string(unit->Id) + ") " + std::string(unit->pFaction->Name.GetData()) + 
+                " (max: " + std::to_string( unit_control::get_item_amount(unit, PRP_SILVER)) + ")";
+            
+            silver_holders_.insert({unit_and_silver, unit});
+            combobox_units_->Append(unit_and_silver);
+        }
     }
 
     button_give_all_ = new wxButton(this, -1, wxT("all needs"));
