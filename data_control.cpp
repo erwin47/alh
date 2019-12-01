@@ -13,6 +13,7 @@ namespace unit_control
         bool is_noaid(CUnit* unit) {  return unit->Flags & UNIT_FLAG_RECEIVING_NO_AID;  }
         bool is_avoid(CUnit* unit) {  return unit->Flags & UNIT_FLAG_AVOIDING;  }
         bool is_nocross(CUnit* unit) {  return unit->Flags & UNIT_FLAG_NO_CROSS_WATER;  }
+        bool is_sharing(CUnit* unit) {  return false;  } //not implemented
         bool is_reveal(CUnit* unit, std::string flag) {
             for(size_t i = 0; i < flag.size(); ++i)
                 flag[i] = std::tolower(flag[i]);
@@ -74,5 +75,121 @@ namespace unit_control
         if (new_amount < 0)
             ss << "loses " << new_amount << " of " << codename << " for " << source_name;
         unit->impact_description_.push_back(ss.str());
+    }
+
+    std::string get_initial_description(CUnit* unit)
+    {
+        std::stringstream ss;
+        const char* begin = unit->Description.GetData();
+        const char* end = begin + unit->Description.GetLength();        
+        const char* runner = begin;
+
+        //getting faction_and_flags line
+        while (*runner != '[' && runner < end)
+            ++runner;
+        while (*runner != ',' && runner != begin)
+            --runner;
+        ss << std::string(begin, runner).c_str() << ".\r\n";
+
+        //getting items line
+        ++runner;
+        while (*runner == ' ')
+            ++runner;
+        begin = runner;
+        while (*runner != '.' && runner < end)
+            ++runner;
+        ss << std::string(begin, runner).c_str() << ".\r\n";
+
+        //getting misc line
+        ++runner;
+        while (*runner == ' ')
+            ++runner;
+        begin = runner;
+        while (memcmp(runner, "Skills", 6) != 0 && runner + 6 < end)
+            ++runner;
+        while (*runner != '.' && runner != begin)
+            --runner;
+        std::string misc(begin, runner);
+
+        //getting skills line
+        while (memcmp(runner, "Skills", 6) != 0 && runner + 6 < end)
+            ++runner;
+        begin = runner;
+        while (*runner != '.' && *runner != ';' && runner < end)
+            ++runner;
+        ss << std::string(begin, runner).c_str() << ".\r\n";
+        ss << misc.c_str() << ".\r\n";
+        if (*runner == ';') //we have description
+        {
+            ss << std::string(runner, end).c_str();
+        }
+        return ss.str();     
+    }
+
+    std::string get_actual_description(CUnit* unit)
+    {
+        std::stringstream ss;
+        
+        //first line
+        if (unit->IsOurs)
+            ss << "* ";
+        else
+            ss << "- ";
+        ss << std::string(unit->Name.GetData(), unit->Name.GetLength()) << " (" << std::to_string(unit->Id) << ")";
+        if (flags::is_guard(unit))
+            ss << ", on guard";
+        ss << ", " << std::string(unit->pFaction->Name.GetData(), unit->pFaction->Name.GetLength()) << "(" << std::to_string(unit->FactionId) << ")";
+        if (flags::is_avoid(unit))
+            ss << ", avoiding";
+        if (flags::is_reveal(unit, "unit"))
+            ss << ", revealing unit";
+        else if (flags::is_reveal(unit, "faction"))
+            ss << ", revealing faction";
+        if (flags::is_hold(unit))
+            ss << ", holding";
+        if (flags::is_noaid(unit))
+            ss << ", receiving no aid";
+        if (flags::is_sharing(unit))
+            ss << ", sharing";
+        if (flags::is_consume(unit, "unit"))
+            ss << ", consuming unit's food";
+        else if (flags::is_consume(unit, "faction"))
+            ss << ", consuming faction's food";
+        if (flags::is_spoils(unit, "none"))
+            ss << ", weightless battle spoils";
+        else if (flags::is_spoils(unit, "ride"))
+            ss << ", riding battle spoils";
+        if (flags::is_nocross(unit))
+            ss << ", won't cross water";
+        ss << ".\r\n";
+
+        //second line
+        bool first_element = true;
+        for (const auto& item : unit->items_)
+        {
+            if (item.amount_ == 0)
+                continue;
+            
+            if (first_element)
+                first_element = false;
+            else
+                ss << ", ";
+
+            if (item.amount_ == 1)
+            {
+                std::string code_name, long_name, long_name_plural;
+                gpDataHelper->ResolveAliasItems(item.code_name_, code_name, long_name, long_name_plural);
+                ss << long_name << " [" << item.code_name_ << "]";
+            }
+            else if (item.amount_ > 1)
+            {
+                std::string code_name, long_name, long_name_plural;
+                gpDataHelper->ResolveAliasItems(item.code_name_, code_name, long_name, long_name_plural);
+                ss << std::to_string(item.amount_) << " " << long_name_plural << " [" << item.code_name_ << "]";
+            }
+        }
+        ss << ".\r\n";
+
+        return ss.str();
     }
 }

@@ -13,6 +13,7 @@ namespace unit_control
         bool is_noaid(CUnit* unit);
         bool is_avoid(CUnit* unit);
         bool is_nocross(CUnit* unit);
+        bool is_sharing(CUnit* unit);
         bool is_reveal(CUnit* unit, std::string flag);
         bool is_spoils(CUnit* unit, std::string flag);
         bool is_consume(CUnit* unit, std::string flag);
@@ -22,6 +23,10 @@ namespace unit_control
     std::set<CItem>& get_items(CUnit* unit);
     long get_item_amount(CUnit* unit, const std::string& short_name);
     void modify_item_amount(CUnit* unit, const std::string& source_name, const std::string& short_name, long new_amount);
+
+    std::string get_initial_description(CUnit* unit);
+    std::string get_actual_description(CUnit* unit);
+
 }
 
 namespace land_control

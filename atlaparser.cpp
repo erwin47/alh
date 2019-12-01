@@ -5068,6 +5068,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                 {
                     isSimCmd = true;
                     Line.DelSubStr(0, 3);
+                    pUnit->Name = Line;
+                    continue;
                 }
                 else
                 {

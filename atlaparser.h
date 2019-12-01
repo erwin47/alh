@@ -106,11 +106,8 @@ enum {
     O_WITHDRAW,
     O_WORK,
     O_RECRUIT,
-
-
     O_TYPE,
     O_LABEL,
-
     // must be in this sequence! O_ENDXXX == O_XXX+1
     O_TURN,
     O_ENDTURN,
@@ -118,8 +115,6 @@ enum {
     O_ENDTEMPLATE,
     O_ALL,
     O_ENDALL,
-
-
     NORDERS
 };
 
@@ -138,7 +133,28 @@ typedef struct SAVE_HEX_OPTIONS_STRUCT
     long   WriteTurnNo; // Add turn number atlaclient style
 } SAVE_HEX_OPTIONS;
 
+/*
+class Order
+{
+    OrderType type_;
+    std::vector<std::string> order_;
+    std::string comment_;
+};
 
+class UnitOrders
+{
+    std::string orders_;
+    std::vector<Order> parsed_orders_;
+    std::vector<Order> auto_orders_;
+
+    void parse_orders(const std::string& orders, std::multimap<OrderType, std::string>& parsed_orders);
+
+public:
+    UnitOrders() {}
+    void update_state(const char* orders);
+
+};
+*/
 
 //======================================================================
 

@@ -3508,49 +3508,13 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
         }
         else
         {
-            const char* begin = pUnit->Description.GetData();
-            const char* end = begin + pUnit->Description.GetLength();
-            const char* runner = begin;
-
-            //getting faction_and_flags line
-            while (*runner != '[' && runner < end)
-                ++runner;
-            while (*runner != ',' && runner != begin)
-                --runner;
-            m_UnitDescrSrc << std::string(begin, runner).c_str() << ".\r\n";
-
-            //getting items line
-            ++runner;
-            while (*runner == ' ')
-                ++runner;
-            begin = runner;
-            while (*runner != '.' && runner < end)
-                ++runner;
-            m_UnitDescrSrc << std::string(begin, runner).c_str() << ".\r\n";
-
-            //getting misc line
-            ++runner;
-            while (*runner == ' ')
-                ++runner;
-            begin = runner;
-            while (memcmp(runner, "Skills", 6) != 0 && runner + 6 < end)
-                ++runner;
-            while (*runner != '.' && runner != begin)
-                --runner;
-            std::string misc(begin, runner);
-
-            //getting skills line
-            while (memcmp(runner, "Skills", 6) != 0 && runner + 6 < end)
-                ++runner;
-            begin = runner;
-            while (*runner != '.' && runner < end)
-                ++runner;
-            m_UnitDescrSrc << std::string(begin, runner).c_str() << ".\r\n";
-            m_UnitDescrSrc << misc.c_str() << ".\r\n\r\n";
-
+            m_UnitDescrSrc << unit_control::get_initial_description(pUnit).c_str() << "\r\n";
+            
             for (const std::string& impact_descr : pUnit->impact_description_)
                 m_UnitDescrSrc << ";" << impact_descr.c_str() << ".\r\n";
             m_UnitDescrSrc << "\r\n";
+
+            m_UnitDescrSrc << unit_control::get_actual_description(pUnit).c_str() << "\r\n";
 
             if (!pUnit->Errors.IsEmpty())
                 m_UnitDescrSrc << " ***** Errors:\r\n" << pUnit->Errors;
