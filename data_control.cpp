@@ -80,6 +80,12 @@ namespace unit_control
     std::string get_initial_description(CUnit* unit)
     {
         std::stringstream ss;
+        if (IS_NEW_UNIT(unit))
+        {
+            ss << std::string(unit->Description.GetData(), unit->Description.GetLength()) << ".\r\n";
+            return ss.str();
+        }
+
         const char* begin = unit->Description.GetData();
         const char* end = begin + unit->Description.GetLength();        
         const char* runner = begin;
@@ -123,6 +129,7 @@ namespace unit_control
         {
             ss << std::string(runner, end).c_str();
         }
+        ss << ".\r\n";
         return ss.str();     
     }
 
@@ -141,6 +148,8 @@ namespace unit_control
         ss << ", " << std::string(unit->pFaction->Name.GetData(), unit->pFaction->Name.GetLength()) << "(" << std::to_string(unit->FactionId) << ")";
         if (flags::is_avoid(unit))
             ss << ", avoiding";
+        if (flags::is_behind(unit))
+            ss << ", behind";            
         if (flags::is_reveal(unit, "unit"))
             ss << ", revealing unit";
         else if (flags::is_reveal(unit, "faction"))

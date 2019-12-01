@@ -5069,6 +5069,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     isSimCmd = true;
                     Line.DelSubStr(0, 3);
                     pUnit->Name = Line;
+                    if (IS_NEW_UNIT(pUnit))
+                        pUnit->Name << "(NEW " << (long)REVERSE_NEW_UNIT_ID(pUnit->Id) << ")";
                     continue;
                 }
                 else
@@ -6431,12 +6433,16 @@ void CAtlaParser::RunOrder_Give(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
             if (!pUnit->GetProperty(Item.GetData(), type, value, eNormal) || (eLong!=type))
                 SHOW_WARN_CONTINUE(" - Can not give " << Item);
 
-            unit_control::modify_item_amount(pUnit, std::to_string(pUnit2->Id), Item.GetData(), -amount);
-            if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
-                SHOW_WARN_CONTINUE(NOSET << BUG);
-
             if (pUnit2)
             {
+                std::string receiving_unit_name(pUnit2->Name.GetData(), pUnit2->Name.GetLength());
+                receiving_unit_name.append("(");
+                receiving_unit_name.append(std::to_string(pUnit2->Id));
+                receiving_unit_name.append(")");
+                unit_control::modify_item_amount(pUnit, receiving_unit_name, Item.GetData(), -amount);
+                if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
+                    SHOW_WARN_CONTINUE(NOSET << BUG);
+
                 if (!pUnit2->GetProperty(Item.GetData(), type, value2, eNormal) )
                 {
                     value2 = (const void*)0L;
@@ -6447,7 +6453,11 @@ void CAtlaParser::RunOrder_Give(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 else if (eLong!=type)
                     SHOW_WARN_CONTINUE(NOTNUMERIC << n1 << BUG);
 
-                unit_control::modify_item_amount(pUnit2, std::to_string(pUnit->Id), Item.GetData(), amount);
+                std::string giving_unit_name(pUnit->Name.GetData(), pUnit->Name.GetLength());
+                giving_unit_name.append("(");
+                giving_unit_name.append(std::to_string(pUnit->Id));
+                giving_unit_name.append(")");
+                unit_control::modify_item_amount(pUnit2, giving_unit_name, Item.GetData(), amount);
                 if (PE_OK!=pUnit2->SetProperty(Item.GetData(), type, (const void*)((long)value2+amount), eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6642,7 +6652,11 @@ void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 if (!pUnit2->GetProperty(Item.GetData(), type, value, eNormal) || (eLong!=type))
                     SHOW_WARN_CONTINUE(" - Can not take " << Item);
 
-                unit_control::modify_item_amount(pUnit2, std::to_string(pUnit->Id), Item.GetData(), -amount);
+                std::string receiving_unit_name(pUnit->Name.GetData(), pUnit->Name.GetLength());
+                receiving_unit_name.append("(");
+                receiving_unit_name.append(std::to_string(pUnit->Id));
+                receiving_unit_name.append(")");
+                unit_control::modify_item_amount(pUnit2, receiving_unit_name, Item.GetData(), -amount);
                 if (PE_OK!=pUnit2->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6656,7 +6670,11 @@ void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 else if (eLong!=type)
                     SHOW_WARN_CONTINUE(NOTNUMERIC << n1 << BUG);
 
-                unit_control::modify_item_amount(pUnit, std::to_string(pUnit2->Id), Item.GetData(), amount);
+                std::string giving_unit_name(pUnit2->Name.GetData(), pUnit2->Name.GetLength());
+                giving_unit_name.append("(");
+                giving_unit_name.append(std::to_string(pUnit2->Id));
+                giving_unit_name.append(")");
+                unit_control::modify_item_amount(pUnit, giving_unit_name, Item.GetData(), amount);
                 if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value2+amount), eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6714,7 +6732,11 @@ void CAtlaParser::RunOrder_Send(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
             if (!pUnit->GetProperty(Item.GetData(), type, value, eNormal) || (eLong!=type))
                 SHOW_WARN_CONTINUE(" - Can not send " << Item);
 
-            unit_control::modify_item_amount(pUnit, std::to_string(pUnit2->Id), Item.GetData(), -amount);
+            std::string receiving_unit_name(pUnit2->Name.GetData(), pUnit2->Name.GetLength());
+            receiving_unit_name.append("(");
+            receiving_unit_name.append(std::to_string(pUnit2->Id));
+            receiving_unit_name.append(")");
+            unit_control::modify_item_amount(pUnit, receiving_unit_name, Item.GetData(), -amount);
             if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
                 SHOW_WARN_CONTINUE(NOSET << BUG);
 

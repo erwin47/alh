@@ -4,6 +4,8 @@
 ### Dec 1 2019
 - Added to Unit Description screen partial actual state of unit (flags, name and items)
 - @;;XXXXX -- with this order now name will be replaced by XXXXX in region list of units.
+- Extended description for new units
+- Small bugfixes
 
 ### Nov 30 2019
 - Fixed bug with representation of unit description (print out everything between ";" and end of description)
