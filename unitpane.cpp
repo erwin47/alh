@@ -133,7 +133,9 @@ void CUnitPane::Update(CLand * pLand)
     CBaseColl         ArrivingUnits;
     long              GuiColor;
 
-
+    
+    if (gpApp->getLayout() == AH_LAYOUT_1_WIN_ONE_DESCR)
+        FullUpdate = FALSE;
     // It is a must, since some locations pointed to by stored pointers may be invalid at the moment.
     // Namely all new units are deleted when orders are processed.
     m_pUnits->DeleteAll();
@@ -186,8 +188,8 @@ void CUnitPane::Update(CLand * pLand)
 
     SetData(selmode, seldata, FullUpdate);
 
-    if ((0==m_pUnits->Count()) || !FullUpdate) // otherwise will be called from OnSelected()
-        gpApp->OnUnitHexSelectionChange(GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED));
+    //if ((0==m_pUnits->Count()) || !FullUpdate) // otherwise will be called from OnSelected()
+    //    gpApp->OnUnitHexSelectionChange(GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED));
 }
 
 //--------------------------------------------------------------------------

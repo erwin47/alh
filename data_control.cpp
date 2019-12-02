@@ -107,29 +107,31 @@ namespace unit_control
         ss << std::string(begin, runner).c_str() << ".\r\n";
 
         //getting misc line
-        ++runner;
-        while (*runner == ' ')
+        if (unit->IsOurs)
+        {
             ++runner;
-        begin = runner;
-        while (memcmp(runner, "Skills", 6) != 0 && runner + 6 < end)
-            ++runner;
-        while (*runner != '.' && runner != begin)
-            --runner;
-        std::string misc(begin, runner);
+            while (*runner == ' ')
+                ++runner;
+            begin = runner;
+            while (memcmp(runner, "Skills", 6) != 0 && runner + 6 < end)
+                ++runner;
+            while (*runner != '.' && runner != begin)
+                --runner;
+            std::string misc(begin, runner);
 
-        //getting skills line
-        while (memcmp(runner, "Skills", 6) != 0 && runner + 6 < end)
-            ++runner;
-        begin = runner;
-        while (*runner != '.' && *runner != ';' && runner < end)
-            ++runner;
-        ss << std::string(begin, runner).c_str() << ".\r\n";
-        ss << misc.c_str() << ".\r\n";
+            //getting skills line
+            while (memcmp(runner, "Skills", 6) != 0 && runner + 6 < end)
+                ++runner;
+            begin = runner;
+            while (*runner != '.' && *runner != ';' && runner < end)
+                ++runner;
+            ss << std::string(begin, runner).c_str() << ".\r\n";
+            ss << misc.c_str() << ".\r\n";
+        }
         if (*runner == ';') //we have description
         {
-            ss << std::string(runner, end).c_str();
+            ss << std::string(runner, end).c_str() << ".\r\n";
         }
-        ss << ".\r\n";
         return ss.str();     
     }
 
@@ -139,13 +141,15 @@ namespace unit_control
         
         //first line
         if (unit->IsOurs)
-            ss << "* ";
+            ss << " * ";
         else
-            ss << "- ";
+            ss << " - ";
+
         ss << std::string(unit->Name.GetData(), unit->Name.GetLength()) << " (" << std::to_string(unit->Id) << ")";
         if (flags::is_guard(unit))
             ss << ", on guard";
-        ss << ", " << std::string(unit->pFaction->Name.GetData(), unit->pFaction->Name.GetLength()) << "(" << std::to_string(unit->FactionId) << ")";
+        if (unit->pFaction != NULL)
+            ss << ", " << std::string(unit->pFaction->Name.GetData(), unit->pFaction->Name.GetLength()) << "(" << std::to_string(unit->FactionId) << ")";
         if (flags::is_avoid(unit))
             ss << ", avoiding";
         if (flags::is_behind(unit))
@@ -190,7 +194,7 @@ namespace unit_control
                 gpDataHelper->ResolveAliasItems(item.code_name_, code_name, long_name, long_name_plural);
                 ss << long_name << " [" << item.code_name_ << "]";
             }
-            else if (item.amount_ > 1)
+            else // if amount_ is below zero, that also may be interesting
             {
                 std::string code_name, long_name, long_name_plural;
                 gpDataHelper->ResolveAliasItems(item.code_name_, code_name, long_name, long_name_plural);

@@ -3496,7 +3496,10 @@ void CMapPane::OnMouseEvent(wxMouseEvent& event)
         StartRectangle(xpos, ypos);
         GetHexNo(nx, ny, xpos, ypos);
         nx = gpApp->m_pAtlantis->NormalizeHexX(nx, pPlane);
-        SetSelection(nx, ny, gpApp->GetSelectedUnit(), pPlane, FALSE);
+        if (gpApp->getLayout() == AH_LAYOUT_1_WIN_ONE_DESCR)
+            SetSelection(nx, ny, gpApp->GetSelectedUnit(), pPlane, TRUE);
+        else
+            SetSelection(nx, ny, gpApp->GetSelectedUnit(), pPlane, FALSE);
     }
 
     else if (event.LeftUp())

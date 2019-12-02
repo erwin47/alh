@@ -1,6 +1,10 @@
 # alh (Atlantis Little Helper)
 
 ## Changelog:
+### Dec 3 2019
+- Added LAYOUT 4: it unites "Hex Description" and "Unit Description" windows.
+- fixed minor bugs.
+
 ### Dec 1 2019
 - Added to Unit Description screen partial actual state of unit (flags, name and items)
 - @;;XXXXX -- with this order now name will be replaced by XXXXX in region list of units.

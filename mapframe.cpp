@@ -342,7 +342,8 @@ const char * CMapFrame::GetConfigSection(int layout)
     case AH_LAYOUT_2_WIN:        return SZ_SECT_WND_MAP_2_WIN;
     case AH_LAYOUT_3_WIN:        return SZ_SECT_WND_MAP_3_WIN;
     case AH_LAYOUT_1_WIN_WIDE:   // Same Section as 1 window
-    case AH_LAYOUT_1_WIN:        return SZ_SECT_WND_MAP_1_WIN;
+    case AH_LAYOUT_1_WIN_ONE_DESCR: // Same Section as 1 window
+    case AH_LAYOUT_1_WIN:        return SZ_SECT_WND_MAP_1_WIN;    
     default:                     return "";
     }
 }
@@ -360,6 +361,7 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
 
     switch (layout)
     {
+    case AH_LAYOUT_1_WIN_ONE_DESCR:
     case AH_LAYOUT_1_WIN:
     case AH_LAYOUT_1_WIN_WIDE:
         {
@@ -371,6 +373,7 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
             CEditPane         * p6;
             int                 x,y;
             const bool          wide = (layout == AH_LAYOUT_1_WIN_WIDE);
+            const bool          layout_united_description = (layout == AH_LAYOUT_1_WIN_ONE_DESCR);
             // The WIDE layout is for wide screens, the Hex,Unit,Orders pane takes the entire height.
 
             if (wide)
@@ -384,7 +387,8 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
                 m_Splitter1= new wxSplitterWindow(m_Splitter , -1, wxDefaultPosition, wxDefaultSize, wxSP_3DSASH | wxCLIP_CHILDREN);
             }
             m_Splitter2= new wxSplitterWindow(m_Splitter1, -1, wxDefaultPosition, wxDefaultSize, wxSP_3DSASH | wxCLIP_CHILDREN);
-            m_Splitter3= new wxSplitterWindow(m_Splitter2, -1, wxDefaultPosition, wxDefaultSize, wxSP_3DSASH | wxCLIP_CHILDREN);
+            if (!layout_united_description)
+                m_Splitter3= new wxSplitterWindow(m_Splitter2, -1, wxDefaultPosition, wxDefaultSize, wxSP_3DSASH | wxCLIP_CHILDREN);
             m_Splitter4= new wxSplitterWindow(m_Splitter2, -1, wxDefaultPosition, wxDefaultSize, wxSP_3DSASH | wxCLIP_CHILDREN);
 
             if (wide)
@@ -396,22 +400,34 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
                 p1 = new CMapPane (m_Splitter1, -1, layout  );
             }
             p2 = new CUnitPane(m_Splitter);
-            p3 = new CEditPane(m_Splitter3, wxT("Hex description")        , FALSE, FONT_EDIT_DESCR);
-            p4 = new CEditPane(m_Splitter3, wxT("Unit description")       , FALSE, FONT_EDIT_DESCR);
+            p3 = new CEditPane(m_Splitter2, wxT("Hex description")        , FALSE, FONT_EDIT_DESCR);
+            if (layout_united_description)
+            {
+                p3 = new CEditPane(m_Splitter2, wxT("Hex description")        , FALSE, FONT_EDIT_DESCR);
+            }
+            else
+            {
+                p3 = new CEditPane(m_Splitter3, wxT("Hex description")        , FALSE, FONT_EDIT_DESCR);
+                p4 = new CEditPane(m_Splitter3, wxT("Unit description")       , FALSE, FONT_EDIT_DESCR);
+            }
             p5 = new CEditPane(m_Splitter4, wxT("Orders")                 , FALSE, FONT_EDIT_ORDER);
             p6 = new CEditPane(m_Splitter4, wxT("Comments/Default orders"), TRUE , FONT_EDIT_ORDER);
 
             SetPane(AH_PANE_MAP          , p1);
             SetPane(AH_PANE_UNITS_HEX    , p2);
             SetPane(AH_PANE_MAP_DESCR    , p3);
-            SetPane(AH_PANE_UNIT_DESCR   , p4);
+            if (layout_united_description)
+                SetPane(AH_PANE_UNIT_DESCR   , p3);
+            else
+                SetPane(AH_PANE_UNIT_DESCR   , p4);
             SetPane(AH_PANE_UNIT_COMMANDS, p5);
             SetPane(AH_PANE_UNIT_COMMENTS, p6);
 
             p2->Init(this, szConfigSection, szConfigSectionHdr);
             p1->Init(this);
             p3->Init();
-            p4->Init();
+            if (!layout_united_description)
+                p4->Init();
             p5->Init();
             p6->Init();
 
@@ -419,13 +435,15 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
 
             m_Splitter1->SetBorderSize(0);
             m_Splitter2->SetBorderSize(0);
-            m_Splitter3->SetBorderSize(0);
+            if (!layout_united_description)
+                m_Splitter3->SetBorderSize(0);
             m_Splitter4->SetBorderSize(0);
 
             m_Splitter ->SetMinimumPaneSize(2);
             m_Splitter1->SetMinimumPaneSize(2);
             m_Splitter2->SetMinimumPaneSize(2);
-            m_Splitter3->SetMinimumPaneSize(2);
+            if (!layout_united_description)
+                m_Splitter3->SetMinimumPaneSize(2);
             m_Splitter4->SetMinimumPaneSize(2);
 
             m_Splitter1->SetSashGravity(1.0); // The map will resize in width with application window.
@@ -446,10 +464,16 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
             }
 
             x  = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_HEIGHT_1));
-            m_Splitter2->SplitHorizontally(m_Splitter3, m_Splitter4, x);
-
-            x  = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_HEIGHT_2));
-            m_Splitter3->SplitHorizontally(p3, p4, x);
+            if (layout_united_description)
+            {
+                m_Splitter2->SplitHorizontally(p3, m_Splitter4, x);
+            }
+            else
+            {
+                m_Splitter2->SplitHorizontally(m_Splitter3, m_Splitter4, x);
+                x  = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_HEIGHT_2));
+                m_Splitter3->SplitHorizontally(p3, p4, x);
+            }
 
             x  = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_WIDTH_1));
             m_Splitter4->SplitVertically(p5, p6, x);
@@ -503,12 +527,14 @@ void CMapFrame::Done(BOOL SetClosedFlag)
 
     switch (m_Layout)
     {
+    case AH_LAYOUT_1_WIN_ONE_DESCR:
     case AH_LAYOUT_1_WIN:
     case AH_LAYOUT_1_WIN_WIDE:
         gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_HEIGHT_0, m_Splitter ->GetSashPosition());
         gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_WIDTH_0 , m_Splitter1->GetSashPosition());
         gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_HEIGHT_1, m_Splitter2->GetSashPosition());
-        gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_HEIGHT_2, m_Splitter3->GetSashPosition());
+        if (m_Layout != AH_LAYOUT_1_WIN_ONE_DESCR)
+            gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_HEIGHT_2, m_Splitter3->GetSashPosition());
         gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_WIDTH_1 , m_Splitter4->GetSashPosition());
 
         pUnitPane  = (CUnitPane*)gpApp->m_Panes[AH_PANE_UNITS_HEX];

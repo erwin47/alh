@@ -60,6 +60,7 @@ enum
     AH_LAYOUT_3_WIN           ,
     AH_LAYOUT_1_WIN           ,
     AH_LAYOUT_1_WIN_WIDE      ,
+    AH_LAYOUT_1_WIN_ONE_DESCR ,
 
     AH_LAYOUT_COUNT
 };
@@ -216,7 +217,8 @@ public:
     BOOL                 CanSeeAdvResources(const char * skillname, const char * terrain, CLongColl & Levels, CBufColl & Resources);
     int                  GetAttitudeForFaction(int id);
     void                 SetAttitudeForFaction(int id, int attitude);
-
+    int                  getLayout() const; // it's not good to move it out, but UnitPane update actually controls other object
+    // which it shouldn't control, and this control have to be aligned with layout.
 
 
     int                  LoadReport(BOOL Join);

@@ -107,6 +107,11 @@ CAhApp::~CAhApp()
 }
 
 //-------------------------------------------------------------------------
+int CAhApp::getLayout() const
+{
+    return m_layout;
+}
+
 
 bool CAhApp::OnInit()
 {
@@ -2989,9 +2994,9 @@ void CAhApp::SelectLand(CLand * pLand)
         if (refresh)
             pMapPane->Refresh(FALSE);
 
-
-        if (!pUnitPane || pLand != pUnitPane->m_pCurLand)
-            pMapPane->SetSelection(nx, ny, NULL, pPlane, TRUE);
+	if ((m_layout == AH_LAYOUT_1_WIN_ONE_DESCR) ||
+            (!pUnitPane || pLand != pUnitPane->m_pCurLand))
+        pMapPane->SetSelection(nx, ny, NULL, pPlane, TRUE);
     }
 }
 
