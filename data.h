@@ -22,6 +22,7 @@
 
 #include "wx/string.h"
 
+#include "order_parser.h"
 #include "cstr.h"
 #include "collection.h"
 #include "objs.h"
@@ -302,8 +303,11 @@ public:
     std::string code_name_;
 
     bool operator<(const CItem& item) const {
-        return code_name_ < item.code_name_.c_str();
+        return code_name_ < item.code_name_;
     }
+    bool operator==(const CItem& item) const {
+        return code_name_ == item.code_name_;
+    }    
 };
 
 class CProductMarket
@@ -393,6 +397,8 @@ public:
     
     //list of received items, tought and so on, 
     std::vector<std::string> impact_description_;
+
+    orders_parser::UnitOrders orders_;
 
     bool            IsOurs;
     long            FactionId;

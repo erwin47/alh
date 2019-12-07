@@ -4262,6 +4262,8 @@ int CAtlaParser::LoadOrders  (CFileReader & F, int FactionId, BOOL GetComments)
                 {
                     Line << EOL_SCR;
                     pUnit->Orders.AddStr(Line.GetData(), Line.GetLength());
+                    orders_parser::Order order = orders_parser::get_order_from_line(std::string(Line.GetData(), Line.GetLength()));
+                    orders_parser::add_order_to_unit_orders(order, pUnit->orders_);
                 }
     }
 
@@ -4421,7 +4423,7 @@ BOOL CAtlaParser::ShareSilver(CUnit * pMainUnit)
         else if (eLong!=type)
             GEN_ERR(pMainUnit, NOTNUMERIC << pMainUnit->Id << BUG);
 
-        mainmoney -= unit_control::get_item_amount(pMainUnit, PRP_SILVER);
+        mainmoney == unit_control::get_item_amount(pMainUnit, PRP_SILVER);
 
         if (mainmoney<=0)
             break;
@@ -4590,95 +4592,114 @@ BOOL CAtlaParser::GenGiveEverything(CUnit * pFrom, const char * To)
 
 BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
 {
-    CLand             * pLand = NULL;
-    CUnit             * pUnit;
     int                 idx;
-    EValueType          type;
-    long                n1, n2;
     CStr                Line(32);
-    CStr                Skill;
-    BOOL                Changed  = FALSE;
-    BOOL                leader_checked = FALSE;
+
+    if (!pMainUnit || !pMainUnit->IsOurs)
+        return FALSE;
+
+    CLand* pLand = GetLand(pMainUnit->LandId);
+    if (!pLand)
+        return FALSE;
+
+    const char* val = gpApp->GetConfig(SZ_SECT_COMMON, "PEASANT_CAN_TEACH");
+    int peasant_can_teach = 0;
+    if (val != NULL)
+        peasant_can_teach = atoi(val);
+
+    EValueType          type;
     const void        * value;
+    if (peasant_can_teach == 0 && !pMainUnit->GetProperty(PRP_LEADER, type, value, eNormal))
+        return FALSE;
 
+    RunLandOrders(pLand); // just in case...
 
-    do
+    BOOL changed = FALSE;
+    for (idx=0; idx<pLand->UnitsSeq.Count(); idx++)
     {
-        if (!pMainUnit || !pMainUnit->IsOurs)
-            break;
-
-        pLand = GetLand(pMainUnit->LandId);
-        if (!pLand)
-            break;
-
-        if (!leader_checked && !pMainUnit->GetProperty(PRP_LEADER, type, value, eNormal) )
-            break;
-        else
-            leader_checked = TRUE;
-
-
-        RunLandOrders(pLand); // just in case...
-
-        for (idx=0; idx<pLand->UnitsSeq.Count(); idx++)
+        CUnit* pUnit = (CUnit*)pLand->UnitsSeq.At(idx);
+        if (!pUnit->StudyingSkill.IsEmpty())
         {
-            pUnit = (CUnit*)pLand->UnitsSeq.At(idx);
-            if (!pUnit->StudyingSkill.IsEmpty())
+            long teacher_skill_lvl(0), student_skill_lvl(0);
+            std::string skill(pUnit->StudyingSkill.GetData(), pUnit->StudyingSkill.GetLength());
+
+            pMainUnit->GetProperty(skill.c_str(), type, (const void *&)teacher_skill_lvl, eNormal);
+            pUnit->GetProperty(skill.c_str(), type, (const void *&)student_skill_lvl, eNormal);
+
+            if (teacher_skill_lvl <= student_skill_lvl)
             {
-                Skill = pUnit->StudyingSkill;
-                if (!pMainUnit->GetProperty(Skill.GetData(), type, (const void *&)n1, eNormal) )
-                    n1 = 0;
-                if (!pUnit->GetProperty(Skill.GetData(), type, (const void *&)n2, eNormal) )
-                    n2 = 0;
+                // can not teach in the normal game, but try for Arcadia III
+                size_t pos = skill.find(PRP_SKILL_POSTFIX);
+                if (pos != std::string::npos)
+                    skill.erase(pos, sizeof(PRP_SKILL_POSTFIX));
 
-                if (n1 <= n2)
+                skill.append(PRP_SKILL_STUDY_POSTFIX);
+                if (!pMainUnit->GetProperty(skill.c_str(), type, (const void *&)teacher_skill_lvl, eNormal) )
+                    teacher_skill_lvl = 0;
+                if (!pUnit->GetProperty(skill.c_str(), type, (const void *&)student_skill_lvl, eNormal) )
+                    student_skill_lvl = 0;
+            }
+
+            if ( (teacher_skill_lvl > student_skill_lvl) &&            // can teach
+                    (pUnit->Teaching <= 20) // student only partially taught by someone else
+                )
+            {
+                long teacher_amount(0), student_amount(0);
+                // count men now
+                if (!pMainUnit->GetProperty(PRP_MEN, type, (const void *&)teacher_amount, eNormal)  || (teacher_amount<=0))
+                    break;
+                if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)student_amount, eNormal) || (student_amount<=0))
+                    continue;
+
+                if (teacher_amount*(STUDENTS_PER_TEACHER - pMainUnit->Teaching) >= student_amount)
                 {
-                    // can not teach in the normal game, but try for Arcadia III
+                    pMainUnit->Teaching += (double)student_amount/teacher_amount;
 
-                    int  SkillPos = Skill.FindSubStrR(PRP_SKILL_POSTFIX);
-                    if (SkillPos>=0)
-                        Skill.DelSubStr(SkillPos, strlen(PRP_SKILL_POSTFIX));
+                    pMainUnit->Orders.TrimRight(TRIM_ALL);
+                    if (!pMainUnit->Orders.IsEmpty())
+                        pMainUnit->Orders << EOL_SCR ;
 
-                    Skill << PRP_SKILL_STUDY_POSTFIX;
-                    if (!pMainUnit->GetProperty(Skill.GetData(), type, (const void *&)n1, eNormal) )
-                        n1 = 0;
-                    if (!pUnit->GetProperty(Skill.GetData(), type, (const void *&)n2, eNormal) )
-                        n2 = 0;
-                }
-
-                if ( (n1 > n2) &&            // can teach
-                     (pUnit->Teaching <= 20) // student only partially taught by someone else
-                   )
-                {
-                    // count men now
-
-                    if (!pMainUnit->GetProperty(PRP_MEN, type, (const void *&)n1, eNormal)  || (n1<=0))
-                        break;
-                    if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)n2, eNormal) || (n2<=0))
-                        continue;
-
-                    if (n1*(STUDENTS_PER_TEACHER - pMainUnit->Teaching) >= n2)
+                    size_t indent = sizeof("TEACH NEW XXXXX");
+                    std::string order;
+                    if (IS_NEW_UNIT(pUnit))
                     {
-                        pMainUnit->Teaching += (double)n2/n1;
-
-                        pMainUnit->Orders.TrimRight(TRIM_ALL);
-                        if (!pMainUnit->Orders.IsEmpty())
-                            pMainUnit->Orders << EOL_SCR ;
-                        if (IS_NEW_UNIT(pUnit))
-                            pMainUnit->Orders << "TEACH " << "NEW " << (long)REVERSE_NEW_UNIT_ID(pUnit->Id);
-                        else
-                            pMainUnit->Orders << "TEACH " << pUnit->Id;
-                        Changed = TRUE;
+                        order = "TEACH NEW ";
+                        order.append(std::to_string((long)REVERSE_NEW_UNIT_ID(pUnit->Id)));
                     }
+                    else
+                    {
+                        order = "TEACH ";
+                        order.append(std::to_string(pUnit->Id));
+                    }
+                    pMainUnit->Orders << order.c_str();
+                    for (size_t i = order.size(); i < indent; ++i)
+                        pMainUnit->Orders << " ";
+                    pMainUnit->Orders << ";" << skill.c_str() << student_skill_lvl << " man: " << student_amount;
+
+                    // update student
+                    CStr NewOrders;
+                    CStr Line;
+                    const char* old_orders = pUnit->Orders.GetData();
+                    while (old_orders && *old_orders)
+                    {
+                        old_orders  = Line.GetToken(old_orders, '\n', TRIM_ALL);
+                        std::string temp(Line.GetData(), Line.GetLength());
+                        if (temp.find("STUDY") != std::string::npos || temp.find("study") != std::string::npos)
+                        {
+                            Line << "; teacher " << pMainUnit->Id;
+                        }
+                        NewOrders << Line << EOL_SCR;
+                    }           
+                    pUnit->Orders = NewOrders;
+                    changed = TRUE;
                 }
             }
         }
-
-    } while (FALSE);
-
-    if (Changed)
+    }
+    if (changed)
         RunLandOrders(pLand); // just in case...
 
-    return Changed;
+    return changed;
 }
 
 //-------------------------------------------------------------

@@ -76,6 +76,18 @@ void CReceiveDlg::init_item_types_combobox()
     long_to_short_item_names_.clear();
     combobox_item_types_->Clear();
     std::set<CItem> items = get_item_types_list(unit_, land_);
+
+    CItem silv;
+    silv.code_name_ = "SILV";
+    if (items.find(silv) != items.end())
+    {
+        std::string codename, name, plural;
+        gpApp->ResolveAliasItems(silv.code_name_, codename, name, plural);
+
+        long_to_short_item_names_[plural] = silv.code_name_;        
+        combobox_item_types_->Append(plural);
+        items.erase(silv);
+    }
     for (const CItem& item : items)
     {
         std::string codename, name, plural;
@@ -192,6 +204,7 @@ void CReceiveDlg::OnItemChosen   (wxCommandEvent& event)
     std::vector<std::string> unit_names = get_units_with_item(long_to_short_item_names_[long_name_item], unit_, land_);
 
     combobox_units_->Clear();
+    combobox_units_->Append(FROM_ALL_);
     for (const std::string& unit_name : unit_names)
         combobox_units_->Append(unit_name);
 }
@@ -224,35 +237,56 @@ void CReceiveDlg::set_comment(CUnit* unit, const std::string& comment)
     unit->Comments << comment.c_str();
 }
 
+void CReceiveDlg::perform_give(CUnit* giving_one, CUnit* receiving_one, long amount, const std::string& item_code_name)
+{
+    std::string order = compose_give_order(receiving_one, amount, item_code_name);
+    std::string comment = compose_give_comment(giving_one, amount, item_code_name);
+    set_order(giving_one, order);
+    set_comment(receiving_one, comment);
+}
+
+void CReceiveDlg::perform_take(CUnit* giving_one, CUnit* receiving_one, long amount, const std::string& item_code_name)
+{
+    std::string order = compose_take_order(giving_one, amount, item_code_name);
+    std::string comment = compose_take_comment(receiving_one, amount, item_code_name);
+    set_order(receiving_one, order);
+    set_comment(giving_one, comment);
+}
+
 void CReceiveDlg::OnOk           (wxCommandEvent& event)
 {
-    long amount = spin_items_amount_->GetValue();
-    if (amount <= 0)
-        return;
-    
     std::string long_name = combobox_item_types_->GetValue().ToStdString();
     if (long_name.empty())
         return;
 
     std::string giver_name = combobox_units_->GetValue().ToStdString();
-    if (unit_name_to_unit_.find(giver_name) == unit_name_to_unit_.end())
-        return;
-
-    CUnit* giving_unit = unit_name_to_unit_[giver_name];
-    if (use_order_take_->GetValue())
+    if (giver_name == FROM_ALL_)
     {
-        std::string order = compose_take_order(giving_unit, amount, long_to_short_item_names_[long_name]);
-        std::string comment = compose_take_comment(unit_, amount, long_to_short_item_names_[long_name]);
-        set_order(unit_, order);
-        set_comment(giving_unit, comment);
-    }        
-    else
-    {
-        std::string order = compose_give_order(unit_, amount, long_to_short_item_names_[long_name]);
-        std::string comment = compose_give_comment(giving_unit, amount, long_to_short_item_names_[long_name]);
-        set_order(giving_unit, order);
-        set_comment(unit_, comment);
+        for (const auto& pair : unit_name_to_unit_)
+        {
+            long amount = unit_control::get_item_amount(pair.second, long_to_short_item_names_[long_name]);
+            if (use_order_take_->GetValue())
+                perform_take(pair.second, unit_, amount, long_to_short_item_names_[long_name]);
+            else
+                perform_give(pair.second, unit_, amount, long_to_short_item_names_[long_name]);            
+        }
     }
+    else 
+    {
+        if (unit_name_to_unit_.find(giver_name) == unit_name_to_unit_.end())
+            return;
+
+        long amount = spin_items_amount_->GetValue();
+        if (amount <= 0)
+            return;
+
+        CUnit* giving_unit = unit_name_to_unit_[giver_name];
+        if (use_order_take_->GetValue())
+            perform_take(giving_unit, unit_, amount, long_to_short_item_names_[long_name]);
+        else
+            perform_give(giving_unit, unit_, amount, long_to_short_item_names_[long_name]);
+    }
+
     gpApp->m_pAtlantis->RunOrders(land_);
 
     StoreSize();

@@ -3538,6 +3538,7 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
             //pOrders->OnKillFocus();
         }
 
+        //orders_parser::compose_original_orders(pUnit->orders_);
         pOrders->SetSource(pUnit?&pUnit->Orders:NULL,      &m_OrdersAreChanged);
         pOrders->SetReadOnly ( ReadOnly );
         pOrders->ApplyFonts();

@@ -1,11 +1,20 @@
 # alh (Atlantis Little Helper)
 
 ## Changelog:
-### Dec 3 2019
+### Dec 07 2019
+- Added order_parser functionality.
+- Added usage of order_parser at LoadOrders.
+- Fixed issue with ShareSilv
+- Refactored Teach popup function: now it adds comment to teacher describing students and to student describing fact of teaching
+- Added "COMMON" - "PEASANT_CAN_TEACH" flag, which may be set to 1/0, allows client to handle peasants as teachers.
+- Added CUserOrderPane (but no use yet). Have to replace current CEditPane.
+- Added functions to ReceiveDLG: SILV now is always first in the list, if it exists, there is option "FROM ALL" which allows to get chosen item from all units in region.
+
+### Dec 03 2019
 - Added LAYOUT 4: it unites "Hex Description" and "Unit Description" windows.
 - fixed minor bugs.
 
-### Dec 1 2019
+### Dec 01 2019
 - Added to Unit Description screen partial actual state of unit (flags, name and items)
 - @;;XXXXX -- with this order now name will be replaced by XXXXX in region list of units.
 - Extended description for new units

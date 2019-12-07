@@ -196,8 +196,8 @@ void CEditPane::SetReadOnly(BOOL ReadOnly)
 
 void CEditPane::OnKillFocus()
 {
-    if (SaveModifications())
-        gpApp->EditPaneChanged(this);
+//    if (SaveModifications())
+//        gpApp->EditPaneChanged(this);
 }
 
 //--------------------------------------------------------------------

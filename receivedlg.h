@@ -30,6 +30,8 @@ class CReceiveDlg : public CResizableDlg
     std::map<std::string, CUnit*> unit_name_to_unit_;
     std::map<std::string, std::string> long_to_short_item_names_;
 
+    const std::string FROM_ALL_ = "-=FROM ALL=-";
+
 public:
     CReceiveDlg(wxWindow *parent, CUnit * pUnit, CLand* pLand);
     ~CReceiveDlg();
@@ -40,6 +42,8 @@ private:
     std::string compose_give_comment(CUnit* from_whom, long amount, const std::string& item);
     std::string compose_take_order(CUnit* from_whom, long amount, const std::string& item);
     std::string compose_take_comment(CUnit* fo_whom, long amount, const std::string& item);
+    void perform_give(CUnit* giving_one, CUnit* receiving_one, long amount, const std::string& item_code_name);
+    void perform_take(CUnit* giving_one, CUnit* receiving_one, long amount, const std::string& item_code_name);
     void set_order(CUnit* unit, const std::string& order);
     void set_comment(CUnit* unit, const std::string& comment);
 

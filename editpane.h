@@ -20,7 +20,7 @@
 #ifndef __AH_EDIT_PANE_INCL__
 #define __AH_EDIT_PANE_INCL__
 
-
+#include <wx/wx.h>
 class CStr;
 
 class CEditPane : public wxPanel
@@ -56,5 +56,27 @@ protected :
     DECLARE_EVENT_TABLE()
 };
 
+class CUnitOrderPane : public wxPanel
+{
+public:
+    CUnitOrderPane(wxWindow *parent, const wxString &header, BOOL editable, int WhichFont);
+    virtual     ~CUnitOrderPane();
+
+    wxTextCtrl* m_pEditor;
+
+
+protected :
+    void         OnSize      (wxSizeEvent & event);
+
+    CUnit        * unit_;
+    BOOL         * m_pChanged;
+    wxStaticText * m_pHeader;
+    int            m_HdrHeight;
+    int            m_WhichFont;
+    wxColour       m_ColorNormal;
+    wxColour       m_ColorReadOnly;
+
+    DECLARE_EVENT_TABLE()
+};
 
 #endif

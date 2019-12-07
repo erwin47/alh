@@ -133,7 +133,7 @@ void CUnitPane::Update(CLand * pLand)
     CBaseColl         ArrivingUnits;
     long              GuiColor;
 
-    
+    //because we don't update windows, except current unit's list
     if (gpApp->getLayout() == AH_LAYOUT_1_WIN_ONE_DESCR)
         FullUpdate = FALSE;
     // It is a must, since some locations pointed to by stored pointers may be invalid at the moment.
@@ -188,6 +188,7 @@ void CUnitPane::Update(CLand * pLand)
 
     SetData(selmode, seldata, FullUpdate);
 
+    //We don't actually want to update windows, except unit's list
     //if ((0==m_pUnits->Count()) || !FullUpdate) // otherwise will be called from OnSelected()
     //    gpApp->OnUnitHexSelectionChange(GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED));
 }

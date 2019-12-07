@@ -39,6 +39,7 @@ set(AH_CPP
     "${PROJECT_SOURCE_DIR}/unitpanefltr.cpp"
     "${PROJECT_SOURCE_DIR}/unitsplitdlg.cpp"
     "${PROJECT_SOURCE_DIR}/utildlgs.cpp"
+    "${PROJECT_SOURCE_DIR}/order_parser.cpp"
    )
 
 set(AH_HEADERS
@@ -85,6 +86,7 @@ set(AH_HEADERS
     "${PROJECT_SOURCE_DIR}/unitsplitdlg.h"
     "${PROJECT_SOURCE_DIR}/utildlgs.h"
     "${PROJECT_SOURCE_DIR}/version.h"
+    "${PROJECT_SOURCE_DIR}/order_parser.h"
    )
 
 # specify the C++ standard
