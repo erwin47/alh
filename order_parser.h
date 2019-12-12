@@ -95,10 +95,17 @@ namespace orders
         std::string original_string_;
     };
 
+    struct OrderTypeHash {
+        std::size_t operator()(orders::Type t) const
+        {
+            return static_cast<std::size_t>(t);
+        } 
+    };
+
     struct UnitOrders
     {
         std::vector<orders::Order> orders_;
-        std::unordered_map<orders::Type, std::vector<size_t>> hash_;
+        std::unordered_map<orders::Type, std::vector<size_t>, OrderTypeHash> hash_;
     };
 
     namespace parser

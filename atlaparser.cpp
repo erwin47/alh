@@ -5042,9 +5042,9 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
         }
 
         
-        if (TurnSequence::SQ_STUDY)
+        if (TurnSequence::SQ_STUDY == sequence)
         {//no need to parse sequentially
-            students_of_the_land = land_control::get_land_students(CLand* land);
+            //students_of_the_land = land_control::get_land_students(land);
         }
 
         for (mainidx=0; mainidx<pLand->UnitsSeq.Count(); mainidx++)
