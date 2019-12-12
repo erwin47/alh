@@ -482,7 +482,7 @@ void CAhApp::ApplyFonts()
     if (m_Panes[AH_PANE_UNITS_HEX    ]) ((CUnitPane*)m_Panes[AH_PANE_UNITS_HEX    ])->ApplyFonts();
     if (m_Panes[AH_PANE_UNITS_FILTER ]) ((CUnitPane*)m_Panes[AH_PANE_UNITS_FILTER ])->ApplyFonts();
     if (m_Panes[AH_PANE_UNIT_DESCR   ]) ((CEditPane*)m_Panes[AH_PANE_UNIT_DESCR   ])->ApplyFonts();
-    if (m_Panes[AH_PANE_UNIT_COMMANDS]) ((CEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS])->ApplyFonts();
+    if (m_Panes[AH_PANE_UNIT_COMMANDS]) ((CUnitOrderEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS])->ApplyFonts();
     if (m_Panes[AH_PANE_UNIT_COMMENTS]) ((CEditPane*)m_Panes[AH_PANE_UNIT_COMMENTS])->ApplyFonts();
     if (m_Panes[AH_PANE_MSG          ]) ((CEditPane*)m_Panes[AH_PANE_MSG          ])->ApplyFonts();
 
@@ -2870,7 +2870,7 @@ int  CAhApp::LoadReport(BOOL Join)
 
 //-------------------------------------------------------------------------
 
-void CAhApp::EditPaneChanged(CEditPane * pPane)
+void CAhApp::EditPaneChanged(CEditPane * pPane) //not actually used at all ??
 {
     CMapPane  * pMapPane  = (CMapPane* )m_Panes[AH_PANE_MAP];
     CLand     * pLand;
@@ -2910,7 +2910,7 @@ void CAhApp::EditPaneChanged(CEditPane * pPane)
 void CAhApp::SelectTempUnit(CUnit * pUnit)
 {
     CEditPane   * pDescription = (CEditPane*)m_Panes[AH_PANE_UNIT_DESCR   ];
-    CEditPane   * pOrders      = (CEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS];
+    CUnitOrderEditPane   * pOrders      = (CUnitOrderEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS];
     CEditPane   * pComments    = (CEditPane*)m_Panes[AH_PANE_UNIT_COMMENTS];
 
     OnUnitHexSelectionChange(-1); // unselect
@@ -2923,8 +2923,8 @@ void CAhApp::SelectTempUnit(CUnit * pUnit)
         pDescription->SetSource(&m_UnitDescrSrc, NULL);
     if (pOrders)
     {
-        pOrders->SetSource(NULL, NULL);
-        pOrders->SetReadOnly ( TRUE );
+        pOrders->change_representing_unit(NULL);
+        pOrders->SetReadOnly(TRUE);
         pOrders->ApplyFonts();
     }
     if (pComments)
@@ -3492,7 +3492,7 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
 
     BOOL          ReadOnly = TRUE;
     CEditPane   * pDescription;
-    CEditPane   * pOrders;
+    CUnitOrderEditPane   * pOrders;
     CEditPane   * pComments;
     CUnit       * pUnit;
 
@@ -3500,7 +3500,7 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
     pUnit        = GetSelectedUnit(); // depends on m_SelUnitIdx
 
     pDescription = (CEditPane*)m_Panes[AH_PANE_UNIT_DESCR   ];
-    pOrders      = (CEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS];
+    pOrders      = (CUnitOrderEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS];
     pComments    = (CEditPane*)m_Panes[AH_PANE_UNIT_COMMENTS];
 
     m_UnitDescrSrc.Empty();
@@ -3532,15 +3532,8 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
         pDescription->SetSource(&m_UnitDescrSrc, NULL);
     if (pOrders)
     {
-        if (pOrders->m_pEditor->IsModified())
-        {
-            pOrders->SaveModifications();
-            //pOrders->OnKillFocus();
-        }
-
-        //orders_parser::compose_original_orders(pUnit->orders_);
-        pOrders->SetSource(pUnit?&pUnit->Orders:NULL,      &m_OrdersAreChanged);
-        pOrders->SetReadOnly ( ReadOnly );
+        pOrders->change_representing_unit(pUnit);
+        pOrders->SetReadOnly(ReadOnly);
         pOrders->ApplyFonts();
     }
     if (pComments)
@@ -3552,7 +3545,6 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
         }
         pComments->SetSource(pUnit?&pUnit->DefOrders:NULL, &m_CommentsChanged);
     }
-
     RedrawTracks();
 }
 
@@ -5032,7 +5024,7 @@ void CAhApp::SelectUnitsPane()
 void CAhApp::SelectOrdersPane()
 {
     if (m_Panes[AH_PANE_UNIT_COMMANDS])
-        ((CUnitPane*)m_Panes[AH_PANE_UNIT_COMMANDS])->SetFocus();
+        ((CUnitOrderEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS])->SetFocus();
 }
 
 //--------------------------------------------------------------------------

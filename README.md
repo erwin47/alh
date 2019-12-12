@@ -1,6 +1,19 @@
 # alh (Atlantis Little Helper)
 
 ## Changelog:
+### Dec 12 2019
+- Internal: CEditPane replaced by CUnitOrderEditPane, specified for orders of unit.
+- Internal: Added list of skills to CUnit. Initial and modified (to implement studying prediction)
+- Internal: GenOrdersTeach rewritten.
+- Internal: RunOrder_Teach rewritten.
+- "Teach" popup menu works a bit differently:
+    it checks all units, if they may be tought (fixed issue with units which need 30 days to max level, and thus don't need teaching)
+    it checks all existing teachers and their coverage of students.
+    it adds comment in from of each teach command, describing tought skill, current amount of days of unit, max amount of days of unit, amount of man in unit.
+    it adds ALL students which room for teaching to teaching list. Assumption is that user can easily remove students from the list, but he will always get full list of students with room for teaching.
+- "Buy" and "Sell" modifies amount of items in unit.
+- Fixed many minor bugs related to last changes (corner cases, useless warnings and so on).
+
 ### Dec 07 2019
 - Added order_parser functionality.
 - Added usage of order_parser at LoadOrders.

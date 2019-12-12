@@ -398,7 +398,10 @@ public:
     //list of received items, tought and so on, 
     std::vector<std::string> impact_description_;
 
-    orders_parser::UnitOrders orders_;
+    orders::UnitOrders orders_;
+
+    std::map<std::string, long> skills_;
+    std::map<std::string, long> skills_initial_;
 
     bool            IsOurs;
     long            FactionId;

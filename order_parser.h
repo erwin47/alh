@@ -1,13 +1,17 @@
 #ifndef ALH_ORDER_PARSER_H
 #define ALH_ORDER_PARSER_H
 
+
 #include <string>
 #include <vector>
 #include <unordered_map>
 
-namespace orders_parser
+//#include "data.h" - circled inclusions
+
+class CUnit;
+namespace orders
 {
-    enum class OrderType {
+    enum class Type {
         O_ADDRESS = 1,
         O_ADVANCE,
         O_ARMOR,
@@ -81,30 +85,42 @@ namespace orders_parser
         NORDERS
     };
 
-    extern std::unordered_map<std::string, OrderType> types_mapping;
+    extern std::unordered_map<std::string, orders::Type> types_mapping;
 
     struct Order 
     {
-        OrderType type_;
+        orders::Type type_;
         std::vector<std::string> words_order_;
         std::string comment_;
         std::string original_string_;
     };
 
-    Order get_order_from_line(const std::string& line);
-
     struct UnitOrders
     {
-        std::vector<Order> orders_;
-        std::unordered_map<OrderType, std::vector<size_t>> hash_;
+        std::vector<orders::Order> orders_;
+        std::unordered_map<orders::Type, std::vector<size_t>> hash_;
     };
 
-    UnitOrders get_unit_orders_from_string(const std::string& orders);
-    std::string compose_original_orders(const UnitOrders& orders);
-    std::vector<Order> get_unit_orders_by_type(OrderType type, const UnitOrders& unit_orders);
-    void add_order_to_unit_orders(const Order& order, UnitOrders& unit_orders);
+    namespace parser
+    {
+        Order parse_line_to_order(const std::string& line);
+        UnitOrders parse_lines_to_orders(const std::string& orders);
+        std::string compose_original_lines(const UnitOrders& orders);
+    }
 
+    namespace control
+    {
+        std::vector<Order> retrieve_orders_by_type(orders::Type type, const UnitOrders& unit_orders);
+        void add_order_to_orders(const Order& order, UnitOrders& unit_orders);
 
+        //order specific functions
+        std::vector<long> get_students(CUnit* unit);
+        std::string get_studying_skill(const UnitOrders& unit_orders);
+    }
+
+      
+
+    
     
 };
 #endif

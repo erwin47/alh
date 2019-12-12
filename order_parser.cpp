@@ -5,78 +5,78 @@
 #include <sstream>
 
 
-namespace orders_parser
+namespace orders
 {
-    std::unordered_map<std::string, OrderType> types_mapping = {
-        {"ADDRESS", OrderType::O_ADDRESS},
-        {"ADVANCE", OrderType::O_ADVANCE},
-        {"ARMOR", OrderType::O_ARMOR},
-        {"ASSASSINATE", OrderType::O_ASSASSINATE},
-        {"ATTACK", OrderType::O_ATTACK},
-        {"AUTOTAX", OrderType::O_AUTOTAX},
-        {"AVOID", OrderType::O_AVOID},
-        {"BEHIND", OrderType::O_BEHIND},
-        {"BUILD", OrderType::O_BUILD},
-        {"BUY", OrderType::O_BUY},
-        {"CAST", OrderType::O_CAST},
-        {"CLAIM", OrderType::O_CLAIM},
-        {"COMBAT", OrderType::O_COMBAT},
-        {"CONSUME", OrderType::O_CONSUME},
-        {"DECLARE", OrderType::O_DECLARE},
-        {"DESCRIBE", OrderType::O_DESCRIBE},
-        {"DESTROY", OrderType::O_DESTROY},
-        {"ENDFORM", OrderType::O_ENDFORM},
-        {"ENTER", OrderType::O_ENTER},
-        {"ENTERTAIN", OrderType::O_ENTERTAIN},
-        {"EVICT", OrderType::O_EVICT},
-        {"EXCHANGE", OrderType::O_EXCHANGE},
-        {"FACTION", OrderType::O_FACTION},
-        {"FIND", OrderType::O_FIND},
-        {"FORGET", OrderType::O_FORGET},
-        {"FORM", OrderType::O_FORM},
-        {"GIVE", OrderType::O_GIVE},
-        {"GIVEIF", OrderType::O_GIVEIF},
-        {"TAKE", OrderType::O_TAKE},
-        {"SEND", OrderType::O_SEND},
-        {"GUARD", OrderType::O_GUARD},
-        {"HOLD", OrderType::O_HOLD},
-        {"LEAVE", OrderType::O_LEAVE},
-        {"MOVE", OrderType::O_MOVE},
-        {"NAME", OrderType::O_NAME},
-        {"NOAID", OrderType::O_NOAID},
-        {"NOCROSS", OrderType::O_NOCROSS},
-        {"NOSPOILS", OrderType::O_NOSPOILS},
-        {"OPTION", OrderType::O_OPTION},
-        {"PASSWORD", OrderType::O_PASSWORD},
-        {"PILLAGE", OrderType::O_PILLAGE},
-        {"PREPARE", OrderType::O_PREPARE},
-        {"PRODUCE", OrderType::O_PRODUCE},
-        {"PROMOTE", OrderType::O_PROMOTE},
-        {"QUIT", OrderType::O_QUIT},
-        {"RESTART", OrderType::O_RESTART},
-        {"REVEAL", OrderType::O_REVEAL},
-        {"SAIL", OrderType::O_SAIL},
-        {"SELL", OrderType::O_SELL},
-        {"SHARE", OrderType::O_SHARE},
-        {"SHOW", OrderType::O_SHOW},
-        {"SPOILS", OrderType::O_SPOILS},
-        {"STEAL", OrderType::O_STEAL},
-        {"STUDY", OrderType::O_STUDY},
-        {"TAX", OrderType::O_TAX},
-        {"TEACH", OrderType::O_TEACH},
-        {"WEAPON", OrderType::O_WEAPON},
-        {"WITHDRAW", OrderType::O_WITHDRAW},
-        {"WORK", OrderType::O_WORK},
-        {"RECRUIT", OrderType::O_RECRUIT},
-        {"TYPE", OrderType::O_TYPE},
-        {"LABEL", OrderType::O_LABEL},
-// must be in this sequence! {"", OrderType::O_ENDXXX == {"", OrderType::O_XXX+1
-        {"TURN", OrderType::O_TURN},
-        {"ENDTURN", OrderType::O_ENDTURN},
-        {"TEMPLATE", OrderType::O_TEMPLATE},
-        {"ENDTEMPLATE", OrderType::O_ENDTEMPLATE},
-        {"ALL", OrderType::O_ALL},
-        {"ENDALL", OrderType::O_ENDALL},
+    std::unordered_map<std::string, orders::Type> types_mapping = {
+        {"ADDRESS", orders::Type::O_ADDRESS},
+        {"ADVANCE", orders::Type::O_ADVANCE},
+        {"ARMOR", orders::Type::O_ARMOR},
+        {"ASSASSINATE", orders::Type::O_ASSASSINATE},
+        {"ATTACK", orders::Type::O_ATTACK},
+        {"AUTOTAX", orders::Type::O_AUTOTAX},
+        {"AVOID", orders::Type::O_AVOID},
+        {"BEHIND", orders::Type::O_BEHIND},
+        {"BUILD", orders::Type::O_BUILD},
+        {"BUY", orders::Type::O_BUY},
+        {"CAST", orders::Type::O_CAST},
+        {"CLAIM", orders::Type::O_CLAIM},
+        {"COMBAT", orders::Type::O_COMBAT},
+        {"CONSUME", orders::Type::O_CONSUME},
+        {"DECLARE", orders::Type::O_DECLARE},
+        {"DESCRIBE", orders::Type::O_DESCRIBE},
+        {"DESTROY", orders::Type::O_DESTROY},
+        {"ENDFORM", orders::Type::O_ENDFORM},
+        {"ENTER", orders::Type::O_ENTER},
+        {"ENTERTAIN", orders::Type::O_ENTERTAIN},
+        {"EVICT", orders::Type::O_EVICT},
+        {"EXCHANGE", orders::Type::O_EXCHANGE},
+        {"FACTION", orders::Type::O_FACTION},
+        {"FIND", orders::Type::O_FIND},
+        {"FORGET", orders::Type::O_FORGET},
+        {"FORM", orders::Type::O_FORM},
+        {"GIVE", orders::Type::O_GIVE},
+        {"GIVEIF", orders::Type::O_GIVEIF},
+        {"TAKE", orders::Type::O_TAKE},
+        {"SEND", orders::Type::O_SEND},
+        {"GUARD", orders::Type::O_GUARD},
+        {"HOLD", orders::Type::O_HOLD},
+        {"LEAVE", orders::Type::O_LEAVE},
+        {"MOVE", orders::Type::O_MOVE},
+        {"NAME", orders::Type::O_NAME},
+        {"NOAID", orders::Type::O_NOAID},
+        {"NOCROSS", orders::Type::O_NOCROSS},
+        {"NOSPOILS", orders::Type::O_NOSPOILS},
+        {"OPTION", orders::Type::O_OPTION},
+        {"PASSWORD", orders::Type::O_PASSWORD},
+        {"PILLAGE", orders::Type::O_PILLAGE},
+        {"PREPARE", orders::Type::O_PREPARE},
+        {"PRODUCE", orders::Type::O_PRODUCE},
+        {"PROMOTE", orders::Type::O_PROMOTE},
+        {"QUIT", orders::Type::O_QUIT},
+        {"RESTART", orders::Type::O_RESTART},
+        {"REVEAL", orders::Type::O_REVEAL},
+        {"SAIL", orders::Type::O_SAIL},
+        {"SELL", orders::Type::O_SELL},
+        {"SHARE", orders::Type::O_SHARE},
+        {"SHOW", orders::Type::O_SHOW},
+        {"SPOILS", orders::Type::O_SPOILS},
+        {"STEAL", orders::Type::O_STEAL},
+        {"STUDY", orders::Type::O_STUDY},
+        {"TAX", orders::Type::O_TAX},
+        {"TEACH", orders::Type::O_TEACH},
+        {"WEAPON", orders::Type::O_WEAPON},
+        {"WITHDRAW", orders::Type::O_WITHDRAW},
+        {"WORK", orders::Type::O_WORK},
+        {"RECRUIT", orders::Type::O_RECRUIT},
+        {"TYPE", orders::Type::O_TYPE},
+        {"LABEL", orders::Type::O_LABEL},
+// must be in this sequence! {"", orders::Type::O_ENDXXX == {"", orders::Type::O_XXX+1
+        {"TURN", orders::Type::O_TURN},
+        {"ENDTURN", orders::Type::O_ENDTURN},
+        {"TEMPLATE", orders::Type::O_TEMPLATE},
+        {"ENDTEMPLATE", orders::Type::O_ENDTEMPLATE},
+        {"ALL", orders::Type::O_ALL},
+        {"ENDALL", orders::Type::O_ENDALL},
     };
 
     namespace utils 
@@ -126,90 +126,156 @@ namespace orders_parser
         }
     }
 
-    Order get_order_from_line(const std::string& line)
+    namespace parser 
     {
-        Order res;
-        res.original_string_ = line;
-
-        std::vector<std::string> words;
-        utils::parse_order_line(line, words);
-
-        for (const auto& word : words)
+        Order parse_line_to_order(const std::string& line)
         {
-            if (word[0] == ';')
+            Order res;
+            res.original_string_ = line;
+
+            std::vector<std::string> words;
+            utils::parse_order_line(line, words);
+
+            for (auto& word : words)
             {
-                res.comment_ = word;
-                break;
-            }
-            std::string code_name, name, plural_name;
-            if (!gpApp->ResolveAliasItems(word, code_name, name, plural_name))
-                code_name = word;
-            std::for_each(code_name.begin(), code_name.end(), [](char & c){
-             c = ::toupper(c);
-            });
-            res.words_order_.push_back(code_name);
-        }
-
-        res.type_ = OrderType::NORDERS;
-        if (res.words_order_.size() == 0 && res.comment_.size() > 0)
-            res.type_ = OrderType::O_COMMENT;
-
-        if (res.words_order_.size() > 0 && types_mapping.find(res.words_order_[0]) != types_mapping.end())
-            res.type_ = types_mapping[res.words_order_[0]];
-        return res;
-    }
-
-    void add_order_to_unit_orders(const Order& order, UnitOrders& unit_orders)
-    {
-        unit_orders.orders_.emplace_back(order);
-        size_t pos = unit_orders.orders_.size() - 1;
-        unit_orders.hash_[unit_orders.orders_[pos].type_].push_back(pos);        
-    }
-
-    UnitOrders get_unit_orders_from_string(const std::string& orders)
-    {
-        UnitOrders res;
-        const char* begin = orders.c_str();
-        const char* end = begin + orders.size();
-        const char* runner = begin;
-        while(runner < end)
-        {
-            if (*runner == '\n')
-            {
-                if (begin != runner)
+                if (word[0] == ';')
                 {
-                    res.orders_.emplace_back(get_order_from_line(std::string(begin, runner)));
-                    size_t pos = res.orders_.size() - 1;
-                    res.hash_[res.orders_[pos].type_].push_back(pos);
+                    res.comment_ = word;
+                    break;
                 }
-                ++runner;
-                begin = runner;
+
+                std::string code_name, name, plural_name;
+                if (gpApp->ResolveAliasItems(word, code_name, name, plural_name))
+                {
+                    res.words_order_.push_back(code_name);
+                    continue;
+                }
+
+                std::string alias_word = word;
+                std::replace(alias_word.begin(), alias_word.end(), ' ', '_'); //magic rule of aliases
+                word = gpApp->ResolveAlias(alias_word.c_str());
+                if (word == "horse training")
+                {
+                    int i = 5;
+                }
+                //need additional message or word for case when there is no alias for the word.
+                //at least check that word fits any of skills/items/number
+                std::for_each(word.begin(), word.end(), [](char & c){
+                c = ::toupper(c);
+                });
+                res.words_order_.push_back(word);
             }
-            else
-                ++runner;
-        }
-        return res;
-    }
 
-    std::string compose_original_orders(const UnitOrders& orders)
-    {
-        std::stringstream res;
-        for (const auto& order : orders.orders_)
-            res << order.original_string_ << std::endl;
-        return res.str();
-    }
+            res.type_ = orders::Type::NORDERS;
+            if (res.words_order_.size() == 0 && res.comment_.size() > 0)
+                res.type_ = orders::Type::O_COMMENT;
 
-    std::vector<Order> get_unit_orders_by_type(OrderType type, const UnitOrders& unit_orders)
-    {
-        std::vector<Order> res;
-        if (unit_orders.hash_.find(type) == unit_orders.hash_.end())
+            if (res.words_order_.size() > 0 && types_mapping.find(res.words_order_[0]) != types_mapping.end())
+                res.type_ = types_mapping[res.words_order_[0]];
             return res;
+        }
 
-        std::vector<size_t> ids = unit_orders.hash_.at(type);
-        std::transform(ids.begin(), ids.end(), res.begin(), 
-            [&unit_orders](size_t i) -> Order { return unit_orders.orders_[i]; });
-        return res;
+        UnitOrders parse_lines_to_orders(const std::string& orders)
+        {
+            UnitOrders res;
+            const char* begin = orders.c_str();
+            const char* end = begin + orders.size();
+            const char* runner = begin;
+            while(runner < end)
+            {
+                if (*runner == '\n')
+                {
+                    if (begin != runner)
+                    {
+                        res.orders_.emplace_back(parse_line_to_order(std::string(begin, runner)));
+                        size_t pos = res.orders_.size() - 1;
+                        res.hash_[res.orders_[pos].type_].push_back(pos);
+                    }
+                    ++runner;
+                    begin = runner;
+                }
+                else
+                    ++runner;
+            }
+            if (begin != runner)
+            {
+                res.orders_.emplace_back(parse_line_to_order(std::string(begin, runner)));
+                size_t pos = res.orders_.size() - 1;
+                res.hash_[res.orders_[pos].type_].push_back(pos);
+            }
+            return res;
+        }
+
+        std::string compose_original_lines(const UnitOrders& orders)
+        {
+            std::stringstream res;
+            for (const auto& order : orders.orders_)
+                res << order.original_string_ << std::endl;
+            return res.str();
+        }    
     }
 
 
+    namespace control
+    {
+        void add_order_to_orders(const Order& order, UnitOrders& unit_orders)
+        {
+            unit_orders.orders_.emplace_back(order);
+            size_t pos = unit_orders.orders_.size() - 1;
+            unit_orders.hash_[unit_orders.orders_[pos].type_].push_back(pos);        
+        }
+
+        std::vector<Order> retrieve_orders_by_type(orders::Type type, const UnitOrders& unit_orders)
+        {
+            std::vector<Order> res;
+            if (unit_orders.hash_.find(type) == unit_orders.hash_.end())
+                return res;
+
+            std::vector<size_t> ids = unit_orders.hash_.at(type);
+            for (const auto& id : ids)
+                res.push_back(unit_orders.orders_[id]);
+            return res;
+        }
+
+        std::vector<long> get_students(CUnit* unit)
+        {
+            std::vector<long> ret;
+            std::vector<Order> teaching_orders = retrieve_orders_by_type(orders::Type::O_TEACH, unit->orders_);
+            for (const Order& ord : teaching_orders)
+            {
+                size_t i(1);
+                while (i < ord.words_order_.size())
+                {
+                    if ((ord.words_order_[i] == "NEW" || ord.words_order_[i] == "new") &&
+                        (i+1 < ord.words_order_.size()))
+                    {
+                        ret.push_back(NEW_UNIT_ID(atol(ord.words_order_[i+1].c_str()), unit->FactionId));
+                        i += 2;
+                    }
+                    else if ((ord.words_order_[i] == "FACTION" || ord.words_order_[i] == "faction") &&
+                             (i+3 < ord.words_order_.size()))
+                    {
+                        long faction_id = atol(ord.words_order_[i+1].c_str());
+                        long unit_new_id = atol(ord.words_order_[i+3].c_str());
+                        ret.push_back(NEW_UNIT_ID(unit_new_id, faction_id));
+                        i += 4;
+                    }
+                    else
+                    {
+                        ret.push_back(atol(ord.words_order_[i].c_str()));
+                        i += 1;
+                    }                    
+                }
+            }
+            return ret;
+        }
+
+        std::string get_studying_skill(const UnitOrders& unit_orders)
+        {
+            std::vector<Order> studying_orders = retrieve_orders_by_type(orders::Type::O_STUDY, unit_orders);
+            if (studying_orders.size() > 0)
+                return studying_orders[0].words_order_[1];
+            return std::string();
+        }
+    }
 };

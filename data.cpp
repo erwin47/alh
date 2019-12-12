@@ -788,6 +788,7 @@ CUnit * CUnit::AllocSimpleCopy()
     pUnit->Teaching               = Teaching             ;
     pUnit->Comments               = Comments             ;
     pUnit->DefOrders              = DefOrders            ;
+    pUnit->orders_                = orders_              ;
     pUnit->Orders                 = Orders               ;
     pUnit->Errors                 = Errors               ;
     pUnit->Events                 = Events               ;
@@ -846,6 +847,8 @@ void CUnit::ResetNormalProperties()
     StudyingSkill.Empty();
     ProducingItem.Empty();
     items_ = items_initial_;
+    skills_ = skills_initial_;
+    orders_ = orders::parser::parse_lines_to_orders(std::string(Orders.GetData(), Orders.GetLength()));
     impact_description_.clear();
 
     Flags     = FlagsOrg;

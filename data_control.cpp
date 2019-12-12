@@ -1,4 +1,5 @@
 
+#include "consts.h"
 #include "data_control.h"
 #include <algorithm>
 #include <sstream>
@@ -75,6 +76,14 @@ namespace unit_control
         if (new_amount < 0)
             ss << "loses " << new_amount << " of " << codename << " for " << source_name;
         unit->impact_description_.push_back(ss.str());
+    }
+
+    void order_message(CUnit* unit, const char* line, const char* descr)
+    {
+        std::string description(line);
+        description.append(" ");
+        description.append(descr);
+        unit->impact_description_.push_back(description);
     }
 
     std::string get_initial_description(CUnit* unit)
@@ -204,5 +213,116 @@ namespace unit_control
         ss << ".\r\n";
 
         return ss.str();
+    }
+
+    long get_max_skill_lvl(CUnit* unit, const std::string& skill)
+    {
+        long ret(-1);
+        for (const auto& item : unit->items_)
+        {
+            if (gpDataHelper->IsMan(item.code_name_.c_str()))
+            {
+                EValueType type;
+                const char* lead;                
+                unit->GetProperty(PRP_LEADER, type, (const void *&)lead, eNormal);
+                if (ret == -1)
+                    ret = gpDataHelper->MaxSkillLevel(item.code_name_.c_str(), skill.c_str(), lead, FALSE);
+                else
+                    ret = std::min(ret, gpDataHelper->MaxSkillLevel(item.code_name_.c_str(), skill.c_str(), lead, FALSE));
+            }
+        }
+        return ret;
+    }
+}
+
+namespace land_control
+{
+    std::unordered_map<long, Student> get_land_students(CLand* land)
+    {
+        //students
+        std::unordered_map<long, Student> students;
+        for (size_t idx=0; idx<land->UnitsSeq.Count(); idx++)
+        {
+            CUnit* pUnit = (CUnit*)land->UnitsSeq.At(idx);
+            std::string studying_skill = orders::control::get_studying_skill(pUnit->orders_);
+            if (studying_skill.size() > 0)
+            {
+                EValueType type;
+                long amount_of_man;
+                pUnit->GetProperty(PRP_MEN, type, (const void *&)amount_of_man, eNormal);
+
+                students[pUnit->Id];
+                students[pUnit->Id].man_amount_ = amount_of_man;
+                students[pUnit->Id].studying_skill_ = studying_skill;
+                students[pUnit->Id].unit_ = pUnit;
+
+                //student may have limited amount of days to be tought. For example, if max student
+                //level is 3, and it has 140 days. This means it needs 40 days of studying to get max, or
+                //10 days of teaching. This is equal to situation, when it already is tought to 20 days.
+                //so in this case days_of_teaching_ = 20.
+                long max_skill = unit_control::get_max_skill_lvl(pUnit, studying_skill);
+                if (max_skill < 0)
+                    max_skill = 0;
+
+                studying_skill.append(PRP_SKILL_DAYS_POSTFIX); 
+                pUnit->GetProperty(studying_skill.c_str(), type, (const void *&)students[pUnit->Id].cur_days_, eNormal);
+
+                students[pUnit->Id].max_days_ = 30*(max_skill+1)*(max_skill)/2;
+                students[pUnit->Id].days_of_teaching_ = std::max((long)0, 60 - (students[pUnit->Id].max_days_ - students[pUnit->Id].cur_days_));
+            }            
+        }
+        return students;
+    }
+
+    void update_students_by_land_teachers(CLand* land, std::unordered_map<long, Student>& students)
+    {
+        for (size_t idx=0; idx<land->UnitsSeq.Count(); idx++)
+        {
+            CUnit* pUnit = (CUnit*)land->UnitsSeq.At(idx);
+            std::vector<long> studs = orders::control::get_students(pUnit);
+            if (studs.size() > 0)
+            {
+                EValueType type;
+                long teachers_amount;
+                pUnit->GetProperty(PRP_MEN, type, (const void *&)teachers_amount, eNormal);
+
+                long students_amount(0);
+                for (long studId : studs)
+                {
+                    if (students.find(studId) == students.end())
+                    {
+                        pUnit->impact_description_.push_back(std::to_string(studId) + " is not studying");
+                        continue;
+                    }
+                    if (students[studId].days_of_teaching_ >= 30)
+                    {
+                        pUnit->impact_description_.push_back(std::to_string(studId) + " is already tought");
+                        continue;
+                    }
+                    //TODO: add also check that this teacher actually can teach that student
+                    //I don't add it now, because I want to change the entire mechanism in future:
+                    //At RunOrders_Study units will get skill +30, and then
+                    //at RunOrders_Teach teachers, if they can teach and fit all the checks, they add additional
+                    //teaching days.
+                    //And thus this function will be obsolete.
+                    students_amount += students[studId].man_amount_;
+                }
+                
+                if (students_amount <= 0)
+                    continue;
+
+                //we assume that studying is correct: teacher can teach, student can study and so on
+                long teaching_days = std::min((long)30, (30 * STUDENTS_PER_TEACHER * teachers_amount) / students_amount);
+                for (long studId : studs)
+                {
+                    if (students.find(studId) == students.end())
+                        continue;
+                    if (students[studId].days_of_teaching_ >= 30)
+                        continue;
+                    students[studId].days_of_teaching_ += teaching_days;
+                    students[studId].days_of_teaching_ = std::min(students[studId].days_of_teaching_, (long)30);
+                }
+            }
+        }
     }
 }

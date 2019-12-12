@@ -21,6 +21,7 @@
 #define __AH_EDIT_PANE_INCL__
 
 #include <wx/wx.h>
+#include <wx/textctrl.h>
 class CStr;
 
 class CEditPane : public wxPanel
@@ -56,27 +57,16 @@ protected :
     DECLARE_EVENT_TABLE()
 };
 
-class CUnitOrderPane : public wxPanel
+class CUnitOrderEditPane : public CEditPane
 {
+    CUnit*          unit_;
+
 public:
-    CUnitOrderPane(wxWindow *parent, const wxString &header, BOOL editable, int WhichFont);
-    virtual     ~CUnitOrderPane();
-
-    wxTextCtrl* m_pEditor;
-
-
-protected :
-    void         OnSize      (wxSizeEvent & event);
-
-    CUnit        * unit_;
-    BOOL         * m_pChanged;
-    wxStaticText * m_pHeader;
-    int            m_HdrHeight;
-    int            m_WhichFont;
-    wxColour       m_ColorNormal;
-    wxColour       m_ColorReadOnly;
-
-    DECLARE_EVENT_TABLE()
+    CUnitOrderEditPane(wxWindow *parent, const wxString &header, BOOL editable, int WhichFont);
+    virtual     ~CUnitOrderEditPane();
+ 
+    CUnit*       change_representing_unit(CUnit* unit);
+    bool         save_current_orders_to_unit();
 };
 
 #endif

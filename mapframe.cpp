@@ -410,7 +410,7 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
                 p3 = new CEditPane(m_Splitter3, wxT("Hex description")        , FALSE, FONT_EDIT_DESCR);
                 p4 = new CEditPane(m_Splitter3, wxT("Unit description")       , FALSE, FONT_EDIT_DESCR);
             }
-            p5 = new CEditPane(m_Splitter4, wxT("Orders")                 , FALSE, FONT_EDIT_ORDER);
+            p5 = new CUnitOrderEditPane(m_Splitter4, wxT("Orders")                 , FALSE, FONT_EDIT_ORDER);
             p6 = new CEditPane(m_Splitter4, wxT("Comments/Default orders"), TRUE , FONT_EDIT_ORDER);
 
             SetPane(AH_PANE_MAP          , p1);

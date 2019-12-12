@@ -2428,6 +2428,8 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
                 Buf << PRP_SKILL_DAYS_POSTFIX;
                 SetUnitProperty(pUnit, Buf.GetData(), eLong, (void*)atol(N2.GetData()), eBoth);
 
+                pUnit->skills_initial_[std::string(S2.GetData(), S2.GetLength())] = atol(N2.GetData());
+
                 if (m_ArcadiaSkills)
                 {
                         // Arcadia III skills
@@ -4262,8 +4264,8 @@ int CAtlaParser::LoadOrders  (CFileReader & F, int FactionId, BOOL GetComments)
                 {
                     Line << EOL_SCR;
                     pUnit->Orders.AddStr(Line.GetData(), Line.GetLength());
-                    orders_parser::Order order = orders_parser::get_order_from_line(std::string(Line.GetData(), Line.GetLength()));
-                    orders_parser::add_order_to_unit_orders(order, pUnit->orders_);
+                    orders::Order order = orders::parser::parse_line_to_order(std::string(Line.GetData(), Line.GetLength()));
+                    orders::control::add_order_to_orders(order, pUnit->orders_);
                 }
     }
 
@@ -4614,85 +4616,54 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
 
     RunLandOrders(pLand); // just in case...
 
+    //get teaching days map
+    std::unordered_map<long, land_control::Student> students = land_control::get_land_students(pLand);
+    land_control::update_students_by_land_teachers(pLand, students);
+
     BOOL changed = FALSE;
-    for (idx=0; idx<pLand->UnitsSeq.Count(); idx++)
+    for (const auto& stud : students)
     {
-        CUnit* pUnit = (CUnit*)pLand->UnitsSeq.At(idx);
-        if (!pUnit->StudyingSkill.IsEmpty())
+        //student have room for teachers
+        if (stud.second.days_of_teaching_ < 30)
         {
-            long teacher_skill_lvl(0), student_skill_lvl(0);
-            std::string skill(pUnit->StudyingSkill.GetData(), pUnit->StudyingSkill.GetLength());
+            long teacher_skill_lvl(0);
+            std::string skill = stud.second.studying_skill_;
 
-            pMainUnit->GetProperty(skill.c_str(), type, (const void *&)teacher_skill_lvl, eNormal);
-            pUnit->GetProperty(skill.c_str(), type, (const void *&)student_skill_lvl, eNormal);
+            if (pMainUnit->skills_.find(skill) != pMainUnit->skills_.end())
+                teacher_skill_lvl = this->SkillDaysToLevel(pMainUnit->skills_[skill]);
+            
+            //why does it return true for skills which this unit doesn't have??
+            //skill.append(PRP_SKILL_POSTFIX);
+            //pMainUnit->GetProperty(skill.c_str(), type, (const void *&)teacher_skill_lvl, eNormal);
 
-            if (teacher_skill_lvl <= student_skill_lvl)
+            //long teachers_amount;
+            //pMainUnit->GetProperty(PRP_MEN, type, (const void *&)teachers_amount, eNormal);
+
+            long student_skill_lvl = this->SkillDaysToLevel(stud.second.cur_days_);
+            if (teacher_skill_lvl > student_skill_lvl)
             {
-                // can not teach in the normal game, but try for Arcadia III
-                size_t pos = skill.find(PRP_SKILL_POSTFIX);
-                if (pos != std::string::npos)
-                    skill.erase(pos, sizeof(PRP_SKILL_POSTFIX));
+                pMainUnit->Orders.TrimRight(TRIM_ALL);
+                if (!pMainUnit->Orders.IsEmpty())
+                    pMainUnit->Orders << EOL_SCR ;
 
-                skill.append(PRP_SKILL_STUDY_POSTFIX);
-                if (!pMainUnit->GetProperty(skill.c_str(), type, (const void *&)teacher_skill_lvl, eNormal) )
-                    teacher_skill_lvl = 0;
-                if (!pUnit->GetProperty(skill.c_str(), type, (const void *&)student_skill_lvl, eNormal) )
-                    student_skill_lvl = 0;
-            }
-
-            if ( (teacher_skill_lvl > student_skill_lvl) &&            // can teach
-                    (pUnit->Teaching <= 20) // student only partially taught by someone else
-                )
-            {
-                long teacher_amount(0), student_amount(0);
-                // count men now
-                if (!pMainUnit->GetProperty(PRP_MEN, type, (const void *&)teacher_amount, eNormal)  || (teacher_amount<=0))
-                    break;
-                if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)student_amount, eNormal) || (student_amount<=0))
-                    continue;
-
-                if (teacher_amount*(STUDENTS_PER_TEACHER - pMainUnit->Teaching) >= student_amount)
+                size_t indent = sizeof("TEACH NEW XXXXX");
+                std::string order;
+                if (IS_NEW_UNIT(stud.second.unit_))
                 {
-                    pMainUnit->Teaching += (double)student_amount/teacher_amount;
-
-                    pMainUnit->Orders.TrimRight(TRIM_ALL);
-                    if (!pMainUnit->Orders.IsEmpty())
-                        pMainUnit->Orders << EOL_SCR ;
-
-                    size_t indent = sizeof("TEACH NEW XXXXX");
-                    std::string order;
-                    if (IS_NEW_UNIT(pUnit))
-                    {
-                        order = "TEACH NEW ";
-                        order.append(std::to_string((long)REVERSE_NEW_UNIT_ID(pUnit->Id)));
-                    }
-                    else
-                    {
-                        order = "TEACH ";
-                        order.append(std::to_string(pUnit->Id));
-                    }
-                    pMainUnit->Orders << order.c_str();
-                    for (size_t i = order.size(); i < indent; ++i)
-                        pMainUnit->Orders << " ";
-                    pMainUnit->Orders << ";" << skill.c_str() << student_skill_lvl << " man: " << student_amount;
-
-                    // update student
-                    CStr NewOrders;
-                    CStr Line;
-                    const char* old_orders = pUnit->Orders.GetData();
-                    while (old_orders && *old_orders)
-                    {
-                        old_orders  = Line.GetToken(old_orders, '\n', TRIM_ALL);
-                        std::string temp(Line.GetData(), Line.GetLength());
-                        if (temp.find("STUDY") != std::string::npos || temp.find("study") != std::string::npos)
-                        {
-                            Line << "; teacher " << pMainUnit->Id;
-                        }
-                        NewOrders << Line << EOL_SCR;
-                    }           
-                    pUnit->Orders = NewOrders;
-                    changed = TRUE;
+                    order = "TEACH NEW ";
+                    order.append(std::to_string((long)REVERSE_NEW_UNIT_ID(stud.second.unit_->Id)));
                 }
+                else
+                {
+                    order = "TEACH ";
+                    order.append(std::to_string(stud.second.unit_->Id));
+                }
+                pMainUnit->Orders << order.c_str();
+                for (size_t i = order.size(); i < indent; ++i)
+                    pMainUnit->Orders << " ";
+                pMainUnit->Orders << ";" << skill.c_str() << " " << stud.second.cur_days_ << "(" << stud.second.max_days_ << ")";
+                pMainUnit->Orders << " man: " << stud.second.man_amount_;
+                changed = TRUE;
             }
         }
     }
@@ -5026,6 +4997,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
     pLand->ResetNormalProperties();
     pLand->ResetUnitsAndStructs();
 
+    std::unordered_map<long, land_control::Student> students_of_the_land;
+
     // Run Orders
     for (TurnSequence sequence : TurnSequence())
     {
@@ -5066,6 +5039,12 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                 RunOrder_Entertain(pLand);
                 RunOrder_Work(pLand);
             }
+        }
+
+        
+        if (TurnSequence::SQ_STUDY)
+        {//no need to parse sequentially
+            students_of_the_land = land_control::get_land_students(CLand* land);
         }
 
         for (mainidx=0; mainidx<pLand->UnitsSeq.Count(); mainidx++)
@@ -6648,14 +6627,19 @@ void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
         if (!GetTargetUnitId(params, pUnit->FactionId, n1))
             SHOW_WARN_CONTINUE(" - Invalid unit id");
         if (n1==pUnit->Id)
+        {
             SHOW_WARN_CONTINUE(" - Taking from yourself");
+        }            
         if (0!=n1)
         {
             Dummy.Id = n1;
             if (pLand->Units.Search(&Dummy, idx))
                 pUnit2 = (CUnit*)pLand->Units.At(idx);
             else
+            {
                 SHOW_WARN_CONTINUE(" - Can not locate target unit");
+            }
+                
         }
         else
             SHOW_WARN_CONTINUE(" - Invalid unit id");
@@ -7026,8 +7010,13 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
             landprop  -= n1;
 
             std::stringstream ss;
-            ss << "buying " << landprop << " of " << LandProp.GetData();
+            ss << "buying " << n1 << " of " << S1.GetData();
             unit_control::modify_item_amount(pUnit, ss.str(), PRP_SILVER, -n1*peritem);
+
+            std::string phrase(std::string(S1.GetData(), S1.GetLength())), codename, name, plural;
+            gpApp->ResolveAliasItems(phrase, codename, name, plural);
+            unit_control::modify_item_amount(pUnit, ss.str(), codename, +n1);
+
             if ( (PE_OK!=pUnit->SetProperty(S1.GetData(), type, (const void *)unitprop,  eNormal)) || // This is the old code
                  (PE_OK!=pUnit->SetProperty(PRP_SILVER,   type, (const void *)unitmoney, eNormal)) || // This is ALMOST the old code
                  (PE_OK!=pLand->SetProperty(LandProp.GetData(), type, (const void *)landprop,  eNormal)))
@@ -7129,8 +7118,13 @@ void CAtlaParser::RunOrder_Sell(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
          landprop  -= n1;
 
         std::stringstream ss;
-        ss << "selling " << landprop << " of " << LandProp.GetData();
+        ss << "selling " << n1 << " of " << S1.GetData();
         unit_control::modify_item_amount(pUnit, ss.str(), PRP_SILVER, n1*peritem);
+
+        std::string phrase(std::string(S1.GetData(), S1.GetLength())), codename, name, plural;
+        gpApp->ResolveAliasItems(phrase, codename, name, plural);
+        unit_control::modify_item_amount(pUnit, ss.str(), codename, -n1);
+
          if ( (PE_OK!=pUnit->SetProperty(S1.GetData(), type, (const void *)unitprop,  eNormal)) || // This is the old code
               (PE_OK!=pUnit->SetProperty(PRP_SILVER,   type, (const void *)unitmoney, eNormal)) || // This is ALMOST the old code
               (PE_OK!=pLand->SetProperty(LandProp.GetData()  ,   type, (const void *)landprop,  eNormal)))
@@ -7613,24 +7607,75 @@ void CAtlaParser::RunOrder_Teach(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
 {
     EValueType          type;
     long                n1, n2;
-    int                 idx;
     CUnit             * pUnit2;
     CBaseObject         Dummy;
     BOOL                our_unit;
     CStr                Skill;
     const void        * value;
-    BOOL                leader_checked = FALSE;
 
+    //check if peasants can teach.
+    const char* val = gpApp->GetConfig(SZ_SECT_COMMON, "PEASANT_CAN_TEACH");
+    int peasant_can_teach = 0;
+    if (val != NULL)
+        peasant_can_teach = atoi(val);
 
-    while (params && *params)
+    if (peasant_can_teach == 0 && !pUnit->GetProperty(PRP_LEADER, type, value, eNormal) )
     {
-        if (!leader_checked && !pUnit->GetProperty(PRP_LEADER, type, value, eNormal) )
+        if (!skiperror)  
+        {                                              
+            ErrorLine.Empty();                         
+            ErrorLine << Line << " - Unit " << pUnit->Id << " is not a leader or hero";                   
+            OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData(), pUnit);
+        }          
+        return;
+    }    
+    if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)n1, eNormal)  || (n1<=0))
+    {
+        if (!skiperror)  
+        {                                              
+            ErrorLine.Empty();                         
+            ErrorLine << Line << " - There are no men in the unit!";                   
+            OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData(), pUnit);
+        }          
+        return;
+    }        
+
+    std::unordered_map<long, land_control::Student> land_students = land_control::get_land_students(pLand);
+    std::vector<long> unit_students = orders::control::get_students(pUnit);
+    for (long studentId : unit_students)
+    {
+        if (land_students.find(studentId) == land_students.end())
+            SHOW_WARN_CONTINUE(" - Unit " << studentId << " is not studying");
+
+        if (land_students[studentId].days_of_teaching_ >= 30)
+            SHOW_WARN_CONTINUE(" - Unit " << studentId << " is already tought or doesn't need teaching this turn");
+
+        long teacher_days(0);
+        if (pUnit->skills_.find(land_students[studentId].studying_skill_) != pUnit->skills_.end())
+            teacher_days = pUnit->skills_[land_students[studentId].studying_skill_];
+
+        long teacher_lvl = this->SkillDaysToLevel(teacher_days);
+        long student_lvl = this->SkillDaysToLevel(land_students[studentId].cur_days_);
+        if (teacher_lvl <= student_lvl)
+            SHOW_WARN_CONTINUE(" - Can not teach unit " << studentId);
+
+        if (!pUnit->pStudents)
+            pUnit->pStudents = new CBaseCollById;
+
+        if (!pUnit->pStudents->Insert(land_students[studentId].unit_))
+            SHOW_WARN_CONTINUE(" - Unit " << studentId << " is already in the students list");        
+        unit_control::order_message(pUnit, "is teaching: ", std::to_string(studentId).c_str());
+    }
+
+
+////////////////////////////////////////////
+    /*while (params && *params)
+    {
+
+        if (peasant_can_teach == 0 && !pUnit->GetProperty(PRP_LEADER, type, value, eNormal) )
         {
             SHOW_WARN_BREAK(" - Unit " << pUnit->Id << " is not a leader or hero");
         }
-        else
-            leader_checked = TRUE;
-
 
         if (!GetTargetUnitId(params, pUnit->FactionId, n1))
             SHOW_WARN_CONTINUE(" - Invalid unit Id");
@@ -7706,7 +7751,7 @@ void CAtlaParser::RunOrder_Teach(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
         }
         else
             SHOW_WARN_CONTINUE(" - Can not find unit " << n1)
-    }
+    }*/
 
 }
 
