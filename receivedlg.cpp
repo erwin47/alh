@@ -155,7 +155,7 @@ std::set<CItem> CReceiveDlg::get_item_types_list(CUnit* unit, CLand* land) const
     std::set<CItem> item_types_list;
     for (CUnit* cur_unit : other_units)
     {
-        std::set<CItem>& cur_products = unit_control::get_items(cur_unit);
+        std::set<CItem> cur_products = unit_control::get_all_items(cur_unit);
         for (const auto& prod : cur_products)
             if (prod.amount_ > 0)
                 item_types_list.insert(prod);

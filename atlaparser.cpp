@@ -41,6 +41,7 @@
 #include "consts_ah.h" // not very good, but will do for now
 #include "routeplanner.h"
 #include "data_control.h"
+#include "ah_control.h"
 
 #define CONTAINS    "contains "
 #define SILVER      "silver"
@@ -2364,10 +2365,7 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
                     }
                     else
                     {
-                        //items of current unit
-                        pUnit->items_initial_.insert({n1, std::string(S2.GetData(), S2.GetLength())});
-
-                        //add to aliases
+                        //update item aliases
                         std::string codename(S2.GetData(), S2.GetLength());
                         std::string long_name, long_name_plural;
                         gpApp->ResolveAliasItems(codename, codename, long_name, long_name_plural);
@@ -2382,11 +2380,24 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
                         // is this a man property?
                         if (gpDataHelper->IsMan(S2.GetData()))
                         {
+                            //peasants of current unit:
+                            pUnit->men_initial_.insert({n1, codename});
+
                             //So, is it a leader?
                             if (S1.FindSubStr(SZ_LEADER) >=0 )
                                 SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_LEADER, eBoth);
                             if (S1.FindSubStr(SZ_HERO) >=0 )
                                 SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_HERO, eBoth);
+                        } 
+                        else if (codename == PRP_SILVER)
+                        {
+                            //silver of current unit
+                            pUnit->silver_initial_.amount_ = n1;
+                        }
+                        else
+                        {
+                            //items of current unit:
+                            pUnit->items_initial_.insert({n1, codename});
                         }
                     }
                     break;
@@ -4264,7 +4275,7 @@ int CAtlaParser::LoadOrders  (CFileReader & F, int FactionId, BOOL GetComments)
                 {
                     Line << EOL_SCR;
                     pUnit->Orders.AddStr(Line.GetData(), Line.GetLength());
-                    orders::Order order = orders::parser::parse_line_to_order(std::string(Line.GetData(), Line.GetLength()));
+                    std::shared_ptr<orders::Order> order = orders::parser::parse_line_to_order(std::string(Line.GetData(), Line.GetLength()));
                     orders::control::add_order_to_orders(order, pUnit->orders_);
                 }
     }
@@ -4624,10 +4635,11 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
     for (const auto& stud : students)
     {
         //student have room for teachers
-        if (stud.second.days_of_teaching_ < 30)
+        if ((stud.second.days_of_teaching_ < 30) && //there are days of teaching, and there is a room for it
+            (stud.second.max_days_ - stud.second.cur_days_ - stud.second.days_of_teaching_ - (long)30 > 0))
         {
             long teacher_skill_lvl(0);
-            std::string skill = stud.second.studying_skill_;
+            std::string skill = stud.second.order_->words_order_[1];
 
             if (pMainUnit->skills_.find(skill) != pMainUnit->skills_.end())
                 teacher_skill_lvl = this->SkillDaysToLevel(pMainUnit->skills_[skill]);
@@ -4997,7 +5009,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
     pLand->ResetNormalProperties();
     pLand->ResetUnitsAndStructs();
 
-    std::unordered_map<long, land_control::Student> students_of_the_land;
+    //std::unordered_map<long, land_control::Student> students_of_the_land;
 
     // Run Orders
     for (TurnSequence sequence : TurnSequence())
@@ -5044,7 +5056,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
         
         if (TurnSequence::SQ_STUDY == sequence)
         {//no need to parse sequentially
-            //students_of_the_land = land_control::get_land_students(land);
+           //students_of_the_land = land_control::get_land_students(pLand);
         }
 
         for (mainidx=0; mainidx<pLand->UnitsSeq.Count(); mainidx++)
@@ -5350,7 +5362,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                             else if (eLong!=type)
                                 SHOW_WARN_CONTINUE(NOTNUMERIC << pUnit->Id << BUG);
 
-                            unit_control::modify_item_amount(pUnit, "claiming", PRP_SILVER, n1);
+                            unit_control::modify_silver(pUnit, n1, "claiming");
                             unitmoney += n1;
                             if (PE_OK!=pUnit->SetProperty(PRP_SILVER,   eLong, (const void *)unitmoney, eNormal))
                                 SHOW_WARN_CONTINUE(NOSET << BUG);
@@ -5641,8 +5653,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
             } // commands loop
 
 
-            if  (TurnSequence::SQ_TEACH==sequence)  // we have to collect all the students, then teach
+            if(TurnSequence::SQ_TEACH==sequence)  // we have to collect all the students, then teach
+            {
                 OrderProcess_Teach(skiperror, pUnit);
+            }
+                
 
             if (TurnSequence::SQ_MOVE==sequence && !destination.IsEmpty())
             {
@@ -5712,6 +5727,21 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
             }
         }
     }   // phases loop
+
+    //temporarry out of the sequence.
+    //STUDY phase should be done by one call over all students.
+    //TEACH phase should be done the same way.
+    //And then, at the end of TEACH phase, next code should be called.
+    std::unordered_map<long, land_control::Student> land_students = land_control::get_land_students(pLand);
+    land_control::update_students_by_land_teachers(pLand, land_students);
+    for (auto& stud : land_students)
+    {
+        std::string skill = stud.second.order_->words_order_[1];
+        stud.second.unit_->skills_[skill] += 30 + stud.second.days_of_teaching_;
+        stud.second.unit_->skills_[skill] = std::min(stud.second.unit_->skills_[skill], stud.second.max_days_);
+    }
+
+
     pLand->CalcStructsLoad();
     pLand->SetFlagsFromUnits();
     OrderErrFinalize();
@@ -5784,7 +5814,7 @@ void CAtlaParser::DistributeSilver(CLand * pLand, int unitFlag, int silver, int 
                 }
                 unitReceives = (silver * nmen) / menCount;
                 unitSilver += unitReceives;
-                unit_control::modify_item_amount(pUnit, "distribution", PRP_SILVER, unitReceives);
+                unit_control::modify_silver(pUnit, unitReceives, "distribution");
                 silver -= unitReceives;
                 menCount -= nmen;
                 pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
@@ -5878,7 +5908,7 @@ void CAtlaParser::RunOrder_Upkeep(CUnit * pUnit, int turns)
             pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eBoth);
         }
         unitSilver -= Maintainance * turns;
-        unit_control::modify_item_amount(pUnit, "upkeep", PRP_SILVER, -Maintainance * turns);
+        unit_control::modify_silver(pUnit, -Maintainance * turns, "upkeep");
         pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
     }
 }
@@ -5947,7 +5977,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
                 shareSilver = std::min(unitSilver, silverNeeded);
                 silverNeeded -= shareSilver;
                 unitSilver -= shareSilver;
-                unit_control::modify_item_amount(pUnit, "sharing", PRP_SILVER, -shareSilver);
+                unit_control::modify_silver(pUnit, -shareSilver, "sharing");
                 pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
                 if (!silverNeeded)
                     break;
@@ -5970,7 +6000,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
                 shareSilver = std::min(-unitSilver, silverAvailable);
                 silverAvailable -= shareSilver;
                 unitSilver += shareSilver;
-                unit_control::modify_item_amount(pUnit, "sharing", PRP_SILVER, -shareSilver);
+                unit_control::modify_silver(pUnit, -shareSilver, "sharing");
                 pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
             }
         }
@@ -6060,7 +6090,7 @@ void CAtlaParser::RunOrder_Study(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
 
         unitmoney -= n1*n2;
 
-        unit_control::modify_item_amount(pUnit, "studying", PRP_SILVER, -n1*n2);
+        unit_control::modify_silver(pUnit, -n1*n2, "studying");
         if (PE_OK!=pUnit->SetProperty(PRP_SILVER,   eLong, (const void *)unitmoney, eNormal))
             SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6378,7 +6408,7 @@ void CAtlaParser::RunOrder_Withdraw(CStr & Line, CStr & ErrorLine, BOOL skiperro
                 break;
             }
 
-            unit_control::modify_item_amount(pUnit, "withdrawal", Item.GetData(), amount);
+            unit_control::modify_silver(pUnit, amount, "withdrawal");
             if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value+amount), eNormal))
                 SHOW_WARN_CONTINUE(NOSETUNIT << BUG);
 
@@ -6435,11 +6465,6 @@ void CAtlaParser::RunOrder_Give(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
 
             if (pUnit2)
             {
-                std::string receiving_unit_name(pUnit2->Name.GetData(), pUnit2->Name.GetLength());
-                receiving_unit_name.append("(");
-                receiving_unit_name.append(std::to_string(pUnit2->Id));
-                receiving_unit_name.append(")");
-                unit_control::modify_item_amount(pUnit, receiving_unit_name, Item.GetData(), -amount);
                 if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6453,11 +6478,18 @@ void CAtlaParser::RunOrder_Give(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 else if (eLong!=type)
                     SHOW_WARN_CONTINUE(NOTNUMERIC << n1 << BUG);
 
-                std::string giving_unit_name(pUnit->Name.GetData(), pUnit->Name.GetLength());
-                giving_unit_name.append("(");
-                giving_unit_name.append(std::to_string(pUnit->Id));
-                giving_unit_name.append(")");
-                unit_control::modify_item_amount(pUnit2, giving_unit_name, Item.GetData(), amount);
+                //unit_control::modify_item_amount(pUnit2, giving_unit_name, Item.GetData(), amount);
+                if (gpDataHelper->IsMan(Item.GetData()))
+                {
+                    unit_control::modify_man_from_unit(pUnit, pUnit2, Item.GetData(), -amount);
+                    unit_control::modify_man_from_unit(pUnit2, pUnit, Item.GetData(), amount);                    
+                }
+                else
+                {
+                    unit_control::modify_item_from_unit(pUnit, pUnit2, Item.GetData(), -amount);
+                    unit_control::modify_item_from_unit(pUnit2, pUnit, Item.GetData(), amount);
+                } 
+
                 if (PE_OK!=pUnit2->SetProperty(Item.GetData(), type, (const void*)((long)value2+amount), eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6657,11 +6689,16 @@ void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 if (!pUnit2->GetProperty(Item.GetData(), type, value, eNormal) || (eLong!=type))
                     SHOW_WARN_CONTINUE(" - Can not take " << Item);
 
-                std::string receiving_unit_name(pUnit->Name.GetData(), pUnit->Name.GetLength());
-                receiving_unit_name.append("(");
-                receiving_unit_name.append(std::to_string(pUnit->Id));
-                receiving_unit_name.append(")");
-                unit_control::modify_item_amount(pUnit2, receiving_unit_name, Item.GetData(), -amount);
+                if (gpDataHelper->IsMan(Item.GetData()))
+                {
+                    unit_control::modify_man_from_unit(pUnit2, pUnit, Item.GetData(), -amount);
+                    unit_control::modify_man_from_unit(pUnit, pUnit2, Item.GetData(), amount);                    
+                }
+                else
+                {
+                    unit_control::modify_item_from_unit(pUnit2, pUnit, Item.GetData(), -amount);
+                    unit_control::modify_item_from_unit(pUnit, pUnit2, Item.GetData(), amount);
+                } 
                 if (PE_OK!=pUnit2->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6675,11 +6712,6 @@ void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                 else if (eLong!=type)
                     SHOW_WARN_CONTINUE(NOTNUMERIC << n1 << BUG);
 
-                std::string giving_unit_name(pUnit2->Name.GetData(), pUnit2->Name.GetLength());
-                giving_unit_name.append("(");
-                giving_unit_name.append(std::to_string(pUnit2->Id));
-                giving_unit_name.append(")");
-                unit_control::modify_item_amount(pUnit, giving_unit_name, Item.GetData(), amount);
                 if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value2+amount), eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6695,7 +6727,7 @@ void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
 }
 
 //-------------------------------------------------------------
-
+//the function is obsolete
 void CAtlaParser::RunOrder_Send(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params)
 {
     CUnit             * pUnit2 = NULL;
@@ -6724,7 +6756,6 @@ void CAtlaParser::RunOrder_Send(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
     */
     do
     {
-
         // Find the target unit and land first
         if (!FindTargetsForSend(Line, ErrorLine, skiperror, pUnit, pLand, params, pUnit2, pLand2))
             return;
@@ -6737,11 +6768,6 @@ void CAtlaParser::RunOrder_Send(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
             if (!pUnit->GetProperty(Item.GetData(), type, value, eNormal) || (eLong!=type))
                 SHOW_WARN_CONTINUE(" - Can not send " << Item);
 
-            std::string receiving_unit_name(pUnit2->Name.GetData(), pUnit2->Name.GetLength());
-            receiving_unit_name.append("(");
-            receiving_unit_name.append(std::to_string(pUnit2->Id));
-            receiving_unit_name.append(")");
-            unit_control::modify_item_amount(pUnit, receiving_unit_name, Item.GetData(), -amount);
             if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
                 SHOW_WARN_CONTINUE(NOSET << BUG);
 
@@ -6768,7 +6794,6 @@ void CAtlaParser::RunOrder_Send(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                     SHOW_WARN_CONTINUE(NOTNUMERIC << pUnit->Id << BUG);
 
                 unitmoney -= price;
-                unit_control::modify_item_amount(pUnit, "sending price", PRP_SILVER, -price);
                 if  (PE_OK!=pUnit->SetProperty(PRP_SILVER,   type, (const void *)unitmoney, eNormal))
                     SHOW_WARN_CONTINUE(NOSET << BUG);
                 pUnit->CalcWeightsAndMovement();
@@ -7009,13 +7034,16 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
             unitprop  += n1;         // This is the old code
             landprop  -= n1;
 
-            std::stringstream ss;
-            ss << "buying " << n1 << " of " << S1.GetData();
-            unit_control::modify_item_amount(pUnit, ss.str(), PRP_SILVER, -n1*peritem);
-
             std::string phrase(std::string(S1.GetData(), S1.GetLength())), codename, name, plural;
-            gpApp->ResolveAliasItems(phrase, codename, name, plural);
-            unit_control::modify_item_amount(pUnit, ss.str(), codename, +n1);
+            gpApp->ResolveAliasItems(phrase, codename, name, plural);     
+            if (gpDataHelper->IsMan(codename.c_str()))
+            {
+                unit_control::modify_man_from_market(pUnit, codename, n1, peritem);
+            }
+            else
+            {
+                unit_control::modify_item_from_market(pUnit, codename, n1, peritem);
+            } 
 
             if ( (PE_OK!=pUnit->SetProperty(S1.GetData(), type, (const void *)unitprop,  eNormal)) || // This is the old code
                  (PE_OK!=pUnit->SetProperty(PRP_SILVER,   type, (const void *)unitmoney, eNormal)) || // This is ALMOST the old code
@@ -7117,13 +7145,16 @@ void CAtlaParser::RunOrder_Sell(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
          unitprop  -= n1; // This is the old code
          landprop  -= n1;
 
-        std::stringstream ss;
-        ss << "selling " << n1 << " of " << S1.GetData();
-        unit_control::modify_item_amount(pUnit, ss.str(), PRP_SILVER, n1*peritem);
-
         std::string phrase(std::string(S1.GetData(), S1.GetLength())), codename, name, plural;
-        gpApp->ResolveAliasItems(phrase, codename, name, plural);
-        unit_control::modify_item_amount(pUnit, ss.str(), codename, -n1);
+        gpApp->ResolveAliasItems(phrase, codename, name, plural);     
+        if (gpDataHelper->IsMan(codename.c_str()))
+        {
+            unit_control::modify_man_from_market(pUnit, codename, -n1, peritem);
+        }
+        else
+        {
+            unit_control::modify_item_from_market(pUnit, codename, -n1, peritem);
+        }
 
          if ( (PE_OK!=pUnit->SetProperty(S1.GetData(), type, (const void *)unitprop,  eNormal)) || // This is the old code
               (PE_OK!=pUnit->SetProperty(PRP_SILVER,   type, (const void *)unitmoney, eNormal)) || // This is ALMOST the old code
@@ -7648,11 +7679,16 @@ void CAtlaParser::RunOrder_Teach(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
             SHOW_WARN_CONTINUE(" - Unit " << studentId << " is not studying");
 
         if (land_students[studentId].days_of_teaching_ >= 30)
-            SHOW_WARN_CONTINUE(" - Unit " << studentId << " is already tought or doesn't need teaching this turn");
+            SHOW_WARN_CONTINUE(" - Unit " << studentId << " is already tought");
 
+        if (land_students[studentId].max_days_ - land_students[studentId].cur_days_ - 
+            land_students[studentId].days_of_teaching_ - (long)30 <= 0)
+            SHOW_WARN_CONTINUE(" - Unit " << studentId << " doesn't need any more teaching");        
+
+        std::string studying_skill = land_students[studentId].order_->words_order_[1];
         long teacher_days(0);
-        if (pUnit->skills_.find(land_students[studentId].studying_skill_) != pUnit->skills_.end())
-            teacher_days = pUnit->skills_[land_students[studentId].studying_skill_];
+        if (pUnit->skills_.find(studying_skill) != pUnit->skills_.end())
+            teacher_days = pUnit->skills_[studying_skill];
 
         long teacher_lvl = this->SkillDaysToLevel(teacher_days);
         long student_lvl = this->SkillDaysToLevel(land_students[studentId].cur_days_);
@@ -7768,7 +7804,6 @@ void CAtlaParser::OrderProcess_Teach(BOOL skiperror, CUnit * pUnit)
     EValueType    type;
     int           i;
     const char  * leadership;
-
 
     do
     {

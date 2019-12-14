@@ -750,6 +750,9 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
     pStudents     = NULL;
     Flags         = 0;
     FlagsOrg      = 0;
+    silver_initial_.amount_ = 0;
+    silver_initial_.code_name_ = PRP_SILVER;
+
     FlagsLast     = ~Flags;
     reqMovementSpeed = 0;
     memset(Weight, 0, sizeof(Weight));
@@ -789,6 +792,14 @@ CUnit * CUnit::AllocSimpleCopy()
     pUnit->Comments               = Comments             ;
     pUnit->DefOrders              = DefOrders            ;
     pUnit->orders_                = orders_              ;
+    pUnit->skills_                = skills_              ;
+    pUnit->items_                 = items_              ;
+    pUnit->items_initial_         = items_initial_;
+    pUnit->silver_ = silver_;
+    pUnit->silver_initial_ = silver_initial_;
+    pUnit->men_ = men_;
+    pUnit->men_initial_ = men_initial_;
+
     pUnit->Orders                 = Orders               ;
     pUnit->Errors                 = Errors               ;
     pUnit->Events                 = Events               ;
@@ -846,6 +857,8 @@ void CUnit::ResetNormalProperties()
     Teaching = 0;
     StudyingSkill.Empty();
     ProducingItem.Empty();
+    men_ = men_initial_;
+    silver_ = silver_initial_;
     items_ = items_initial_;
     skills_ = skills_initial_;
     orders_ = orders::parser::parse_lines_to_orders(std::string(Orders.GetData(), Orders.GetLength()));

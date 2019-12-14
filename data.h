@@ -299,7 +299,7 @@ protected:
 class CItem
 {
 public:
-    long  amount_;
+    long amount_;
     std::string code_name_;
 
     bool operator<(const CItem& item) const {
@@ -391,7 +391,13 @@ public:
     //when we load map in the beginning, we should preserve CUnit initial state.
     //and then should have possibility to reset CUnit by preserved initial state.
     //until we don't have that, we have to duplicate members (or have any other similar 
-    //mechanisms) to have possibility restore state of CUnit. THat's for items_initial_.
+    //mechanisms) to have possibility restore state of CUnit. THat's for *_initial_.
+    std::set<CItem> men_;
+    std::set<CItem> men_initial_;
+
+    CItem           silver_;
+    CItem           silver_initial_;
+
     std::set<CItem> items_;
     std::set<CItem> items_initial_;
     

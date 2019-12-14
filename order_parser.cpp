@@ -128,10 +128,10 @@ namespace orders
 
     namespace parser 
     {
-        Order parse_line_to_order(const std::string& line)
+        std::shared_ptr<Order> parse_line_to_order(const std::string& line)
         {
-            Order res;
-            res.original_string_ = line;
+            std::shared_ptr<Order> res = std::make_shared<Order>();
+            res->original_string_ = line;
 
             std::vector<std::string> words;
             utils::parse_order_line(line, words);
@@ -140,38 +140,34 @@ namespace orders
             {
                 if (word[0] == ';')
                 {
-                    res.comment_ = word;
+                    res->comment_ = word;
                     break;
                 }
 
                 std::string code_name, name, plural_name;
                 if (gpApp->ResolveAliasItems(word, code_name, name, plural_name))
                 {
-                    res.words_order_.push_back(code_name);
+                    res->words_order_.push_back(code_name);
                     continue;
                 }
 
                 std::string alias_word = word;
                 std::replace(alias_word.begin(), alias_word.end(), ' ', '_'); //magic rule of aliases
                 word = gpApp->ResolveAlias(alias_word.c_str());
-                if (word == "horse training")
-                {
-                    int i = 5;
-                }
                 //need additional message or word for case when there is no alias for the word.
                 //at least check that word fits any of skills/items/number
                 std::for_each(word.begin(), word.end(), [](char & c){
                 c = ::toupper(c);
                 });
-                res.words_order_.push_back(word);
+                res->words_order_.push_back(word);
             }
 
-            res.type_ = orders::Type::NORDERS;
-            if (res.words_order_.size() == 0 && res.comment_.size() > 0)
-                res.type_ = orders::Type::O_COMMENT;
+            res->type_ = orders::Type::NORDERS;
+            if (res->words_order_.size() == 0 && res->comment_.size() > 0)
+                res->type_ = orders::Type::O_COMMENT;
 
-            if (res.words_order_.size() > 0 && types_mapping.find(res.words_order_[0]) != types_mapping.end())
-                res.type_ = types_mapping[res.words_order_[0]];
+            if (res->words_order_.size() > 0 && types_mapping.find(res->words_order_[0]) != types_mapping.end())
+                res->type_ = types_mapping[res->words_order_[0]];
             return res;
         }
 
@@ -189,7 +185,7 @@ namespace orders
                     {
                         res.orders_.emplace_back(parse_line_to_order(std::string(begin, runner)));
                         size_t pos = res.orders_.size() - 1;
-                        res.hash_[res.orders_[pos].type_].push_back(pos);
+                        res.hash_[res.orders_[pos]->type_].push_back(pos);
                     }
                     ++runner;
                     begin = runner;
@@ -201,7 +197,7 @@ namespace orders
             {
                 res.orders_.emplace_back(parse_line_to_order(std::string(begin, runner)));
                 size_t pos = res.orders_.size() - 1;
-                res.hash_[res.orders_[pos].type_].push_back(pos);
+                res.hash_[res.orders_[pos]->type_].push_back(pos);
             }
             return res;
         }
@@ -210,7 +206,7 @@ namespace orders
         {
             std::stringstream res;
             for (const auto& order : orders.orders_)
-                res << order.original_string_ << std::endl;
+                res << order->original_string_ << std::endl;
             return res.str();
         }    
     }
@@ -218,16 +214,16 @@ namespace orders
 
     namespace control
     {
-        void add_order_to_orders(const Order& order, UnitOrders& unit_orders)
+        void add_order_to_orders(std::shared_ptr<Order>& order, UnitOrders& unit_orders)
         {
             unit_orders.orders_.emplace_back(order);
             size_t pos = unit_orders.orders_.size() - 1;
-            unit_orders.hash_[unit_orders.orders_[pos].type_].push_back(pos);        
+            unit_orders.hash_[unit_orders.orders_[pos]->type_].push_back(pos);        
         }
 
-        std::vector<Order> retrieve_orders_by_type(orders::Type type, const UnitOrders& unit_orders)
+        std::vector<std::shared_ptr<Order>> retrieve_orders_by_type(orders::Type type, const UnitOrders& unit_orders)
         {
-            std::vector<Order> res;
+            std::vector<std::shared_ptr<Order>> res;
             if (unit_orders.hash_.find(type) == unit_orders.hash_.end())
                 return res;
 
@@ -240,29 +236,29 @@ namespace orders
         std::vector<long> get_students(CUnit* unit)
         {
             std::vector<long> ret;
-            std::vector<Order> teaching_orders = retrieve_orders_by_type(orders::Type::O_TEACH, unit->orders_);
-            for (const Order& ord : teaching_orders)
+            std::vector<std::shared_ptr<Order>> teaching_orders = retrieve_orders_by_type(orders::Type::O_TEACH, unit->orders_);
+            for (const std::shared_ptr<Order>& ord : teaching_orders)
             {
                 size_t i(1);
-                while (i < ord.words_order_.size())
+                while (i < ord->words_order_.size())
                 {
-                    if ((ord.words_order_[i] == "NEW" || ord.words_order_[i] == "new") &&
-                        (i+1 < ord.words_order_.size()))
+                    if ((ord->words_order_[i] == "NEW" || ord->words_order_[i] == "new") &&
+                        (i+1 < ord->words_order_.size()))
                     {
-                        ret.push_back(NEW_UNIT_ID(atol(ord.words_order_[i+1].c_str()), unit->FactionId));
+                        ret.push_back(NEW_UNIT_ID(atol(ord->words_order_[i+1].c_str()), unit->FactionId));
                         i += 2;
                     }
-                    else if ((ord.words_order_[i] == "FACTION" || ord.words_order_[i] == "faction") &&
-                             (i+3 < ord.words_order_.size()))
+                    else if ((ord->words_order_[i] == "FACTION" || ord->words_order_[i] == "faction") &&
+                             (i+3 < ord->words_order_.size()))
                     {
-                        long faction_id = atol(ord.words_order_[i+1].c_str());
-                        long unit_new_id = atol(ord.words_order_[i+3].c_str());
+                        long faction_id = atol(ord->words_order_[i+1].c_str());
+                        long unit_new_id = atol(ord->words_order_[i+3].c_str());
                         ret.push_back(NEW_UNIT_ID(unit_new_id, faction_id));
                         i += 4;
                     }
                     else
                     {
-                        ret.push_back(atol(ord.words_order_[i].c_str()));
+                        ret.push_back(atol(ord->words_order_[i].c_str()));
                         i += 1;
                     }                    
                 }
@@ -270,12 +266,12 @@ namespace orders
             return ret;
         }
 
-        std::string get_studying_skill(const UnitOrders& unit_orders)
+        std::shared_ptr<Order> get_studying_order(const UnitOrders& unit_orders)
         {
-            std::vector<Order> studying_orders = retrieve_orders_by_type(orders::Type::O_STUDY, unit_orders);
+            std::vector<std::shared_ptr<Order>> studying_orders = retrieve_orders_by_type(orders::Type::O_STUDY, unit_orders);
             if (studying_orders.size() > 0)
-                return studying_orders[0].words_order_[1];
-            return std::string();
+                return studying_orders[0];
+            return nullptr;
         }
     }
 };

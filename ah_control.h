@@ -24,7 +24,7 @@ namespace skills_control
             {
                 temp.short_name_ = name.substr(name.find("[")+1, name.find("]") - name.find("[")-1); 
                 temp.long_name_ = name.substr(0, name.find("[")-1);
-                temp.study_price_ = gpDataHelper->GetStudyCost(temp.long_name_.c_str());
+                temp.study_price_ = gpDataHelper->GetStudyCost(temp.short_name_.c_str());
                 if (pred(temp))
                     ret.insert(temp);
             }

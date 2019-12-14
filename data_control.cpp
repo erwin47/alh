@@ -4,6 +4,68 @@
 #include <algorithm>
 #include <sstream>
 
+#include "ah_control.h"
+
+namespace items_control
+{
+    CItem get_by_code(const std::set<CItem>& items, const std::string& code_name)
+    {
+        auto it = std::find_if(items.begin(), items.end(), [&code_name](const CItem& prod) {
+            return code_name == prod.code_name_;
+        });
+        if (it != items.end())
+            return *it;
+
+        return CItem({0, code_name.c_str()});
+    }
+
+    void modify_amount(std::set<CItem>& items, const std::string& codename, long new_amount)
+    {
+        if (new_amount == 0)
+            return;
+
+        CItem item = get_by_code(items, codename);
+        item.amount_ += new_amount;
+        items.erase(item);
+        if (item.amount_ != 0)
+            items.insert(item);
+    }
+
+    void item_to_stringstream(std::stringstream& ss, const CItem& item)
+    {
+        if (item.amount_ == 1)
+        {
+            std::string code_name, long_name, long_name_plural;
+            gpDataHelper->ResolveAliasItems(item.code_name_, code_name, long_name, long_name_plural);
+            ss << long_name << " [" << item.code_name_ << "]";
+        }
+        else if (item.amount_ > 1 || item.amount_ < 0)
+        { //if items below zero, it's also interesting
+            std::string code_name, long_name, long_name_plural;
+            gpDataHelper->ResolveAliasItems(item.code_name_, code_name, long_name, long_name_plural);
+            ss << std::to_string(item.amount_) << " " << long_name_plural << " [" << item.code_name_ << "]";
+        }
+    }
+
+    void items_to_stringstream(std::stringstream& ss, const std::set<CItem>& items)
+    {
+        bool first_element = true;
+        for (const auto& item : items)
+        {
+            if (item.amount_ == 0)
+                continue;
+            
+            if (first_element)
+                first_element = false;
+            else
+                ss << ", ";
+
+            item_to_stringstream(ss, item);
+        }
+    }
+
+}
+
 namespace unit_control
 {
     namespace flags
@@ -39,44 +101,162 @@ namespace unit_control
             return false;
         }
     }
-   
-    CItem get_item_by_name(CUnit* unit, const std::string& code_name)
-    {
-        auto it = std::find_if(unit->items_.begin(), unit->items_.end(), [&code_name](const CItem& prod) {
-            return code_name == prod.code_name_;
-        });
-        if (it != unit->items_.end())
-            return *it;
 
-        return CItem({0, code_name.c_str()});
-    }
-
-    std::set<CItem>& get_items(CUnit* unit)
+    std::set<CItem> get_all_items(CUnit* unit)
     {
-        return unit->items_;
+        std::set<CItem> ret;
+        ret.insert(unit->men_.begin(), unit->men_.end());
+        ret.insert(unit->items_.begin(), unit->items_.end());
+        ret.insert(unit->silver_);
+        return ret;
     }
 
     long get_item_amount(CUnit* unit, const std::string& codename)
     {
-        return get_item_by_name(unit, codename).amount_;
+        if (codename == PRP_SILVER)
+            return unit->silver_.amount_;
+        else if (gpApp->IsMan(codename.c_str()))
+            return items_control::get_by_code(unit->men_, codename).amount_;
+        else
+            return items_control::get_by_code(unit->items_, codename).amount_;
     }
-    void modify_item_amount(CUnit* unit, const std::string& source_name, const std::string& codename, long new_amount)
+
+    std::string compose_unit_name(CUnit* unit)
+    {
+        std::stringstream ss;
+        ss << std::string(unit->Name.GetData(), unit->Name.GetLength()) << "(";
+        if (IS_NEW_UNIT(unit))
+            ss << "NEW " << REVERSE_NEW_UNIT_ID(unit->Id);
+        else
+            ss << unit->Id;
+        ss << ")";
+        return ss.str();
+    }
+
+    void modify_silver(CUnit* unit, long new_amount, const std::string& reason)
     {
         if (new_amount == 0)
             return;
 
-        CItem item = get_item_by_name(unit, codename);
-        item.amount_ += new_amount;
-        unit->items_.erase(item);
-        unit->items_.insert(item);
-        
+        unit->silver_.amount_ += new_amount;
+
         std::stringstream ss;
         if (new_amount > 0)
-            ss << "receives " << new_amount << " of " << codename << " from " << source_name;
-        if (new_amount < 0)
-            ss << "loses " << new_amount << " of " << codename << " for " << source_name;
+            ss << "gets " << new_amount << " of silver from " << reason;
+        else
+            ss << "loses " << new_amount << " of silver to " << reason;
+        unit->impact_description_.push_back(ss.str());        
+    }
+
+    void modify_item_from_market(CUnit* unit, const std::string& codename, long new_amount, long price)
+    {
+        if (new_amount == 0)
+            return;
+
+        unit->silver_.amount_ += -new_amount*price;
+        items_control::modify_amount(unit->items_, codename, new_amount);
+
+        std::stringstream ss;
+        if (new_amount > 0)
+            ss << "buy " << new_amount << " of " << codename << " by " << price << "$ per each";
+        else
+            ss << "sell " << abs(new_amount) << " of " << codename << " for " << price << "$ per each";
+
         unit->impact_description_.push_back(ss.str());
     }
+    void modify_man_from_market(CUnit* unit, const std::string& codename, long new_amount, long price)
+    {
+        if (new_amount == 0)
+            return;
+
+        unit->silver_.amount_ += -new_amount*price;
+        std::stringstream ss;
+        if (new_amount < 0)
+        {//assuming we can sell peasants, but we actually can't
+            items_control::modify_amount(unit->men_, codename, new_amount);
+            ss << "sell " << abs(new_amount) << " of " << codename << " for " << price << "$ per each";
+        }
+        else //new_amount > 0
+        {
+            long current_man_amount(0);
+            for (const auto& nation : unit->men_)
+                current_man_amount += nation.amount_;
+
+            //calculate days of knowledge according to new amount of peasants
+            for (auto& skill: unit->skills_)
+                skill.second = skill.second * current_man_amount / (current_man_amount + new_amount);
+            
+            items_control::modify_amount(unit->men_, codename, new_amount);
+            ss << "buy " << new_amount << " of " << codename << " by " << price << "$ per each";
+        }
+        unit->impact_description_.push_back(ss.str());
+    }
+
+    void modify_item_from_unit(CUnit* unit, CUnit* source_unit, const std::string& codename, long new_amount)
+    {
+        if (new_amount == 0)
+            return;
+
+        if (codename == PRP_SILVER)
+            unit->silver_.amount_ += new_amount;
+        else
+            items_control::modify_amount(unit->items_, codename, new_amount);
+
+        std::stringstream ss;
+        std::string action, direction;
+        if (new_amount > 0)
+        {
+            action = "receives";
+            direction = "from";
+        }
+        else
+        {
+            action = "gives";
+            direction = "to";
+        }
+        
+        //print out impact
+        ss << action << " " << new_amount << " of " << codename << " " << direction << " ";
+        ss << compose_unit_name(source_unit);
+        unit->impact_description_.push_back(ss.str());
+    }
+
+    void modify_man_from_unit(CUnit* unit, CUnit* source_unit, const std::string& codename, long new_amount)
+    {
+        if (new_amount == 0)
+            return;
+
+        std::stringstream ss;
+        std::string action, direction;
+        if (new_amount > 0)
+        {
+            action = "receives";
+            direction = "from";
+
+            long current_man_amount(0);
+            for (const auto& nation : unit->men_)
+                current_man_amount += nation.amount_;
+
+            //calculate days of knowledge according to new amount of peasants
+            for (auto& skill: source_unit->skills_)
+            {
+                unit->skills_[skill.first] = ((unit->skills_[skill.first] * current_man_amount) +
+                        (skill.second * new_amount)) / (current_man_amount + new_amount);
+            }              
+        }
+        else
+        {
+            action = "gives";
+            direction = "to";
+        }
+        items_control::modify_amount(unit->men_, codename, new_amount);
+
+        //print out impact
+        ss << action << " " << new_amount << " of " << codename << " " << direction << " ";
+        ss << compose_unit_name(source_unit);
+        unit->impact_description_.push_back(ss.str());
+    }
+
 
     void order_message(CUnit* unit, const char* line, const char* descr)
     {
@@ -144,6 +324,8 @@ namespace unit_control
         return ss.str();     
     }
 
+
+
     std::string get_actual_description(CUnit* unit)
     {
         std::stringstream ss;
@@ -186,39 +368,45 @@ namespace unit_control
         ss << ".\r\n";
 
         //second line
-        bool first_element = true;
-        for (const auto& item : unit->items_)
+        items_control::items_to_stringstream(ss, unit->men_);
+        if (unit->silver_.amount_ != 0)
         {
-            if (item.amount_ == 0)
-                continue;
-            
-            if (first_element)
-                first_element = false;
-            else
-                ss << ", ";
-
-            if (item.amount_ == 1)
-            {
-                std::string code_name, long_name, long_name_plural;
-                gpDataHelper->ResolveAliasItems(item.code_name_, code_name, long_name, long_name_plural);
-                ss << long_name << " [" << item.code_name_ << "]";
-            }
-            else // if amount_ is below zero, that also may be interesting
-            {
-                std::string code_name, long_name, long_name_plural;
-                gpDataHelper->ResolveAliasItems(item.code_name_, code_name, long_name, long_name_plural);
-                ss << std::to_string(item.amount_) << " " << long_name_plural << " [" << item.code_name_ << "]";
-            }
+            ss << ", ";
+            items_control::item_to_stringstream(ss, unit->silver_);
+        }
+        if (unit->items_.size() > 0)
+        {
+            ss << ", ";
+            items_control::items_to_stringstream(ss, unit->items_);
         }
         ss << ".\r\n";
+        //Skills: tactics [TACT] 1 (30), mining [MINI] 1 (30).
+        ss << "Skills: ";
+        bool first = true;
+        for (auto& skill : unit->skills_)
+        {
+            std::vector<Skill> skills;
+            skills_control::get_skills_if(skills, [&skill](const Skill& cur_skill) {
+                return !cur_skill.short_name_.compare(skill.first);
+            });
 
+            long level = 0;
+            long turns = skill.second / 30;
+            while (turns > 0) { ++level; turns -= (level + 1); };
+            if (first)
+                first = false;
+            else
+                ss << ", ";
+            ss << skills[0].long_name_ << " [" << skill.first << "] " << level << " (" << skill.second << ")";
+        }
+        ss << ".\r\n";
         return ss.str();
     }
 
     long get_max_skill_lvl(CUnit* unit, const std::string& skill)
     {
         long ret(-1);
-        for (const auto& item : unit->items_)
+        for (const auto& item : unit->men_)
         {
             if (gpDataHelper->IsMan(item.code_name_.c_str()))
             {
@@ -244,16 +432,20 @@ namespace land_control
         for (size_t idx=0; idx<land->UnitsSeq.Count(); idx++)
         {
             CUnit* pUnit = (CUnit*)land->UnitsSeq.At(idx);
-            std::string studying_skill = orders::control::get_studying_skill(pUnit->orders_);
-            if (studying_skill.size() > 0)
+            std::shared_ptr<orders::Order> studying_order = orders::control::get_studying_order(pUnit->orders_);
+            if (studying_order != nullptr)
             {
+                std::string studying_skill = studying_order->words_order_[1];
                 EValueType type;
                 long amount_of_man;
                 pUnit->GetProperty(PRP_MEN, type, (const void *&)amount_of_man, eNormal);
 
+                if (amount_of_man == 0)//order is given, but unit is empty
+                    continue;
+
                 students[pUnit->Id];
                 students[pUnit->Id].man_amount_ = amount_of_man;
-                students[pUnit->Id].studying_skill_ = studying_skill;
+                students[pUnit->Id].order_ = studying_order;
                 students[pUnit->Id].unit_ = pUnit;
 
                 //student may have limited amount of days to be tought. For example, if max student
@@ -262,13 +454,17 @@ namespace land_control
                 //so in this case days_of_teaching_ = 20.
                 long max_skill = unit_control::get_max_skill_lvl(pUnit, studying_skill);
                 if (max_skill < 0)
+                {
+                    max_skill = unit_control::get_max_skill_lvl(pUnit, studying_skill);
                     max_skill = 0;
+                }
+                    
 
                 studying_skill.append(PRP_SKILL_DAYS_POSTFIX); 
                 pUnit->GetProperty(studying_skill.c_str(), type, (const void *&)students[pUnit->Id].cur_days_, eNormal);
 
                 students[pUnit->Id].max_days_ = 30*(max_skill+1)*(max_skill)/2;
-                students[pUnit->Id].days_of_teaching_ = std::max((long)0, 60 - (students[pUnit->Id].max_days_ - students[pUnit->Id].cur_days_));
+                students[pUnit->Id].days_of_teaching_ = 0;
             }            
         }
         return students;
@@ -294,11 +490,12 @@ namespace land_control
                         pUnit->impact_description_.push_back(std::to_string(studId) + " is not studying");
                         continue;
                     }
-                    if (students[studId].days_of_teaching_ >= 30)
+                    if (students[studId].max_days_ - students[studId].cur_days_ - students[studId].days_of_teaching_ - (long)30 <= 0)
                     {
-                        pUnit->impact_description_.push_back(std::to_string(studId) + " is already tought");
+                        pUnit->impact_description_.push_back(std::to_string(studId) + " don't need any teacher more");
                         continue;
                     }
+                    
                     //TODO: add also check that this teacher actually can teach that student
                     //I don't add it now, because I want to change the entire mechanism in future:
                     //At RunOrders_Study units will get skill +30, and then
@@ -317,7 +514,7 @@ namespace land_control
                 {
                     if (students.find(studId) == students.end())
                         continue;
-                    if (students[studId].days_of_teaching_ >= 30)
+                    if (students[studId].max_days_ - students[studId].cur_days_ - students[studId].days_of_teaching_ - (long)30 <= 0)
                         continue;
                     students[studId].days_of_teaching_ += teaching_days;
                     students[studId].days_of_teaching_ = std::min(students[studId].days_of_teaching_, (long)30);

@@ -999,27 +999,10 @@ long CAhApp::GetStructAttr(const char * kind, long & MaxLoad, long & MinSailingP
 
 const char * CAhApp::ResolveAlias(const char * alias)
 {
-    const char * p;
-    const char * p1;
-    int          cnt = 0;
-
-    p1 = alias;
-    do
-    {
-        p = SkipSpaces(GetConfig(SZ_SECT_ALIAS, p1));
-        if (stricmp(p1, p) == 0)
-            break; //if it's a HERB=HERB, or BAG BAG we shoult use p1, not the original alias
-        if (p && *p)
-            p1 = p;
-        if (cnt++ > 20)  // don't play with recursy, man!
-        {
-            p1 = alias;
-            break;
-        }
-
-    } while (p && *p);
-
-    return p1;
+    const char * p = SkipSpaces(GetConfig(SZ_SECT_ALIAS, alias));
+    if (p && *p)
+        return p;
+    return alias;
 }
 
 bool CAhApp::ResolveAliasItems(const std::string& phrase, std::string& codename, std::string& name, std::string& name_plural)

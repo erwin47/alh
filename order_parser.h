@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <memory>
 
 //#include "data.h" - circled inclusions
 
@@ -93,6 +94,7 @@ namespace orders
         std::vector<std::string> words_order_;
         std::string comment_;
         std::string original_string_;
+        bool ignore_errors_;
     };
 
     struct OrderTypeHash {
@@ -104,25 +106,25 @@ namespace orders
 
     struct UnitOrders
     {
-        std::vector<orders::Order> orders_;
+        std::vector<std::shared_ptr<orders::Order>> orders_;
         std::unordered_map<orders::Type, std::vector<size_t>, OrderTypeHash> hash_;
     };
 
     namespace parser
     {
-        Order parse_line_to_order(const std::string& line);
+        std::shared_ptr<Order> parse_line_to_order(const std::string& line);
         UnitOrders parse_lines_to_orders(const std::string& orders);
         std::string compose_original_lines(const UnitOrders& orders);
     }
 
     namespace control
     {
-        std::vector<Order> retrieve_orders_by_type(orders::Type type, const UnitOrders& unit_orders);
-        void add_order_to_orders(const Order& order, UnitOrders& unit_orders);
+        std::vector<std::shared_ptr<Order>> retrieve_orders_by_type(orders::Type type, const UnitOrders& unit_orders);
+        void add_order_to_orders(std::shared_ptr<Order>& order, UnitOrders& unit_orders);
 
         //order specific functions
         std::vector<long> get_students(CUnit* unit);
-        std::string get_studying_skill(const UnitOrders& unit_orders);
+        std::shared_ptr<Order> get_studying_order(const UnitOrders& unit_orders);
     }
 
       

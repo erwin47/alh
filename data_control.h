@@ -2,6 +2,7 @@
 #define DATA_CONTROL_INCL
 
 #include "data.h"
+#include <memory>
 
 namespace unit_control
 {
@@ -20,9 +21,19 @@ namespace unit_control
         bool is_leader(CUnit* unit);
     }
 
-    std::set<CItem>& get_items(CUnit* unit);
+    std::set<CItem> get_all_items(CUnit* unit);
     long get_item_amount(CUnit* unit, const std::string& short_name);
-    void modify_item_amount(CUnit* unit, const std::string& source_name, const std::string& short_name, long new_amount);
+    //void modify_item_amount(CUnit* unit, const std::string& source_name, const std::string& short_name, long new_amount);
+
+    void modify_silver(CUnit* unit, long new_amount, const std::string& reason);
+
+    void modify_item_from_market(CUnit* unit, const std::string& codename, long new_amount, long price);
+    void modify_item_from_unit(CUnit* unit, CUnit* source, const std::string& codename, long new_amount);
+
+    void modify_man_from_market(CUnit* unit, const std::string& codename, long new_amount, long price);
+    void modify_man_from_unit(CUnit* unit, CUnit* source, const std::string& codename, long new_amount);
+
+    std::string compose_unit_name(CUnit* unit);
 
     long get_max_skill_lvl(CUnit* unit, const std::string& skill);
 
@@ -36,7 +47,7 @@ namespace land_control
 {
     struct Student
     {
-        std::string studying_skill_;
+        std::shared_ptr<orders::Order> order_;
         long man_amount_;
         long max_days_;
         long cur_days_;
