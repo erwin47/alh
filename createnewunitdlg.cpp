@@ -507,6 +507,9 @@ void CCreateNewUnit::onGiveAllButton(wxCommandEvent & event)
 
     std::string unit_name = std::string(combobox_units_->GetValue().mb_str());
     CUnit* giving_unit = silver_holders_[unit_name];
-    long unit_silver_amount = unit_control::get_item_amount(giving_unit, PRP_SILVER);
-    spin_silver_amount_->SetValue(std::min(unit_silver_amount, expences));
+    if (giving_unit != nullptr)
+    {
+        long unit_silver_amount = unit_control::get_item_amount(giving_unit, PRP_SILVER);
+        spin_silver_amount_->SetValue(std::min(unit_silver_amount, expences));
+    }
 }

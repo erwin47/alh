@@ -360,6 +360,21 @@ protected:
     int          ParseCBHex   (const char * FirstLine);
     int          ParseCBStruct(const char * FirstLine);
 
+    template<typename T>
+    void perform_on_each_land(T func)
+    {
+        for (int n=0; n<m_Planes.Count(); n++)
+        {
+            CPlane* pPlane = (CPlane*)m_Planes.At(n);
+            for (int i=0; i<pPlane->Lands.Count(); i++)
+            {
+                CLand* pLand = (CLand*)pPlane->Lands.At(i);
+                if (pLand)
+                    func(pLand);
+            }
+        }
+    }    
+
     CFileReader    * m_pSource;
 
     CStringSortColl  m_TaxLandStrs;

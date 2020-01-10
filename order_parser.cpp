@@ -1,5 +1,6 @@
 #include "order_parser.h"
 #include "ahapp.h"
+#include "data_control.h"
 
 #include <algorithm>
 #include <sstream>
@@ -124,6 +125,13 @@ namespace orders
             if (begin != runner)
                 res.emplace_back(std::string(begin, runner));
         }
+
+        void add_order_to_orders(std::shared_ptr<Order>& order, UnitOrders& unit_orders)
+        {
+            unit_orders.orders_.emplace_back(order);
+            size_t pos = unit_orders.orders_.size() - 1;
+            unit_orders.hash_[unit_orders.orders_[pos]->type_].push_back(pos);        
+        }        
     }
 
     namespace parser 
@@ -141,6 +149,9 @@ namespace orders
                 if (word[0] == ';')
                 {
                     res->comment_ = word;
+                    std::for_each(res->comment_.begin(), res->comment_.end(), [](char & c){
+                    c = ::toupper(c);
+                    });                    
                     break;
                 }
 
@@ -183,9 +194,8 @@ namespace orders
                 {
                     if (begin != runner)
                     {
-                        res.orders_.emplace_back(parse_line_to_order(std::string(begin, runner)));
-                        size_t pos = res.orders_.size() - 1;
-                        res.hash_[res.orders_[pos]->type_].push_back(pos);
+                        auto order = parse_line_to_order(std::string(begin, runner));
+                        utils::add_order_to_orders(order, res);
                     }
                     ++runner;
                     begin = runner;
@@ -195,30 +205,90 @@ namespace orders
             }
             if (begin != runner)
             {
-                res.orders_.emplace_back(parse_line_to_order(std::string(begin, runner)));
-                size_t pos = res.orders_.size() - 1;
-                res.hash_[res.orders_[pos]->type_].push_back(pos);
+                auto order = parse_line_to_order(std::string(begin, runner));
+                utils::add_order_to_orders(order, res);
             }
             return res;
         }
 
-        std::string compose_original_lines(const UnitOrders& orders)
+        template<typename T>
+        void compose_string(T& res, const std::shared_ptr<Order>& order)
+        {
+            if (order->original_string_.size() > 0)
+                res << order->original_string_.c_str()<< EOL_SCR;
+            else 
+            {
+                for (const auto& word : order->words_order_)
+                    res << word.c_str() << " ";
+                
+                if (order->comment_.size() > 0)
+                    res << order->comment_.c_str();
+                res << EOL_SCR;
+            }
+        }
+
+        std::string compose_string(const UnitOrders& orders)
         {
             std::stringstream res;
             for (const auto& order : orders.orders_)
-                res << order->original_string_ << std::endl;
+                compose_string(res, order);
             return res.str();
-        }    
+        }
+
+        void recalculate_hash(UnitOrders& uorders)
+        {
+            uorders.hash_.clear();
+            for (size_t i = 0; i < uorders.orders_.size(); ++i)
+                uorders.hash_[uorders.orders_[i]->type_].push_back(i);
+        }
     }
 
 
     namespace control
     {
-        void add_order_to_orders(std::shared_ptr<Order>& order, UnitOrders& unit_orders)
+        void remove_empty_lines(CUnit* unit)
         {
-            unit_orders.orders_.emplace_back(order);
-            size_t pos = unit_orders.orders_.size() - 1;
-            unit_orders.hash_[unit_orders.orders_[pos]->type_].push_back(pos);        
+            std::string orders(unit->Orders.GetData(), unit->Orders.GetLength());
+            orders.erase(std::unique(orders.begin(), orders.end(),
+                      [] (char a, char b) {return a == '\n' && b == '\n';}),
+            orders.end());
+            unit->Orders = orders.c_str();
+        }
+
+        void add_order_to_unit(std::shared_ptr<Order>& order, CUnit* unit)
+        {
+            utils::add_order_to_orders(order, unit->orders_);
+            if (unit->Orders.GetLength() > 0)
+                unit->Orders << EOL_SCR;                
+            parser::compose_string(unit->Orders, order);
+            remove_empty_lines(unit);
+        }
+
+        
+        void add_autoorder_to_unit(std::shared_ptr<Order>& order, CUnit* unit)
+        {
+            std::vector<std::shared_ptr<Order>> orders = retrieve_orders_by_type(order->type_, unit->orders_);
+            for (const auto& ord: orders)
+            {
+                if (order->words_order_.size() != ord->words_order_.size())
+                    continue;
+
+                size_t i = 0;
+                for (; i < order->words_order_.size(); ++i)
+                    if (order->words_order_[i] != ord->words_order_[i])
+                        break;
+                if (i == order->words_order_.size())
+                {//unit already have exactly the same order
+                    return;
+                }
+            }
+            add_order_to_unit(order, unit);
+        }
+
+        void add_order_to_unit(std::string order_line, CUnit* unit)
+        {
+            std::shared_ptr<orders::Order> order = orders::parser::parse_line_to_order(order_line);
+            add_order_to_unit(order, unit);
         }
 
         std::vector<std::shared_ptr<Order>> retrieve_orders_by_type(orders::Type type, const UnitOrders& unit_orders)
@@ -230,6 +300,52 @@ namespace orders
             std::vector<size_t> ids = unit_orders.hash_.at(type);
             for (const auto& id : ids)
                 res.push_back(unit_orders.orders_[id]);
+            return res;
+        }
+
+        void remove_orders_by_comment(CUnit* unit, const std::string& pattern)
+        {
+            if (unit->Id == 7014)
+            {
+                int a = 5;
+            }
+            if (autoorders::is_caravan(unit->orders_))
+            {
+                int a = 5;
+            }            
+            unit->orders_.orders_.erase(std::remove_if(unit->orders_.orders_.begin(), 
+                                                       unit->orders_.orders_.end(), 
+                                                       [&pattern](std::shared_ptr<Order> order) {
+                return order->comment_.find(pattern) != std::string::npos;
+            }), unit->orders_.orders_.end());            
+            parser::recalculate_hash(unit->orders_);
+
+            if (autoorders::is_caravan(unit->orders_))
+            {
+                int a = 5;
+            }
+            unit->Orders.Empty();
+            unit->Orders << orders::parser::compose_string(unit->orders_).c_str();            
+        }
+
+        std::shared_ptr<Order> compose_give_order(CUnit* target, long amount, const std::string& item, const std::string& comment)
+        {
+            std::shared_ptr<Order> res = std::make_shared<Order>();
+            res->type_ = orders::Type::O_GIVE;
+            res->words_order_.emplace_back("GIVE");
+            if (IS_NEW_UNIT(target))
+            {
+                res->words_order_.emplace_back("NEW");
+                res->words_order_.emplace_back(std::to_string((long)REVERSE_NEW_UNIT_ID(target->Id)));
+            }
+            else
+                res->words_order_.emplace_back(std::to_string(target->Id));
+            res->words_order_.emplace_back(std::to_string(amount));
+            res->words_order_.emplace_back(item);
+            if (comment.size() > 0)
+                res->comment_ = comment;
+            else
+                res->comment_ = ";auto";
             return res;
         }
 
@@ -274,4 +390,213 @@ namespace orders
             return nullptr;
         }
     }
+
+    namespace autoorders 
+    {
+        bool should_suspend_warnings(const std::shared_ptr<Order>& order)
+        {
+            return order->comment_.find("$NE") != std::string::npos || order->comment_.find("!NE") != std::string::npos;
+        }
+
+        bool is_caravan(const UnitOrders& unit_orders)
+        {
+            auto orders = control::retrieve_orders_by_type(orders::Type::O_COMMENT, unit_orders);
+            for (const auto& order : orders)
+            {
+                if (order->comment_.find(";!CARAVAN") != std::string::npos || order->comment_.find(";$CARAVAN") != std::string::npos)
+                    return true;
+            }
+            return false;
+        }
+        CaravanInfo get_caravan_info(UnitOrders& unit_orders)
+        {
+            CaravanInfo retCI;
+            for (const auto& order : unit_orders.orders_)
+            {
+                if (order->comment_.find(";!CARAVAN") != std::string::npos || order->comment_.find(";$CARAVAN") != std::string::npos)
+                {
+                    const char* runner = order->comment_.c_str() + sizeof(";!CARAVAN") - 1;
+                    const char* end = order->comment_.c_str() + order->comment_.size();
+                    while (runner < end && *runner == ' ')
+                        ++runner;
+
+                    if (runner < end)
+                    {
+                        switch(*runner)
+                        {
+                            case 'W':
+                            case 'M': retCI.speed_ = CaravanSpeed::MOVE; break;
+                            case 'R': retCI.speed_ = CaravanSpeed::RIDE; break;
+                            case 'F': retCI.speed_ = CaravanSpeed::FLY; break;
+                            case 'S': retCI.speed_ = CaravanSpeed::SWIM; break;
+                            default: retCI.speed_ = CaravanSpeed::UNDEFINED; break;
+                        }
+                    }
+                }
+
+                if (order->comment_.find(";!REGION") != std::string::npos || order->comment_.find(";$REGION") != std::string::npos)
+                {
+                    RegionInfo regInfo;
+                    const char* runner = order->comment_.c_str() + sizeof(";!REGION") - 1;
+                    const char* end = order->comment_.c_str() + order->comment_.size();
+                    std::vector<long> numbers;
+                    while (runner < end)
+                    {
+                        if (isdigit(*runner))
+                        {
+                            numbers.push_back(atol(runner));
+                            while (runner < end && isdigit(*runner))
+                                ++runner;
+                        }
+                        ++runner;
+                    }
+                    for (unsigned i = 0; i < numbers.size()-2; i = i+3)
+                    {
+                        regInfo.x_ = numbers[i];
+                        regInfo.y_ = numbers[i+1];
+                        regInfo.z_ = numbers[i+2];
+                        retCI.regions_.emplace_back(regInfo);
+                    }                    
+                }
+            }
+            return retCI;
+        }
+
+        void get_demand(const char* begin, const char* end, std::string& type, long& amount, long& priority)
+        {
+            priority = 10; //default
+            while(begin < end && !isdigit(*begin) && *begin != '-')
+                ++begin;
+
+            if (begin < end)
+                amount = atol(begin);
+
+            if (amount == -1)
+                priority = 20; //default for -1
+
+            while(begin < end && !isalpha(*begin))
+                ++begin;
+
+            while(begin < end && isalpha(*begin))
+            {
+                type.push_back(*begin);
+                ++begin;
+            }
+            
+            while(begin < end && !isalpha(*begin))
+                ++begin;
+
+            if ((begin[0] == 'P') || (begin[0] == 'p'))
+            {//priority
+                while(begin < end && !isdigit(*begin) && *begin != '-')
+                    ++begin;
+
+                if (begin < end)
+                    priority = atol(begin);
+            }
+        }
+
+        bool get_unit_autosources(const UnitOrders& unit_orders, std::vector<AutoSource>& sources)
+        {
+            bool ret = false;
+            std::vector<std::shared_ptr<Order>> orders = control::retrieve_orders_by_type(orders::Type::O_COMMENT, unit_orders);
+            for (const auto& order : orders)
+            {
+                if (order->comment_.find(";!SOURCE") != std::string::npos || order->comment_.find(";$SOURCE") != std::string::npos)
+                {
+                    long unit_share_border, priority;
+                    std::string item_type;
+                    const char* runner = order->comment_.c_str() + sizeof(";!SOURCE") - 1;
+                    const char* end = order->comment_.c_str() + order->comment_.size();
+                    get_demand(runner, end, item_type, unit_share_border, priority);
+                    sources.emplace_back(AutoSource{item_type, unit_share_border});
+                    ret = true;
+                }
+            }
+            return ret;
+        }
+
+        void adjust_unit_sources(CUnit* unit, std::vector<AutoSource>& sources)
+        {
+            for (auto& source : sources)
+            {
+                long unit_have = unit_control::get_item_amount(unit, source.name_);
+                source.amount_ = unit_have - source.amount_;
+                source.unit_ = unit;
+            }
+
+            sources.erase(std::remove_if(sources.begin(), sources.end(), [](const AutoSource& cur_source) {
+                return cur_source.amount_ <= 0;
+            }), sources.end());
+        }
+        
+        bool get_unit_autoneeds(const UnitOrders& unit_orders, std::vector<AutoRequirement>& unit_needs)
+        {
+            bool ret = false;
+            auto orders = control::retrieve_orders_by_type(orders::Type::O_COMMENT, unit_orders);
+            for (const auto& order : orders)
+            {
+                if (order->comment_.find(";!NEEDREG") != std::string::npos || order->comment_.find(";$NEEDREG") != std::string::npos)
+                {
+                    long reg_req, priority;
+                    std::string item_type;
+                    const char* runner = order->comment_.c_str() + sizeof(";!NEEDREG") - 1;
+                    const char* end = order->comment_.c_str() + order->comment_.size();
+                    get_demand(runner, end, item_type, reg_req, priority);//TODO add priority
+                    unit_needs.emplace_back(AutoRequirement{item_type, reg_req, priority, true, nullptr});
+                    ret = true;
+                }
+                else if (order->comment_.find(";!NEED") != std::string::npos || order->comment_.find(";$NEED") != std::string::npos)
+                {
+                    long unit_req, priority;
+                    std::string item_type;
+                    const char* runner = order->comment_.c_str() + sizeof(";!NEED") - 1;
+                    const char* end = order->comment_.c_str() + order->comment_.size();
+                    get_demand(runner, end, item_type, unit_req, priority);
+                    unit_needs.emplace_back(AutoRequirement{item_type, unit_req, priority, false, nullptr});
+                    ret = true;
+                }
+            }
+            return ret;            
+        }
+
+        void adjust_unit_needs(CLand* land, CUnit* unit, std::vector<AutoRequirement>& unit_needs)
+        {
+            for (auto& unit_need : unit_needs)
+            {
+                unit_need.unit_ = unit;
+                if (unit_need.amount_ == -1) //in case that demand is absolute, it's done.
+                    continue;
+
+                long existing_amount(0);
+                if (unit_need.regional_)
+                {
+                    land_control::perform_on_each_unit(land, [&](CUnit* cur_unit) {
+                        if (!orders::autoorders::is_caravan(cur_unit->orders_))
+                            existing_amount += unit_control::get_item_amount(cur_unit, unit_need.name_);
+                    });                     
+                } 
+                else
+                {
+                    existing_amount = unit_control::get_item_amount(unit, unit_need.name_);
+                }
+                unit_need.amount_ = unit_need.amount_ - existing_amount;
+                if (unit_need.amount_ <= 0) // -1 is still valid value, which doesn't have to be removed
+                    unit_need.amount_ = 0;
+            }
+
+            unit_needs.erase(std::remove_if(unit_needs.begin(), unit_needs.end(), [](const AutoRequirement& cur_need) {
+                return cur_need.amount_ == 0;
+            }), unit_needs.end());
+        }
+
+        std::unordered_map<std::string, std::vector<long>> create_source_table(const std::vector<AutoSource>& sources)
+        {
+            std::unordered_map<std::string, std::vector<long>> ret;
+            for (size_t i = 0; i < sources.size(); ++i)
+                ret[sources[i].name_].push_back(i);
+
+            return ret;
+        }        
+    }     
 };

@@ -4273,10 +4273,7 @@ int CAtlaParser::LoadOrders  (CFileReader & F, int FactionId, BOOL GetComments)
             else
                 if (pUnit)
                 {
-                    Line << EOL_SCR;
-                    pUnit->Orders.AddStr(Line.GetData(), Line.GetLength());
-                    std::shared_ptr<orders::Order> order = orders::parser::parse_line_to_order(std::string(Line.GetData(), Line.GetLength()));
-                    orders::control::add_order_to_orders(order, pUnit->orders_);
+                    orders::control::add_order_to_unit(std::string(Line.GetData(), Line.GetLength()), pUnit);
                 }
     }
 
@@ -4641,6 +4638,7 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
             long teacher_skill_lvl(0);
             std::string skill = stud.second.order_->words_order_[1];
 
+            //initial, because we don't want to use here forcasted skill
             if (pMainUnit->skills_.find(skill) != pMainUnit->skills_.end())
                 teacher_skill_lvl = this->SkillDaysToLevel(pMainUnit->skills_[skill]);
             
@@ -5009,7 +5007,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
     pLand->ResetNormalProperties();
     pLand->ResetUnitsAndStructs();
 
-    //std::unordered_map<long, land_control::Student> students_of_the_land;
+    std::unordered_map<long, land_control::Student> students_of_the_land;
 
     // Run Orders
     for (TurnSequence sequence : TurnSequence())
@@ -5056,7 +5054,14 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
         
         if (TurnSequence::SQ_STUDY == sequence)
         {//no need to parse sequentially
-           //students_of_the_land = land_control::get_land_students(pLand);
+           students_of_the_land = land_control::get_land_students(pLand);
+           land_control::update_students_by_land_teachers(pLand, students_of_the_land);
+           for (auto& stud : students_of_the_land)
+           {
+               std::string skill = stud.second.order_->words_order_[1];
+               stud.second.unit_->skills_[skill] += 30 + stud.second.days_of_teaching_;
+               stud.second.unit_->skills_[skill] = std::min(stud.second.unit_->skills_[skill], stud.second.max_days_);
+           }           
         }
 
         for (mainidx=0; mainidx<pLand->UnitsSeq.Count(); mainidx++)
@@ -5732,14 +5737,14 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
     //STUDY phase should be done by one call over all students.
     //TEACH phase should be done the same way.
     //And then, at the end of TEACH phase, next code should be called.
-    std::unordered_map<long, land_control::Student> land_students = land_control::get_land_students(pLand);
-    land_control::update_students_by_land_teachers(pLand, land_students);
-    for (auto& stud : land_students)
-    {
-        std::string skill = stud.second.order_->words_order_[1];
-        stud.second.unit_->skills_[skill] += 30 + stud.second.days_of_teaching_;
-        stud.second.unit_->skills_[skill] = std::min(stud.second.unit_->skills_[skill], stud.second.max_days_);
-    }
+    //std::unordered_map<long, land_control::Student> land_students = land_control::get_land_students(pLand);
+    //land_control::update_students_by_land_teachers(pLand, land_students);
+    //for (auto& stud : land_students)
+    //{
+    //    std::string skill = stud.second.order_->words_order_[1];
+    //    stud.second.unit_->skills_[skill] += 30 + stud.second.days_of_teaching_;
+    //    stud.second.unit_->skills_[skill] = std::min(stud.second.unit_->skills_[skill], stud.second.max_days_);
+    //}
 
 
     pLand->CalcStructsLoad();
@@ -7676,14 +7681,14 @@ void CAtlaParser::RunOrder_Teach(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
     for (long studentId : unit_students)
     {
         if (land_students.find(studentId) == land_students.end())
-            SHOW_WARN_CONTINUE(" - Unit " << studentId << " is not studying");
+            SHOW_WARN_CONTINUE(" - Unit " << unit_control::compose_unit_number(studentId).c_str() << " is not studying");
 
         if (land_students[studentId].days_of_teaching_ >= 30)
-            SHOW_WARN_CONTINUE(" - Unit " << studentId << " is already tought");
+            SHOW_WARN_CONTINUE(" - Unit " << unit_control::compose_unit_name(land_students[studentId].unit_).c_str() << " is already tought");
 
         if (land_students[studentId].max_days_ - land_students[studentId].cur_days_ - 
             land_students[studentId].days_of_teaching_ - (long)30 <= 0)
-            SHOW_WARN_CONTINUE(" - Unit " << studentId << " doesn't need any more teaching");        
+            SHOW_WARN_CONTINUE(" - Unit " << unit_control::compose_unit_name(land_students[studentId].unit_).c_str() << " doesn't need any more teaching");        
 
         std::string studying_skill = land_students[studentId].order_->words_order_[1];
         long teacher_days(0);
@@ -7693,102 +7698,15 @@ void CAtlaParser::RunOrder_Teach(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
         long teacher_lvl = this->SkillDaysToLevel(teacher_days);
         long student_lvl = this->SkillDaysToLevel(land_students[studentId].cur_days_);
         if (teacher_lvl <= student_lvl)
-            SHOW_WARN_CONTINUE(" - Can not teach unit " << studentId);
+            SHOW_WARN_CONTINUE(" - Can not teach unit " << unit_control::compose_unit_name(land_students[studentId].unit_).c_str());
 
         if (!pUnit->pStudents)
             pUnit->pStudents = new CBaseCollById;
 
         if (!pUnit->pStudents->Insert(land_students[studentId].unit_))
-            SHOW_WARN_CONTINUE(" - Unit " << studentId << " is already in the students list");        
-        unit_control::order_message(pUnit, "is teaching: ", std::to_string(studentId).c_str());
+            SHOW_WARN_CONTINUE(" - Unit " << unit_control::compose_unit_name(land_students[studentId].unit_).c_str() << " is already in the students list");        
+        unit_control::order_message(pUnit, "is teaching: ", unit_control::compose_unit_name(land_students[studentId].unit_).c_str());
     }
-
-
-////////////////////////////////////////////
-    /*while (params && *params)
-    {
-
-        if (peasant_can_teach == 0 && !pUnit->GetProperty(PRP_LEADER, type, value, eNormal) )
-        {
-            SHOW_WARN_BREAK(" - Unit " << pUnit->Id << " is not a leader or hero");
-        }
-
-        if (!GetTargetUnitId(params, pUnit->FactionId, n1))
-            SHOW_WARN_CONTINUE(" - Invalid unit Id");
-        if (0==n1)
-            continue;
-        Dummy.Id = n1;
-        if (pLand->Units.Search(&Dummy, idx))
-        {
-            pUnit2 = (CUnit*)pLand->Units.At(idx);
-
-            our_unit = pUnit2->IsOurs;
-
-            if (pUnit2->StudyingSkill.IsEmpty() && our_unit)
-            {
-                SHOW_WARN_CONTINUE(" - Unit " << pUnit2->Id << " is not studying");
-            }
-            else
-            {
-                if (our_unit  && TeachCheckGlb)
-                {
-                    // are the levels ok?
-                    Skill = pUnit2->StudyingSkill;
-                    if (!pUnit2->GetProperty(Skill.GetData(), type, (const void *&)n2, eNormal) )
-                    {
-                        n2 = 0;
-                        type = eLong;
-                    }
-                    if (eLong!=type)
-                        SHOW_WARN_CONTINUE(NOTNUMERIC << n2 << BUG);
-
-                    if (!pUnit->GetProperty(Skill.GetData(), type, (const void *&)n1, eNormal))
-                    {
-                        n1 = 0;
-                        type = eLong;
-                    }
-                    if (eLong!=type)
-                        SHOW_WARN_CONTINUE(NOTNUMERIC << n2 << BUG);
-
-                    if (n1<=n2)
-                    {
-                        // can not teach in the normal game, but try for Arcadia III
-                        int  SkillPos = Skill.FindSubStrR(PRP_SKILL_POSTFIX);
-                        if (SkillPos>=0)
-                            Skill.DelSubStr(SkillPos, strlen(PRP_SKILL_POSTFIX));
-
-                        Skill << PRP_SKILL_STUDY_POSTFIX;
-                        if (!pUnit->GetProperty(Skill.GetData(), type, (const void *&)n1, eNormal) )
-                            n1 = 0;
-                        if (!pUnit2->GetProperty(Skill.GetData(), type, (const void *&)n2, eNormal) )
-                            n2 = 0;
-
-                    }
-                    if (n1<=n2)
-                        SHOW_WARN_CONTINUE(" - Can not teach unit " << pUnit2->Id);
-                }
-
-                // levels are ok, use n1 and n2 for men counts
-                if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)n1, eNormal)  || (n1<=0))
-                    SHOW_WARN_CONTINUE(" - There are no men in the unit!");
-
-                if (!pUnit2->GetProperty(PRP_MEN, type, (const void *&)n2, eNormal) || (n2<=0))
-                    SHOW_WARN_CONTINUE(" - There are no men in the student unit!");
-
-                if (!pUnit->pStudents)
-                    pUnit->pStudents = new CBaseCollById;
-
-                if (!pUnit->pStudents->Insert(pUnit2))
-                    SHOW_WARN_CONTINUE(" - Unit " << pUnit2->Id << " is already in the students list");
-
-            }
-
-
-        }
-        else
-            SHOW_WARN_CONTINUE(" - Can not find unit " << n1)
-    }*/
-
 }
 
 //-------------------------------------------------------------
@@ -7887,78 +7805,276 @@ void CAtlaParser::RunOrders(CLand * pLand, const char * sCheckTeach)
 
 //-------------------------------------------------------------
 
-BOOL CAtlaParser::ApplyDefaultOrders(BOOL EmptyOnly)
+namespace autoorders_helper
 {
-    int           i;
-    CUnit       * pUnit;
-    CStr          NewOrder(32);
-    CStr          OldOrder(32);
-    const char  * pNew;
-    const char  * pOld;
-    BOOL          Exists;
-    BOOL          Changed = FALSE;
-
-    for (i=0; i<m_Units.Count(); i++)
+    void get_caravan_sources(CUnit* unit, std::vector<orders::AutoSource>& sources)
     {
-        pUnit = (CUnit*)m_Units.At(i);
-        if (pUnit->IsOurs)
+        std::vector<orders::AutoRequirement> caravan_needs;
+        orders::autoorders::get_unit_autoneeds(unit->orders_, caravan_needs);
+        std::set<CItem> items = unit_control::get_all_items(unit);
+        for (const CItem& item : items)
         {
-            if (EmptyOnly)
+            long caravan_can_give(item.amount_);
+            for (auto& need : caravan_needs)
             {
-                pUnit->Orders.TrimRight(TRIM_ALL);
-                if (pUnit->Orders.IsEmpty())
+                if (need.name_ == item.code_name_)
                 {
-                    pNew  = pUnit->DefOrders.GetData();
-                    while (pNew)
+                    if (need.amount_ == -1)
+                        caravan_can_give = 0;
+                    else
+                        caravan_can_give -= need.amount_;
+                }
+                if (caravan_can_give <= 0)
+                    break;
+            }
+            if (caravan_can_give <= 0)
+                continue;
+
+            sources.emplace_back(orders::AutoSource{item.code_name_, caravan_can_give, unit});
+        }        
+    }
+
+    void get_land_autosources(CLand* land, std::vector<orders::AutoSource>& sources)
+    {
+        std::vector<orders::AutoSource> cur_unit_sources;
+        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+            if (unit->IsOurs)
+            {
+                if (orders::autoorders::is_caravan(unit->orders_))
+                    get_caravan_sources(unit, sources);
+                else
+                {//collect autosources for non-caravan units
+                    cur_unit_sources.clear();
+                    if (orders::autoorders::get_unit_autosources(unit->orders_, cur_unit_sources))
                     {
-                        pNew = NewOrder.GetToken(pNew, '\n', TRIM_ALL);
-                        if ( (!NewOrder.IsEmpty()) && (';'!=NewOrder.GetData()[0]) )
-                        {
-                            if (!pUnit->Orders.IsEmpty())
-                                pUnit->Orders << EOL_SCR;
-                            pUnit->Orders << NewOrder;
-                            Changed = TRUE;
-                        }
-                    }
+                        orders::autoorders::adjust_unit_sources(unit, cur_unit_sources);
+                        if (cur_unit_sources.size() > 0)
+                            sources.insert(sources.end(), cur_unit_sources.begin(), cur_unit_sources.end());
+                    }                    
                 }
             }
-            else
+        });            
+    }
+
+    void get_land_caravan_autosources(CLand* land, std::vector<orders::AutoSource>& sources)
+    {
+        std::vector<orders::AutoSource> cur_unit_sources;
+        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+            if (unit->IsOurs && orders::autoorders::is_caravan(unit->orders_))
             {
-                pNew  = pUnit->DefOrders.GetData();
-                while (pNew)
+                get_caravan_sources(unit, sources);
+            }
+        });            
+    }    
+
+    void get_land_autoneeds(CLand* land, std::vector<orders::AutoRequirement>& needs)
+    {
+        std::vector<orders::AutoRequirement> cur_unit_needs;
+        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+            if (unit->IsOurs && !orders::autoorders::is_caravan(unit->orders_))
+            {
+                cur_unit_needs.clear();
+                if (orders::autoorders::get_unit_autoneeds(unit->orders_, cur_unit_needs))
                 {
-                    pNew = NewOrder.GetToken(pNew, '\n', TRIM_ALL);
-                    if ( (!NewOrder.IsEmpty()) && (';'!=NewOrder.GetData()[0]) )
-                    {
-                        Exists = FALSE;
-                        pOld   = pUnit->Orders.GetData();
-                        while (pOld)
-                        {
-                            pOld = OldOrder.GetToken(pOld, '\n', TRIM_ALL);
-                            if (0==stricmp(OldOrder.GetData(), NewOrder.GetData()))
-                            {
-                                Exists = TRUE;
-                                break;
-                            }
-                        }
-                        if (!Exists)
-                        {
-                            if (!pUnit->Orders.IsEmpty())
-                                pUnit->Orders << EOL_SCR;
-                            pUnit->Orders << NewOrder;
-                            Changed = TRUE;
-
-                        }
-
-                    }
+                    orders::autoorders::adjust_unit_needs(land, unit, cur_unit_needs);
+                    if (cur_unit_needs.size() > 0)
+                        needs.insert(needs.end(), cur_unit_needs.begin(), cur_unit_needs.end());
                 }
+            }
+        });      
+    }
+
+    template<typename LandGetter>
+    void get_land_caravan_needs(CLand* land, std::vector<orders::AutoRequirement>& needs, LandGetter land_getter)
+    {
+        std::vector<orders::AutoRequirement> cur_needs;
+        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+            if (unit->IsOurs && orders::autoorders::is_caravan(unit->orders_))
+            {
+                cur_needs.clear();
+                orders::CaravanInfo caravan_info = orders::autoorders::get_caravan_info(unit->orders_);
+                for (const orders::RegionInfo& reg : caravan_info.regions_)
+                {
+                    CLand* farland = land_getter(reg);
+                    if (farland == NULL)
+                        continue;//throw? return error
+                        
+                    if (farland == land) //no need to collect needs from current region here
+                        continue;
+                    
+                    get_land_autoneeds(farland, cur_needs);
+                }
+                for (auto& need : cur_needs)
+                    need.unit_ = unit;
+
+                if (cur_needs.size() > 0)
+                    needs.insert(needs.end(), cur_needs.begin(), cur_needs.end());
+            }
+        });        
+    }
+
+    long weight_max_amount_of_items(CUnit* unit, const std::string& item_name)
+    {
+        //we don't care about weight if it's not a caravan
+        if (orders::autoorders::is_caravan(unit->orders_))
+        {
+            //if its a caravan, we want to avoid overweight
+            long allowed_weight(0);
+            long weight_step(0);//if we don't know, we assume it weights nothing.
+
+            long unit_weights[5];
+            unit_control::get_weights(unit, unit_weights);
+
+            int *item_weights;
+            int movecount;
+            const char** movenames;                    
+            gpDataHelper->GetItemWeights(item_name.c_str(), item_weights, movenames, movecount);
+
+            orders::CaravanInfo cinfo = orders::autoorders::get_caravan_info(unit->orders_);
+            switch(cinfo.speed_) 
+            {
+                case orders::CaravanSpeed::MOVE:
+                    allowed_weight = unit_weights[1] - unit_weights[0];
+                    weight_step = item_weights[1] - item_weights[0];
+                    break;
+                case orders::CaravanSpeed::RIDE:
+                    allowed_weight = unit_weights[2] - unit_weights[0];
+                    weight_step = item_weights[2] - item_weights[0];
+                    break;
+                case orders::CaravanSpeed::FLY:
+                    allowed_weight = unit_weights[3] - unit_weights[0];
+                    weight_step = item_weights[3] - item_weights[0];
+                    break;
+                case orders::CaravanSpeed::SWIM:
+                    allowed_weight = unit_weights[4] - unit_weights[0];
+                    weight_step = item_weights[4] - item_weights[0];
+                    break;
+                default:
+                    break;
+            }
+            if (weight_step >= 0)
+                return -1;//any amount
+            if (allowed_weight <= 0)
+                return 0;//nothing
+
+            return allowed_weight / abs(weight_step);
+        }
+        return -1;
+    }
+
+    void distribute_autoorders(std::vector<orders::AutoSource>& sources, std::vector<orders::AutoRequirement>& needs)
+    {
+        std::unordered_map<std::string, std::vector<long>> sources_table = orders::autoorders::create_source_table(sources);
+        for (auto& need : needs)
+        {
+            if (sources_table.find(need.name_) == sources_table.end())
+                continue;
+
+            if (need.unit_->Id == 2048)
+            {
+                int i = 5;
+            }
+
+            for (long i : sources_table[need.name_])
+            {
+                orders::AutoSource& source = sources[i];
+                if (source.unit_ == need.unit_)
+                    continue;
+
+                long give_amount = source.amount_;
+                if (need.amount_ >= 0)
+                    give_amount = std::min(give_amount, need.amount_);
+
+                long max_amount_according_to_weight = weight_max_amount_of_items(need.unit_, need.name_);
+                if (max_amount_according_to_weight == 0)
+                    break;//no need to check other sources, this need will not be fulfulled
+                if (max_amount_according_to_weight != -1)
+                    give_amount = std::min(give_amount, max_amount_according_to_weight);
+
+                if (give_amount <= 0)
+                    continue;
+
+                source.amount_ -= give_amount;
+                if (need.amount_ != -1) //in case we do not need eternal amount, we can decrease need.amount
+                    need.amount_ -= give_amount;
+
+                unit_control::modify_item_from_unit(source.unit_, need.unit_, source.name_, -give_amount);
+                unit_control::modify_item_from_unit(need.unit_, source.unit_, source.name_, +give_amount);
+                auto give_order = orders::control::compose_give_order(need.unit_, give_amount, source.name_, ";!ao");
+                orders::control::add_autoorder_to_unit(give_order, source.unit_);
             }
         }
     }
-    if (Changed)
-        RunOrders(NULL);
+}
 
-    return Changed;
+/**logic of the function
+ * inside one region we assume that giving items should be done by @give order
+ * after that we fill all possible needs according to priority
+ * 
+ * iteration over regions happens from left to right, from top to bottom, so
+ * if caravan is heading to already processed region, it will not take into account
+ * fulfilled needs of the region. And vice versa, if it is heading to region which
+ * was not processed, it may take needs.
+ * 
+ * it may happen that item will transfered to caravan, but not to local unit, 
+ * if need of a unit in region where caravan is heading to has higher priority that
+ * priority of need of local unit.
+ * 
+ * Thus, if you have a region wich requires finite amount of goods regular, it's recommended
+ * to create there a NEED with high priority and specified amount of items, and create there
+ * a storage: a NEED with low priority, which also SOURCE the same item.
+ * Then caravan will still load items, even if need was fulfilled by another caravan (because target
+ * region was already processed), if there will be delay, and caravan arrives in region with another 
+ * caravan with same goods, they will be able to store exceeded amount of items, instead of moving them
+ * back.
+ */
+BOOL CAtlaParser::ApplyDefaultOrders(BOOL EmptyOnly)
+{
+    //remove all autogenerated orders
+    perform_on_each_land([](CLand* land){
+        land_control::perform_on_each_unit(land, [](CUnit* unit) {
+            orders::control::remove_orders_by_comment(unit, ";!AO");
+            orders::control::remove_orders_by_comment(unit, ";!ao");
+        });
+    });
+
+    //clearing and running all items
+    RunOrders(NULL);
+    
+    //all source will give items to all needs according to priorities
+    perform_on_each_land([&](CLand* land){
+
+        //collect all sources of region, including sources from caravans
+        std::vector<orders::AutoSource> sources;
+        autoorders_helper::get_land_autosources(land, sources);       
+        
+        //collect all needs of region, including needs from caravans
+        std::vector<orders::AutoRequirement> needs;
+        autoorders_helper::get_land_autoneeds(land, needs);
+        autoorders_helper::get_land_caravan_needs(land, needs, [&](const orders::RegionInfo& reg) {
+            return GetLand(reg.x_, reg.y_, reg.z_, TRUE);
+        });
+
+        if (sources.size() == 0 || needs.size() == 0)
+            return;
+
+        //sort needs by priority (in case of equal priority, caravans should go last)
+        std::sort(needs.begin(), needs.end(), 
+            [](const orders::AutoRequirement& req1, const orders::AutoRequirement& req2) {
+                if (req1.priority_ == req2.priority_)
+                {
+                    if (!orders::autoorders::is_caravan(req1.unit_->orders_) && 
+                        orders::autoorders::is_caravan(req2.unit_->orders_))
+                        return true;
+                    return false;
+                }
+                return req1.priority_ < req2.priority_;
+        });   
+        
+        autoorders_helper::distribute_autoorders(sources, needs);
+    });
+
+    RunOrders(NULL);
 }
 
 //-------------------------------------------------------------

@@ -102,6 +102,42 @@ namespace unit_control
         }
     }
 
+    void get_weights(CUnit* unit, long weights[5])
+    {
+        int *cur_weights;
+        const char **movenames;
+        int movecount;
+
+        weights[0] = 0;//weight
+        weights[1] = 0;//move
+        weights[2] = 0;//ride
+        weights[3] = 0;//fly
+        weights[4] = 0;//swim
+        std::set<CItem> items = get_all_items(unit);
+
+        static std::vector<std::string> wagon_list = game_control::get_game_config<std::string>(SZ_SECT_COMMON, SZ_KEY_WAGONS);
+        static std::vector<std::string> wagon_puller_list = game_control::get_game_config<std::string>(SZ_SECT_COMMON, SZ_KEY_WAGON_PULLERS);
+        static long wagon_capacity = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_WAGON_CAPACITY);
+
+        long wagons_amount(0), pullers_amount(0);
+        for (const CItem& item : items)
+        {
+            if (std::find(wagon_puller_list.begin(), wagon_puller_list.end(), item.code_name_) != wagon_puller_list.end())
+                pullers_amount = item.amount_;
+            if (std::find(wagon_list.begin(), wagon_list.end(), item.code_name_) != wagon_list.end())
+                wagons_amount = item.amount_;
+            gpApp->GetItemWeights(item.code_name_.c_str(), cur_weights, movenames, movecount);
+            weights[0] += cur_weights[0] * item.amount_;
+            weights[1] += cur_weights[1] * item.amount_;
+            weights[2] += cur_weights[2] * item.amount_;
+            weights[3] += cur_weights[3] * item.amount_;
+            weights[4] += cur_weights[4] * item.amount_;
+        }
+        //hors gives +70, weight -50, wagon weight -50, which was already calculated. 
+        //But together for moving they give 200. So for each pair we add 230.
+        weights[1] += std::min(wagons_amount, pullers_amount) * wagon_capacity;
+    }
+
     std::set<CItem> get_all_items(CUnit* unit)
     {
         std::set<CItem> ret;
@@ -123,14 +159,20 @@ namespace unit_control
 
     std::string compose_unit_name(CUnit* unit)
     {
-        std::stringstream ss;
-        ss << std::string(unit->Name.GetData(), unit->Name.GetLength()) << "(";
-        if (IS_NEW_UNIT(unit))
-            ss << "NEW " << REVERSE_NEW_UNIT_ID(unit->Id);
-        else
-            ss << unit->Id;
-        ss << ")";
-        return ss.str();
+        std::string res;
+        res.reserve(128);
+        res.append(std::string(unit->Name.GetData(), unit->Name.GetLength()));
+        res.append("(");
+        res.append(compose_unit_number(unit->Id));
+        res.append(")");
+        return res;
+    }
+
+    std::string compose_unit_number(long number)
+    {
+        if (IS_NEW_UNIT_ID(number))
+            return std::string("NEW ") + std::to_string(REVERSE_NEW_UNIT_ID(number));
+        return std::to_string(number);
     }
 
     void modify_silver(CUnit* unit, long new_amount, const std::string& reason)
@@ -397,7 +439,10 @@ namespace unit_control
                 first = false;
             else
                 ss << ", ";
-            ss << skills[0].long_name_ << " [" << skill.first << "] " << level << " (" << skill.second << ")";
+            if (skills.size() == 0)
+                ss << "Unknown" << " [" << skill.first << "] " << level << " (" << skill.second << ")";    
+            else
+                ss << skills[0].long_name_ << " [" << skill.first << "] " << level << " (" << skill.second << ")";
         }
         ss << ".\r\n";
         return ss.str();
@@ -485,14 +530,19 @@ namespace land_control
                 long students_amount(0);
                 for (long studId : studs)
                 {
+                    if (studId == pUnit->Id)
+                    {
+                        pUnit->impact_description_.push_back(unit_control::compose_unit_number(studId) + " can't teach himself");
+                        continue;
+                    }
                     if (students.find(studId) == students.end())
                     {
-                        pUnit->impact_description_.push_back(std::to_string(studId) + " is not studying");
+                        pUnit->impact_description_.push_back(unit_control::compose_unit_number(studId) + " is not studying");
                         continue;
                     }
                     if (students[studId].max_days_ - students[studId].cur_days_ - students[studId].days_of_teaching_ - (long)30 <= 0)
                     {
-                        pUnit->impact_description_.push_back(std::to_string(studId) + " don't need any teacher more");
+                        pUnit->impact_description_.push_back(unit_control::compose_unit_name(students[studId].unit_) + " don't need any teacher more");
                         continue;
                     }
                     
@@ -521,5 +571,25 @@ namespace land_control
                 }
             }
         }
+    }
+}
+
+namespace game_control
+{
+    template<>
+    std::string convert_to<std::string>(const std::string& str)
+    {
+        return str;
+    }
+
+    template<>
+    long convert_to<long>(const std::string& str)
+    {
+        return atol(str.c_str());
+    }
+
+    std::string get_gpapp_config(const char* section, const char* key)
+    {
+        return gpApp->GetConfig(section, key);
     }
 }
