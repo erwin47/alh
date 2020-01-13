@@ -80,6 +80,8 @@ namespace land_control
         }       
     }
 
+    CLand* get_land(int x, int y, int z);
+
     std::unordered_map<long, Student> get_land_students(CLand* land);
     void update_students_by_land_teachers(CLand* land, std::unordered_map<long, Student>& students);
 

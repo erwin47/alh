@@ -470,6 +470,11 @@ namespace unit_control
 
 namespace land_control
 {
+    CLand* get_land(int x, int y, int z)
+    {
+        return gpApp->m_pAtlantis->GetLand(x, y, z, TRUE);
+    }
+
     std::unordered_map<long, Student> get_land_students(CLand* land)
     {
         //students

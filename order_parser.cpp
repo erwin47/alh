@@ -594,5 +594,201 @@ namespace orders
 
             return ret;
         }        
+    }
+
+    namespace autoorders_control
+    {
+        void get_caravan_sources(CUnit* unit, std::vector<orders::AutoSource>& sources)
+        {
+            std::vector<orders::AutoRequirement> caravan_needs;
+            orders::autoorders::get_unit_autoneeds(unit->orders_, caravan_needs);
+            std::set<CItem> items = unit_control::get_all_items(unit);
+            for (const CItem& item : items)
+            {
+                long caravan_can_give(item.amount_);
+                for (auto& need : caravan_needs)
+                {
+                    if (need.name_ == item.code_name_)
+                    {
+                        if (need.amount_ == -1)
+                            caravan_can_give = 0;
+                        else
+                            caravan_can_give -= need.amount_;
+                    }
+                    if (caravan_can_give <= 0)
+                        break;
+                }
+                if (caravan_can_give <= 0)
+                    continue;
+
+                sources.emplace_back(orders::AutoSource{item.code_name_, caravan_can_give, -1, unit});
+            }        
+        }
+
+        void get_land_autosources(CLand* land, std::vector<orders::AutoSource>& sources)
+        {
+            std::vector<orders::AutoSource> cur_unit_sources;
+            land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+                if (unit->IsOurs)
+                {
+                    if (orders::autoorders::is_caravan(unit->orders_))
+                        get_caravan_sources(unit, sources);
+                    else
+                    {//collect autosources for non-caravan units
+                        cur_unit_sources.clear();
+                        if (orders::autoorders::get_unit_autosources(unit->orders_, cur_unit_sources))
+                        {
+                            orders::autoorders::adjust_unit_sources(unit, cur_unit_sources);
+                            if (cur_unit_sources.size() > 0)
+                                sources.insert(sources.end(), cur_unit_sources.begin(), cur_unit_sources.end());
+                        }                    
+                    }
+                }
+            });            
+        }
+
+        void get_land_autoneeds(CLand* land, std::vector<orders::AutoRequirement>& needs)
+        {
+            std::vector<orders::AutoRequirement> cur_unit_needs;
+            land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+                if (unit->IsOurs && !orders::autoorders::is_caravan(unit->orders_))
+                {
+                    cur_unit_needs.clear();
+                    if (orders::autoorders::get_unit_autoneeds(unit->orders_, cur_unit_needs))
+                    {
+                        orders::autoorders::adjust_unit_needs(land, unit, cur_unit_needs);
+                        if (cur_unit_needs.size() > 0)
+                            needs.insert(needs.end(), cur_unit_needs.begin(), cur_unit_needs.end());
+                    }
+                }
+            });      
+        }
+
+        void get_land_caravan_needs(CLand* land, std::vector<orders::AutoRequirement>& needs)
+        {
+            std::vector<orders::AutoRequirement> cur_needs;
+            land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+                if (unit->IsOurs && orders::autoorders::is_caravan(unit->orders_))
+                {
+                    cur_needs.clear();
+                    orders::CaravanInfo caravan_info = orders::autoorders::get_caravan_info(unit->orders_);
+                    for (const orders::RegionInfo& reg : caravan_info.regions_)
+                    {
+                        CLand* farland = land_control::get_land(reg.x_, reg.y_, reg.z_);
+                        if (farland == NULL)
+                        {
+                            std::stringstream ss;
+                            ss << "("<< reg.x_ << ", " << reg.y_ << ", " << reg.z_ << ")";
+                            unit_control::order_message(unit, "Didn't find region", ss.str().c_str());
+                            continue;//throw? return error
+                        }                        
+                            
+                        if (farland == land) //no need to collect needs from current region here
+                            continue;
+                        
+                        get_land_autoneeds(farland, cur_needs);
+                    }
+                    for (auto& need : cur_needs)
+                        need.unit_ = unit;
+
+                    if (cur_needs.size() > 0)
+                        needs.insert(needs.end(), cur_needs.begin(), cur_needs.end());
+                }
+            });        
+        }    
+
+        long weight_max_amount_of_items(CUnit* unit, const std::string& item_name)
+        {
+            //we don't care about weight if it's not a caravan
+            if (orders::autoorders::is_caravan(unit->orders_))
+            {
+                //if its a caravan, we want to avoid overweight
+                long allowed_weight(0);
+                long weight_step(0);//if we don't know, we assume it weights nothing.
+
+                long unit_weights[5];
+                unit_control::get_weights(unit, unit_weights);
+
+                int *item_weights;
+                int movecount;
+                const char** movenames;                    
+                gpDataHelper->GetItemWeights(item_name.c_str(), item_weights, movenames, movecount);
+
+                orders::CaravanInfo cinfo = orders::autoorders::get_caravan_info(unit->orders_);
+                switch(cinfo.speed_) 
+                {
+                    case orders::CaravanSpeed::MOVE:
+                        allowed_weight = unit_weights[1] - unit_weights[0];
+                        weight_step = item_weights[1] - item_weights[0];
+                        break;
+                    case orders::CaravanSpeed::RIDE:
+                        allowed_weight = unit_weights[2] - unit_weights[0];
+                        weight_step = item_weights[2] - item_weights[0];
+                        break;
+                    case orders::CaravanSpeed::FLY:
+                        allowed_weight = unit_weights[3] - unit_weights[0];
+                        weight_step = item_weights[3] - item_weights[0];
+                        break;
+                    case orders::CaravanSpeed::SWIM:
+                        allowed_weight = unit_weights[4] - unit_weights[0];
+                        weight_step = item_weights[4] - item_weights[0];
+                        break;
+                    default:
+                        unit_control::order_message(unit, "Caravan speed is undefined", "(unlimited load)");              
+                        break;
+                }
+                if (weight_step >= 0)
+                    return -1;//any amount
+                if (allowed_weight <= 0)
+                    return 0;//nothing
+
+                return allowed_weight / abs(weight_step);
+            }
+            return -1;
+        }
+
+        void distribute_autoorders(std::vector<orders::AutoSource>& sources, std::vector<orders::AutoRequirement>& needs)
+        {
+            std::unordered_map<std::string, std::vector<long>> sources_table = orders::autoorders::create_source_table(sources);
+            for (auto& need : needs)
+            {
+                if (sources_table.find(need.name_) == sources_table.end())
+                    continue;
+
+                for (long i : sources_table[need.name_])
+                {
+                    orders::AutoSource& source = sources[i];
+                    if (source.unit_ == need.unit_ || source.amount_ <= 0)
+                        continue;//no need to give to intelf
+
+                    if (source.priority_ != -1 && source.priority_ <= need.priority_)
+                        continue;//don't give to lower priority
+
+                    long give_amount = source.amount_;
+                    if (need.amount_ >= 0)//need to short if expected amount is finite & below
+                        give_amount = std::min(give_amount, need.amount_);
+
+                    long max_amount_according_to_weight = weight_max_amount_of_items(need.unit_, need.name_);
+                    if (max_amount_according_to_weight == 0)
+                        break;//no need to check other sources, this need will not be fulfulled because of weight
+                    if (max_amount_according_to_weight != -1)//need to short by weight limit
+                        give_amount = std::min(give_amount, max_amount_according_to_weight);
+
+                    if (give_amount <= 0)
+                        continue;//do nothing if resulting amount is 0 or somehow became below
+
+                    std::string comment = ";!ao for need " + std::to_string(need.amount_) + " p(" + std::to_string(need.priority_) + ")";
+                    source.amount_ -= give_amount;
+                    if (need.amount_ != -1) //in case we do not need eternal amount, we can decrease need.amount
+                        need.amount_ -= give_amount;
+
+                    unit_control::modify_item_from_unit(source.unit_, need.unit_, source.name_, -give_amount);
+                    unit_control::modify_item_from_unit(need.unit_, source.unit_, source.name_, +give_amount);
+                    
+                    auto give_order = orders::control::compose_give_order(need.unit_, give_amount, source.name_, comment.c_str());
+                    orders::control::add_autoorder_to_unit(give_order, source.unit_);
+                }
+            }
+        }
     }     
 };

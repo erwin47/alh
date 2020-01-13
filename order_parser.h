@@ -203,9 +203,25 @@ namespace orders
         void adjust_unit_needs(CLand* land, CUnit* unit, std::vector<AutoRequirement>& unit_needs);
 
         std::unordered_map<std::string, std::vector<long>> create_source_table(const std::vector<AutoSource>& sources);
-
-
     }    
+
+namespace autoorders_control
+    {
+        //!gets all land sources including caravan sources
+        void get_land_autosources(CLand* land, std::vector<orders::AutoSource>& sources);
+
+        //!gets all needs of the land except foreign needs of caravans
+        void get_land_autoneeds(CLand* land, std::vector<orders::AutoRequirement>& needs);
+
+        //!gets all foreign needs of caravans
+        void get_land_caravan_needs(CLand* land, std::vector<orders::AutoRequirement>& needs);    
+
+        //!returns amount of items this unit can take according to his weight policy
+        long weight_max_amount_of_items(CUnit* unit, const std::string& item_name);
+
+        //!distributes sources among needs according to priorities
+        void distribute_autoorders(std::vector<orders::AutoSource>& sources, std::vector<orders::AutoRequirement>& needs);
+    }         
     
 };
 #endif
