@@ -166,6 +166,7 @@ namespace orders
     {
         std::string name_;
         long amount_;
+        long priority_;//-1 means no priority. In other cases gives just to needs which are lower
         CUnit* unit_;
     };
     

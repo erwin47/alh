@@ -464,15 +464,11 @@ namespace orders
 
         void get_demand(const char* begin, const char* end, std::string& type, long& amount, long& priority)
         {
-            priority = 10; //default
             while(begin < end && !isdigit(*begin) && *begin != '-')
                 ++begin;
 
             if (begin < end)
                 amount = atol(begin);
-
-            if (amount == -1)
-                priority = 20; //default for -1
 
             while(begin < end && !isalpha(*begin))
                 ++begin;
@@ -504,12 +500,12 @@ namespace orders
             {
                 if (order->comment_.find(";!SOURCE") != std::string::npos || order->comment_.find(";$SOURCE") != std::string::npos)
                 {
-                    long unit_share_border, priority;
+                    long unit_share_border, priority(-1);
                     std::string item_type;
                     const char* runner = order->comment_.c_str() + sizeof(";!SOURCE") - 1;
                     const char* end = order->comment_.c_str() + order->comment_.size();
                     get_demand(runner, end, item_type, unit_share_border, priority);
-                    sources.emplace_back(AutoSource{item_type, unit_share_border});
+                    sources.emplace_back(AutoSource{item_type, unit_share_border, priority, nullptr});
                     ret = true;
                 }
             }
@@ -538,17 +534,17 @@ namespace orders
             {
                 if (order->comment_.find(";!NEEDREG") != std::string::npos || order->comment_.find(";$NEEDREG") != std::string::npos)
                 {
-                    long reg_req, priority;
+                    long reg_req, priority(20);
                     std::string item_type;
                     const char* runner = order->comment_.c_str() + sizeof(";!NEEDREG") - 1;
                     const char* end = order->comment_.c_str() + order->comment_.size();
-                    get_demand(runner, end, item_type, reg_req, priority);//TODO add priority
+                    get_demand(runner, end, item_type, reg_req, priority);
                     unit_needs.emplace_back(AutoRequirement{item_type, reg_req, priority, true, nullptr});
                     ret = true;
                 }
                 else if (order->comment_.find(";!NEED") != std::string::npos || order->comment_.find(";$NEED") != std::string::npos)
                 {
-                    long unit_req, priority;
+                    long unit_req, priority(10);
                     std::string item_type;
                     const char* runner = order->comment_.c_str() + sizeof(";!NEED") - 1;
                     const char* end = order->comment_.c_str() + order->comment_.size();

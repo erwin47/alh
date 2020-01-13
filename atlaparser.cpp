@@ -7830,7 +7830,7 @@ namespace autoorders_helper
             if (caravan_can_give <= 0)
                 continue;
 
-            sources.emplace_back(orders::AutoSource{item.code_name_, caravan_can_give, unit});
+            sources.emplace_back(orders::AutoSource{item.code_name_, caravan_can_give, -1, unit});
         }        
     }
 
@@ -7970,29 +7970,27 @@ namespace autoorders_helper
             if (sources_table.find(need.name_) == sources_table.end())
                 continue;
 
-            if (need.unit_->Id == 2048)
-            {
-                int i = 5;
-            }
-
             for (long i : sources_table[need.name_])
             {
                 orders::AutoSource& source = sources[i];
                 if (source.unit_ == need.unit_)
-                    continue;
+                    continue;//no need to give to intelf
+
+                if (source.priority_ != -1 && source.priority_ <= need.priority_)
+                    continue;//don't give to lower priority
 
                 long give_amount = source.amount_;
-                if (need.amount_ >= 0)
+                if (need.amount_ >= 0)//need to short if expected amount is finite & below
                     give_amount = std::min(give_amount, need.amount_);
 
                 long max_amount_according_to_weight = weight_max_amount_of_items(need.unit_, need.name_);
                 if (max_amount_according_to_weight == 0)
-                    break;//no need to check other sources, this need will not be fulfulled
-                if (max_amount_according_to_weight != -1)
+                    break;//no need to check other sources, this need will not be fulfulled because of weight
+                if (max_amount_according_to_weight != -1)//need to short by weight limit
                     give_amount = std::min(give_amount, max_amount_according_to_weight);
 
                 if (give_amount <= 0)
-                    continue;
+                    continue;//do nothing if resulting amount is 0 or somehow became below
 
                 source.amount_ -= give_amount;
                 if (need.amount_ != -1) //in case we do not need eternal amount, we can decrease need.amount
@@ -8057,6 +8055,15 @@ BOOL CAtlaParser::ApplyDefaultOrders(BOOL EmptyOnly)
 
         if (sources.size() == 0 || needs.size() == 0)
             return;
+
+        /*
+        int x,y,z;
+        LandIdToCoord(land->Id, x, y, z);
+        if (x == 54 && y == 42 && z == 1)
+        {
+            int i = 5;
+        }*/
+
 
         //sort needs by priority (in case of equal priority, caravans should go last)
         std::sort(needs.begin(), needs.end(), 

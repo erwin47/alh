@@ -1,6 +1,9 @@
 # alh (Atlantis Little Helper)
 
 ## Changelog:
+### Jan 13 2020
+- autoorders: SOURCE now also have priority. If it is set, t will be used for NEED with higher priority only (higher means that the number is lower). CARAVAN's items not protected by it's NEED have no priority (will be given to NEED with any priorities).
+
 ### Jan 10 2020
 - Internal: orders representation was modified
 - Major: ApplyDefaultOrders now runs autoorders feature. Will be described below.
