@@ -7867,10 +7867,9 @@ BOOL CAtlaParser::ApplyDefaultOrders(BOOL EmptyOnly)
     perform_on_each_land([&](CLand* land){
 
         //collect all sources of region, including sources from caravans
-        std::vector<orders::AutoSource> sources;
-        orders::autoorders_control::get_land_autosources(land, sources);
-        if (sources.size() == 0)
-            return;
+        std::vector<orders::AutoSource> land_sources, caravan_sources;
+        orders::autoorders_control::get_land_autosources(land, land_sources);
+        orders::autoorders_control::get_land_caravan_sources(land, caravan_sources);
         
         //collect all needs of region, including needs from caravans
         std::vector<orders::AutoRequirement> needs;
@@ -7882,7 +7881,7 @@ BOOL CAtlaParser::ApplyDefaultOrders(BOOL EmptyOnly)
         /*
         int x,y,z;
         LandIdToCoord(land->Id, x, y, z);
-        if (x == 54 && y == 42 && z == 1)
+        if (x == 51 && y == 49 && z == 1)
         {
             int i = 5;
         }*/
@@ -7901,7 +7900,15 @@ BOOL CAtlaParser::ApplyDefaultOrders(BOOL EmptyOnly)
                 return req1.priority_ < req2.priority_;
         });   
         
-        orders::autoorders_control::distribute_autoorders(sources, needs);
+        if (caravan_sources.size() > 0)//first unload caravans
+        {
+            while(orders::autoorders_control::distribute_autoorders(caravan_sources, needs))
+            {}
+        }
+
+        if (land_sources.size() > 0)//now load caravans 
+            orders::autoorders_control::distribute_autoorders(land_sources, needs);
+        
     });
 
     RunOrders(NULL);

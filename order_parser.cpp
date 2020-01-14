@@ -263,7 +263,6 @@ namespace orders
             parser::compose_string(unit->Orders, order);
             remove_empty_lines(unit);
         }
-
         
         void add_autoorder_to_unit(std::shared_ptr<Order>& order, CUnit* unit)
         {
@@ -328,11 +327,14 @@ namespace orders
             unit->Orders << orders::parser::compose_string(unit->orders_).c_str();            
         }
 
-        std::shared_ptr<Order> compose_give_order(CUnit* target, long amount, const std::string& item, const std::string& comment)
+        std::shared_ptr<Order> compose_give_order(CUnit* target, long amount, const std::string& item, const std::string& comment, bool repeating)
         {
             std::shared_ptr<Order> res = std::make_shared<Order>();
             res->type_ = orders::Type::O_GIVE;
-            res->words_order_.emplace_back("GIVE");
+            if (repeating)
+                res->words_order_.emplace_back("@GIVE");
+            else
+                res->words_order_.emplace_back("GIVE");
             if (IS_NEW_UNIT(target))
             {
                 res->words_order_.emplace_back("NEW");
@@ -629,22 +631,27 @@ namespace orders
         {
             std::vector<orders::AutoSource> cur_unit_sources;
             land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-                if (unit->IsOurs)
+                if (unit->IsOurs && !orders::autoorders::is_caravan(unit->orders_))
                 {
-                    if (orders::autoorders::is_caravan(unit->orders_))
-                        get_caravan_sources(unit, sources);
-                    else
-                    {//collect autosources for non-caravan units
-                        cur_unit_sources.clear();
-                        if (orders::autoorders::get_unit_autosources(unit->orders_, cur_unit_sources))
-                        {
-                            orders::autoorders::adjust_unit_sources(unit, cur_unit_sources);
-                            if (cur_unit_sources.size() > 0)
-                                sources.insert(sources.end(), cur_unit_sources.begin(), cur_unit_sources.end());
-                        }                    
-                    }
+                    cur_unit_sources.clear();
+                    if (orders::autoorders::get_unit_autosources(unit->orders_, cur_unit_sources))
+                    {
+                        orders::autoorders::adjust_unit_sources(unit, cur_unit_sources);
+                        if (cur_unit_sources.size() > 0)
+                            sources.insert(sources.end(), cur_unit_sources.begin(), cur_unit_sources.end());
+                    }                    
                 }
             });            
+        }
+
+        void get_land_caravan_sources(CLand* land, std::vector<orders::AutoSource>& sources)
+        {
+            land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+                if (unit->IsOurs && orders::autoorders::is_caravan(unit->orders_))
+                {
+                    get_caravan_sources(unit, sources);
+                }
+            });  
         }
 
         void get_land_autoneeds(CLand* land, std::vector<orders::AutoRequirement>& needs)
@@ -657,6 +664,17 @@ namespace orders
                     if (orders::autoorders::get_unit_autoneeds(unit->orders_, cur_unit_needs))
                     {
                         orders::autoorders::adjust_unit_needs(land, unit, cur_unit_needs);
+                        for (auto& need : cur_unit_needs)
+                        {
+                            int x, y, z;
+                            LandIdToCoord(land->Id, x, y, z);
+                            std::string unit_name = unit_control::compose_unit_name(unit);
+                            std::stringstream ss;
+                            ss << "Reg[" << x << "," << y << "," << z << "] " 
+                               << "[" << need.amount_ << "p" << need.priority_ << "] - " << unit_name;
+                            
+                            need.description_ = std::make_shared<std::string>(ss.str());
+                        }
                         if (cur_unit_needs.size() > 0)
                             needs.insert(needs.end(), cur_unit_needs.begin(), cur_unit_needs.end());
                     }
@@ -747,8 +765,9 @@ namespace orders
             return -1;
         }
 
-        void distribute_autoorders(std::vector<orders::AutoSource>& sources, std::vector<orders::AutoRequirement>& needs)
+        bool distribute_autoorders(std::vector<orders::AutoSource>& sources, std::vector<orders::AutoRequirement>& needs)
         {
+            bool ret(false);
             std::unordered_map<std::string, std::vector<long>> sources_table = orders::autoorders::create_source_table(sources);
             for (auto& need : needs)
             {
@@ -759,7 +778,7 @@ namespace orders
                 {
                     orders::AutoSource& source = sources[i];
                     if (source.unit_ == need.unit_ || source.amount_ <= 0)
-                        continue;//no need to give to intelf
+                        continue;//no need to give to intelf or parse sources without amount
 
                     if (source.priority_ != -1 && source.priority_ <= need.priority_)
                         continue;//don't give to lower priority
@@ -777,7 +796,10 @@ namespace orders
                     if (give_amount <= 0)
                         continue;//do nothing if resulting amount is 0 or somehow became below
 
-                    std::string comment = ";!ao for need " + std::to_string(need.amount_) + " p(" + std::to_string(need.priority_) + ")";
+                    std::string comment = ";!ao";
+                    if (orders::autoorders::is_caravan(need.unit_->orders_))
+                        comment = ";!ao " + *(need.description_);
+                        
                     source.amount_ -= give_amount;
                     if (need.amount_ != -1) //in case we do not need eternal amount, we can decrease need.amount
                         need.amount_ -= give_amount;
@@ -787,8 +809,10 @@ namespace orders
                     
                     auto give_order = orders::control::compose_give_order(need.unit_, give_amount, source.name_, comment.c_str());
                     orders::control::add_autoorder_to_unit(give_order, source.unit_);
+                    ret = true;//at least one give order was added
                 }
             }
+            return ret;
         }
     }     
 };

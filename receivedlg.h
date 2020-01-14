@@ -38,14 +38,9 @@ public:
 
 private:
     void init_item_types_combobox();
-    std::string compose_give_order(CUnit* to_whom, long amount, const std::string& item);
-    std::string compose_give_comment(CUnit* from_whom, long amount, const std::string& item);
     std::string compose_take_order(CUnit* from_whom, long amount, const std::string& item);
-    std::string compose_take_comment(CUnit* fo_whom, long amount, const std::string& item);
-    void perform_give(CUnit* giving_one, CUnit* receiving_one, long amount, const std::string& item_code_name);
     void perform_take(CUnit* giving_one, CUnit* receiving_one, long amount, const std::string& item_code_name);
-    void set_order(CUnit* unit, const std::string& order);
-    void set_comment(CUnit* unit, const std::string& comment);
+    void perform_give(CUnit* giving_one, CUnit* receiving_one, long amount, const std::string& item_code_name);
 
     std::set<CItem> get_item_types_list(CUnit* unit, CLand* land) const;
     std::vector<std::string> get_units_with_item(const std::string& item_type, CUnit* unit, CLand* land);

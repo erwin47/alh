@@ -98,28 +98,6 @@ void CReceiveDlg::init_item_types_combobox()
     }        
 }
 
-std::string CReceiveDlg::compose_give_order(CUnit* to_whom, long amount, const std::string& item)
-{
-    std::stringstream order;
-    order << "give ";
-    if (IS_NEW_UNIT(to_whom))
-        order << "NEW " << (long)REVERSE_NEW_UNIT_ID(to_whom->Id);
-    else
-        order << to_whom->Id;
-    order << " " << amount << " " << item;
-    return order.str();  
-}
-std::string CReceiveDlg::compose_give_comment(CUnit* from_whom, long amount, const std::string& item)
-{
-    std::stringstream comment;
-    comment << ";receives "<< amount << " " << item;
-    if (IS_NEW_UNIT(from_whom))
-        comment << " from NEW " << (long)REVERSE_NEW_UNIT_ID(from_whom->Id);
-    else
-        comment << " from " << from_whom->Id;
-    return comment.str();  
-}
-
 std::string CReceiveDlg::compose_take_order(CUnit* from_whom, long amount, const std::string& item)
 {
     std::stringstream order;
@@ -130,17 +108,6 @@ std::string CReceiveDlg::compose_take_order(CUnit* from_whom, long amount, const
         order << from_whom->Id;
     order << " " << amount << " " << item;
     return order.str();
-}
-
-std::string CReceiveDlg::compose_take_comment(CUnit* to_whom, long amount, const std::string& item)
-{
-    std::stringstream comment;
-    comment << "gives " << amount << " " << item;
-    if (IS_NEW_UNIT(to_whom))
-        comment << " to NEW " << (long)REVERSE_NEW_UNIT_ID(to_whom->Id);
-    else
-        comment << " to " << to_whom->Id;
-    return comment.str();
 }
 
 std::set<CItem> CReceiveDlg::get_item_types_list(CUnit* unit, CLand* land) const
@@ -221,36 +188,18 @@ void CReceiveDlg::OnMax          (wxCommandEvent& event)
     spin_items_amount_->SetValue(amount);
 }
 
-void CReceiveDlg::set_order(CUnit* unit, const std::string& order)
-{
-    if (!unit->Orders.IsEmpty() && (unit_->Orders.GetData()[unit_->Orders.GetLength()-2] != '\n'))
-        unit->Orders << EOL_SCR;
-    if (order_repeating_->GetValue())
-        unit->Orders << "@";
-    unit->Orders << order.c_str();
-}
-
-void CReceiveDlg::set_comment(CUnit* unit, const std::string& comment)
-{
-    if (!unit->Comments.IsEmpty() && (unit_->Comments.GetData()[unit_->Comments.GetLength()-1] != '\n'))
-        unit->Comments << EOL_SCR;
-    unit->Comments << comment.c_str();
-}
-
 void CReceiveDlg::perform_give(CUnit* giving_one, CUnit* receiving_one, long amount, const std::string& item_code_name)
 {
-    std::string order = compose_give_order(receiving_one, amount, item_code_name);
-    std::string comment = compose_give_comment(giving_one, amount, item_code_name);
-    set_order(giving_one, order);
-    set_comment(receiving_one, comment);
+    auto order = orders::control::compose_give_order(receiving_one, amount, 
+                                item_code_name, "", order_repeating_->GetValue());
+    
+    orders::control::add_order_to_unit(order, giving_one);
 }
 
 void CReceiveDlg::perform_take(CUnit* giving_one, CUnit* receiving_one, long amount, const std::string& item_code_name)
 {
     std::string order = compose_take_order(giving_one, amount, item_code_name);
-    std::string comment = compose_take_comment(receiving_one, amount, item_code_name);
-    set_order(receiving_one, order);
-    set_comment(giving_one, comment);
+    orders::control::add_order_to_unit(order, receiving_one);
 }
 
 void CReceiveDlg::OnOk           (wxCommandEvent& event)

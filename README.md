@@ -1,6 +1,12 @@
 # alh (Atlantis Little Helper)
 
 ## Changelog:
+### Jan 14 2020
+- receiveDlg: bugfix related adding new lines to orders, which lead to empty lines or concatinating one order to another.
+- autoorders: first caravans unload themselves, if possible, then load. Generally this makes them work more effectively.
+- ISSUE: if caravan A is full have to give items to caravan B, caravan B at the same time is full, and have to give another items to A, and no one has a free space, then they will not exchange items because of weight restrictions. For not it is suggested to use a unit-storage in regions where such issue may happen.
+- autoorders: added extended description if item is giving to caravan: for which region, to which unit, which amount and priority.
+
 ### Jan 13 2020
 - autoorders: SOURCE now also have priority. If it is set, t will be used for NEED with higher priority only (higher means that the number is lower). CARAVAN's items not protected by it's NEED have no priority (will be given to NEED with any priorities).
 - autoorders: added sanity check for caravan speed and region coordinates (it prints in unit's description if something is wrong with them). Also extended comment ";!ao", now it explans for which request with which priority it is given. May be useful to understand what is going on, if something is going with autoorders not as expected.

@@ -155,7 +155,7 @@ namespace orders
         //! removes orders with specified pattern in comments
         void remove_orders_by_comment(CUnit* unit, const std::string& pattern);
 
-        std::shared_ptr<Order> compose_give_order(CUnit* target, long amount, const std::string& item, const std::string& comment);
+        std::shared_ptr<Order> compose_give_order(CUnit* target, long amount, const std::string& item, const std::string& comment, bool repeating = false);
         //order specific functions
         
         std::vector<long> get_students(CUnit* unit);
@@ -166,7 +166,7 @@ namespace orders
     {
         std::string name_;
         long amount_;
-        long priority_;//-1 means no priority. In other cases gives just to needs which are lower
+        long priority_;//-1 means no priority (default). In other cases gives just to needs which are lower
         CUnit* unit_;
     };
     
@@ -177,6 +177,7 @@ namespace orders
         long priority_;//the lower the better. 10 default. 20 for -1
         bool regional_;//determines if it is NEED or NEEDREG
         CUnit* unit_;
+        std::shared_ptr<std::string> description_;
     };
 
     namespace autoorders 
@@ -207,8 +208,11 @@ namespace orders
 
 namespace autoorders_control
     {
-        //!gets all land sources including caravan sources
+        //!gets all land sources excluding caravan sources
         void get_land_autosources(CLand* land, std::vector<orders::AutoSource>& sources);
+
+        //!gets all land's caravan sources
+        void get_land_caravan_sources(CLand* land, std::vector<orders::AutoSource>& sources);
 
         //!gets all needs of the land except foreign needs of caravans
         void get_land_autoneeds(CLand* land, std::vector<orders::AutoRequirement>& needs);
@@ -219,8 +223,8 @@ namespace autoorders_control
         //!returns amount of items this unit can take according to his weight policy
         long weight_max_amount_of_items(CUnit* unit, const std::string& item_name);
 
-        //!distributes sources among needs according to priorities
-        void distribute_autoorders(std::vector<orders::AutoSource>& sources, std::vector<orders::AutoRequirement>& needs);
+        //!distributes sources among needs according to priorities, returns true if added any change
+        bool  distribute_autoorders(std::vector<orders::AutoSource>& sources, std::vector<orders::AutoRequirement>& needs);
     }         
     
 };
