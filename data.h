@@ -414,14 +414,12 @@ public:
     CFaction      * pFaction;
     long            LandId;
     long            Weight[MOVE_MODE_MAX];
-    double          Teaching; // number of students per teacher / number of days per student
     CStr            Comments;
     CStr            DefOrders;
     CStr            Orders;
     CStr            OrdersDecorated;
     CStr            Errors;
     CStr            Events;
-    CStr            StudyingSkill;
     CStr            ProducingItem;
     CLongColl     * pMovement; // Collection of ids of hexes to move through
     CLongColl     * pMoveA3Points; // Collection of Arcadia III locations for movement

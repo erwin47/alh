@@ -670,8 +670,8 @@ namespace orders
                             LandIdToCoord(land->Id, x, y, z);
                             std::string unit_name = unit_control::compose_unit_name(unit);
                             std::stringstream ss;
-                            ss << "Reg[" << x << "," << y << "," << z << "] " 
-                               << "[" << need.amount_ << "p" << need.priority_ << "] - " << unit_name;
+                            ss << "Reg[" << x << "," << y << "," << z << "]" 
+                               << "[" << need.amount_ << "p" << need.priority_ << "]";
                             
                             need.description_ = std::make_shared<std::string>(ss.str());
                         }

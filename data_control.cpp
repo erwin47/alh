@@ -147,6 +147,29 @@ namespace unit_control
         return ret;
     }
 
+    std::set<CItem> get_all_items_by_mask(CUnit* unit, const char* mask)
+    {
+        std::set<CItem> ret;
+        std::set<CItem>::iterator it;
+        CItem searching_key;
+        std::vector<std::string> items = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, mask);        
+        for (const std::string& item : items)
+        {
+            searching_key.code_name_ = item;
+            it = unit->men_.find(searching_key);
+            if (it != unit->men_.end())
+                ret.insert(*it);
+
+            it = unit->items_.find(searching_key);
+            if (it != unit->items_.end())
+                ret.insert(*it);
+
+            if (item == unit->silver_.code_name_)
+                ret.insert(unit->silver_);
+        }        
+        return ret;
+    }
+
     long get_item_amount(CUnit* unit, const std::string& codename)
     {
         if (codename == PRP_SILVER)
@@ -155,6 +178,29 @@ namespace unit_control
             return items_control::get_by_code(unit->men_, codename).amount_;
         else
             return items_control::get_by_code(unit->items_, codename).amount_;
+    }
+    
+    long get_item_amount_by_mask(CUnit* unit, const char* mask)
+    {
+        long amount(0);
+        std::set<CItem>::iterator it;
+        CItem searching_key;
+        std::vector<std::string> items = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, mask);        
+        for (const std::string& item : items)
+        {
+            searching_key.code_name_ = item;
+            it = unit->men_.find(searching_key);
+            if (it != unit->men_.end())
+                amount += it->amount_;
+
+            it = unit->items_.find(searching_key);
+            if (it != unit->items_.end())
+                amount += it->amount_;
+
+            if (item == unit->silver_.code_name_)
+                amount += it->amount_;
+        }
+        return amount;   
     }
 
     std::string compose_unit_name(CUnit* unit)
@@ -432,9 +478,7 @@ namespace unit_control
                 return !cur_skill.short_name_.compare(skill.first);
             });
 
-            long level = 0;
-            long turns = skill.second / 30;
-            while (turns > 0) { ++level; turns -= (level + 1); };
+            long level = skills_control::get_skill_lvl_from_days(skill.second);
             if (first)
                 first = false;
             else
@@ -466,6 +510,14 @@ namespace unit_control
         }
         return ret;
     }
+
+    long get_current_skill_days(CUnit* unit, const std::string& skill)
+    {
+        if (unit->skills_.find(skill) == unit->skills_.end())
+            return 0;
+        return unit->skills_[skill];
+    }
+
 }
 
 namespace land_control
@@ -475,107 +527,143 @@ namespace land_control
         return gpApp->m_pAtlantis->GetLand(x, y, z, TRUE);
     }
 
-    std::unordered_map<long, Student> get_land_students(CLand* land)
+    std::unordered_map<long, Student> get_land_students(CLand* land, std::vector<unit_control::UnitError>& errors)
     {
-        //students
         std::unordered_map<long, Student> students;
-        for (size_t idx=0; idx<land->UnitsSeq.Count(); idx++)
-        {
-            CUnit* pUnit = (CUnit*)land->UnitsSeq.At(idx);
-            std::shared_ptr<orders::Order> studying_order = orders::control::get_studying_order(pUnit->orders_);
-            if (studying_order != nullptr)
+        perform_on_each_unit(land, [&](CUnit* unit) {
+            std::shared_ptr<orders::Order> studying_order = orders::control::get_studying_order(unit->orders_);
+            if (studying_order != nullptr) 
             {
-                std::string studying_skill = studying_order->words_order_[1];
-                EValueType type;
-                long amount_of_man;
-                pUnit->GetProperty(PRP_MEN, type, (const void *&)amount_of_man, eNormal);
+                long price = gpApp->GetStudyCost(studying_order->words_order_[1].c_str());
+                if (price <= 0)
+                {
+                    unit->impact_description_.push_back("study error: can't study " + studying_order->words_order_[1]);
+                    errors.push_back({unit, " - Can not study that!"});
+                    return;
+                }
 
+                long amount_of_man = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
                 if (amount_of_man == 0)//order is given, but unit is empty
-                    continue;
+                {
+                    unit->impact_description_.push_back("study error: no men in unit to study anything");
+                    errors.push_back({unit, " - There are no men in the unit!"});
+                    return;
+                }
 
-                students[pUnit->Id];
-                students[pUnit->Id].man_amount_ = amount_of_man;
-                students[pUnit->Id].order_ = studying_order;
-                students[pUnit->Id].unit_ = pUnit;
-
-                //student may have limited amount of days to be tought. For example, if max student
-                //level is 3, and it has 140 days. This means it needs 40 days of studying to get max, or
-                //10 days of teaching. This is equal to situation, when it already is tought to 20 days.
-                //so in this case days_of_teaching_ = 20.
-                long max_skill = unit_control::get_max_skill_lvl(pUnit, studying_skill);
+                std::string studying_skill = studying_order->words_order_[1];
+                long max_skill = unit_control::get_max_skill_lvl(unit, studying_skill);
                 if (max_skill < 0)
                 {
-                    max_skill = unit_control::get_max_skill_lvl(pUnit, studying_skill);
-                    max_skill = 0;
+                    unit->impact_description_.push_back("study error: skill wasn't determined");
+                    errors.push_back({unit, " - Skill max level wasn't determined!"});
+                    return;
                 }
-                    
 
-                studying_skill.append(PRP_SKILL_DAYS_POSTFIX); 
-                pUnit->GetProperty(studying_skill.c_str(), type, (const void *&)students[pUnit->Id].cur_days_, eNormal);
+                long current_days = unit_control::get_current_skill_days(unit, studying_skill);
+                long max_days = 30*(max_skill+1)*(max_skill)/2;
+                if (current_days >= max_days)
+                {
+                    unit->impact_description_.push_back("study error: skill is already at max level");
+                    errors.push_back({unit, " - Skill is already at max level!"});
+                    return;
+                }
+                
+                unit_control::modify_silver(unit, -price * amount_of_man, "studying");
+                //support of Unit List functionality
+                if (PE_OK!=unit->SetProperty(PRP_SILVER,   eLong, (const void *)(unit->silver_.amount_), eNormal))
+                {
+                    errors.push_back({unit, " - Cannot set unit's property - it's a bug!"});
+                }                  
 
-                students[pUnit->Id].max_days_ = 30*(max_skill+1)*(max_skill)/2;
-                students[pUnit->Id].days_of_teaching_ = 0;
-            }            
-        }
+                students[unit->Id];
+                students[unit->Id].cur_days_ = current_days;
+                students[unit->Id].max_days_ = max_days;
+                students[unit->Id].days_of_teaching_ = 0;//amount of days got from a teacher
+                students[unit->Id].man_amount_ = amount_of_man;
+                students[unit->Id].order_ = studying_order;
+                students[unit->Id].unit_ = unit;                         
+            }
+        });
         return students;
     }
 
-    void update_students_by_land_teachers(CLand* land, std::unordered_map<long, Student>& students)
+    void update_students_by_land_teachers(CLand* land, 
+                                          std::unordered_map<long, Student>& students, 
+                                          std::vector<unit_control::UnitError>& errors)
     {
-        for (size_t idx=0; idx<land->UnitsSeq.Count(); idx++)
-        {
-            CUnit* pUnit = (CUnit*)land->UnitsSeq.At(idx);
-            std::vector<long> studs = orders::control::get_students(pUnit);
-            if (studs.size() > 0)
+        perform_on_each_unit(land, [&](CUnit* unit) {
+            std::vector<long> studs = orders::control::get_students(unit);
+            if (studs.size() == 0)
+                return;
+
+            long teachers_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+            if (teachers_amount <= 0)
             {
-                EValueType type;
-                long teachers_amount;
-                pUnit->GetProperty(PRP_MEN, type, (const void *&)teachers_amount, eNormal);
-
-                long students_amount(0);
-                for (long studId : studs)
-                {
-                    if (studId == pUnit->Id)
-                    {
-                        pUnit->impact_description_.push_back(unit_control::compose_unit_number(studId) + " can't teach himself");
-                        continue;
-                    }
-                    if (students.find(studId) == students.end())
-                    {
-                        pUnit->impact_description_.push_back(unit_control::compose_unit_number(studId) + " is not studying");
-                        continue;
-                    }
-                    if (students[studId].max_days_ - students[studId].cur_days_ - students[studId].days_of_teaching_ - (long)30 <= 0)
-                    {
-                        pUnit->impact_description_.push_back(unit_control::compose_unit_name(students[studId].unit_) + " don't need any teacher more");
-                        continue;
-                    }
-                    
-                    //TODO: add also check that this teacher actually can teach that student
-                    //I don't add it now, because I want to change the entire mechanism in future:
-                    //At RunOrders_Study units will get skill +30, and then
-                    //at RunOrders_Teach teachers, if they can teach and fit all the checks, they add additional
-                    //teaching days.
-                    //And thus this function will be obsolete.
-                    students_amount += students[studId].man_amount_;
-                }
-                
-                if (students_amount <= 0)
-                    continue;
-
-                //we assume that studying is correct: teacher can teach, student can study and so on
-                long teaching_days = std::min((long)30, (30 * STUDENTS_PER_TEACHER * teachers_amount) / students_amount);
-                for (long studId : studs)
-                {
-                    if (students.find(studId) == students.end())
-                        continue;
-                    if (students[studId].max_days_ - students[studId].cur_days_ - students[studId].days_of_teaching_ - (long)30 <= 0)
-                        continue;
-                    students[studId].days_of_teaching_ += teaching_days;
-                    students[studId].days_of_teaching_ = std::min(students[studId].days_of_teaching_, (long)30);
-                }
+                unit->impact_description_.push_back("teaching: have no men to teach");
+                errors.push_back({unit, " have no men to teach"});
+                return;
             }
-        }
+            std::vector<Student*> active_students;
+            long students_amount(0);
+            for (long studId : studs)
+            {
+                if (studId == unit->Id)
+                {
+                    unit->impact_description_.push_back(unit_control::compose_unit_number(studId) + " can't teach himself");
+                    errors.push_back({unit, " can't teach himself"});
+                    continue;
+                }
+                if (students.find(studId) == students.end())
+                {
+                    unit->impact_description_.push_back(unit_control::compose_unit_number(studId) + " is not studying");
+                    errors.push_back({unit, unit_control::compose_unit_number(studId) + " is not studying"});
+                    continue;
+                }
+                if (students[studId].max_days_ - students[studId].cur_days_ - students[studId].days_of_teaching_- (long)30 <= 0)
+                {
+                    unit->impact_description_.push_back(unit_control::compose_unit_name(students[studId].unit_) + " doesn't need any teacher more");
+                    errors.push_back({unit, unit_control::compose_unit_number(studId) + " doesn't need any teacher more"});
+                    continue;
+                }
+
+                std::string studying_skill = students[studId].order_->words_order_[1];
+                long teacher_days = unit_control::get_current_skill_days(unit, studying_skill);
+                long teacher_lvl = skills_control::get_skill_lvl_from_days(teacher_days);
+                long student_lvl = skills_control::get_skill_lvl_from_days(students[studId].cur_days_);
+                if (teacher_lvl <= student_lvl)
+                {
+                    unit->impact_description_.push_back("Can't teach " + unit_control::compose_unit_name(students[studId].unit_));
+                    errors.push_back({unit, "Can't teach " + unit_control::compose_unit_number(studId)});
+                    continue;                        
+                }
+                students_amount += students[studId].man_amount_;
+            }
+            
+            if (students_amount <= 0)
+                return;
+
+            unit->SetProperty(PRP_TEACHING, eLong, (const void*)students_amount, EPropertyType::eBoth);
+            //we assume that studying is correct: teacher can teach, student can study and so on
+            long teaching_days = std::min((long)30, (30 * STUDENTS_PER_TEACHER * teachers_amount) / students_amount);
+            for (long studId : studs)
+            {
+                if (studId == unit->Id)
+                    continue;
+                if (students.find(studId) == students.end())
+                    continue;
+                if (students[studId].max_days_ - students[studId].cur_days_ - students[studId].days_of_teaching_ - (long)30 <= 0)
+                    continue;
+                std::string studying_skill = students[studId].order_->words_order_[1];
+                long teacher_days = unit_control::get_current_skill_days(unit, studying_skill);
+                long teacher_lvl = skills_control::get_skill_lvl_from_days(teacher_days);
+                long student_lvl = skills_control::get_skill_lvl_from_days(students[studId].cur_days_);
+                if (teacher_lvl <= student_lvl)
+                    continue;                        
+
+                students[studId].days_of_teaching_ += teaching_days;
+                students[studId].days_of_teaching_ = std::min(students[studId].days_of_teaching_, (long)30);
+            }
+        });
     }
 }
 

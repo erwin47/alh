@@ -7,6 +7,11 @@
 
 namespace unit_control
 {
+    struct UnitError
+    {
+        CUnit* unit_;
+        std::string message_;
+    };
     namespace flags
     {
         bool is_behind(CUnit* unit);
@@ -25,7 +30,11 @@ namespace unit_control
     void get_weights(CUnit* unit, long weights[5]);
     
     std::set<CItem> get_all_items(CUnit* unit);
+
+    //!mask may define specific group of items, according to UNIT_PROPERTY_GROUPS settings
+    std::set<CItem> get_all_items_by_mask(CUnit* unit, const char* mask);
     long get_item_amount(CUnit* unit, const std::string& short_name);
+    long get_item_amount_by_mask(CUnit* unit, const char* mask);
     //void modify_item_amount(CUnit* unit, const std::string& source_name, const std::string& short_name, long new_amount);
 
     void modify_silver(CUnit* unit, long new_amount, const std::string& reason);
@@ -40,6 +49,7 @@ namespace unit_control
     std::string compose_unit_number(long number);
 
     long get_max_skill_lvl(CUnit* unit, const std::string& skill);
+    long get_current_skill_days(CUnit* unit, const std::string& skill);
 
     void order_message(CUnit* unit, const char* line, const char* descr);
 
@@ -58,6 +68,8 @@ namespace land_control
         long days_of_teaching_;
         CUnit* unit_;
     };
+
+
 
     template<typename T>
     void get_units_if(CLand* land, std::vector<CUnit*>& units, T Pred)
@@ -82,8 +94,8 @@ namespace land_control
 
     CLand* get_land(int x, int y, int z);
 
-    std::unordered_map<long, Student> get_land_students(CLand* land);
-    void update_students_by_land_teachers(CLand* land, std::unordered_map<long, Student>& students);
+    std::unordered_map<long, Student> get_land_students(CLand* land, std::vector<unit_control::UnitError>& errors);
+    void update_students_by_land_teachers(CLand* land, std::unordered_map<long, Student>& students, std::vector<unit_control::UnitError>& errors);
 
 }
 
@@ -99,11 +111,20 @@ namespace game_control
     {
         std::vector<T> ret;
         std::string value_string = get_gpapp_config(section, key);
-        for(auto it_beg = std::begin(value_string), it_end = std::end(value_string), it_run = std::find(it_beg, it_end, ','); 
-                 it_beg != it_end;
-                 std::next(it_run), it_beg = it_run, it_run = std::find(it_beg, it_end, ','))
+        const char* beg = value_string.c_str();
+        const char* end = value_string.c_str() + value_string.size();
+        const char* runner = beg;
+        while(beg < end)
         {
-            ret.push_back(convert_to<T>(std::string(it_beg, it_run)));
+            while (beg < end && !isalpha(*beg))
+                ++beg;
+            runner = beg;
+            while (runner < end && *runner != ',')
+                ++runner;
+
+            ret.push_back(convert_to<T>(std::string(beg, runner)));
+            ++runner;
+            beg = runner;
         }
         return ret;
     }

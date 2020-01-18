@@ -744,7 +744,6 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
     FactionId     = 0;
     pFaction      = NULL;
     LandId        = 0;
-    Teaching      = 0.0;
     pMovement     = NULL;
     pMoveA3Points = NULL;
     pStudents     = NULL;
@@ -788,7 +787,6 @@ CUnit * CUnit::AllocSimpleCopy()
     pUnit->FactionId              = FactionId            ;
     pUnit->pFaction               = pFaction             ;
     pUnit->LandId                 = LandId               ;
-    pUnit->Teaching               = Teaching             ;
     pUnit->Comments               = Comments             ;
     pUnit->DefOrders              = DefOrders            ;
     pUnit->orders_                = orders_              ;
@@ -803,7 +801,6 @@ CUnit * CUnit::AllocSimpleCopy()
     pUnit->Orders                 = Orders               ;
     pUnit->Errors                 = Errors               ;
     pUnit->Events                 = Events               ;
-    pUnit->StudyingSkill          = StudyingSkill        ;
     pUnit->Flags                  = Flags                ;
     pUnit->FlagsOrg               = FlagsOrg             ;
     pUnit->FlagsLast              = FlagsLast            ;
@@ -854,8 +851,7 @@ void CUnit::ExtractCommentsFromDefOrders()
 void CUnit::ResetNormalProperties()
 {
     CBaseObject::ResetNormalProperties();
-    Teaching = 0;
-    StudyingSkill.Empty();
+    DelProperty(PRP_TEACHING);
     ProducingItem.Empty();
     men_ = men_initial_;
     silver_ = silver_initial_;
@@ -1231,21 +1227,6 @@ BOOL CUnit::GetProperty(const char  *  name,
             type = eLong;
             value = (void*)days;
         }
-        else if (0==stricmp(name, PRP_TEACHING ))
-        {
-            type  = eLong;
-            if (StudyingSkill.IsEmpty())
-                value = (void*)(long)ceil(Teaching);
-            else
-                value = (void*)(long)floor(Teaching);
-
-            if (Teaching <= 0)
-                Ok = FALSE;
-        }
-
-
-
-
         else
             Ok = FALSE;
     }

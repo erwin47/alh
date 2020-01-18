@@ -4029,7 +4029,7 @@ int  CAtlaParser::SaveOrders(const char * FNameOut, const char * password, BOOL 
                         {
                             wxString landDescr = wxString::FromUTF8(pLand->Description.GetData());
                             wxString s = wxString::Format(wxT("Unable to save new unit orders in %s."), landDescr.BeforeFirst('.').c_str());
-                            OrderErr(1, pUnit->Id, s.ToUTF8(), pUnit->Name.GetData());
+                            OrderError("Warning", pUnit, s.ToStdString());
                         }
                     }
                 }
@@ -4085,7 +4085,7 @@ int  CAtlaParser::SaveOrders(const char * FNameOut, const char * password, BOOL 
                 {
                     wxString landDescr = wxString::FromUTF8(pLand->Description.GetData());
                     wxString s = wxString::Format(wxT("Unable to save new unit orders in %s."), landDescr.BeforeFirst('.').c_str());
-                    OrderErr(1, 0, s.ToUTF8(), "");
+                    OrderError("Warning", 0, s.ToStdString());
                     FormOrders.clear();
                 }
             }
@@ -4345,29 +4345,27 @@ void CAtlaParser::OrderErrFinalize()
     m_sOrderErrors.Empty();
 }
 
-void CAtlaParser::OrderErr(int Severity, int UnitId, const char * Msg, const char * UnitName, CUnit * pUnit)
+
+
+void CAtlaParser::OrderError(const std::string& type, CUnit* unit, const std::string& Msg)
 {
-    const char * type;
     CStr         S(32);
     CStr         prefix;
-    CStr         land;
-
-    if (0==Severity)
-        type = "Error  ";
-    else
-        type = "Warning";
-
-    if (pUnit && IS_NEW_UNIT(pUnit))
+    long unit_id(0);
+    std::string unit_name("Unit");
+    if (unit)
     {
-        ComposeLandStrCoord(GetLand(pUnit->LandId), land);
-        prefix.Format("(%s) ", land.GetData());
+        unit_id = unit->Id;
+        unit_name = unit_control::compose_unit_name(unit);
+
+        if (IS_NEW_UNIT(unit))
+        {
+            CStr         land;
+            ComposeLandStrCoord(GetLand(unit->LandId), land);
+            prefix.Format("(%s) ", land.GetData());
+        }
     }
-    if (UnitName)
-        S.Format("%s%s (%d) %s : %s%s", prefix.GetData(), UnitName, UnitId, type, Msg, EOL_SCR);
-    else
-        S.Format("%sUnit % 5d %s : %s%s", prefix.GetData(), UnitId, type, Msg, EOL_SCR);
-
-
+    S.Format("%s%s (%d) %s : %s%s", prefix.GetData(), unit_name.c_str(), unit_id, type.c_str(), Msg.c_str(), EOL_SCR);
     m_sOrderErrors << S;
 }
 
@@ -4395,7 +4393,7 @@ void CAtlaParser::GenericErr(int Severity, const char * Msg)
 #define GEN_ERR(pUnit, msg)                 \
 {                                           \
     Line << msg;                            \
-    OrderErr(0, pUnit->Id, Line.GetData()); \
+    OrderError("Error", pUnit, Line.GetData()); \
     return Changed;                         \
 }
 
@@ -4513,14 +4511,14 @@ BOOL CAtlaParser::GenGiveEverything(CUnit * pFrom, const char * To)
         if (!GetTargetUnitId(p, pFrom->FactionId, n1))
         {
             S << "Invalid unit id " << To;
-            OrderErr(0, pFrom->Id, S.GetData());
+            OrderError("Error", pFrom, S.GetData());
             break;
         }
         Dummy.Id = n1;
         if (n1 != 0 && !pLand->Units.Search(&Dummy, i) )
         {
             S << "Can not find unit " << To;
-            OrderErr(0, pFrom->Id, S.GetData());
+            OrderError("Error", pFrom, S.GetData());
             break;
         }
 
@@ -4622,11 +4620,12 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
     if (peasant_can_teach == 0 && !pMainUnit->GetProperty(PRP_LEADER, type, value, eNormal))
         return FALSE;
 
-    RunLandOrders(pLand); // just in case...
-
+    //to reset studying results of RunOrders
+    pLand->ResetUnitsAndStructs();
     //get teaching days map
-    std::unordered_map<long, land_control::Student> students = land_control::get_land_students(pLand);
-    land_control::update_students_by_land_teachers(pLand, students);
+    std::vector<unit_control::UnitError> errors;
+    std::unordered_map<long, land_control::Student> students = land_control::get_land_students(pLand, errors);
+    land_control::update_students_by_land_teachers(pLand, students, errors);
 
     BOOL changed = FALSE;
     for (const auto& stud : students)
@@ -4635,12 +4634,9 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
         if ((stud.second.days_of_teaching_ < 30) && //there are days of teaching, and there is a room for it
             (stud.second.max_days_ - stud.second.cur_days_ - stud.second.days_of_teaching_ - (long)30 > 0))
         {
-            long teacher_skill_lvl(0);
             std::string skill = stud.second.order_->words_order_[1];
-
-            //initial, because we don't want to use here forcasted skill
-            if (pMainUnit->skills_.find(skill) != pMainUnit->skills_.end())
-                teacher_skill_lvl = this->SkillDaysToLevel(pMainUnit->skills_[skill]);
+            long teacher_skill_days = unit_control::get_current_skill_days(pMainUnit, skill);
+            long teacher_skill_lvl = skills_control::get_skill_lvl_from_days(teacher_skill_days);
             
             //why does it return true for skills which this unit doesn't have??
             //skill.append(PRP_SKILL_POSTFIX);
@@ -4677,9 +4673,7 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
             }
         }
     }
-    if (changed)
-        RunLandOrders(pLand); // just in case...
-
+    RunLandOrders(pLand); // just in case...
     return changed;
 }
 
@@ -4861,7 +4855,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     {                                                \
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
-        OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData(), pUnit); \
+        OrderError("Warning", pUnit, ErrorLine.GetData()); \
     }                                                \
     continue;                                        \
 }
@@ -4872,7 +4866,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     {                                                \
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
-        OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData(), pUnit); \
+        OrderError("Warning", pUnit, ErrorLine.GetData()); \
     }                                                \
 }
 
@@ -4882,7 +4876,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     {                                                \
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
-        OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData(), pUnit); \
+        OrderError("Warning", pUnit, ErrorLine.GetData()); \
         break;                                       \
     }                                                \
 }
@@ -5076,14 +5070,26 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
         
         if (TurnSequence::SQ_STUDY == sequence)
         {//no need to parse sequentially
-           students_of_the_land = land_control::get_land_students(pLand);
-           land_control::update_students_by_land_teachers(pLand, students_of_the_land);
-           for (auto& stud : students_of_the_land)
-           {
-               std::string skill = stud.second.order_->words_order_[1];
-               stud.second.unit_->skills_[skill] += 30 + stud.second.days_of_teaching_;
-               stud.second.unit_->skills_[skill] = std::min(stud.second.unit_->skills_[skill], stud.second.max_days_);
-           }           
+            std::vector<unit_control::UnitError> errors;
+            students_of_the_land = land_control::get_land_students(pLand, errors);
+            
+            //teaching orders -- no need to wait for TurnSequence::Teach
+            land_control::update_students_by_land_teachers(pLand, students_of_the_land, errors);
+            for (auto& error : errors)
+                OrderError("Warning", error.unit_, error.message_.c_str());
+
+            //updating students
+            for (auto& stud : students_of_the_land)
+            {
+                std::string skill = stud.second.order_->words_order_[1];
+                stud.second.unit_->skills_[skill] += 30 + stud.second.days_of_teaching_;
+                stud.second.unit_->skills_[skill] = std::min(stud.second.unit_->skills_[skill], stud.second.max_days_);
+                
+                long room_for_teaching = std::max(stud.second.max_days_ - stud.second.cur_days_ - 30, (long)0);
+                long space_for_teaching = std::min(room_for_teaching, (long)30);
+                space_for_teaching = std::max(space_for_teaching - stud.second.days_of_teaching_, (long)0);                
+                stud.second.unit_->SetProperty(PRP_TEACHING, eLong, (const void*)space_for_teaching, eNormal);
+            }           
         }
 
         for (mainidx=0; mainidx<pLand->UnitsSeq.Count(); mainidx++)
@@ -5318,8 +5324,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                                 else
                                     continue;
 
-                            if  (TurnSequence::SQ_TEACH==sequence)  // have to call it here or new units teaching will not be calculated
-                                OrderProcess_Teach(skiperror, pUnit);
+                            //if  (TurnSequence::SQ_TEACH==sequence)  // have to call it here or new units teaching will not be calculated
+                            //    OrderProcess_Teach(skiperror, pUnit);
 
                             pUnit       = pUnitMaster;
                             pUnitMaster = NULL;
@@ -5364,13 +5370,13 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         break;
 
                     case O_STUDY:
-                        if (TurnSequence::SQ_STUDY==sequence)
-                            RunOrder_Study(Line, ErrorLine, skiperror, pUnit, pLand, p);
+                        //if (TurnSequence::SQ_STUDY==sequence)
+                        //    RunOrder_Study(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
 
                     case O_TEACH:
-                        if (TurnSequence::SQ_TEACH==sequence)
-                            RunOrder_Teach(Line, ErrorLine, skiperror, pUnit, pLand, p, TeachCheckGlb);
+                        //if (TurnSequence::SQ_TEACH==sequence)
+                        //    RunOrder_Teach(Line, ErrorLine, skiperror, pUnit, pLand, p, TeachCheckGlb);
                         break;
 
                     case O_CLAIM:
@@ -5680,10 +5686,10 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
             } // commands loop
 
 
-            if(TurnSequence::SQ_TEACH==sequence)  // we have to collect all the students, then teach
-            {
-                OrderProcess_Teach(skiperror, pUnit);
-            }
+            //if(TurnSequence::SQ_TEACH==sequence)  // we have to collect all the students, then teach
+            //{
+            //    OrderProcess_Teach(skiperror, pUnit);
+            //}
                 
 
             if (TurnSequence::SQ_MOVE==sequence && !destination.IsEmpty())
@@ -6048,6 +6054,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
 
 void CAtlaParser::RunOrder_Study(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params)
 {
+    /*
     EValueType          type;
     long                n, n1, n2;
     long                unitmoney;
@@ -6123,7 +6130,7 @@ void CAtlaParser::RunOrder_Study(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
 
         pUnit->StudyingSkill = SkillNaked;
         pUnit->StudyingSkill << PRP_SKILL_POSTFIX;
-    } while (FALSE);
+    } while (FALSE);*/
 }
 
 
@@ -6864,7 +6871,7 @@ void CAtlaParser::AdjustSkillsAfterGivingMen(CUnit * pUnitGive, CUnit * pUnitTak
     if (pUnitGive->GetProperty(PRP_LEADER, type, valueGive, eNormal) && eCharPtr!=type)
     {
         S = "Wrong property type ";  S << BUG;
-        OrderErr(1, pUnitGive->Id,  S.GetData());
+        OrderError("Warning", pUnitGive,  S.GetData());
         return;
     }
     if (!pUnitTake->GetProperty(PRP_LEADER, type, valueTake, eNormal))
@@ -6874,7 +6881,7 @@ void CAtlaParser::AdjustSkillsAfterGivingMen(CUnit * pUnitGive, CUnit * pUnitTak
     else if (eCharPtr!=type)
     {
         S = "Wrong property type ";  S << BUG;
-        OrderErr(1, pUnitTake->Id,  S.GetData());
+        OrderError("Warning", pUnitTake,  S.GetData());
         return;
     }
 
@@ -7663,6 +7670,7 @@ void CAtlaParser::RunOrder_SailAIII(CStr & Line, CStr & ErrorLine, BOOL skiperro
 
 void CAtlaParser::RunOrder_Teach(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL TeachCheckGlb)
 {
+    /*
     EValueType          type;
     long                n1, n2;
     CUnit             * pUnit2;
@@ -7683,7 +7691,7 @@ void CAtlaParser::RunOrder_Teach(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
         {                                              
             ErrorLine.Empty();                         
             ErrorLine << Line << " - Unit " << pUnit->Id << " is not a leader or hero";                   
-            OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData(), pUnit);
+            OrderError("Warning", pUnit, ErrorLine.GetData());
         }          
         return;
     }    
@@ -7692,8 +7700,8 @@ void CAtlaParser::RunOrder_Teach(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
         if (!skiperror)  
         {                                              
             ErrorLine.Empty();                         
-            ErrorLine << Line << " - There are no men in the unit!";                   
-            OrderErr(1, pUnit->Id, ErrorLine.GetData(), pUnit->Name.GetData(), pUnit);
+            ErrorLine << Line << " - There are no men in the unit!";
+            OrderError("Warning", pUnit, ErrorLine.GetData());               
         }          
         return;
     }        
@@ -7713,9 +7721,7 @@ void CAtlaParser::RunOrder_Teach(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
             SHOW_WARN_CONTINUE(" - Unit " << unit_control::compose_unit_name(land_students[studentId].unit_).c_str() << " doesn't need any more teaching");        
 
         std::string studying_skill = land_students[studentId].order_->words_order_[1];
-        long teacher_days(0);
-        if (pUnit->skills_.find(studying_skill) != pUnit->skills_.end())
-            teacher_days = pUnit->skills_[studying_skill];
+        long teacher_days = unit_control::get_current_skill_days(pUnit, studying_skill);
 
         long teacher_lvl = this->SkillDaysToLevel(teacher_days);
         long student_lvl = this->SkillDaysToLevel(land_students[studentId].cur_days_);
@@ -7728,13 +7734,14 @@ void CAtlaParser::RunOrder_Teach(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
         if (!pUnit->pStudents->Insert(land_students[studentId].unit_))
             SHOW_WARN_CONTINUE(" - Unit " << unit_control::compose_unit_name(land_students[studentId].unit_).c_str() << " is already in the students list");
         unit_control::order_message(pUnit, "is teaching: ", unit_control::compose_unit_name(land_students[studentId].unit_).c_str());
-    }
+    }*/
 }
 
 //-------------------------------------------------------------
 
 void CAtlaParser::OrderProcess_Teach(BOOL skiperror, CUnit * pUnit)
 {
+    /*
     long          nstud = 0; // students count
     long          n1, n2;
     CUnit       * pUnit2;
@@ -7790,7 +7797,7 @@ void CAtlaParser::OrderProcess_Teach(BOOL skiperror, CUnit * pUnit)
             }
         }
     }
-    while (FALSE);
+    while (FALSE);*/
 }
 
 //-------------------------------------------------------------

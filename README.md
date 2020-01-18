@@ -1,6 +1,32 @@
 # alh (Atlantis Little Helper)
 
+## Main info
+* Autoorders description: ./doc/autoorders/README.md
+* Client names format: `@;;Name`, invisible "internal" name. Will be represented instead of unit's name in the client, but will be inivisible for other players.
+
+For example, I use notation:
+`@;;[{X}] {y} skill{z}` for my units, where
+`{X}` -- type, such as `A` for an army, `M` for masters, `P` for production and etc. It's useful to have them sorted in the client by their real meaning. Sometimes I extend it, and then `AL` -- for longbows, `AX` for crossbows and so on.
+`{y}` -- amount of peasants/leaders in the unit. It may be represented in specific column, but I prefer to see it there.
+`z` -- level of skill. Sometimes I extend it with `+`, if it's in the process of studying.
+Quite useful to manage big faction, and to not reveal to others the purpose of your units.
+
+* Shortcuts: 
+    - Ctrl + R -- "Receive" window.
+    - Ctrl + F -- form new unit window.
+
+* Description window.
+Now it has description of unit in the beginning of the turn, list of actions and description in the end of the turn. With items and skills prediction.
+
+* Teaching.
+After pressing "Teach" option, unit will automatically get all possible teaching orders for all possible students. Avoiding students, who is already under full teaching, who needs just 30 days to their upper limit and so on. Also with prediction in unit's description.
+Also there will be explicitely written if any of students is not studying anymore.
+
 ## Changelog:
+### Jan 18 2020
+- Studying/Teaching update: number in "Teaching" field represents amoun if students for teacher and amount of days left for teaching for stundents.
+- Internal: Studying/Teaching parsing during the turn finally was moved to new logic.
+
 ### Jan 14 2020
 - receiveDlg: bugfix related adding new lines to orders, which lead to empty lines or concatinating one order to another.
 - autoorders: first caravans unload themselves, if possible, then load. Generally this makes them work more effectively.

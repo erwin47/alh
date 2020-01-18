@@ -31,7 +31,15 @@ namespace skills_control
             sectidx = gpApp->GetSectionNext(sectidx, SZ_SECT_SKILLS, szName, szValue);
         }
         skills.assign(ret.begin(), ret.end());
-    }    
+    }
+
+    static long get_skill_lvl_from_days(long days)
+    {
+        long level = 0;
+        long turns = days / 30;
+        while (turns > 0) { ++level; turns -= (level + 1); };
+        return level;
+    }
 }
 
 #endif
