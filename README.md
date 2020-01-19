@@ -22,7 +22,21 @@ Now it has description of unit in the beginning of the turn, list of actions and
 After pressing "Teach" option, unit will automatically get all possible teaching orders for all possible students. Avoiding students, who is already under full teaching, who needs just 30 days to their upper limit and so on. Also with prediction in unit's description.
 Also there will be explicitely written if any of students is not studying anymore.
 
+* ReceiveDlg.
+In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `REC_DLG_GROUPS` may be listed groups with which ReceiveDlg will work, as with items. For example, `REC_DLG_GROUPS = trade_items,food` mean, that in ReceiveDlg in drop up list there will be possibility to choose `trade_items` or `food`, and get list of all units having any items belonging to the group. Those entities (trade_items and food) have to be defined in section `UNIT_PROPERTY_GROUPS`.
+
 ## Changelog:
+### Jan 19 2020
+- Sell order: logic changed.
+    * trying to sell more than you can (if you can more than 0) is not a warning anymore, but message about it may arrive in Unit Description field. Prediction will be done correctly according to actual possibility to sell.
+    * trying to sell all (if you can more than 0, but less than "all") is not a warning anymore, but message about it may arrive in Unit Description field. Prediction will be done correctly according to actual possibility to sell.
+    * trying to sell more than market accepts (if you can more than 0) is not a warning anymore, but message about it may arrive in Unit Description field. Prediction will be done correctly according to actual possibility to sell.
+    * if unit tries to sell less than it have, and less than market accepts, its a new message in Unit Description field. Prediction will be done correctly.
+    * messages became more correct and precise.
+- ReceiveDlg: group logic added, instead of choosing an item, it is possible to choose a group, defined in UNIT_PROPERTY_GROUPS.
+- Internal: sell order parsing was moved to new rails.
+- Internal: teaching/studying bug with new units fixed.
+
 ### Jan 18 2020
 - Studying/Teaching update: number in "Teaching" field represents amoun if students for teacher and amount of days left for teaching for stundents.
 - Internal: Studying/Teaching parsing during the turn finally was moved to new logic.

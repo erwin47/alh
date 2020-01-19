@@ -852,6 +852,14 @@ void CUnit::ResetNormalProperties()
 {
     CBaseObject::ResetNormalProperties();
     DelProperty(PRP_TEACHING);
+    if (silver_initial_.amount_ != 0)
+    {
+        SetProperty(PRP_SILVER, eLong, (const void*)silver_initial_.amount_, eNormal);
+    } 
+    else 
+    {
+        DelProperty(PRP_SILVER);
+    }
     ProducingItem.Empty();
     men_ = men_initial_;
     silver_ = silver_initial_;

@@ -7,7 +7,7 @@
 //#include "ah_control.h"
 
 CReceiveDlg::CReceiveDlg(wxWindow *parent, CUnit * pUnit, CLand* pLand) : 
-    CResizableDlg( parent, wxT("Receive order"), "Window to help unit receive items it needs" ), 
+    CResizableDlg( parent, wxT("Receive order"), RECEIVE_DLG_SETTINGS ), 
     unit_(pUnit),
     land_(pLand)
 {
@@ -25,6 +25,24 @@ CReceiveDlg::CReceiveDlg(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     itemssizer->Add(spin_items_amount_, 0, wxALL);
     itemssizer->Add(order_repeating_, 0, wxALL);
     itemssizer->Add(use_order_take_, 0, wxALL);
+
+    //!TODO: verify that vector consist of codenames, not longnames
+    std::vector<std::string> group_records = game_control::get_game_config<std::string>(RECEIVE_DLG_SETTINGS, SZ_RECDLG_GROUPS);
+    for (auto& group : group_records)
+    {
+        std::vector<std::string> group_values = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, group.c_str());
+        if (group_values.size() > 0)
+        {
+            //fix out if name wasn't a codename, but short or long name
+            for (std::string& group_value : group_values)
+            {
+                std::string name, plural;
+                gpApp->ResolveAliasItems(group_value, group_value, name, plural);        
+            }
+            groups_[group] = group_values;
+        }
+    }
+
     init_item_types_combobox();
 
     wxBoxSizer* unitchoosesizer = new wxBoxSizer( wxHORIZONTAL );
@@ -62,13 +80,26 @@ CReceiveDlg::CReceiveDlg(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     SetSizer( topsizer );      // actually set the sizer
     topsizer->Fit( this );            // set size to minimum size as calculated by the sizer
     topsizer->SetSizeHints( this );   // set size hints to honour mininum size}        
-    CResizableDlg::SetPos();    
-
+    CResizableDlg::SetPos();
 }
 
 CReceiveDlg::~CReceiveDlg() 
 {
-
+    bool beg(true);
+    std::stringstream ss;
+    for (const auto& group : groups_)
+    {
+        if (beg)
+        {
+            ss << group.first;
+            beg = false;
+        }
+        else
+        {
+            ss << "," << group.first;
+        }        
+    }
+    gpApp->SetConfig(RECEIVE_DLG_SETTINGS, SZ_RECDLG_GROUPS, ss.str().c_str());
 }
 
 void CReceiveDlg::init_item_types_combobox()
@@ -77,6 +108,15 @@ void CReceiveDlg::init_item_types_combobox()
     combobox_item_types_->Clear();
     std::set<CItem> items = get_item_types_list(unit_, land_);
 
+    //Groups
+    for (const auto& group : groups_)
+    {
+        std::string long_name = "=[" + group.first + "]=";
+        long_to_short_item_names_[long_name] = group.first;
+        combobox_item_types_->Append(long_name);        
+    }
+
+    //Silver to be on top, as the most common
     CItem silv;
     silv.code_name_ = "SILV";
     if (items.find(silv) != items.end())
@@ -88,6 +128,7 @@ void CReceiveDlg::init_item_types_combobox()
         combobox_item_types_->Append(plural);
         items.erase(silv);
     }
+
     for (const CItem& item : items)
     {
         std::string codename, name, plural;
@@ -130,9 +171,10 @@ std::set<CItem> CReceiveDlg::get_item_types_list(CUnit* unit, CLand* land) const
     return item_types_list;
 }
 
+
+
 std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& item_type, CUnit* unit, CLand* land)
 {
-    unit_name_to_unit_.clear();
     std::vector<std::string> unit_names;
     std::vector<CUnit*> other_units;
     //get all our units except chosen one
@@ -157,9 +199,9 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
             std::stringstream unit_name;
             unit_name << "(" << std::to_string(ppu.second->Id) << ") ";
             unit_name << std::string(ppu.second->Name.GetData(), ppu.second->Name.GetLength());
-            unit_name << " (max: " + std::to_string(ppu.first) + ")";
+            unit_name << " (:" << std::to_string(ppu.first) << " " << item_type << ")";
             unit_names.push_back(unit_name.str());
-            unit_name_to_unit_[unit_name.str()] = ppu.second;
+            unit_name_to_unit_[unit_name.str()] = {ppu.first, item_type, ppu.second};
         }
     }
     return unit_names;
@@ -168,7 +210,19 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
 void CReceiveDlg::OnItemChosen   (wxCommandEvent& event)
 {
     std::string long_name_item = combobox_item_types_->GetValue().ToStdString();
-    std::vector<std::string> unit_names = get_units_with_item(long_to_short_item_names_[long_name_item], unit_, land_);
+    std::vector<std::string> unit_names;
+    unit_name_to_unit_.clear();
+    if (groups_.find(long_to_short_item_names_[long_name_item]) != groups_.end())
+    {
+        std::vector<std::string> current_unit_names;
+        for (const auto& item_name : groups_[long_to_short_item_names_[long_name_item]])
+        {
+            current_unit_names = get_units_with_item(item_name, unit_, land_);
+            unit_names.insert(unit_names.end(), current_unit_names.begin(), current_unit_names.end());
+        }
+    }
+    else
+        unit_names = get_units_with_item(long_to_short_item_names_[long_name_item], unit_, land_);
 
     combobox_units_->Clear();
     combobox_units_->Append(FROM_ALL_);
@@ -181,11 +235,8 @@ void CReceiveDlg::OnMax          (wxCommandEvent& event)
     std::string giver_name = combobox_units_->GetValue().ToStdString();
     if (unit_name_to_unit_.find(giver_name) == unit_name_to_unit_.end())
         return;
-    CUnit* giver = unit_name_to_unit_[giver_name];
-
-    std::string long_name_item = combobox_item_types_->GetValue().ToStdString();
-    int amount = unit_control::get_item_amount(giver, long_to_short_item_names_[long_name_item]);
-    spin_items_amount_->SetValue(amount);
+    const ItemUnitPair& itemunit = unit_name_to_unit_[giver_name];
+    spin_items_amount_->SetValue(itemunit.amount_);
 }
 
 void CReceiveDlg::perform_give(CUnit* giving_one, CUnit* receiving_one, long amount, const std::string& item_code_name)
@@ -204,20 +255,18 @@ void CReceiveDlg::perform_take(CUnit* giving_one, CUnit* receiving_one, long amo
 
 void CReceiveDlg::OnOk           (wxCommandEvent& event)
 {
-    std::string long_name = combobox_item_types_->GetValue().ToStdString();
-    if (long_name.empty())
+    std::string giver_name = combobox_units_->GetValue().ToStdString();
+    if (giver_name.empty())
         return;
 
-    std::string giver_name = combobox_units_->GetValue().ToStdString();
     if (giver_name == FROM_ALL_)
     {
         for (const auto& pair : unit_name_to_unit_)
         {
-            long amount = unit_control::get_item_amount(pair.second, long_to_short_item_names_[long_name]);
             if (use_order_take_->GetValue())
-                perform_take(pair.second, unit_, amount, long_to_short_item_names_[long_name]);
+                perform_take(pair.second.unit_, unit_, pair.second.amount_, pair.second.item_code_);
             else
-                perform_give(pair.second, unit_, amount, long_to_short_item_names_[long_name]);            
+                perform_give(pair.second.unit_, unit_, pair.second.amount_, pair.second.item_code_);
         }
     }
     else 
@@ -229,11 +278,11 @@ void CReceiveDlg::OnOk           (wxCommandEvent& event)
         if (amount <= 0)
             return;
 
-        CUnit* giving_unit = unit_name_to_unit_[giver_name];
+        const ItemUnitPair& itemunit = unit_name_to_unit_[giver_name];
         if (use_order_take_->GetValue())
-            perform_take(giving_unit, unit_, amount, long_to_short_item_names_[long_name]);
+            perform_take(itemunit.unit_, unit_, amount, itemunit.item_code_);
         else
-            perform_give(giving_unit, unit_, amount, long_to_short_item_names_[long_name]);
+            perform_give(itemunit.unit_, unit_, amount, itemunit.item_code_);
     }
 
     gpApp->m_pAtlantis->RunOrders(land_);

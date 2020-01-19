@@ -8,6 +8,8 @@
 #include <set>
 
 
+#define RECEIVE_DLG_SETTINGS        "RECEIVE_DLG_SETTINGS"
+#define SZ_RECDLG_GROUPS            "REC_DLG_GROUPS"
 
 /*
 TODO: 
@@ -16,6 +18,13 @@ It will need a text space to store there orderes.
 After each such order amounts and accessible item types have to be recalculated.
 6) Get item by pressing first letter on a keyboard, when window is opened.
 */
+struct ItemUnitPair
+{
+    long amount_;
+    std::string item_code_;
+    CUnit* unit_;
+};
+
 class CReceiveDlg : public CResizableDlg
 {
     CUnit* unit_;
@@ -27,10 +36,11 @@ class CReceiveDlg : public CResizableDlg
     wxCheckBox* order_repeating_;
     wxCheckBox* use_order_take_;
 
-    std::map<std::string, CUnit*> unit_name_to_unit_;
+    std::map<std::string, ItemUnitPair> unit_name_to_unit_;
     std::map<std::string, std::string> long_to_short_item_names_;
 
     const std::string FROM_ALL_ = "-=FROM ALL=-";
+    std::map<std::string, std::vector<std::string>> groups_; 
 
 public:
     CReceiveDlg(wxWindow *parent, CUnit * pUnit, CLand* pLand);

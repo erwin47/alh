@@ -527,6 +527,20 @@ namespace land_control
         return gpApp->m_pAtlantis->GetLand(x, y, z, TRUE);
     }
 
+    CProductMarket get_wanted(CLand* land, const std::string& item_code)
+    {
+        if (land->wanted_.find(item_code) != land->wanted_.end())
+            return land->wanted_[item_code];
+        return {0, {0, item_code}};
+    }
+
+    CProductMarket get_for_sale(CLand* land, const std::string& item_code)
+    {
+        if (land->for_sale_.find(item_code) != land->for_sale_.end())
+            return land->for_sale_[item_code];
+        return {0, {0, item_code}};
+    }
+
     std::unordered_map<long, Student> get_land_students(CLand* land, std::vector<unit_control::UnitError>& errors)
     {
         std::unordered_map<long, Student> students;

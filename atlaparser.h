@@ -333,6 +333,7 @@ protected:
     void         RunOrder_Move             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3, long order);
     void         RunOrder_Promote          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Sell             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
+    void         PerformOrder_Sell         (CLand * pLand, CUnit * pUnit);
     void         RunOrder_Buy              (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Give             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL IgnoreMissingTarget);
     void         RunOrder_Take             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL IgnoreMissingTarget);

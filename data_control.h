@@ -69,7 +69,8 @@ namespace land_control
         CUnit* unit_;
     };
 
-
+    CProductMarket get_wanted(CLand* land, const std::string& item_code);
+    CProductMarket get_for_sale(CLand* land, const std::string& item_code);
 
     template<typename T>
     void get_units_if(CLand* land, std::vector<CUnit*>& units, T Pred)

@@ -4620,8 +4620,10 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
     if (peasant_can_teach == 0 && !pMainUnit->GetProperty(PRP_LEADER, type, value, eNormal))
         return FALSE;
 
-    //to reset studying results of RunOrders
-    pLand->ResetUnitsAndStructs();
+    //to reset studying prediction of RunOrders, to be clean before the calculation
+    land_control::perform_on_each_unit(pLand, [](CUnit* unit) {
+        unit->skills_ = unit->skills_initial_;
+    });
     //get teaching days map
     std::vector<unit_control::UnitError> errors;
     std::unordered_map<long, land_control::Student> students = land_control::get_land_students(pLand, errors);
@@ -5102,6 +5104,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
             LandIdToCoord(pLand->Id, X, Y, Z);
             LocA3 = NO_LOCATION;
 
+            if (TurnSequence::SQ_SELL == sequence)
+            {
+                PerformOrder_Sell(pLand, pUnit);
+            }
+
             src         = pUnit->Orders.GetData();
             while (src && *src)
             {
@@ -5255,8 +5262,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 
 
                     case O_SELL:
-                        if (TurnSequence::SQ_SELL == sequence)
-                            RunOrder_Sell(Line, ErrorLine, skiperror, pUnit, pLand, p);
+                        //if (TurnSequence::SQ_SELL == sequence)
+                        //    RunOrder_Sell(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
 
                     case O_FORM:
@@ -7108,6 +7115,73 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
 }
 
 //-------------------------------------------------------------
+
+void CAtlaParser::PerformOrder_Sell(CLand* land, CUnit* unit)
+{
+    auto sell_orders = orders::control::retrieve_orders_by_type(orders::Type::O_SELL, unit->orders_);
+    for (auto& sell_order : sell_orders)
+    {
+        bool ignore_errors = (sell_order->comment_.find("ne") != std::string::npos);
+        std::string item_name = sell_order->words_order_[2];
+        long amount_at_unit = unit_control::get_item_amount(unit, item_name);
+        if (!ignore_errors && amount_at_unit <= 0)
+        {
+            OrderError("Error", unit, "sell issue: no items to sell: " + sell_order->original_string_);
+            continue;
+        }
+
+        CProductMarket wanted_item = land_control::get_wanted(land, item_name);
+        if (!ignore_errors && wanted_item.item_.amount_ <= 0)
+        {
+            OrderError("Error", unit, "sell issue: items are not wanted: " + sell_order->original_string_);
+            continue;
+        }
+
+        long amount_to_sell = atol(sell_order->words_order_[1].c_str());
+        if (strcasecmp(sell_order->words_order_[1].c_str(), "all") == 0)
+            amount_to_sell = std::min(amount_at_unit, wanted_item.item_.amount_);
+        if (!ignore_errors && amount_to_sell <= 0)
+        {
+            OrderError("Error", unit, "sell issue: specified amount is not correct: " + sell_order->original_string_);
+            continue;
+        }
+
+        if (amount_to_sell > amount_at_unit)
+        {
+            unit->impact_description_.push_back("sell issue: trying to sell "+
+                std::to_string(amount_to_sell)+" but has "+std::to_string(amount_at_unit));
+            amount_to_sell = amount_at_unit;
+        }
+        if (amount_to_sell > wanted_item.item_.amount_)
+        {
+            unit->impact_description_.push_back("sell issue: trying to sell "+
+                std::to_string(amount_to_sell)+" but wanted just "+std::to_string(wanted_item.item_.amount_));
+            amount_to_sell = wanted_item.item_.amount_;
+        }
+        if (amount_to_sell < amount_at_unit && amount_to_sell < wanted_item.item_.amount_)
+        {
+            unit->impact_description_.push_back("sell notice: trying to sell "+
+                std::to_string(amount_to_sell)+" but can "+std::to_string(std::min(wanted_item.item_.amount_, amount_at_unit)));
+        }
+        
+        if (gpDataHelper->IsMan(item_name.c_str()))
+            unit_control::modify_man_from_market(unit, item_name, -amount_to_sell, wanted_item.price_);
+        else
+            unit_control::modify_item_from_market(unit, item_name, -amount_to_sell, wanted_item.price_);
+
+        //prorerties support for functionality based on properties
+        CStr LandProp(32);
+        MakeQualifiedPropertyName(PRP_WANTED_AMOUNT_PREFIX, item_name.c_str(), LandProp);
+        if ( (PE_OK!=unit->SetProperty(item_name.c_str(), eLong, (const void *)unit_control::get_item_amount(unit, item_name),  eNormal)) || // This is the old code
+            (PE_OK!=unit->SetProperty(PRP_SILVER, eLong, (const void *)unit_control::get_item_amount(unit, PRP_SILVER), eNormal)) || // This is ALMOST the old code
+            (PE_OK!=land->SetProperty(LandProp.GetData(), eLong, (const void *)wanted_item.item_.amount_ - amount_to_sell,  eNormal)))
+            OrderError("Error", unit, std::string(NOSET) + BUG);
+
+        unit->CalcWeightsAndMovement();        
+    }
+}
+
+
 
 void CAtlaParser::RunOrder_Sell(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params)
 {
