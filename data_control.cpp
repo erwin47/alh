@@ -326,7 +326,12 @@ namespace unit_control
                 current_man_amount += nation.amount_;
 
             //calculate days of knowledge according to new amount of peasants
-            for (auto& skill: source_unit->skills_)
+            std::map<std::string, long> united_skills = source_unit->skills_;
+            for (const auto& skill : unit->skills_)
+                if (united_skills.find(skill.first) == united_skills.end())
+                    united_skills[skill.first] = 0;
+
+            for (auto& skill: united_skills)
             {
                 unit->skills_[skill.first] = ((unit->skills_[skill.first] * current_man_amount) +
                         (skill.second * new_amount)) / (current_man_amount + new_amount);

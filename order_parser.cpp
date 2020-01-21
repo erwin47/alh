@@ -140,7 +140,6 @@ namespace orders
         {
             std::shared_ptr<Order> res = std::make_shared<Order>();
             res->original_string_ = line;
-
             std::vector<std::string> words;
             utils::parse_order_line(line, words);
 
@@ -410,10 +409,36 @@ namespace orders
             }
             return false;
         }
+        
+        bool is_route_same(const CaravanInfo& caravan_info1, const CaravanInfo& caravan_info2)
+        {
+            if (caravan_info1.regions_.size() != caravan_info2.regions_.size())
+                return false;
+
+            bool ret = true;
+            for (const orders::RegionInfo& rinfo1 : caravan_info1.regions_)
+            {
+                bool match = false;
+                for (const orders::RegionInfo& rinfo2 : caravan_info2.regions_)
+                {
+                    if (rinfo1.x_ == rinfo2.x_ && rinfo1.y_ == rinfo2.y_ && rinfo1.z_ == rinfo2.z_)
+                    {
+                        match = true;
+                        break;
+                    }
+                }
+                ret = ret && match;
+                if (!ret)
+                    break;
+            }
+            return ret;
+        }
+
         CaravanInfo get_caravan_info(UnitOrders& unit_orders)
         {
             CaravanInfo retCI;
-            for (const auto& order : unit_orders.orders_)
+            auto order_comments = orders::control::retrieve_orders_by_type(orders::Type::O_COMMENT, unit_orders);
+            for (const auto& order : order_comments)
             {
                 if (order->comment_.find(";!CARAVAN") != std::string::npos || order->comment_.find(";$CARAVAN") != std::string::npos)
                 {
@@ -778,7 +803,15 @@ namespace orders
                 {
                     orders::AutoSource& source = sources[i];
                     if (source.unit_ == need.unit_ || source.amount_ <= 0)
-                        continue;//no need to give to intelf or parse sources without amount
+                        continue;//no need to give to itself or parse sources/need without amount
+
+                    if (orders::autoorders::is_caravan(source.unit_->orders_) && 
+                        orders::autoorders::is_caravan(need.unit_->orders_) && 
+                        orders::autoorders::is_route_same(
+                            orders::autoorders::get_caravan_info(source.unit_->orders_),
+                            orders::autoorders::get_caravan_info(need.unit_->orders_)
+                        ))//no need to give item to another caravan with same route
+                        continue;
 
                     if (source.priority_ != -1 && source.priority_ <= need.priority_)
                         continue;//don't give to lower priority

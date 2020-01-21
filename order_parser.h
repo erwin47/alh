@@ -188,6 +188,8 @@ namespace orders
         //! checks if orders of unit contain caravan info
         bool is_caravan(const UnitOrders& unit_orders);
 
+        bool is_route_same(const UnitOrders& caravan_orders1, const UnitOrders& caravan_orders2);
+
         //! extract CaravanInfo from orders of unit
         CaravanInfo get_caravan_info(UnitOrders& unit_orders);
 

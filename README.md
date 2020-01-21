@@ -26,6 +26,10 @@ Also there will be explicitely written if any of students is not studying anymor
 In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `REC_DLG_GROUPS` may be listed groups with which ReceiveDlg will work, as with items. For example, `REC_DLG_GROUPS = trade_items,food` mean, that in ReceiveDlg in drop up list there will be possibility to choose `trade_items` or `food`, and get list of all units having any items belonging to the group. Those entities (trade_items and food) have to be defined in section `UNIT_PROPERTY_GROUPS`.
 
 ## Changelog:
+### Jan 22 2020
+- Skill mixing bug fix (when gives peasants/leaders from unit to unit).
+- Autoorders fix: caravan will not give items to another caravan if they have same route (identical list of regions).
+
 ### Jan 19 2020
 - Sell order: logic changed.
     * trying to sell more than you can (if you can more than 0) is not a warning anymore, but message about it may arrive in Unit Description field. Prediction will be done correctly according to actual possibility to sell.

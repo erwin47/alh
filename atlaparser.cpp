@@ -7121,7 +7121,7 @@ void CAtlaParser::PerformOrder_Sell(CLand* land, CUnit* unit)
     auto sell_orders = orders::control::retrieve_orders_by_type(orders::Type::O_SELL, unit->orders_);
     for (auto& sell_order : sell_orders)
     {
-        bool ignore_errors = (sell_order->comment_.find("ne") != std::string::npos);
+        bool ignore_errors = (sell_order->comment_.find("NE") != std::string::npos);
         std::string item_name = sell_order->words_order_[2];
         long amount_at_unit = unit_control::get_item_amount(unit, item_name);
         if (!ignore_errors && amount_at_unit <= 0)
@@ -7958,15 +7958,6 @@ BOOL CAtlaParser::ApplyDefaultOrders(BOOL EmptyOnly)
         orders::autoorders_control::get_land_caravan_needs(land, needs);
         if (needs.size() == 0)
             return;
-
-        /*
-        int x,y,z;
-        LandIdToCoord(land->Id, x, y, z);
-        if (x == 51 && y == 49 && z == 1)
-        {
-            int i = 5;
-        }*/
-
 
         //sort needs by priority (in case of equal priority, caravans should go last)
         std::sort(needs.begin(), needs.end(), 
