@@ -55,6 +55,9 @@ namespace unit_control
 
     std::string get_initial_description(CUnit* unit);
     std::string get_actual_description(CUnit* unit);
+
+    bool init_caravan(CUnit* unit);
+    void clean_caravan(CUnit* unit);
 }
 
 namespace land_control
@@ -93,6 +96,8 @@ namespace land_control
         }       
     }
 
+    long get_land_id(const char* land);
+    long get_plane_id(const char* plane_name);
     CLand* get_land(int x, int y, int z);
 
     std::unordered_map<long, Student> get_land_students(CLand* land, std::vector<unit_control::UnitError>& errors);

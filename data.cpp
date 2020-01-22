@@ -867,7 +867,8 @@ void CUnit::ResetNormalProperties()
     skills_ = skills_initial_;
     orders_ = orders::parser::parse_lines_to_orders(std::string(Orders.GetData(), Orders.GetLength()));
     impact_description_.clear();
-
+    caravan_info_ = nullptr;
+    
     Flags     = FlagsOrg;
     FlagsLast = ~Flags;
     reqMovementSpeed = 0;

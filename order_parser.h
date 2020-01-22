@@ -133,6 +133,7 @@ namespace orders
 
     struct CaravanInfo
     {
+        CaravanInfo(CaravanSpeed speed, std::vector<RegionInfo>&& regions) : speed_(speed), regions_(regions)  { }
         CaravanSpeed speed_;
         std::vector<RegionInfo> regions_;
     };
@@ -188,10 +189,11 @@ namespace orders
         //! checks if orders of unit contain caravan info
         bool is_caravan(const UnitOrders& unit_orders);
 
-        bool is_route_same(const UnitOrders& caravan_orders1, const UnitOrders& caravan_orders2);
+        bool is_route_same(const std::shared_ptr<CaravanInfo>& caravan_info1, 
+                           const std::shared_ptr<CaravanInfo>& caravan_info2);
 
         //! extract CaravanInfo from orders of unit
-        CaravanInfo get_caravan_info(UnitOrders& unit_orders);
+        std::shared_ptr<CaravanInfo> get_caravan_info(UnitOrders& unit_orders);
 
         //! parse orders to find out all SOURCE marks of current unit
         bool get_unit_autosources(const UnitOrders& unit_orders, std::vector<AutoSource>& sources);

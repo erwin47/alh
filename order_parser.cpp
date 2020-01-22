@@ -303,14 +303,6 @@ namespace orders
 
         void remove_orders_by_comment(CUnit* unit, const std::string& pattern)
         {
-            if (unit->Id == 7014)
-            {
-                int a = 5;
-            }
-            if (autoorders::is_caravan(unit->orders_))
-            {
-                int a = 5;
-            }            
             unit->orders_.orders_.erase(std::remove_if(unit->orders_.orders_.begin(), 
                                                        unit->orders_.orders_.end(), 
                                                        [&pattern](std::shared_ptr<Order> order) {
@@ -318,10 +310,6 @@ namespace orders
             }), unit->orders_.orders_.end());            
             parser::recalculate_hash(unit->orders_);
 
-            if (autoorders::is_caravan(unit->orders_))
-            {
-                int a = 5;
-            }
             unit->Orders.Empty();
             unit->Orders << orders::parser::compose_string(unit->orders_).c_str();            
         }
@@ -410,16 +398,17 @@ namespace orders
             return false;
         }
         
-        bool is_route_same(const CaravanInfo& caravan_info1, const CaravanInfo& caravan_info2)
+        bool is_route_same(const std::shared_ptr<CaravanInfo>& caravan_info1, 
+                           const std::shared_ptr<CaravanInfo>& caravan_info2)
         {
-            if (caravan_info1.regions_.size() != caravan_info2.regions_.size())
+            if (caravan_info1->regions_.size() != caravan_info2->regions_.size())
                 return false;
 
             bool ret = true;
-            for (const orders::RegionInfo& rinfo1 : caravan_info1.regions_)
+            for (const orders::RegionInfo& rinfo1 : caravan_info1->regions_)
             {
                 bool match = false;
-                for (const orders::RegionInfo& rinfo2 : caravan_info2.regions_)
+                for (const orders::RegionInfo& rinfo2 : caravan_info2->regions_)
                 {
                     if (rinfo1.x_ == rinfo2.x_ && rinfo1.y_ == rinfo2.y_ && rinfo1.z_ == rinfo2.z_)
                     {
@@ -434,9 +423,22 @@ namespace orders
             return ret;
         }
 
-        CaravanInfo get_caravan_info(UnitOrders& unit_orders)
+        //array size have to be 2 or 3
+        void array_to_coordinates(const std::vector<long>& numbers, long& x, long& y, long& z)
         {
-            CaravanInfo retCI;
+            x = numbers[0];
+            y = numbers[1];
+            if (numbers.size() == 3)
+                z = numbers[2];
+            else
+                z = land_control::get_plane_id(DEFAULT_PLANE);
+        }
+
+        std::shared_ptr<CaravanInfo> get_caravan_info(UnitOrders& unit_orders)
+        {
+            //CaravanInfo retCI = std::make_shared<CaravanInfo>();
+            CaravanSpeed speed;
+            std::vector<RegionInfo> regions;
             auto order_comments = orders::control::retrieve_orders_by_type(orders::Type::O_COMMENT, unit_orders);
             for (const auto& order : order_comments)
             {
@@ -452,18 +454,17 @@ namespace orders
                         switch(*runner)
                         {
                             case 'W':
-                            case 'M': retCI.speed_ = CaravanSpeed::MOVE; break;
-                            case 'R': retCI.speed_ = CaravanSpeed::RIDE; break;
-                            case 'F': retCI.speed_ = CaravanSpeed::FLY; break;
-                            case 'S': retCI.speed_ = CaravanSpeed::SWIM; break;
-                            default: retCI.speed_ = CaravanSpeed::UNDEFINED; break;
+                            case 'M': speed = CaravanSpeed::MOVE; break;
+                            case 'R': speed = CaravanSpeed::RIDE; break;
+                            case 'F': speed = CaravanSpeed::FLY; break;
+                            case 'S': speed = CaravanSpeed::SWIM; break;
+                            default: speed = CaravanSpeed::UNDEFINED; break;
                         }
                     }
                 }
 
                 if (order->comment_.find(";!REGION") != std::string::npos || order->comment_.find(";$REGION") != std::string::npos)
                 {
-                    RegionInfo regInfo;
                     const char* runner = order->comment_.c_str() + sizeof(";!REGION") - 1;
                     const char* end = order->comment_.c_str() + order->comment_.size();
                     std::vector<long> numbers;
@@ -475,18 +476,24 @@ namespace orders
                             while (runner < end && isdigit(*runner))
                                 ++runner;
                         }
+                        if (numbers.size() > 1 && *runner != ',')
+                        {
+                            RegionInfo regInfo;                            
+                            array_to_coordinates(numbers, regInfo.x_, regInfo.y_, regInfo.z_);
+                            regions.emplace_back(regInfo);
+                            numbers.clear();
+                        }
                         ++runner;
                     }
-                    for (unsigned i = 0; i < numbers.size()-2; i = i+3)
+                    if (numbers.size() > 1)
                     {
-                        regInfo.x_ = numbers[i];
-                        regInfo.y_ = numbers[i+1];
-                        regInfo.z_ = numbers[i+2];
-                        retCI.regions_.emplace_back(regInfo);
-                    }                    
+                        RegionInfo regInfo;                            
+                        array_to_coordinates(numbers, regInfo.x_, regInfo.y_, regInfo.z_);
+                        regions.emplace_back(regInfo);
+                    }
                 }
             }
-            return retCI;
+            return std::make_shared<CaravanInfo>(speed, std::move(regions));
         }
 
         void get_demand(const char* begin, const char* end, std::string& type, long& amount, long& priority)
@@ -595,7 +602,7 @@ namespace orders
                 if (unit_need.regional_)
                 {
                     land_control::perform_on_each_unit(land, [&](CUnit* cur_unit) {
-                        if (!orders::autoorders::is_caravan(cur_unit->orders_))
+                        if (cur_unit->caravan_info_ == nullptr)
                             existing_amount += unit_control::get_item_amount(cur_unit, unit_need.name_);
                     });                     
                 } 
@@ -656,7 +663,7 @@ namespace orders
         {
             std::vector<orders::AutoSource> cur_unit_sources;
             land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-                if (unit->IsOurs && !orders::autoorders::is_caravan(unit->orders_))
+                if (unit->IsOurs && unit->caravan_info_ == nullptr)
                 {
                     cur_unit_sources.clear();
                     if (orders::autoorders::get_unit_autosources(unit->orders_, cur_unit_sources))
@@ -672,7 +679,7 @@ namespace orders
         void get_land_caravan_sources(CLand* land, std::vector<orders::AutoSource>& sources)
         {
             land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-                if (unit->IsOurs && orders::autoorders::is_caravan(unit->orders_))
+                if (unit->IsOurs && unit->caravan_info_ != nullptr)
                 {
                     get_caravan_sources(unit, sources);
                 }
@@ -683,7 +690,7 @@ namespace orders
         {
             std::vector<orders::AutoRequirement> cur_unit_needs;
             land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-                if (unit->IsOurs && !orders::autoorders::is_caravan(unit->orders_))
+                if (unit->IsOurs && unit->caravan_info_ == nullptr)
                 {
                     cur_unit_needs.clear();
                     if (orders::autoorders::get_unit_autoneeds(unit->orders_, cur_unit_needs))
@@ -711,11 +718,10 @@ namespace orders
         {
             std::vector<orders::AutoRequirement> cur_needs;
             land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-                if (unit->IsOurs && orders::autoorders::is_caravan(unit->orders_))
+                if (unit->IsOurs && unit->caravan_info_ != nullptr)
                 {
                     cur_needs.clear();
-                    orders::CaravanInfo caravan_info = orders::autoorders::get_caravan_info(unit->orders_);
-                    for (const orders::RegionInfo& reg : caravan_info.regions_)
+                    for (const orders::RegionInfo& reg : unit->caravan_info_->regions_)
                     {
                         CLand* farland = land_control::get_land(reg.x_, reg.y_, reg.z_);
                         if (farland == NULL)
@@ -743,7 +749,7 @@ namespace orders
         long weight_max_amount_of_items(CUnit* unit, const std::string& item_name)
         {
             //we don't care about weight if it's not a caravan
-            if (orders::autoorders::is_caravan(unit->orders_))
+            if (unit->caravan_info_ != nullptr)
             {
                 //if its a caravan, we want to avoid overweight
                 long allowed_weight(0);
@@ -757,8 +763,7 @@ namespace orders
                 const char** movenames;                    
                 gpDataHelper->GetItemWeights(item_name.c_str(), item_weights, movenames, movecount);
 
-                orders::CaravanInfo cinfo = orders::autoorders::get_caravan_info(unit->orders_);
-                switch(cinfo.speed_) 
+                switch(unit->caravan_info_->speed_) 
                 {
                     case orders::CaravanSpeed::MOVE:
                         allowed_weight = unit_weights[1] - unit_weights[0];
@@ -805,12 +810,9 @@ namespace orders
                     if (source.unit_ == need.unit_ || source.amount_ <= 0)
                         continue;//no need to give to itself or parse sources/need without amount
 
-                    if (orders::autoorders::is_caravan(source.unit_->orders_) && 
-                        orders::autoorders::is_caravan(need.unit_->orders_) && 
-                        orders::autoorders::is_route_same(
-                            orders::autoorders::get_caravan_info(source.unit_->orders_),
-                            orders::autoorders::get_caravan_info(need.unit_->orders_)
-                        ))//no need to give item to another caravan with same route
+                    if (source.unit_->caravan_info_ != nullptr && 
+                        need.unit_->caravan_info_ != nullptr && 
+                        orders::autoorders::is_route_same(source.unit_->caravan_info_, need.unit_->caravan_info_))
                         continue;
 
                     if (source.priority_ != -1 && source.priority_ <= need.priority_)
@@ -830,7 +832,7 @@ namespace orders
                         continue;//do nothing if resulting amount is 0 or somehow became below
 
                     std::string comment = ";!ao";
-                    if (orders::autoorders::is_caravan(need.unit_->orders_))
+                    if (need.unit_->caravan_info_ != nullptr)
                         comment = ";!ao " + *(need.description_);
                         
                     source.amount_ -= give_amount;

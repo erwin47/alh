@@ -5005,13 +5005,12 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 
     std::unordered_map<long, land_control::Student> students_of_the_land;
 
-    // AutoOrders sanity check section
+    // AutoOrders initialization & sanity check section
     land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {
         //caravan sanity check
-        if (unit->IsOurs && orders::autoorders::is_caravan(unit->orders_))
+        if (unit->IsOurs && unit_control::init_caravan(unit))
         {
-            orders::CaravanInfo cinfo = orders::autoorders::get_caravan_info(unit->orders_);
-            for (const auto& reg : cinfo.regions_)
+            for (const auto& reg : unit->caravan_info_->regions_)
             {
                 if (GetLand(reg.x_, reg.y_, reg.z_, TRUE) == nullptr)
                 {
@@ -5020,9 +5019,9 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     unit_control::order_message(unit, "Didn't find region", ss.str().c_str());
                 }
             }
-            if (cinfo.speed_ == orders::CaravanSpeed::UNDEFINED)
+            if (unit->caravan_info_->speed_ == orders::CaravanSpeed::UNDEFINED)
             {
-                unit_control::order_message(unit, "Caravan speed is undefined", "(unlimited load)");
+                unit_control::order_message(unit, "Caravan speed is undefined", "(unlimited load - Storage Mode)");
             }
         }
     });
@@ -7349,7 +7348,7 @@ void CAtlaParser::GetMovementMode(CUnit * pUnit, int & movementMode, bool & noCr
         if (strstr(movementModeStr, "Fly"))
         {
             movementMode = 6;
-            noCross = (pUnit->Flags & UNIT_FLAG_NO_CROSS_WATER);
+            noCross = unit_control::flags::is_nocross(pUnit);
         }
         else
         if (strstr(movementModeStr, "Ride"))
@@ -7964,8 +7963,8 @@ BOOL CAtlaParser::ApplyDefaultOrders(BOOL EmptyOnly)
             [](const orders::AutoRequirement& req1, const orders::AutoRequirement& req2) {
                 if (req1.priority_ == req2.priority_)
                 {
-                    if (!orders::autoorders::is_caravan(req1.unit_->orders_) && 
-                        orders::autoorders::is_caravan(req2.unit_->orders_))
+                    if (req1.unit_->caravan_info_ == nullptr && 
+                        req2.unit_->caravan_info_ != nullptr)
                         return true;
                     return false;
                 }

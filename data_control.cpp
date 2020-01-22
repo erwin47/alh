@@ -523,6 +523,27 @@ namespace unit_control
         return unit->skills_[skill];
     }
 
+    bool init_caravan(CUnit* unit)
+    {
+        if (orders::autoorders::is_caravan(unit->orders_))
+        {
+            unit->caravan_info_ = orders::autoorders::get_caravan_info(unit->orders_);
+            return true;
+        }
+        else
+        {
+            unit->caravan_info_ = nullptr;
+            return false;
+        }        
+    }
+
+    void clean_caravan(CUnit* unit)
+    {
+        if (unit->caravan_info_ != nullptr)
+            unit->caravan_info_ = nullptr;
+    }
+
+
 }
 
 namespace land_control
@@ -530,6 +551,19 @@ namespace land_control
     CLand* get_land(int x, int y, int z)
     {
         return gpApp->m_pAtlantis->GetLand(x, y, z, TRUE);
+    }
+
+    long get_plane_id(const char* plane_name)
+    {
+        CBaseObject Dummy;
+        Dummy.Name = plane_name;
+        for (size_t i=0; i<gpApp->m_pAtlantis->m_Planes.Count(); i++)
+        {
+            CPlane* pPlane = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(i);
+            if (strcasecmp(pPlane->Name.GetData(), plane_name) == 0)
+                return pPlane->Id;
+        }
+        return -1;
     }
 
     CProductMarket get_wanted(CLand* land, const std::string& item_code)

@@ -409,6 +409,8 @@ public:
     std::map<std::string, long> skills_;
     std::map<std::string, long> skills_initial_;
 
+    std::shared_ptr<orders::CaravanInfo> caravan_info_;
+
     bool            IsOurs;
     long            FactionId;
     CFaction      * pFaction;
