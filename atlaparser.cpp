@@ -4996,8 +4996,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
     BOOL                skiperror = false;
     int                 nNestingMode; // Shar1 Support for TURN/ENDTURN
     long                order;
-    wxString            destination;
-
 
     // Reset land and old units and remove new units
     pLand->ResetNormalProperties();
@@ -5010,13 +5008,21 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
         //caravan sanity check
         if (unit->IsOurs && unit_control::init_caravan(unit))
         {
-            for (const auto& reg : unit->caravan_info_->regions_)
+            for (size_t i = 0; i < unit->caravan_info_->regions_.size(); ++i)
             {
-                if (GetLand(reg.x_, reg.y_, reg.z_, TRUE) == nullptr)
+                orders::RegionInfo& reg = unit->caravan_info_->regions_[i];
+                CLand* region_land = GetLand(reg.x_, reg.y_, reg.z_, TRUE);
+                if (region_land == nullptr)
                 {
                     std::stringstream ss;
                     ss << "("<< reg.x_ << ", " << reg.y_ << ", " << reg.z_ << ")";
                     unit_control::order_message(unit, "Didn't find region", ss.str().c_str());
+                }
+                else if (region_land == pLand)//we can deduct destination land, overwrite parsing
+                {
+                    size_t next_id = (i+1) % unit->caravan_info_->regions_.size();
+                    orders::RegionInfo& destination_reg = unit->caravan_info_->regions_[next_id];
+                    unit->caravan_info_->goal_land_ = GetLand(destination_reg.x_, destination_reg.y_, destination_reg.z_, TRUE);
                 }
             }
             if (unit->caravan_info_->speed_ == orders::CaravanSpeed::UNDEFINED)
@@ -5099,6 +5105,9 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
             pUnitMaster = NULL;
             bool isSimCmd = false;
             pUnit       = (CUnit*)pLand->UnitsSeq.At(mainidx);
+            CLand* destination_land = nullptr;
+            if (pUnit->caravan_info_ != nullptr)
+                destination_land = pUnit->caravan_info_->goal_land_;
 
             LandIdToCoord(pLand->Id, X, Y, Z);
             LocA3 = NO_LOCATION;
@@ -5129,8 +5138,14 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     p = strstr(Line.GetData(), ";;");
                     if (p)
                     {
+                        wxString destination;
                         p+=2;
                         RunPseudoComment(Line, ErrorLine, skiperror, pUnit, pLand, p, sequence, destination);
+                        if (destination_land == nullptr)
+                        {//if is alrady defined, it's a caravan, do not define
+                            destination_land = GetLandFlexible(destination);
+                        }
+                            
                     }
                     isSimCmd = false;
                 }
@@ -5149,7 +5164,13 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     skiperror = (0==stricmp(S1.GetData(),"ne") || 0==stricmp(S1.GetData(),"$ne"));
                     if (!nNestingMode)
                     {
+                        wxString destination;
                         RunPseudoComment(Line, ErrorLine, skiperror, pUnit, pLand, S1.GetData(), sequence, destination);
+                        if (destination_land == nullptr)
+                        {//if is alrady defined, it's a caravan, do not define
+                            destination_land = GetLandFlexible(destination);
+                        }
+                            
                     }
                     Line.DelSubStr(p-Line.GetData()-1, Line.GetLength() - (p-Line.GetData()-1) );
                 }
@@ -5467,8 +5488,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         if (TurnSequence::SQ_MOVE==sequence)
                         {
                             if (isSimCmd)
-                            {
-                                destination = wxString::FromUTF8(p);
+                            {//I have no idea what is the Sim.
+                                destination_land = GetLandFlexible(wxString::FromUTF8(p));
                             }
                             else
                             {
@@ -5698,37 +5719,29 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
             //}
                 
 
-            if (TurnSequence::SQ_MOVE==sequence && !destination.IsEmpty())
+            if (TurnSequence::SQ_MOVE==sequence && !pUnit->pMovement && destination_land != nullptr)
             {
-                if (!pUnit->pMovement)
+                int movementMode;
+                bool noCross;
+                GetMovementMode(pUnit, movementMode, noCross, O_MOVE);
+                wxString route = RoutePlanner::GetRoute(pLand, destination_land, movementMode, RoutePlanner::ROUTE_MARKUP_TURN);
+                if (!route.IsEmpty())
                 {
-                    CLand * pLandHexDest = GetLandFlexible(destination);
-                    if (pLandHexDest)
+                    if (route.Length() > 66)
                     {
-                        int movementMode;
-                        bool noCross;
-                        GetMovementMode(pUnit, movementMode, noCross, O_MOVE);
-                        wxString route = RoutePlanner::GetRoute(pLand, pLandHexDest, movementMode, RoutePlanner::ROUTE_MARKUP_TURN);
-                        if (!route.IsEmpty())
-                        {
-                            if (route.Length() > 66)
-                            {
-                                // only supply first move
-                                RoutePlanner::GetFirstMove(route);
-                            }
-
-                            route.Replace("_ ", "", true);
-                            RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, (const char *)route.ToUTF8(), X, Y, LocA3, O_MOVE);
-                            route = wxString::Format("MOVE%s", route);
-
-                            pUnit->Orders.TrimRight(TRIM_ALL);
-                            pUnit->Orders << EOL_SCR;
-                            pUnit->Orders << (const char *)route.ToUTF8();
-                            Line = (const char *)route.ToUTF8();
-                        }
+                        // only supply first move
+                        RoutePlanner::GetFirstMove(route);
                     }
+
+                    route.Replace("_ ", "", true);
+                    RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, (const char *)route.ToUTF8(), X, Y, LocA3, O_MOVE);
+                    route = wxString::Format("MOVE%s", route);
+
+                    pUnit->Orders.TrimRight(TRIM_ALL);
+                    pUnit->Orders << EOL_SCR;
+                    pUnit->Orders << (const char *)route.ToUTF8();
+                    Line = (const char *)route.ToUTF8();
                 }
-                destination.Clear();
             }
             //if (TurnSequence::SQ_MAX-1==sequence)
             //{

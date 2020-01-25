@@ -150,7 +150,7 @@ namespace orders
                     res->comment_ = word;
                     std::for_each(res->comment_.begin(), res->comment_.end(), [](char & c){
                     c = ::toupper(c);
-                    });                    
+                    });
                     break;
                 }
 
@@ -424,14 +424,16 @@ namespace orders
         }
 
         //array size have to be 2 or 3
-        void array_to_coordinates(const std::vector<long>& numbers, long& x, long& y, long& z)
+        RegionInfo region_info_from_coordinates(const std::vector<long>& numbers)
         {
-            x = numbers[0];
-            y = numbers[1];
+            RegionInfo ret;
+            ret.x_ = numbers[0];
+            ret.y_ = numbers[1];
             if (numbers.size() == 3)
-                z = numbers[2];
+                ret.z_ = numbers[2];
             else
-                z = land_control::get_plane_id(DEFAULT_PLANE);
+                ret.z_ = land_control::get_plane_id(DEFAULT_PLANE);
+            return ret;
         }
 
         std::shared_ptr<CaravanInfo> get_caravan_info(UnitOrders& unit_orders)
@@ -439,6 +441,7 @@ namespace orders
             //CaravanInfo retCI = std::make_shared<CaravanInfo>();
             CaravanSpeed speed;
             std::vector<RegionInfo> regions;
+            CLand* goal_region = nullptr;
             auto order_comments = orders::control::retrieve_orders_by_type(orders::Type::O_COMMENT, unit_orders);
             for (const auto& order : order_comments)
             {
@@ -478,22 +481,44 @@ namespace orders
                         }
                         if (numbers.size() > 1 && *runner != ',')
                         {
-                            RegionInfo regInfo;                            
-                            array_to_coordinates(numbers, regInfo.x_, regInfo.y_, regInfo.z_);
-                            regions.emplace_back(regInfo);
+                            regions.emplace_back(region_info_from_coordinates(numbers));
                             numbers.clear();
                         }
                         ++runner;
                     }
                     if (numbers.size() > 1)
                     {
-                        RegionInfo regInfo;                            
-                        array_to_coordinates(numbers, regInfo.x_, regInfo.y_, regInfo.z_);
-                        regions.emplace_back(regInfo);
+                        regions.emplace_back(region_info_from_coordinates(numbers));
+                    }
+                }
+                
+                if (order->comment_.find(";!CUR_REG") != std::string::npos || order->comment_.find(";$CUR_REG") != std::string::npos)
+                {
+                    const char* runner = order->comment_.c_str() + sizeof(";!CUR_REG") - 1;
+                    const char* end = order->comment_.c_str() + order->comment_.size();
+                    std::vector<long> numbers;
+                    while (runner < end)
+                    {
+                        if (isdigit(*runner))
+                        {
+                            numbers.push_back(atol(runner));
+                            while (runner < end && isdigit(*runner))
+                                ++runner;
+                        }
+                        if (numbers.size() > 1 && *runner != ',')
+                            break;
+                        ++runner;
+                    }
+                    if (numbers.size() > 1)
+                    {
+                        RegionInfo goal_reg_info = region_info_from_coordinates(numbers);
+                        goal_region = land_control::get_land(goal_reg_info.x_,
+                                                             goal_reg_info.y_,
+                                                             goal_reg_info.z_);
                     }
                 }
             }
-            return std::make_shared<CaravanInfo>(speed, std::move(regions));
+            return std::make_shared<CaravanInfo>(speed, std::move(regions), goal_region);
         }
 
         void get_demand(const char* begin, const char* end, std::string& type, long& amount, long& priority)

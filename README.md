@@ -26,6 +26,9 @@ Also there will be explicitely written if any of students is not studying anymor
 In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `REC_DLG_GROUPS` may be listed groups with which ReceiveDlg will work, as with items. For example, `REC_DLG_GROUPS = trade_items,food` mean, that in ReceiveDlg in drop up list there will be possibility to choose `trade_items` or `food`, and get list of all units having any items belonging to the group. Those entities (trade_items and food) have to be defined in section `UNIT_PROPERTY_GROUPS`.
 
 ## Changelog:
+### Jan 25 2020
+- Autoorders: added automatic deduction of the move order for caravan, if there is no move order presented, it will be generated automatically. List of regions now is the complete definition for the path and move orders. The sequence of regions in the order is the sequence of regions to visit for autogeneration.
+
 ### Jan 23 2020
 - internal: Autoorders - kind of optimization, now unit stores caravan's info as a sign of being caravan, which happens once per RunLandOrders and reduces amount of order parsing 4-5 times.
 - format of `@;!REGION` was extended, it may be just copy of region name like `plain (17,19)`, or any other combination of literals, it will actually collect just numbers separated with `,` and deduce Plane level if needs.

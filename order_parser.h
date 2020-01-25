@@ -133,9 +133,11 @@ namespace orders
 
     struct CaravanInfo
     {
-        CaravanInfo(CaravanSpeed speed, std::vector<RegionInfo>&& regions) : speed_(speed), regions_(regions)  { }
+        CaravanInfo(CaravanSpeed speed, std::vector<RegionInfo>&& regions, CLand* goal_land) 
+            : speed_(speed), regions_(regions), goal_land_(goal_land)  { }
         CaravanSpeed speed_;
         std::vector<RegionInfo> regions_;
+        CLand* goal_land_;
     };
 
     namespace control
