@@ -85,6 +85,7 @@ namespace orders
         O_ALL,
         O_ENDALL,
         O_COMMENT,
+        O_ERROR,//comment would contain description
         NORDERS
     };
 

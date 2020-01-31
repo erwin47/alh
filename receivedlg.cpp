@@ -111,6 +111,17 @@ void CReceiveDlg::init_item_types_combobox()
     //Groups
     for (const auto& group : groups_)
     {
+        //verify if we have a unit with an item belonging to a group
+        std::vector<std::string> unit_names;
+        std::vector<std::string> current_unit_names;
+        for (const auto& item_name : group.second)
+        {
+            current_unit_names = get_units_with_item(item_name, unit_, land_);
+            unit_names.insert(unit_names.end(), current_unit_names.begin(), current_unit_names.end());
+        }
+        if (unit_names.size() == 0)
+            continue;//no units with an item from a group -> skip the group
+
         std::string long_name = "=[" + group.first + "]=";
         long_to_short_item_names_[long_name] = group.first;
         combobox_item_types_->Append(long_name);        

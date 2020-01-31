@@ -587,6 +587,13 @@ namespace land_control
             std::shared_ptr<orders::Order> studying_order = orders::control::get_studying_order(unit->orders_);
             if (studying_order != nullptr) 
             {
+                if (studying_order->words_order_.size() != 2)
+                {
+                    unit->impact_description_.push_back("study error: wrong command: " + studying_order->original_string_);
+                    errors.push_back({unit, " - Wrong studying command!"});
+                    return;
+                }
+
                 long price = gpApp->GetStudyCost(studying_order->words_order_[1].c_str());
                 if (price <= 0)
                 {

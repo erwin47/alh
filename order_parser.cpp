@@ -4,7 +4,7 @@
 
 #include <algorithm>
 #include <sstream>
-
+#include <functional>
 
 namespace orders
 {
@@ -78,6 +78,81 @@ namespace orders
         {"ENDTEMPLATE", orders::Type::O_ENDTEMPLATE},
         {"ALL", orders::Type::O_ALL},
         {"ENDALL", orders::Type::O_ENDALL},
+    };
+//std::map< unsigned int, std::function<int(int,int)> > callbackMap;
+    std::map<orders::Type, std::function<bool(const std::vector<std::string>&)> > sanity_checks = {
+        {orders::Type::O_ADDRESS, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_ADVANCE, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_ARMOR, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_ASSASSINATE, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_ATTACK, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_AUTOTAX, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_AVOID, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_BEHIND, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_BUILD, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_BUY, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_CAST, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_CLAIM, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_COMBAT, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_CONSUME, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_DECLARE, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_DESCRIBE, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_DESTROY, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_ENDFORM, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_ENTER, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_ENTERTAIN, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_EVICT, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_EXCHANGE, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_FACTION, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_FIND, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_FORGET, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_FORM, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_GIVE, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_GIVEIF, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_TAKE, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_SEND, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_GUARD, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_HOLD, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_LEAVE, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_MOVE, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_NAME, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_NOAID, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_NOCROSS, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_NOSPOILS, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_OPTION, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_PASSWORD, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_PILLAGE, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_PREPARE, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_PRODUCE, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_PROMOTE, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_QUIT, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_RESTART, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_REVEAL, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_SAIL, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_SELL, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_SHARE, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_SHOW, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_SPOILS, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_STEAL, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_STUDY, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_TAX, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_TEACH, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_WEAPON, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_WITHDRAW, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_WORK, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_RECRUIT, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_TYPE, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_LABEL, [](const std::vector<std::string>& words) {  return true;  } },
+// must be in this sequence! {"", orders::Type::O_ENDXXX == {"", orders::Type::O_XXX+1
+        {orders::Type::O_TURN, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_ENDTURN, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_TEMPLATE, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_ENDTEMPLATE, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_ALL, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_ENDALL, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_COMMENT, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_ERROR, [](const std::vector<std::string>& words) {  return true;  } }
+
     };
 
     namespace utils 
@@ -178,6 +253,19 @@ namespace orders
 
             if (res->words_order_.size() > 0 && types_mapping.find(res->words_order_[0]) != types_mapping.end())
                 res->type_ = types_mapping[res->words_order_[0]];
+
+            if (sanity_checks.find(res->type_) == sanity_checks.end())
+            {
+                res->type_ = orders::Type::O_ERROR;
+                return res;
+            }
+
+            if (!sanity_checks[res->type_](res->words_order_))
+            {
+                res->type_ = orders::Type::O_ERROR;
+            }
+
+            //TODO: add sanity check for order's correctness
             return res;
         }
 
@@ -187,6 +275,7 @@ namespace orders
             const char* begin = orders.c_str();
             const char* end = begin + orders.size();
             const char* runner = begin;
+            int inside_turn_endturn = 0;
             while(runner < end)
             {
                 if (*runner == '\n')
@@ -194,7 +283,12 @@ namespace orders
                     if (begin != runner)
                     {
                         auto order = parse_line_to_order(std::string(begin, runner));
-                        utils::add_order_to_orders(order, res);
+                        if (order->type_ == orders::Type::O_TURN)
+                            inside_turn_endturn += 1;
+                        else if (order->type_ == orders::Type::O_ENDTURN)
+                            inside_turn_endturn -= 1;
+                        else if (inside_turn_endturn == 0)
+                            utils::add_order_to_orders(order, res);
                     }
                     ++runner;
                     begin = runner;
@@ -205,7 +299,12 @@ namespace orders
             if (begin != runner)
             {
                 auto order = parse_line_to_order(std::string(begin, runner));
-                utils::add_order_to_orders(order, res);
+                if (order->type_ == orders::Type::O_TURN)
+                    inside_turn_endturn += 1;
+                else if (order->type_ == orders::Type::O_ENDTURN)
+                    inside_turn_endturn -= 1;
+                else if (inside_turn_endturn == 0)
+                    utils::add_order_to_orders(order, res);                
             }
             return res;
         }
@@ -706,7 +805,14 @@ namespace orders
             land_control::perform_on_each_unit(land, [&](CUnit* unit) {
                 if (unit->IsOurs && unit->caravan_info_ != nullptr)
                 {
-                    get_caravan_sources(unit, sources);
+                    for (const auto& region : unit->caravan_info_->regions_)
+                    {//perform giving items just in region listed in the list.
+                        if (land_control::get_land(region.x_, region.y_, region.z_) == land)
+                        {
+                            get_caravan_sources(unit, sources);
+                            break;
+                        }
+                    }
                 }
             });  
         }
