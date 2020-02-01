@@ -2341,18 +2341,18 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
 
                     if (!p || S2.IsEmpty() || !pUnit)
                     {
-                    // there is no shortname
+                    	// there is no shortname
                         Buf.Format("Unit description - flag/item error at line %d", m_nCurLine);
                         LOG_ERR(ERR_DESIGN, Buf.GetData());
                     }
                     else
                     {
                         SetUnitProperty(pUnit, S2.GetData(), eLong, (void*)n1, eBoth);
-                    // is this a man property?
+                    	// is this a man property?
                         if (gpDataHelper->IsMan(S2.GetData()))
                         {
-                        //So, is it a leader?
-                            if (S1.FindSubStr(SZ_LEADER) >=0 )
+                        	//So, is it a leader?
+                        	if (gpDataHelper->IsLeader(S2.GetData()))
                                 SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_LEADER, eBoth);
                             if (S1.FindSubStr(SZ_HERO) >=0 )
                                 SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_HERO, eBoth);
@@ -6868,7 +6868,7 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
             unitmoney -= n1*peritem; // This is the old code
             unitprop  += n1;         // This is the old code
             landprop  -= n1;
-
+            
             if ( (PE_OK!=pUnit->SetProperty(S1.GetData(), type, (const void *)unitprop,  eNormal)) || // This is the old code
                  (PE_OK!=pUnit->SetProperty(PRP_SILVER,   type, (const void *)unitmoney, eNormal)) || // This is ALMOST the old code
                  (PE_OK!=pLand->SetProperty(LandProp.GetData(), type, (const void *)landprop,  eNormal)))
@@ -6884,11 +6884,11 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
             pUnit->CalcWeightsAndMovement();
 
             AdjustSkillsAfterGivingMen(&DummyGiver, pUnit, S1, n1);
-
+            
             if (gpDataHelper->IsMan(S1.GetData()))
             {
-                if (S1.FindSubStr("LEAD") >= 0)
-                    SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_LEADER, eNormal);
+            	if (gpDataHelper->IsLeader(S1.GetData()))
+                    pUnit->SetProperty(PRP_LEADER, eCharPtr, SZ_LEADER, eNormal);
             }
         }
         else

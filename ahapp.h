@@ -205,6 +205,7 @@ public:
     BOOL                 GetOrderId     (const char * order, long & id);
     BOOL                 IsTradeItem    (const char * item);
     BOOL                 IsMan          (const char * item);
+    BOOL                 IsLeader       (const char * item);
     BOOL                 IsMagicSkill   (const char * skill);
     const char *         GetWeatherLine (BOOL IsCurrent, BOOL IsGood, int Zone);
     void                 GetProdDetails (const char * item, TProdDetails & details);
@@ -360,6 +361,7 @@ private:
     CHashStrToLong       m_OrderHash;
     CHashStrToLong       m_TradeItemsHash;
     CHashStrToLong       m_MenHash;
+    CHashStrToLong       m_LeadersHash;
     CHashStrToLong       m_MaxSkillHash;
     CHashStrToLong       m_MagicSkillsHash;
     int                  m_nStdoutLastPos;
