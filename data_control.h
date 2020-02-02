@@ -76,6 +76,7 @@ namespace land_control
 
     CProductMarket get_wanted(CLand* land, const std::string& item_code);
     CProductMarket get_for_sale(CLand* land, const std::string& item_code);
+    void add_resource(CLand* land, const CItem& item);
     long get_resource(CLand* land, const std::string& item_code);
     void set_requested_resources(CLand* land, const std::string& item_code, long amount);
 

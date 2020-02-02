@@ -213,7 +213,6 @@ public:
     BOOL                 IsMagicSkill   (const char * skill);
     const char *         GetWeatherLine (BOOL IsCurrent, BOOL IsGood, int Zone);
     void                 GetProdDetails (const char * item, TProdDetails & details);
-    long                 GetMaxRaceSkillLevel(const char * race, const char * skill, const char * leadership, BOOL IsArcadiaSkillSystem);
     BOOL                 CanSeeAdvResources(const char * skillname, const char * terrain, CLongColl & Levels, CBufColl & Resources);
     int                  GetAttitudeForFaction(int id);
     void                 SetAttitudeForFaction(int id, int attitude);

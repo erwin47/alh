@@ -1245,107 +1245,6 @@ const char * CAhApp::GetWeatherLine(BOOL IsCurrent, BOOL IsGood, int Zone)
 
 //-------------------------------------------------------------------------
 
-long CAhApp::GetMaxRaceSkillLevel(const char * race, const char * skill, const char * leadership, BOOL IsArcadiaSkillSystem)
-{
-    // we will cache it a bit...
-    long  level    = 0;
-    long  maxlevel = 0;
-    CStr  sKey;
-    CStr  sVal, S;
-    const char * p;
-
-    if (!leadership)
-        leadership = "";
-    sKey << race << ":" << leadership << ":" << skill;
-
-    if (!m_MaxSkillHash.Locate(sKey.GetData(), (const void *&)level))
-    {
-        sVal = GetConfig(SZ_SECT_MAX_SKILL_LVL, race);
-        if (sVal.GetData() == NULL)
-        {
-            std::stringstream ss;
-            ss << "No " << SZ_SECT_MAX_SKILL_LVL << " data found for race: " << race;
-            this->ShowError(ss.str().c_str(), ss.str().size(), TRUE);
-        }            
-            
-        p = sVal.GetData();
-
-        p = S.GetToken(p, ',', TRIM_ALL);
-        maxlevel = atol(S.GetData());
-
-        p = S.GetToken(p, ',', TRIM_ALL);
-        level = atol(S.GetData());
-
-        while (p && *p)
-        {
-            p = S.GetToken(p, ',', TRIM_ALL);
-            if (0==stricmp(skill, S.GetData()))
-            {
-                level = maxlevel;
-                break;
-            }
-        }
-
-        if (IsArcadiaSkillSystem && *leadership)
-        {
-            if ( IsMagicSkill(skill))
-            {
-                if ( 0==stricmp(leadership, SZ_HERO))
-                {
-                    // reread magic skill
-                    sVal = GetConfig(SZ_SECT_MAX_MAG_SKILL_LVL, race);
-                    p = sVal.GetData();
-
-                    p = S.GetToken(p, ',', TRIM_ALL);
-                    maxlevel = atol(S.GetData());
-
-                    p = S.GetToken(p, ',', TRIM_ALL);
-                    level = atol(S.GetData());
-
-                    while (p && *p)
-                    {
-                        p = S.GetToken(p, ',', TRIM_ALL);
-                        if (0==stricmp(skill, S.GetData()))
-                        {
-                            level = maxlevel;
-                            break;
-                        }
-                    }
-                }
-                else
-                    level = 0;
-            }
-            else
-            {
-                // adjust for leadership
-                int leader_bonus, hero_bonus, bonus=0;
-
-                sVal = GetConfig(SZ_SECT_COMMON, SZ_KEY_LEAD_SKILL_BONUS);
-                p = sVal.GetData();
-
-                p = S.GetToken(p, ',', TRIM_ALL);
-                leader_bonus = atol(S.GetData());
-
-                p = S.GetToken(p, ',', TRIM_ALL);
-                hero_bonus = atol(S.GetData());
-
-                if (0==stricmp(leadership, SZ_LEADER))
-                    bonus = leader_bonus;
-                else
-                    if (0==stricmp(leadership, SZ_HERO))
-                        bonus = hero_bonus;
-                level += bonus;
-            }
-        }
-
-        m_MaxSkillHash.Insert(sKey.GetData(), (void*)level);
-    }
-
-    return level;
-}
-
-//-------------------------------------------------------------------------
-
 void CAhApp::GetProdDetails(const char* item, TProdDetails& details)
 {
     details.clear();
@@ -5097,11 +4996,6 @@ const char * CGameDataHelper::GetPlaneSize (const char * plane)
 void CGameDataHelper::GetProdDetails (const char * item, TProdDetails & details)
 {
     gpApp->GetProdDetails (item, details);
-}
-
-long CGameDataHelper::MaxSkillLevel  (const char * race, const char * skill, const char * leadership, BOOL IsArcadiaSkillSystem)
-{
-    return gpApp->GetMaxRaceSkillLevel(race, skill, leadership, IsArcadiaSkillSystem);
 }
 
 BOOL CGameDataHelper::ImmediateProdCheck()

@@ -33,7 +33,9 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 - region produce report extended: added info regarding requested production this turn.
 - unit produce report extended: added modifications of items, prediction of unit state according to them.
 - flags report: added `rU`/`rF` & `cU`/`cF` for reveal/consume unit/faction versus old `r` & `c`
-- fixed bug with handling of TURN-ENDTURN orders intruduced at Jan 31 2020.
+- bugfix: handling of TURN-ENDTURN orders intruduced at Jan 31 2020.
+- bugfix: config crash on CAhApp::GetMaxRaceSkillLevel.
+- bugfix: duplication of production.
 
 ### Jan 31 2020
 - internal: added sanity check mechanism for orders and O_ERROR as a type in case of error

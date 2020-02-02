@@ -1474,7 +1474,7 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
                                 m_NewProducts.Insert(pNewProd);
                             }
                         pLand->Products.Insert(pProd);
-                        pLand->resources_.emplace_back(*pProd);
+                        land_control::add_resource(pLand, *pProd);
 
                         // also set as a property to simplify searching
                         MakeQualifiedPropertyName(PRP_RESOURCE_PREFIX, ShortName.GetData(), Buf);
@@ -3813,6 +3813,9 @@ void CAtlaParser::compose_products_detailed(CLand* land, std::stringstream& out)
     std::string code, name, plural;
 
     out << "  Products:";
+    std::sort(land->resources_.begin(), land->resources_.end(), [](const CItem& it1, const CItem& it2) {
+        return it1.amount_ > it2.amount_;
+    });
     for (const auto& resource : land->resources_)
     {
         if (!gpApp->ResolveAliasItems(resource.code_name_, code, name, plural))
@@ -8265,7 +8268,7 @@ void CAtlaParser::LookupAdvancedResourceVisibility(CUnit * pUnit, CLand * pLand)
                                 pProd->amount_    = 0;
                                 pProd->code_name_ = Dummy.code_name_;
                                 pLand->Products.Insert(pProd);
-                                pLand->resources_.emplace_back(*pProd);
+                                land_control::add_resource(pLand, *pProd);
                             }
                         }
                 }

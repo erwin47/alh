@@ -513,6 +513,20 @@ namespace unit_control
         return ss.str();
     }
 
+    long get_max_skill_lvl_for_race(const std::string& race, const std::string& skill)
+    {
+        std::vector<std::string> race_info = game_control::get_game_config<std::string>(SZ_SECT_MAX_SKILL_LVL, race.c_str());
+        if (race_info.size() < 2)
+            return 0;
+        
+        for (size_t i = 2, size = race_info.size(); i < size; ++i)
+        {
+            if (skill == race_info[i])
+                return atol(race_info[0].c_str());
+        }
+        return atol(race_info[1].c_str());
+    }
+
     long get_max_skill_lvl(CUnit* unit, const std::string& skill)
     {
         long ret(-1);
@@ -524,9 +538,9 @@ namespace unit_control
                 const char* lead;                
                 unit->GetProperty(PRP_LEADER, type, (const void *&)lead, eNormal);
                 if (ret == -1)
-                    ret = gpDataHelper->MaxSkillLevel(item.code_name_.c_str(), skill.c_str(), lead, FALSE);
+                    ret = get_max_skill_lvl_for_race(item.code_name_, skill);
                 else
-                    ret = std::min(ret, gpDataHelper->MaxSkillLevel(item.code_name_.c_str(), skill.c_str(), lead, FALSE));
+                    ret = std::min(ret, get_max_skill_lvl_for_race(item.code_name_, skill));
             }
         }
         return ret;
@@ -580,6 +594,19 @@ namespace land_control
                 return pPlane->Id;
         }
         return -1;
+    }
+
+    void add_resource(CLand* land, const CItem& item)
+    {
+        for (auto& res : land->resources_)
+        {
+            if (res.code_name_ == item.code_name_)
+            {
+                res.amount_ = item.amount_;
+                return;
+            }
+        }
+        land->resources_.emplace_back(item);
     }
 
     CProductMarket get_wanted(CLand* land, const std::string& item_code)
