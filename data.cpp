@@ -1077,16 +1077,16 @@ BOOL CUnit::GetProperty(const char  *  name,
 
         if (Flags & UNIT_FLAG_PILLAGING        )  sValue << "€";
         if (Flags & UNIT_FLAG_TAXING           )  sValue << '$';
-        if (Flags & UNIT_FLAG_PRODUCING        )  sValue << 'P';
+        if (Flags & UNIT_FLAG_PRODUCING        )  sValue << 'p';
         if (Flags & UNIT_FLAG_GUARDING         )  sValue << 'g';
         if (Flags & UNIT_FLAG_AVOIDING         )  sValue << 'a';
         if (Flags & UNIT_FLAG_BEHIND           )  sValue << 'b';
-        if (Flags & UNIT_FLAG_REVEALING_UNIT   )  sValue << 'r';
-        else if (Flags & UNIT_FLAG_REVEALING_FACTION)  sValue << 'r';
+        if (Flags & UNIT_FLAG_REVEALING_UNIT   )  sValue << "rU";
+        else if (Flags & UNIT_FLAG_REVEALING_FACTION)  sValue << "rF";
         if (Flags & UNIT_FLAG_HOLDING          )  sValue << 'h';
         if (Flags & UNIT_FLAG_RECEIVING_NO_AID )  sValue << 'i';
-        if (Flags & UNIT_FLAG_CONSUMING_UNIT   )  sValue << 'c';
-        else if (Flags & UNIT_FLAG_CONSUMING_FACTION)  sValue << 'c';
+        if (Flags & UNIT_FLAG_CONSUMING_UNIT   )  sValue << "cU";
+        else if (Flags & UNIT_FLAG_CONSUMING_FACTION)  sValue << "cF";
         if (Flags & UNIT_FLAG_NO_CROSS_WATER   )  sValue << 'x';
         if (Flags & UNIT_FLAG_SPOILS           )  sValue << 's';
         // MZ - Added for Arcadia
@@ -1382,20 +1382,14 @@ int  CBaseCollByName::Compare(void * pItem1, void * pItem2) const
 
 //-------------------------------------------------------------
 
-void TProdDetails::Empty()
+void TProdDetails::clear()
 {
-    int i;
-
-    skillname.Empty();
-    skilllevel=0;
-    months=0;
-    toolname.Empty();
-    toolhelp=0;
-    for (i=0; i<MAX_RES_NUM; i++)
-    {
-        resname[i].Empty();
-        resamt[i]=0;
-    }
+    skill_name_.clear();
+    skill_level_=0;
+    per_month_=0;
+    req_resources_.clear();
+    tool_name_.clear();
+    tool_plus_=0;
 }
 
 //=============================================================

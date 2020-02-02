@@ -23,6 +23,7 @@
 #include <map>
 
 #include "data.h"
+//#include "data_control.h"
 #include "files.h"
 #include "hash.h"
 
@@ -214,6 +215,7 @@ public:
     void       GetUnitList(CCollection * pResultColl, int x, int y, int z);
     void       CountMenForTheFaction(int FactionId);
     void       ComposeProductsLine(CLand * pLand, const char * eol, CStr & S);
+    void       compose_products_detailed(CLand* land, std::stringstream& out);
     BOOL       LandStrCoordToId(const char * landcoords, long & id) const;
     int        NormalizeHexX(int NoX, CPlane *) const;
     void       ComposeLandStrCoord(CLand * pLand, CStr & LandStr);
@@ -329,7 +331,7 @@ protected:
     void         OrderProcess_Teach(BOOL skiperror, CUnit * pUnit);
 
     // Order handlers and helpers
-    void         RunOrder_Teach            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL TeachCheckGlb);
+    //void         RunOrder_Teach            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL TeachCheckGlb);
     void         RunOrder_Move             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3, long order);
     void         RunOrder_Promote          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Sell             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
@@ -339,7 +341,9 @@ protected:
     void         RunOrder_Take             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL IgnoreMissingTarget);
     void         RunOrder_Send             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Produce          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-    void         RunOrder_Study            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
+    void         RunOrder_LandProduce      (CLand* land);
+    void         RunOrder_LandStudyTeach   (CLand* land);
+    //void         RunOrder_Study            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Name             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_SailAIII         (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3);
     BOOL         FindTargetsForSend        (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char *& params, CUnit *& pUnit2, CLand *& pLand2);

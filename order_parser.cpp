@@ -203,9 +203,30 @@ namespace orders
 
         void add_order_to_orders(std::shared_ptr<Order>& order, UnitOrders& unit_orders)
         {
-            unit_orders.orders_.emplace_back(order);
-            size_t pos = unit_orders.orders_.size() - 1;
-            unit_orders.hash_[unit_orders.orders_[pos]->type_].push_back(pos);        
+            if (order->type_ == orders::Type::O_TURN)
+            {
+                if (unit_orders.turn_endturn_started_)
+                    unit_orders.errors_.append("Got TURN inside another TURN order\n");
+                unit_orders.turn_endturn_started_ = true;
+            }
+                
+            else if (order->type_ == orders::Type::O_ENDTURN)
+            {
+                if (!unit_orders.turn_endturn_started_)
+                    unit_orders.errors_.append("Got ENDTURN without TURN order\n");
+                unit_orders.turn_endturn_started_ = false;
+            }                
+
+            if (unit_orders.turn_endturn_started_)
+            {
+                unit_orders.turn_endturn_collection_.emplace_back(order);
+            }
+            else
+            {
+                unit_orders.orders_.emplace_back(order);
+                size_t pos = unit_orders.orders_.size() - 1;
+                unit_orders.hash_[unit_orders.orders_[pos]->type_].push_back(pos);        
+            }
         }        
     }
 
@@ -283,12 +304,7 @@ namespace orders
                     if (begin != runner)
                     {
                         auto order = parse_line_to_order(std::string(begin, runner));
-                        if (order->type_ == orders::Type::O_TURN)
-                            inside_turn_endturn += 1;
-                        else if (order->type_ == orders::Type::O_ENDTURN)
-                            inside_turn_endturn -= 1;
-                        else if (inside_turn_endturn == 0)
-                            utils::add_order_to_orders(order, res);
+                        utils::add_order_to_orders(order, res);
                     }
                     ++runner;
                     begin = runner;
@@ -299,12 +315,7 @@ namespace orders
             if (begin != runner)
             {
                 auto order = parse_line_to_order(std::string(begin, runner));
-                if (order->type_ == orders::Type::O_TURN)
-                    inside_turn_endturn += 1;
-                else if (order->type_ == orders::Type::O_ENDTURN)
-                    inside_turn_endturn -= 1;
-                else if (inside_turn_endturn == 0)
-                    utils::add_order_to_orders(order, res);                
+                utils::add_order_to_orders(order, res);                
             }
             return res;
         }
@@ -329,6 +340,8 @@ namespace orders
         {
             std::stringstream res;
             for (const auto& order : orders.orders_)
+                compose_string(res, order);
+            for (const auto& order : orders.turn_endturn_collection_)
                 compose_string(res, order);
             return res.str();
         }

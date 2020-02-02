@@ -39,6 +39,8 @@ namespace unit_control
 
     void modify_silver(CUnit* unit, long new_amount, const std::string& reason);
 
+    void modify_item_by_produce(CUnit* unit, const std::string& codename, long new_amount);
+
     void modify_item_from_market(CUnit* unit, const std::string& codename, long new_amount, long price);
     void modify_item_from_unit(CUnit* unit, CUnit* source, const std::string& codename, long new_amount);
 
@@ -74,6 +76,8 @@ namespace land_control
 
     CProductMarket get_wanted(CLand* land, const std::string& item_code);
     CProductMarket get_for_sale(CLand* land, const std::string& item_code);
+    long get_resource(CLand* land, const std::string& item_code);
+    void set_requested_resources(CLand* land, const std::string& item_code, long amount);
 
     template<typename T>
     void get_units_if(CLand* land, std::vector<CUnit*>& units, T Pred)
@@ -107,6 +111,12 @@ namespace land_control
 
 namespace game_control
 {
+    struct NameAndAmount
+    {
+        std::string name_;
+        long amount_;
+    };
+
     template<typename T>
     T convert_to(const std::string& str);
 
@@ -124,6 +134,10 @@ namespace game_control
         {
             while (beg < end && !isalpha(*beg))
                 ++beg;
+
+            if (beg == end)
+                break;
+                
             runner = beg;
             while (runner < end && *runner != ',')
                 ++runner;

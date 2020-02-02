@@ -1346,42 +1346,24 @@ long CAhApp::GetMaxRaceSkillLevel(const char * race, const char * skill, const c
 
 //-------------------------------------------------------------------------
 
-void CAhApp::GetProdDetails (const char * item, TProdDetails & details)
+void CAhApp::GetProdDetails(const char* item, TProdDetails& details)
 {
-    CStr sVal, S;
-    const char * p;
-    int x;
+    details.clear();
+    game_control::NameAndAmount skill_val = game_control::get_game_config_val<game_control::NameAndAmount>(SZ_SECT_PROD_SKILL, item);
+    details.skill_name_ = skill_val.name_;
+    details.skill_level_ = skill_val.amount_;
 
-    details.Empty();
-    sVal = GetConfig(SZ_SECT_PROD_SKILL, item);
-    if (!sVal.IsEmpty())
-    {
-        S = details.skillname.GetToken(sVal.GetData(), ' ', TRIM_ALL);
-        details.skilllevel = atol(S.GetData());
-    }
+    std::vector<game_control::NameAndAmount> resources = game_control::get_game_config<game_control::NameAndAmount>(SZ_SECT_PROD_RESOURCE, item);
+    details.req_resources_.resize(resources.size());
+    std::transform(resources.begin(), resources.end(), details.req_resources_.begin(), 
+        [](const game_control::NameAndAmount& name_and_amount) {
+            return std::pair<std::string, long>(name_and_amount.name_, name_and_amount.amount_);
+    });
 
-    sVal = GetConfig(SZ_SECT_PROD_RESOURCE, item);
-    x = 0;
-    p = sVal.GetData();
-    while (p && *p && x<MAX_RES_NUM)
-    {
-        p = details.resname[x].GetToken(SkipSpaces(p), ' ', TRIM_ALL);
-        p = S.GetToken(p, ',', TRIM_ALL);
-        details.resamt[x] = atol(S.GetData());
-        x++;
-    }
-
-    sVal = GetConfig(SZ_SECT_PROD_MONTHS, item);
-    if (!sVal.IsEmpty())
-        details.months = atol(sVal.GetData());
-
-    sVal = GetConfig(SZ_SECT_PROD_TOOL, item);
-    if (!sVal.IsEmpty())
-    {
-        S = details.toolname.GetToken(sVal.GetData(), ' ', TRIM_ALL);
-        details.toolhelp = atol(S.GetData());
-    }
-
+    details.per_month_ = game_control::get_game_config_val<long>(SZ_SECT_PROD_MONTHS, item);
+    game_control::NameAndAmount tool_val = game_control::get_game_config_val<game_control::NameAndAmount>(SZ_SECT_PROD_TOOL, item);
+    details.tool_name_ = tool_val.name_;
+    details.tool_plus_ = tool_val.amount_;
 }
 
 //-------------------------------------------------------------------------
@@ -2269,7 +2251,7 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
             continue;
         GetProdDetails(pProd->code_name_.c_str(), details);
         Skill.Empty();
-        Skill << details.skillname << PRP_SKILL_POSTFIX;
+        Skill << details.skill_name_.c_str() << PRP_SKILL_POSTFIX;
 
         for (x=0; x<pLand->Units.Count(); x++)
         {
@@ -2299,13 +2281,13 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
                     if (!pUnit->GetProperty(Skill.GetData(), type, (const void *&)lvl, eNormal) || (eLong!=type) )
                         continue;
 
-                    if (!details.toolname.IsEmpty())
-                        if (!pUnit->GetProperty(details.toolname.GetData(), type, (const void *&)tool, eNormal) || eLong!=type )
+                    if (!details.tool_name_.empty())
+                        if (!pUnit->GetProperty(details.tool_name_.c_str(), type, (const void *&)tool, eNormal) || eLong!=type )
                             tool = 0;
                     if (tool > men)
                         tool = men;
 
-                    canproduce = (long)((((double)men)*lvl + tool*details.toolhelp) / details.months);
+                    canproduce = (long)((((double)men)*lvl + tool*details.tool_plus_) / details.per_month_);
                     pFactionInfo->amount -= canproduce;
                 }
             }
@@ -3394,7 +3376,9 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
             m_HexDescrSrc << pLand->Description;
 
             m_HexDescrSrc << EOL_SCR;
-            m_pAtlantis->ComposeProductsLine(pLand, EOL_SCR, m_HexDescrSrc);
+            std::stringstream ss;
+            m_pAtlantis->compose_products_detailed(pLand, ss);
+            m_HexDescrSrc << ss.str().c_str();
 
             if (pLand->Structs.Count()>0)
             {

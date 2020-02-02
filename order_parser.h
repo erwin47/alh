@@ -108,8 +108,14 @@ namespace orders
 
     struct UnitOrders
     {
+        UnitOrders() : turn_endturn_started_(false) {}
+
         std::vector<std::shared_ptr<orders::Order>> orders_;
         std::unordered_map<orders::Type, std::vector<size_t>, OrderTypeHash> hash_;
+
+        bool turn_endturn_started_;
+        std::vector<std::shared_ptr<orders::Order>> turn_endturn_collection_;
+        std::string errors_;
     };
 
     namespace parser

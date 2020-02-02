@@ -236,6 +236,22 @@ namespace unit_control
         unit->impact_description_.push_back(ss.str());        
     }
 
+    void modify_item_by_produce(CUnit* unit, const std::string& codename, long new_amount)
+    {
+        if (new_amount == 0)
+            return;
+
+        items_control::modify_amount(unit->items_, codename, new_amount);
+
+        std::stringstream ss;
+        if (new_amount > 0)
+            ss << "produce " << new_amount << " of " << codename;
+        else
+            ss << "spent " << abs(new_amount) << " of " << codename << " for production";
+
+        unit->impact_description_.push_back(ss.str());
+    }
+
     void modify_item_from_market(CUnit* unit, const std::string& codename, long new_amount, long price)
     {
         if (new_amount == 0)
@@ -580,6 +596,21 @@ namespace land_control
         return {0, {0, item_code}};
     }
 
+    long get_resource(CLand* land, const std::string& item_code)
+    {
+        for (const auto& resource : land->resources_)
+        {
+            if (resource.code_name_ == item_code)
+                return resource.amount_;
+        }
+        return 0;
+    }
+
+    void set_requested_resources(CLand* land, const std::string& item_code, long amount)
+    {
+        land->requested_resources_[item_code] += amount;
+    }
+
     std::unordered_map<long, Student> get_land_students(CLand* land, std::vector<unit_control::UnitError>& errors)
     {
         std::unordered_map<long, Student> students;
@@ -733,6 +764,16 @@ namespace game_control
     std::string convert_to<std::string>(const std::string& str)
     {
         return str;
+    }
+
+    template<>
+    NameAndAmount convert_to(const std::string& str)
+    {//TYPE X    
+        size_t separator = str.find(' ');
+        if (separator == std::string::npos)
+            return {str, 0};
+        
+        return {str.substr(0, str.find(' ')), atol(&str[str.find(' ')+1])};
     }
 
     template<>

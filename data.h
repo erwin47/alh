@@ -514,6 +514,8 @@ public:
     CBaseColl     UnitsSeq; // this will keep units in the sequence they were met in the report
     CBaseColl     EdgeStructs;
     CProductColl  Products;
+    std::vector<CItem> resources_;
+    std::map<std::string, long> requested_resources_;
     std::map<std::string, CProductMarket> wanted_;
     std::map<std::string, CProductMarket> for_sale_;
     unsigned long Flags;
@@ -604,17 +606,16 @@ protected:
 class TProdDetails
 {
 public:
-    CStr skillname;
-    long skilllevel;
+    std::string skill_name_;
+    long skill_level_;
 
-    long months;
-    CStr resname[MAX_RES_NUM];
-    long resamt[MAX_RES_NUM];
+    long per_month_;
+    std::vector<std::pair<std::string, long>> req_resources_;
 
-    CStr toolname;
-    long toolhelp;
+    std::string tool_name_;
+    long tool_plus_;
 
-    void Empty();
+    void clear();
 };
 
 //-----------------------------------------------------------------

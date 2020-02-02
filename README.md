@@ -26,6 +26,15 @@ Also there will be explicitely written if any of students is not studying anymor
 In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `REC_DLG_GROUPS` may be listed groups with which ReceiveDlg will work, as with items. For example, `REC_DLG_GROUPS = trade_items,food` mean, that in ReceiveDlg in drop up list there will be possibility to choose `trade_items` or `food`, and get list of all units having any items belonging to the group. Those entities (trade_items and food) have to be defined in section `UNIT_PROPERTY_GROUPS`.
 
 ## Changelog:
+### Feb 02 2020
+- internal: produce flow refactored. Added resources_ & requested_resources_ parameters to region.
+- internal: extracted `RunOrder_LandStudyTeach` & `RunOrder_LandProduce` functions.
+- internal: added config parsing object `NameAndAmount` to handle `NAME X` parameters
+- region produce report extended: added info regarding requested production this turn.
+- unit produce report extended: added modifications of items, prediction of unit state according to them.
+- flags report: added `rU`/`rF` & `cU`/`cF` for reveal/consume unit/faction versus old `r` & `c`
+- fixed bug with handling of TURN-ENDTURN orders intruduced at Jan 31 2020.
+
 ### Jan 31 2020
 - internal: added sanity check mechanism for orders and O_ERROR as a type in case of error
 - bugfix: turn-endturn are not considered as orders anymore

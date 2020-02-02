@@ -18,6 +18,7 @@
  */
 
 #include <algorithm>
+#include <cmath>
 #include <map>
 #include <sstream>
 
@@ -1460,11 +1461,11 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
                         else
                             if (!m_IsHistory && !ProductsWereEmpty)
                             {
+                                //filling m_NewProducts for messaging regarding new products
                                 // we have found a new product! Woo-hoo!
                                 CStr          sCoord;
                                 CBaseObject * pNewProd = new CBaseObject;
 
-                                //LandIdToCoord(pLand->Id, x, y, z);
                                 ComposeLandStrCoord(pLand, sCoord);
                                 pNewProd->Name        << LongName << " discovered in (" << sCoord << ")";
                                 pNewProd->Description << pLand->TerrainType << " (" << sCoord << ")"
@@ -1472,8 +1473,8 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
 
                                 m_NewProducts.Insert(pNewProd);
                             }
-
                         pLand->Products.Insert(pProd);
+                        pLand->resources_.emplace_back(*pProd);
 
                         // also set as a property to simplify searching
                         MakeQualifiedPropertyName(PRP_RESOURCE_PREFIX, ShortName.GetData(), Buf);
@@ -1690,6 +1691,7 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
             pLand->TerrainType  = Name;
             pLand->Description.Empty();
             pLand->Products.FreeAll();
+            pLand->resources_.clear();
         }
         if (0!=stricmp(pLand->Name.GetData(), LandName.GetData()) )
         {
@@ -3806,6 +3808,33 @@ void CAtlaParser::ComposeProductsLine(CLand * pLand, const char * eol, CStr & S)
     }
 }
 
+void CAtlaParser::compose_products_detailed(CLand* land, std::stringstream& out)
+{
+    std::string code, name, plural;
+
+    out << "  Products:";
+    for (const auto& resource : land->resources_)
+    {
+        if (!gpApp->ResolveAliasItems(resource.code_name_, code, name, plural))
+        {
+            code = resource.code_name_;
+            name = resource.code_name_;
+            plural = resource.code_name_;
+        }
+    
+        if (resource.amount_ > 1)
+            out << std::endl << "    " << resource.amount_ << " " << plural;
+        else
+            out << std::endl << "    " << resource.amount_ << " " << name;
+
+        if (land->requested_resources_.find(code) != land->requested_resources_.end())
+        {
+            out << " (attempt: " << land->requested_resources_[code] << ")";
+        }
+    }
+    out << std::endl;
+}
+
 //-------------------------------------------------------------
 
 BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane, SAVE_HEX_OPTIONS * pOptions)
@@ -5001,8 +5030,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
     pLand->ResetNormalProperties();
     pLand->ResetUnitsAndStructs();
 
-    std::unordered_map<long, land_control::Student> students_of_the_land;
-
     // AutoOrders initialization & sanity check section
     land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {
         //caravan sanity check
@@ -5074,10 +5101,18 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
             }
         }
 
-        
+        if (TurnSequence::SQ_PRODUCE == sequence)
+        {//no need to parse sequentially
+            pLand->requested_resources_.clear();
+            RunOrder_LandProduce(pLand);
+        }
+
         if (TurnSequence::SQ_STUDY == sequence)
         {//no need to parse sequentially
+            RunOrder_LandStudyTeach(pLand);
+        /*
             std::vector<unit_control::UnitError> errors;
+            std::unordered_map<long, land_control::Student> students_of_the_land;
             students_of_the_land = land_control::get_land_students(pLand, errors);
             
             //teaching orders -- no need to wait for TurnSequence::Teach
@@ -5092,11 +5127,12 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                 stud.second.unit_->skills_[skill] += 30 + stud.second.days_of_teaching_;
                 stud.second.unit_->skills_[skill] = std::min(stud.second.unit_->skills_[skill], stud.second.max_days_);
                 
+                //calculate property of teaching
                 long room_for_teaching = std::max(stud.second.max_days_ - stud.second.cur_days_ - 30, (long)0);
                 long space_for_teaching = std::min(room_for_teaching, (long)30);
                 space_for_teaching = std::max(space_for_teaching - stud.second.days_of_teaching_, (long)0);                
                 stud.second.unit_->SetProperty(PRP_TEACHING, eLong, (const void*)space_for_teaching, eNormal);
-            }           
+            }    */       
         }
 
         for (mainidx=0; mainidx<pLand->UnitsSeq.Count(); mainidx++)
@@ -5700,8 +5736,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         break;
 
                     case O_PRODUCE:
-                        if (TurnSequence::SQ_PRODUCE==sequence)
-                            RunOrder_Produce(Line, ErrorLine, skiperror, pUnit, pLand, p);
+                        //if (TurnSequence::SQ_PRODUCE==sequence)
+                        //    RunOrder_Produce(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
 
                 }//switch (order)
@@ -5779,20 +5815,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
             }
         }
     }   // phases loop
-
-    //temporarry out of the sequence.
-    //STUDY phase should be done by one call over all students.
-    //TEACH phase should be done the same way.
-    //And then, at the end of TEACH phase, next code should be called.
-    //std::unordered_map<long, land_control::Student> land_students = land_control::get_land_students(pLand);
-    //land_control::update_students_by_land_teachers(pLand, land_students);
-    //for (auto& stud : land_students)
-    //{
-    //    std::string skill = stud.second.order_->words_order_[1];
-    //    stud.second.unit_->skills_[skill] += 30 + stud.second.days_of_teaching_;
-    //    stud.second.unit_->skills_[skill] = std::min(stud.second.unit_->skills_[skill], stud.second.max_days_);
-    //}
-
 
     pLand->CalcStructsLoad();
     pLand->SetFlagsFromUnits();
@@ -6071,87 +6093,31 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunOrder_Study(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params)
+void CAtlaParser::RunOrder_LandStudyTeach(CLand* land)
 {
-    /*
-    EValueType          type;
-    long                n, n1, n2;
-    long                unitmoney;
-    CStr                S   (32);
-    CStr                SkillNaked  (32);
-    long                minlevel = -1;
-    long                level;
-    long                no, propval;
-    // MZ - Added for Arcadia
-    const char        * lead = "";
-    const char        * racename;
+    std::vector<unit_control::UnitError> errors;
+    std::unordered_map<long, land_control::Student> students_of_the_land;
+    students_of_the_land = land_control::get_land_students(land, errors);
+    
+    //teaching orders -- no need to wait for TurnSequence::Teach
+    land_control::update_students_by_land_teachers(land, students_of_the_land, errors);
+    for (auto& error : errors)
+        OrderError("Warning", error.unit_, error.message_.c_str());
 
-    do
+    //updating students
+    for (auto& stud : students_of_the_land)
     {
-        params = ReadPropertyName(params, SkillNaked);
-
-        n1 = gpDataHelper->GetStudyCost(SkillNaked.GetData());
-        if (n1<=0)
-            SHOW_WARN_CONTINUE(" - Can not study that!");
-
-        if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)n2, eNormal) || (n2<=0))
-        {
-            n2 = 0;
-            SHOW_WARN_CONTINUE(" - There are no men in the unit!");
-        }
-        if (eLong!=type)
-            SHOW_WARN_CONTINUE(NOTNUMERIC << pUnit->Id << BUG);
-
-
-        // find min max skill level for the unit
-        no = 0;
-        racename = pUnit->GetPropertyName(no);
-        while (racename)
-        {
-            if (gpDataHelper->IsMan(racename))
-            {
-                if (pUnit->GetProperty(racename, type, (const void *&)propval, eNormal) &&
-                    eLong==type && propval>0) // 0 welf does not affect anything
-                {
-                    pUnit->GetProperty(PRP_LEADER, type, (const void *&)lead, eNormal);
-                    level = gpDataHelper->MaxSkillLevel(racename, SkillNaked.GetData(), lead, m_ArcadiaSkills);
-                    if (-1==minlevel)
-                        minlevel = level;
-                    else
-                        if (level < minlevel)
-                            minlevel = level;
-                }
-            }
-            no++;
-            racename = pUnit->GetPropertyName(no);
-        }
-
-        // now, can we still study?
-        S = SkillNaked;
-        S << PRP_SKILL_POSTFIX;
-        if (pUnit->GetProperty(S.GetData(), type, (const void *&)n, eNormal) && eLong==type && n>=minlevel)
-            SHOW_WARN_CONTINUE(" - Already knows the skill!");
-
-        if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitmoney, eNormal) )
-        {
-            unitmoney = 0;
-            if (PE_OK!=pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitmoney, eBoth))
-                SHOW_WARN_CONTINUE(NOSETUNIT << pUnit->Id << BUG);
-        }
-        else if (eLong!=type)
-            SHOW_WARN_CONTINUE(NOTNUMERIC << pUnit->Id << BUG);
-
-        unitmoney -= n1*n2;
-
-        unit_control::modify_silver(pUnit, -n1*n2, "studying");
-        if (PE_OK!=pUnit->SetProperty(PRP_SILVER,   eLong, (const void *)unitmoney, eNormal))
-            SHOW_WARN_CONTINUE(NOSET << BUG);
-
-        pUnit->StudyingSkill = SkillNaked;
-        pUnit->StudyingSkill << PRP_SKILL_POSTFIX;
-    } while (FALSE);*/
+        std::string skill = stud.second.order_->words_order_[1];
+        stud.second.unit_->skills_[skill] += 30 + stud.second.days_of_teaching_;
+        stud.second.unit_->skills_[skill] = std::min(stud.second.unit_->skills_[skill], stud.second.max_days_);
+        
+        //calculate property of teaching
+        long room_for_teaching = std::max(stud.second.max_days_ - stud.second.cur_days_ - 30, (long)0);
+        long space_for_teaching = std::min(room_for_teaching, (long)30);
+        space_for_teaching = std::max(space_for_teaching - stud.second.days_of_teaching_, (long)0);                
+        stud.second.unit_->SetProperty(PRP_TEACHING, eLong, (const void*)space_for_teaching, eNormal);
+    }
 }
-
 
 //-------------------------------------------------------------
 
@@ -6207,39 +6173,39 @@ BOOL CAtlaParser::CheckResourcesForProduction(CUnit * pUnit, CLand * pLand, CStr
             Ok = FALSE;
         }
 
-        if (details.skillname.IsEmpty() || details.months<=0)
+        if (details.skill_name_.empty() || details.per_month_<=0)
         {
             Error << " - Production requirements for item '" << pUnit->ProducingItem << "' are not configured! ";
             Ok = FALSE;
         }
 
         // check skill level
-        S << details.skillname << PRP_SKILL_POSTFIX;
+        S << details.skill_name_.c_str() << PRP_SKILL_POSTFIX;
         if (pUnit->GetProperty(S.GetData(), type, value, eNormal) && (eLong==type) )
         {
             nlvl = (long)value;
-            if (nlvl < details.skilllevel)
+            if (nlvl < details.skill_level_)
             {
-                Error << " - Skill " << details.skillname << " level " << details.skilllevel << " is required for production";
+                Error << " - Skill " << details.skill_name_.c_str() << " level " << details.skill_level_ << " is required for production";
                 Ok = FALSE;
             }
         }
         else
         {
-            Error << " - Skill " << details.skillname << " is required for production";
+            Error << " - Skill " << details.skill_name_.c_str() << " is required for production";
             Ok = FALSE;
         }
 
 
-        if (!details.toolname.IsEmpty())
-            if (!pUnit->GetProperty(details.toolname.GetData(), type, (const void *&)ntool, eNormal) || eLong!=type )
+        if (!details.tool_name_.empty())
+            if (!pUnit->GetProperty(details.tool_name_.c_str(), type, (const void *&)ntool, eNormal) || eLong!=type )
                 ntool = 0;
         if (ntool > nmen)
             ntool = nmen;
 
-        ncanproduce = (long)((((double)nmen)*nlvl + ntool*details.toolhelp) / details.months);
+        ncanproduce = (long)((((double)nmen)*nlvl + ntool*details.tool_plus_) / details.per_month_);
 
-
+        /*
         for (x=0; x<sizeof(details.resname)/sizeof(*details.resname); x++)
         {
             SharerFound = FALSE;
@@ -6286,7 +6252,7 @@ BOOL CAtlaParser::CheckResourcesForProduction(CUnit * pUnit, CLand * pLand, CStr
                     }
                 }
             }
-        }
+        }*/
     }
 
     return Ok;
@@ -6294,8 +6260,133 @@ BOOL CAtlaParser::CheckResourcesForProduction(CUnit * pUnit, CLand * pLand, CStr
 
 //-------------------------------------------------------------
 
+void CAtlaParser::RunOrder_LandProduce(CLand* land)
+{
+    std::vector<CUnit*> producers;
+    land_control::get_units_if(land, producers, [](CUnit* unit) {
+        return orders::control::retrieve_orders_by_type(orders::Type::O_PRODUCE, unit->orders_).size() > 0;
+    });
+
+    struct ProducerInfo
+    {
+        CUnit* producer_;
+        long item_amount_;
+    };
+
+    std::map<std::string, long> prod_requests_from_land;
+    std::map<std::string, std::vector<ProducerInfo>> land_producers_info;//collection for each resource
+    for (CUnit* producer : producers)
+    {//check requirements and predict
+        long man_amount = unit_control::get_item_amount_by_mask(producer, PRP_MEN);
+        if (man_amount <= 0)
+        {
+            producer->impact_description_.push_back("Produce: no man in the unit!");
+            OrderError("Warning", producer, " no man in the unit!");
+        }
+
+        auto produce_orders = orders::control::retrieve_orders_by_type(orders::Type::O_PRODUCE, producer->orders_);
+        if (produce_orders.size() > 1)
+        {//check amount of produce orders
+            producer->impact_description_.push_back("Produce: duplicated produce orders!");
+            OrderError("Error", producer, " duplicated produce orders!");
+            continue;
+        }
+        std::shared_ptr<orders::Order> order = produce_orders[0];
+
+        TProdDetails prod_details;
+        gpDataHelper->GetProdDetails(order->words_order_[1].c_str(), prod_details);
+        if (prod_details.skill_name_.empty() || prod_details.per_month_<=0)
+        {//check details settings
+            std::string mess = " production requirements for '" + order->words_order_[1] + "' are not configured!";
+            producer->impact_description_.push_back("Produce:"+mess);
+            OrderError("Warning", producer, mess);
+            continue;
+        }
+
+        long skill_days = unit_control::get_current_skill_days(producer, prod_details.skill_name_);
+        long skill_lvl = skills_control::get_skill_lvl_from_days(skill_days);
+        if (skill_lvl < prod_details.skill_level_)
+        {//check skill requirements
+            std::string mess = " skill '" + prod_details.skill_name_ +
+                "' of level " + std::to_string(skill_lvl) + " is required to produce!";
+            producer->impact_description_.push_back("Produce:"+mess);
+            OrderError("Error", producer, mess);
+            continue;
+        }
+
+        if (gpDataHelper->ImmediateProdCheck())
+        {
+            long tools_plus(0);
+            if (!prod_details.tool_name_.empty())
+            {
+                long tool_amount = unit_control::get_item_amount(producer, prod_details.tool_name_);
+                tool_amount = std::min(tool_amount, man_amount);
+                tools_plus = tool_amount * prod_details.tool_plus_;
+            }
+
+            long can_produce = (long)((man_amount*skill_lvl + tools_plus) / prod_details.per_month_);
+
+            if (prod_details.req_resources_.size() == 0)
+            {//produce from the land
+                prod_requests_from_land[order->words_order_[1]] += can_produce;
+                land_producers_info[order->words_order_[1]].push_back({producer, can_produce});
+                continue;
+            }
+
+            //produce from existing resources
+            for (const auto& req_resource : prod_details.req_resources_)
+            {
+                long producer_has = unit_control::get_item_amount(producer, req_resource.first);
+                if (producer_has / req_resource.second < can_produce)
+                {
+                    can_produce = producer_has / req_resource.second;
+                    producer->impact_description_.push_back("Produce: "+req_resource.first+" " +
+                        std::to_string(producer_has) + " is enough just for "+ std::to_string(producer_has / req_resource.second));                    
+                }
+            }            
+            unit_control::modify_item_by_produce(producer, order->words_order_[1], can_produce);
+            for (const auto& req_resource : prod_details.req_resources_)
+                unit_control::modify_item_by_produce(producer, req_resource.first, -can_produce * req_resource.second);
+        }
+    }
+
+    //resolve land request (we had to collect all requests before calculation)
+    for (auto& res_to_producers : land_producers_info)
+    {
+        //fill land's description regarding producing request
+        long land_amount = land_control::get_resource(land, res_to_producers.first);
+        long requested_amount = prod_requests_from_land[res_to_producers.first];
+        land_control::set_requested_resources(land, res_to_producers.first, requested_amount);        
+
+        //fill producers description regarding their requests
+        double leftovers(0.0);
+        std::sort(res_to_producers.second.begin(), res_to_producers.second.end(), 
+        [](const ProducerInfo& item1, const ProducerInfo& item2){
+            return item1.item_amount_ > item2.item_amount_;
+        });
+        for (const ProducerInfo& prod_info : res_to_producers.second)
+        {
+            if (land_amount < requested_amount)
+            {
+                double intpart;
+                leftovers += modf(((double)land_amount / requested_amount) * prod_info.item_amount_, &intpart);
+                //prod_info.item_amount_ = intpart;
+                if (leftovers >= 0.999999)
+                {
+                    intpart += 1;
+                    leftovers -= 1.0;
+                }
+                unit_control::modify_item_by_produce(prod_info.producer_, res_to_producers.first, intpart);
+            }
+            else
+                unit_control::modify_item_by_produce(prod_info.producer_, res_to_producers.first, prod_info.item_amount_);
+        }
+    }
+}
+
 void CAtlaParser::RunOrder_Produce(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params)
 {
+    /*
     TProdDetails        details;
     const void        * value;
     EValueType          type;
@@ -6333,7 +6424,7 @@ void CAtlaParser::RunOrder_Produce(CStr & Line, CStr & ErrorLine, BOOL skiperror
             if (!CheckResourcesForProduction(pUnit, pLand, Error))
                 SHOW_WARN_CONTINUE(Error.GetData());
 
-    } while (FALSE);
+    } while (FALSE);*/
 }
 
 
@@ -7754,77 +7845,6 @@ void CAtlaParser::RunOrder_SailAIII(CStr & Line, CStr & ErrorLine, BOOL skiperro
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunOrder_Teach(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL TeachCheckGlb)
-{
-    /*
-    EValueType          type;
-    long                n1, n2;
-    CUnit             * pUnit2;
-    CBaseObject         Dummy;
-    BOOL                our_unit;
-    CStr                Skill;
-    const void        * value;
-
-    //check if peasants can teach.
-    const char* val = gpApp->GetConfig(SZ_SECT_COMMON, "PEASANT_CAN_TEACH");
-    int peasant_can_teach = 0;
-    if (val != NULL)
-        peasant_can_teach = atoi(val);
-
-    if (peasant_can_teach == 0 && !pUnit->GetProperty(PRP_LEADER, type, value, eNormal) )
-    {
-        if (!skiperror)  
-        {                                              
-            ErrorLine.Empty();                         
-            ErrorLine << Line << " - Unit " << pUnit->Id << " is not a leader or hero";                   
-            OrderError("Warning", pUnit, ErrorLine.GetData());
-        }          
-        return;
-    }    
-    if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)n1, eNormal)  || (n1<=0))
-    {
-        if (!skiperror)  
-        {                                              
-            ErrorLine.Empty();                         
-            ErrorLine << Line << " - There are no men in the unit!";
-            OrderError("Warning", pUnit, ErrorLine.GetData());               
-        }          
-        return;
-    }        
-
-    std::unordered_map<long, land_control::Student> land_students = land_control::get_land_students(pLand);
-    std::vector<long> unit_students = orders::control::get_students(pUnit);
-    for (long studentId : unit_students)
-    {
-        if (land_students.find(studentId) == land_students.end())
-            SHOW_WARN_CONTINUE(" - Unit " << unit_control::compose_unit_number(studentId).c_str() << " is not studying");
-
-        if (land_students[studentId].days_of_teaching_ >= 30)
-            SHOW_WARN_CONTINUE(" - Unit " << unit_control::compose_unit_name(land_students[studentId].unit_).c_str() << " is already tought");
-
-        if (land_students[studentId].max_days_ - land_students[studentId].cur_days_ - 
-            land_students[studentId].days_of_teaching_ - (long)30 <= 0)
-            SHOW_WARN_CONTINUE(" - Unit " << unit_control::compose_unit_name(land_students[studentId].unit_).c_str() << " doesn't need any more teaching");        
-
-        std::string studying_skill = land_students[studentId].order_->words_order_[1];
-        long teacher_days = unit_control::get_current_skill_days(pUnit, studying_skill);
-
-        long teacher_lvl = this->SkillDaysToLevel(teacher_days);
-        long student_lvl = this->SkillDaysToLevel(land_students[studentId].cur_days_);
-        if (teacher_lvl <= student_lvl)
-            SHOW_WARN_CONTINUE(" - Can not teach unit " << unit_control::compose_unit_name(land_students[studentId].unit_).c_str());
-
-        if (!pUnit->pStudents)
-            pUnit->pStudents = new CBaseCollById;
-
-        if (!pUnit->pStudents->Insert(land_students[studentId].unit_))
-            SHOW_WARN_CONTINUE(" - Unit " << unit_control::compose_unit_name(land_students[studentId].unit_).c_str() << " is already in the students list");
-        unit_control::order_message(pUnit, "is teaching: ", unit_control::compose_unit_name(land_students[studentId].unit_).c_str());
-    }*/
-}
-
-//-------------------------------------------------------------
-
 void CAtlaParser::OrderProcess_Teach(BOOL skiperror, CUnit * pUnit)
 {
     /*
@@ -8245,6 +8265,7 @@ void CAtlaParser::LookupAdvancedResourceVisibility(CUnit * pUnit, CLand * pLand)
                                 pProd->amount_    = 0;
                                 pProd->code_name_ = Dummy.code_name_;
                                 pLand->Products.Insert(pProd);
+                                pLand->resources_.emplace_back(*pProd);
                             }
                         }
                 }
