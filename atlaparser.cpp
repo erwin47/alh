@@ -7277,7 +7277,7 @@ void CAtlaParser::PerformOrder_Sell(CLand* land, CUnit* unit)
         MakeQualifiedPropertyName(PRP_WANTED_AMOUNT_PREFIX, item_name.c_str(), LandProp);
         if ( (PE_OK!=unit->SetProperty(item_name.c_str(), eLong, (const void *)unit_control::get_item_amount(unit, item_name),  eNormal)) || // This is the old code
             (PE_OK!=unit->SetProperty(PRP_SILVER, eLong, (const void *)unit_control::get_item_amount(unit, PRP_SILVER), eNormal)) || // This is ALMOST the old code
-            (PE_OK!=land->SetProperty(LandProp.GetData(), eLong, (const void *)wanted_item.item_.amount_ - amount_to_sell,  eNormal)))
+            (PE_OK!=land->SetProperty(LandProp.GetData(), eLong, (const void *)(wanted_item.item_.amount_ - amount_to_sell),  eNormal)))
             OrderError("Error", unit, std::string(NOSET) + BUG);
 
         unit->CalcWeightsAndMovement();        
