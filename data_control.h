@@ -33,7 +33,7 @@ namespace unit_control
 
     //!mask may define specific group of items, according to UNIT_PROPERTY_GROUPS settings
     std::set<CItem> get_all_items_by_mask(CUnit* unit, const char* mask);
-    long get_item_amount(CUnit* unit, const std::string& short_name);
+    long get_item_amount(CUnit* unit, const std::string& short_name, bool initial = false);
     long get_item_amount_by_mask(CUnit* unit, const char* mask);
     //void modify_item_amount(CUnit* unit, const std::string& source_name, const std::string& short_name, long new_amount);
 
@@ -92,18 +92,32 @@ namespace land_control
     }
 
     template<typename T>
-    void perform_on_each_unit(CLand* land, T Pred)
+    CUnit* find_first_unit_if(CLand* land, T Pred)
     {
         for (size_t i = 0; i < land->Units.Count(); i++)
         {
             CUnit* unit = (CUnit*)land->Units.At(i);
+            if (Pred(unit))
+                return unit;
+        }
+        return NULL;    
+    }    
+
+    template<typename T>
+    void perform_on_each_unit(CLand* land, T Pred)
+    {
+        for (size_t i = 0; i < land->UnitsSeq.Count(); i++)
+        {
+            CUnit* unit = (CUnit*)land->UnitsSeq.At(i);
             Pred(unit);
         }       
     }
 
     long get_land_id(const char* land);
+
     long get_plane_id(const char* plane_name);
     CLand* get_land(int x, int y, int z);
+    CLand* get_land(long land_id);
 
     std::unordered_map<long, Student> get_land_students(CLand* land, std::vector<unit_control::UnitError>& errors);
     void update_students_by_land_teachers(CLand* land, std::unordered_map<long, Student>& students, std::vector<unit_control::UnitError>& errors);
@@ -115,7 +129,7 @@ namespace game_control
     struct NameAndAmount
     {
         std::string name_;
-        long amount_;
+        double amount_;
     };
 
     template<typename T>
@@ -133,7 +147,7 @@ namespace game_control
         const char* runner = beg;
         while(beg < end)
         {
-            while (beg < end && !isalpha(*beg))
+            while (beg < end && !isalpha(*beg) && !isdigit(*beg))
                 ++beg;
 
             if (beg == end)

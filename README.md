@@ -26,6 +26,18 @@ Also there will be explicitely written if any of students is not studying anymor
 In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `REC_DLG_GROUPS` may be listed groups with which ReceiveDlg will work, as with items. For example, `REC_DLG_GROUPS = trade_items,food` mean, that in ReceiveDlg in drop up list there will be possibility to choose `trade_items` or `food`, and get list of all units having any items belonging to the group. Those entities (trade_items and food) have to be defined in section `UNIT_PROPERTY_GROUPS`.
 
 ## Changelog:
+### Feb 19 2020
+- GetProdDetails: allows float variables. This means one skill level can produce 0.5 of item, if it actually do that.
+- Attack/Steal/Assassinate parser upgraded: it adds to description of the unit about it's orders. Also it adds the record to description of target units, so it's easy to see if you assassinate someone twice and so on.
+- ImmediateProdCheck now influence just the actual modification of production, but all errors, warnings and messages will be calculated and printed.
+- Too much items in GIVE order is a warning, but not error: it will be described, and actual amount of items will be changed according to rules of server.
+- GIVE 0 is valid and proceed correctly.
+- Disabled SZ_KEY_CHECK_TEACH_LVL as redundand.
+- internal: RunLandOrders accepts starting and ending TurnSequence. So it is possible to run specific part of RunOrders.
+- internal: Basic initialization of RunLandOrders happens in TurnSequence::SQ_FIRST
+- internal: get_item_amount now can return initial amount of items and current (after parsing of orders) amount of items
+- internal: perform_on_each_unit is using same sequence of units as server would use.
+
 ### Feb 02 2020
 - internal: produce flow refactored. Added resources_ & requested_resources_ parameters to region.
 - internal: extracted `RunOrder_LandStudyTeach` & `RunOrder_LandProduce` functions.

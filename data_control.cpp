@@ -170,14 +170,26 @@ namespace unit_control
         return ret;
     }
 
-    long get_item_amount(CUnit* unit, const std::string& codename)
+    long get_item_amount(CUnit* unit, const std::string& codename, bool initial)
     {
-        if (codename == PRP_SILVER)
-            return unit->silver_.amount_;
-        else if (gpApp->IsMan(codename.c_str()))
-            return items_control::get_by_code(unit->men_, codename).amount_;
+        if (initial)
+        {
+            if (codename == PRP_SILVER)
+                return unit->silver_initial_.amount_;
+            else if (gpApp->IsMan(codename.c_str()))
+                return items_control::get_by_code(unit->men_initial_, codename).amount_;
+            else
+                return items_control::get_by_code(unit->items_initial_, codename).amount_;
+        }
         else
-            return items_control::get_by_code(unit->items_, codename).amount_;
+        {
+            if (codename == PRP_SILVER)
+                return unit->silver_.amount_;
+            else if (gpApp->IsMan(codename.c_str()))
+                return items_control::get_by_code(unit->men_, codename).amount_;
+            else
+                return items_control::get_by_code(unit->items_, codename).amount_;
+        }
     }
     
     long get_item_amount_by_mask(CUnit* unit, const char* mask)
@@ -240,14 +252,17 @@ namespace unit_control
     {
         if (new_amount == 0)
             return;
-
-        items_control::modify_amount(unit->items_, codename, new_amount);
+        
+        if (gpDataHelper->ImmediateProdCheck())
+        {
+            items_control::modify_amount(unit->items_, codename, new_amount);
+        }        
 
         std::stringstream ss;
         if (new_amount > 0)
-            ss << "produce " << new_amount << " of " << codename;
+            ss << "produce: " << new_amount << " " << codename;
         else
-            ss << "spent " << abs(new_amount) << " of " << codename << " for production";
+            ss << "spent: " << abs(new_amount) << " " << codename << " for production";
 
         unit->impact_description_.push_back(ss.str());
     }
@@ -307,7 +322,12 @@ namespace unit_control
             items_control::modify_amount(unit->items_, codename, new_amount);
 
         std::stringstream ss;
-        std::string action, direction;
+        std::string action, direction, source_name;
+        if (source_unit == nullptr)
+            source_name = "nowhere";
+        else
+            source_name = compose_unit_name(source_unit);
+
         if (new_amount > 0)
         {
             action = "receives";
@@ -320,8 +340,8 @@ namespace unit_control
         }
         
         //print out impact
-        ss << action << " " << new_amount << " of " << codename << " " << direction << " ";
-        ss << compose_unit_name(source_unit);
+        ss << action << " " << abs(new_amount) << " of " << codename << " ";
+        ss << direction << " " << source_name;
         unit->impact_description_.push_back(ss.str());
     }
 
@@ -331,7 +351,12 @@ namespace unit_control
             return;
 
         std::stringstream ss;
-        std::string action, direction;
+        std::string action, direction, source_name;
+        if (source_unit == nullptr)
+            source_name = "nowhere";
+        else
+            source_name = compose_unit_name(source_unit);
+
         if (new_amount > 0)
         {
             action = "receives";
@@ -361,8 +386,8 @@ namespace unit_control
         items_control::modify_amount(unit->men_, codename, new_amount);
 
         //print out impact
-        ss << action << " " << new_amount << " of " << codename << " " << direction << " ";
-        ss << compose_unit_name(source_unit);
+        ss << action << " " << abs(new_amount) << " of " << codename << " ";
+        ss << direction << " " << source_name;
         unit->impact_description_.push_back(ss.str());
     }
 
@@ -583,6 +608,11 @@ namespace land_control
         return gpApp->m_pAtlantis->GetLand(x, y, z, TRUE);
     }
 
+    CLand* get_land(long land_id)
+    {
+        return gpApp->m_pAtlantis->GetLand(land_id);
+    }
+
     long get_plane_id(const char* plane_name)
     {
         CBaseObject Dummy;
@@ -800,7 +830,7 @@ namespace game_control
         if (separator == std::string::npos)
             return {str, 0};
         
-        return {str.substr(0, str.find(' ')), atol(&str[str.find(' ')+1])};
+        return {str.substr(0, str.find(' ')), atof(&str[str.find(' ')+1])};
     }
 
     template<>
@@ -808,6 +838,12 @@ namespace game_control
     {
         return atol(str.c_str());
     }
+
+    template<>
+    double convert_to<double>(const std::string& str)
+    {
+        return atof(str.c_str());
+    }    
 
     std::string get_gpapp_config(const char* section, const char* key)
     {

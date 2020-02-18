@@ -137,6 +137,7 @@ typedef struct SAVE_HEX_OPTIONS_STRUCT
 
 enum class TurnSequence
 {
+       SQ_FIRST,
        SQ_FORM   ,
        SQ_CLAIM  ,
        SQ_LEAVE  ,
@@ -144,6 +145,7 @@ enum class TurnSequence
        SQ_PROMOTE,
        SQ_ATTACK ,
        SQ_STEAL  ,
+       SQ_GIVE_PRE,
        SQ_GIVE   ,
        SQ_JOIN   ,
        SQ_EXCHANGE ,
@@ -163,13 +165,16 @@ enum class TurnSequence
        //SQ_PRODUCE_HARVESTING,
        SQ_ENTERTAIN,
        SQ_WORK   ,
-       SQ_MAINTENANCE   ,
-       SQ_FIRST = SQ_FORM,
+       SQ_MAINTENANCE   ,//maybe we need a past-end step
        SQ_LAST = SQ_WORK
 };
 
 inline TurnSequence operator++(TurnSequence& x) {
     return x = (TurnSequence)(std::underlying_type<TurnSequence>::type(x) + 1); 
+}
+
+inline TurnSequence operator--(TurnSequence& x) {
+    return x = (TurnSequence)(std::underlying_type<TurnSequence>::type(x) - 1); 
 }
 
 inline TurnSequence operator*(TurnSequence c) {
@@ -195,7 +200,8 @@ public:
     int        ParseRep(const char * FNameIn, BOOL Join, BOOL IsHistory);     // History is a rep!
     int        SaveOrders  (const char * FNameOut, const char * password, BOOL decorate, int factid);
     int        LoadOrders  (const char * FNameIn, int & FactionId);  // return an id of the order's faction
-    void       RunOrders(CLand * pLand, const char * sCheckTeach = NULL);
+    void       RunOrders(CLand * pLand, TurnSequence start_step = TurnSequence::SQ_FIRST, TurnSequence stop_step = TurnSequence::SQ_LAST);
+    void       RunLandOrders(CLand * pLand, TurnSequence beg_step = TurnSequence::SQ_FIRST, TurnSequence stop_step = TurnSequence::SQ_LAST);
     BOOL       ShareSilver(CUnit * pMainUnit);
     BOOL       GenOrdersTeach(CUnit * pMainUnit);
     BOOL       GenGiveEverything(CUnit * pFrom, const char * To);
@@ -327,7 +333,6 @@ protected:
     void         GenericErr(int Severity, const char * Msg);
     void         OrderError(const std::string& type, CUnit* unit, const std::string& Msg);
     void         OrderErrFinalize();
-    void         RunLandOrders(CLand * pLand, const char * sCheckTeach = NULL);
     void         OrderProcess_Teach(BOOL skiperror, CUnit * pUnit);
 
     // Order handlers and helpers
@@ -341,8 +346,12 @@ protected:
     void         RunOrder_Take             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL IgnoreMissingTarget);
     void         RunOrder_Send             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Produce          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
+    
+    //!calculates give orders up to specified unit (or for all units if NULL)
+    void         RunOrder_LandGive         (CLand* land, CUnit* up_to = NULL);
     void         RunOrder_LandProduce      (CLand* land);
     void         RunOrder_LandStudyTeach   (CLand* land);
+    void         RunOrder_LandAggression   (CLand* land);//steal, assassinate, attack
     //void         RunOrder_Study            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Name             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_SailAIII         (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3);

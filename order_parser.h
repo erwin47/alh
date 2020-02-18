@@ -124,6 +124,26 @@ namespace orders
         UnitOrders parse_lines_to_orders(const std::string& orders);
         std::string compose_string(const UnitOrders& orders);
 
+        namespace give
+        {
+            //!true on success, false on failure.
+            //in case of failure, out_errors contains the description
+            //words -- the order.
+            bool parse_target_unit(CUnit* giving_unit,
+                                  const std::vector<std::string>& words,
+                                  size_t& i, 
+                                  CUnit*& target_unit,
+                                  std::stringstream& out_errors);
+
+            bool parse_amount_and_item(CUnit* unit, 
+                                       const std::vector<std::string>& words, 
+                                       size_t& i,
+                                       size_t& amount,
+                                       std::string& item_code,
+                                       std::stringstream& out_errors);
+
+        }
+
         void recalculate_hash(UnitOrders& uorders);
     }
 
@@ -151,6 +171,9 @@ namespace orders
     {
         //! returns collection of orders of specified type
         std::vector<std::shared_ptr<Order>> retrieve_orders_by_type(orders::Type type, const UnitOrders& unit_orders);
+        
+        //! returns true if unit_orders has order of specified type
+        bool has_orders_with_type(orders::Type type, const UnitOrders& unit_orders);
 
         //! adds order to unit
         void add_order_to_unit(std::shared_ptr<Order>& order, CUnit* unit);

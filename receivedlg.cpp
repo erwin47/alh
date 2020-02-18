@@ -106,6 +106,7 @@ void CReceiveDlg::init_item_types_combobox()
 {
     long_to_short_item_names_.clear();
     combobox_item_types_->Clear();
+    //gpApp->m_pAtlantis->RunLandOrders(land_, TurnSequence::SQ_GIVE_PRE);
     std::set<CItem> items = get_item_types_list(unit_, land_);
 
     //Groups
@@ -194,6 +195,7 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
     });
 
     //sort them out by amount of items they have
+    //gpApp->m_pAtlantis->RunLandOrders(land_, TurnSequence::SQ_FIRST, TurnSequence::SQ_GIVE_PRE);
     std::vector<std::pair<long, CUnit*>> products_per_unit;
     for (CUnit* cur_unit : other_units)
         products_per_unit.emplace_back(std::pair<long, CUnit*>{unit_control::get_item_amount(cur_unit, item_type), cur_unit});
@@ -202,7 +204,7 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
         [](const std::pair<long, CUnit*>& u1, const std::pair<long, CUnit*>& u2) {
         return u1.first > u2.first;
     });
-
+    //gpApp->m_pAtlantis->RunLandOrders(land_, TurnSequence::SQ_GIVE_PRE, TurnSequence::SQ_GIVE);
     for (const auto& ppu : products_per_unit)
     {
         if (ppu.first > 0)
@@ -210,7 +212,8 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
             std::stringstream unit_name;
             unit_name << "(" << std::to_string(ppu.second->Id) << ") ";
             unit_name << std::string(ppu.second->Name.GetData(), ppu.second->Name.GetLength());
-            unit_name << " (:" << std::to_string(ppu.first) << " " << item_type << ")";
+            unit_name << " (:" << unit_control::get_item_amount(ppu.second, item_type, true) << "(";
+            unit_name << std::to_string(ppu.first) << ") " << item_type << ")";
             unit_names.push_back(unit_name.str());
             unit_name_to_unit_[unit_name.str()] = {ppu.first, item_type, ppu.second};
         }

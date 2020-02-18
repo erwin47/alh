@@ -1256,10 +1256,10 @@ void CAhApp::GetProdDetails(const char* item, TProdDetails& details)
     details.req_resources_.resize(resources.size());
     std::transform(resources.begin(), resources.end(), details.req_resources_.begin(), 
         [](const game_control::NameAndAmount& name_and_amount) {
-            return std::pair<std::string, long>(name_and_amount.name_, name_and_amount.amount_);
+            return std::pair<std::string, double>(name_and_amount.name_, name_and_amount.amount_);
     });
 
-    details.per_month_ = game_control::get_game_config_val<long>(SZ_SECT_PROD_MONTHS, item);
+    details.per_month_ = game_control::get_game_config_val<double>(SZ_SECT_PROD_MONTHS, item);
     game_control::NameAndAmount tool_val = game_control::get_game_config_val<game_control::NameAndAmount>(SZ_SECT_PROD_TOOL, item);
     details.tool_name_ = tool_val.name_;
     details.tool_plus_ = tool_val.amount_;
@@ -2751,7 +2751,7 @@ void CAhApp::EditPaneChanged(CEditPane * pPane) //not actually used at all ??
 
             // TBD: is it needed? m_pCurLand->guiUnit = m_pUnitListPane->GetCurrentUnitId();
             if (pLand->guiUnit)
-            m_pAtlantis->RunOrders(pLand);
+                m_pAtlantis->RunOrders(pLand);
             UpdateHexUnitList(pLand);
             UpdateHexEditPane(pLand);
             SetOrdersChanged(m_OrdersAreChanged); // this hack is needed since EditPanes are modifying the vars directly...

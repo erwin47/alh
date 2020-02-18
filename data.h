@@ -609,8 +609,8 @@ public:
     std::string skill_name_;
     long skill_level_;
 
-    long per_month_;
-    std::vector<std::pair<std::string, long>> req_resources_;
+    double per_month_;
+    std::vector<std::pair<std::string, double>> req_resources_;
 
     std::string tool_name_;
     long tool_plus_;

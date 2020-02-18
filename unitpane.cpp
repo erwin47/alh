@@ -596,12 +596,12 @@ void CUnitPane::OnPopupMenuCreateNew(wxCommandEvent& event)
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
-        // do it here
-
+        //gpApp->m_pAtlantis->RunLandOrders(pLand, TurnSequence::SQ_FIRST, TurnSequence::SQ_GIVE);
         CCreateNewUnit dlg(this, pUnit, pLand);
         if (wxID_OK == dlg.ShowModal()) // it will modify unit's orders
             gpApp->SetOrdersChanged(TRUE);
 
+        gpApp->m_pAtlantis->RunLandOrders(pLand);
         Update(m_pCurLand);
     }
 }
@@ -620,6 +620,7 @@ void CUnitPane::OnPopupMenuReceiveItems(wxCommandEvent& event)
     if (wxID_OK == dlg.ShowModal()) // it will modify unit's orders
         gpApp->SetOrdersChanged(TRUE);
 
+    gpApp->m_pAtlantis->RunLandOrders(pLand);
     Update(m_pCurLand);
 }
 

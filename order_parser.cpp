@@ -210,13 +210,6 @@ namespace orders
                 unit_orders.turn_endturn_started_ = true;
             }
                 
-            else if (order->type_ == orders::Type::O_ENDTURN)
-            {
-                if (!unit_orders.turn_endturn_started_)
-                    unit_orders.errors_.append("Got ENDTURN without TURN order\n");
-                unit_orders.turn_endturn_started_ = false;
-            }                
-
             if (unit_orders.turn_endturn_started_)
             {
                 unit_orders.turn_endturn_collection_.emplace_back(order);
@@ -227,6 +220,13 @@ namespace orders
                 size_t pos = unit_orders.orders_.size() - 1;
                 unit_orders.hash_[unit_orders.orders_[pos]->type_].push_back(pos);        
             }
+
+            if (order->type_ == orders::Type::O_ENDTURN)
+            {
+                if (!unit_orders.turn_endturn_started_)
+                    unit_orders.errors_.append("Got ENDTURN without TURN order\n");
+                unit_orders.turn_endturn_started_ = false;
+            }               
         }        
     }
 
@@ -352,6 +352,196 @@ namespace orders
             for (size_t i = 0; i < uorders.orders_.size(); ++i)
                 uorders.hash_[uorders.orders_[i]->type_].push_back(i);
         }
+
+        bool iterator_is_valid(const std::string& mess, 
+                               const std::vector<std::string>& words, 
+                               int i, 
+                               std::stringstream& out_errors)
+        {
+            if (i >= words.size())
+            {
+                out_errors << mess << ":";
+                for (const auto& word : words)
+                    out_errors << " " << word;
+                return false;
+            }
+            return true;
+        }
+
+        namespace give 
+        {
+            bool parse_target_unit(CUnit* giving_unit,
+                                  const std::vector<std::string>& words,
+                                  size_t& i, 
+                                  CUnit*& target_unit,
+                                  std::stringstream& out_errors)
+            {
+                target_unit = nullptr;
+                int target_unit_id(0);
+                if (!iterator_is_valid("give: wrong order", words, i, out_errors))
+                    return false;
+
+                if (words[i] == "FACTION") 
+                {
+                    i += 4;
+                    if (!iterator_is_valid("give: wrong order", words, i, out_errors))
+                        return false;
+                    
+                    //no need to do other checks, target unit should be nulled, because it 
+                    //doesn't exist in this case
+                    return true;
+                }
+
+                if (words[i].size() == 1 && words[i][0] == '0')
+                {
+                    ++i;//no need to do other checks, it's giving out: target should be nullptr.
+                    return true;
+                }
+
+                if (words[i] == "NEW")
+                {
+                    ++i;
+                    if (!iterator_is_valid("give: wrong order", words, i, out_errors))
+                        return false;
+
+                    target_unit_id = NEW_UNIT_ID(atol(words[i].c_str()), giving_unit->FactionId);
+                }
+                else
+                    target_unit_id = atol(words[i].c_str());
+                ++i;
+
+                CLand* cur_land = land_control::get_land(giving_unit->LandId);
+                target_unit = land_control::find_first_unit_if(cur_land, [&](CUnit* cur_unit) {
+                    return cur_unit->Id == target_unit_id;
+                });
+                if (target_unit == nullptr)
+                {
+                    out_errors << "give: target unit wasn't located, order:";
+                    for (const auto& word : words)
+                        out_errors << " " << word;
+                    return false;
+                }
+                return true;
+            }
+
+            bool parse_amount_and_item(CUnit* unit, 
+                                       const std::vector<std::string>& words, 
+                                       size_t& i,
+                                       size_t& amount,
+                                       std::string& item_code,
+                                       std::stringstream& out_errors)
+            {
+                if (!iterator_is_valid("give: wrong order", words, i, out_errors))
+                    return false;
+
+                if (words[i] == "UNIT")
+                {
+                    amount = 0;
+                    item_code = "UNIT";
+                    return true;
+                }
+
+                if (words[i] == "ALL")
+                {
+                    ++i;
+                    if (!iterator_is_valid("give: wrong order", words, i, out_errors))
+                        return false;
+
+                    std::string item_name, item_plural_name;
+                    if (!gpApp->ResolveAliasItems(words[i], item_code, item_name, item_plural_name))
+                        item_code = words[i];
+
+                    amount = unit_control::get_item_amount(unit, item_code);
+                    ++i;
+                    if (i < words.size() && words[i] == "EXCEPT")
+                    {
+                        ++i;
+                        if (!iterator_is_valid("give: wrong order", words, i, out_errors))
+                            return false;
+
+                        long except_amount = atol(words[i].c_str());
+
+                        if (except_amount > amount)
+                            amount = 0;
+                        else
+                            amount -= except_amount;
+                    }
+                    return true;
+                }
+                else
+                {
+                    amount = atol(words[i].c_str());
+                    ++i;
+                    if (!iterator_is_valid("give: wrong order", words, i, out_errors))
+                        return false;
+
+                    std::string item_name, item_plural_name;
+                    if (!gpApp->ResolveAliasItems(words[i], item_code, item_name, item_plural_name))
+                        item_code = words[i];
+
+                    amount = std::min((long)amount, unit_control::get_item_amount(unit, item_code));
+                    return true;                
+                }
+            }            
+
+        }
+
+        bool give_parse_out_amount_and_item(CUnit* unit, 
+                                       const std::vector<std::string>& words, 
+                                       size_t& i,
+                                       size_t& amount,
+                                       std::string& item_code,
+                                       std::stringstream& out_errors)
+        {
+            if (!iterator_is_valid("give: wrong order", words, i, out_errors))
+                return false;
+
+            if (words[i] == "UNIT")
+            {
+                amount = 0;
+                item_code = "UNIT";
+                return true;
+            }
+
+            if (words[i] == "ALL")
+            {
+                ++i;
+                if (!iterator_is_valid("give: wrong order", words, i, out_errors))
+                    return false;
+
+                std::string item_name, item_plural_name;
+                if (!gpApp->ResolveAliasItems(words[i], item_code, item_name, item_plural_name))
+                    item_code = words[i];
+
+                amount = unit_control::get_item_amount(unit, item_code);
+                ++i;
+                if (i < words.size() && words[i] == "EXCEPT")
+                {
+                    ++i;
+                    if (!iterator_is_valid("give: wrong order", words, i, out_errors))
+                        return false;
+
+                    long except_amount = atol(words[i].c_str());
+
+                    if (except_amount > amount)
+                        amount = 0;
+                    else
+                        amount -= except_amount;
+                }
+                return true;
+            }
+            amount = atol(words[i].c_str());
+            ++i;
+            if (!iterator_is_valid("give: wrong order", words, i, out_errors))
+                return false;
+
+            std::string item_name, item_plural_name;
+            if (!gpApp->ResolveAliasItems(words[i], item_code, item_name, item_plural_name))
+                item_code = words[i];
+
+            amount = std::min((long)amount, unit_control::get_item_amount(unit, item_code));
+            return true;
+        }
     }
 
 
@@ -403,14 +593,21 @@ namespace orders
 
         std::vector<std::shared_ptr<Order>> retrieve_orders_by_type(orders::Type type, const UnitOrders& unit_orders)
         {
-            std::vector<std::shared_ptr<Order>> res;
-            if (unit_orders.hash_.find(type) == unit_orders.hash_.end())
-                return res;
+            if (!has_orders_with_type(type, unit_orders))
+                return {};
 
+            std::vector<std::shared_ptr<Order>> res;
             std::vector<size_t> ids = unit_orders.hash_.at(type);
             for (const auto& id : ids)
                 res.push_back(unit_orders.orders_[id]);
             return res;
+        }
+
+        bool has_orders_with_type(orders::Type type, const UnitOrders& unit_orders)
+        {
+            if (unit_orders.hash_.find(type) == unit_orders.hash_.end())
+                return false;
+            return true;
         }
 
         void remove_orders_by_comment(CUnit* unit, const std::string& pattern)
@@ -485,10 +682,11 @@ namespace orders
 
         std::shared_ptr<Order> get_studying_order(const UnitOrders& unit_orders)
         {
+            if (!has_orders_with_type(orders::Type::O_STUDY, unit_orders))
+                return nullptr;
+
             std::vector<std::shared_ptr<Order>> studying_orders = retrieve_orders_by_type(orders::Type::O_STUDY, unit_orders);
-            if (studying_orders.size() > 0)
-                return studying_orders[0];
-            return nullptr;
+            return studying_orders[0];
         }
     }
 
