@@ -78,7 +78,8 @@ namespace land_control
     CProductMarket get_for_sale(CLand* land, const std::string& item_code);
     void add_resource(CLand* land, const CItem& item);
     long get_resource(CLand* land, const std::string& item_code);
-    void set_requested_resources(CLand* land, const std::string& item_code, long amount);
+    void set_produced_items(CLand* land, const std::string& item_code, long amount);
+    long get_produced_items(CLand* land, const std::string& item_code);
 
     template<typename T>
     void get_units_if(CLand* land, std::vector<CUnit*>& units, T Pred)
@@ -100,7 +101,7 @@ namespace land_control
             if (Pred(unit))
                 return unit;
         }
-        return NULL;    
+        return nullptr;    
     }    
 
     template<typename T>

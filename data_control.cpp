@@ -663,9 +663,15 @@ namespace land_control
         return 0;
     }
 
-    void set_requested_resources(CLand* land, const std::string& item_code, long amount)
+    void set_produced_items(CLand* land, const std::string& item_code, long amount)
     {
-        land->requested_resources_[item_code] += amount;
+        land->produced_items_[item_code] += amount;
+    }
+    long get_produced_items(CLand* land, const std::string& item_code)
+    {
+        if (land->produced_items_.find(item_code) != land->produced_items_.end())
+            return land->produced_items_[item_code];
+        return -1;
     }
 
     std::unordered_map<long, Student> get_land_students(CLand* land, std::vector<unit_control::UnitError>& errors)

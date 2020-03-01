@@ -2127,6 +2127,58 @@ void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & Ta
 
 //-------------------------------------------------------------------------
 
+bool CAhApp::GetTradeDescription(CLand* land, std::ostream& out)
+{
+    std::vector<CUnit*> builders;
+    land_control::get_units_if(land, builders, [](CUnit* unit) {
+        auto ret = orders::control::retrieve_orders_by_type(orders::Type::O_BUILD, unit->orders_);
+        return ret.size() > 0;
+    });
+
+    if (land->produced_items_.size() == 0 && builders.size() == 0)
+        return false;
+
+
+    auto land_name = gpApp->m_pAtlantis->getFullStrLandCoord(land);
+    out << land_name.mb_str() << std::endl;
+
+    if (land->produced_items_.size() > 0)
+        out << "Production:" << std::endl;
+
+    //resources
+    for (const auto& product : land->produced_items_)
+    {
+        auto resource_it = std::find_if(land->resources_.begin(), 
+                                        land->resources_.end(), 
+                                        [&](const CItem& item) {
+                                    return item.code_name_ == product.first;
+                           });
+        if (resource_it != land->resources_.end())
+        {
+            out << "    " << resource_it->code_name_ << " " << resource_it->amount_;
+            out << " (requested: " << product.second << ")" << std::endl;
+        }
+    }
+    //products
+    for (const auto& product : land->produced_items_)
+    {
+        auto resource_it = std::find_if(land->resources_.begin(), 
+                                        land->resources_.end(), 
+                                        [&](const CItem& item) {
+                                    return item.code_name_ == product.first;
+                           });
+        if (resource_it == land->resources_.end())
+        {
+            out << "    " << product.first << " " << product.second << std::endl;
+        }
+    }
+
+    if (builders.size() > 0)
+        out << "Building in the region" << std::endl;
+    //TODO: add more info about builders
+    return true;
+}
+
 void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & TradeDetails)
 {
     int             x, k;
@@ -2256,8 +2308,10 @@ void CAhApp::CheckTaxTrade()
     CLand             * pLand;
     CPlane            * pPlane;
     CTaxProdDetailsCollByFaction  Taxes;
-    CTaxProdDetailsCollByFaction  Trades;
+    //CTaxProdDetailsCollByFaction  Trades;
     CTaxProdDetails              *pDetails;
+    long trade_regions_amount(0);
+    std::stringstream trade_out;
 
     for (n=0; n<m_pAtlantis->m_Planes.Count(); n++)
     {
@@ -2269,8 +2323,11 @@ void CAhApp::CheckTaxTrade()
             if (pLand->Flags & LAND_TAX_NEXT)
                 CheckTaxDetails(pLand, Taxes);
 
-            if (pLand->Flags & LAND_TRADE_NEXT)
-                CheckTradeDetails(pLand, Trades);
+            if (GetTradeDescription(pLand, trade_out))
+            {
+                ++trade_regions_amount;
+                trade_out << std::endl;
+            }
         }
     }
     Report.Empty();
@@ -2280,17 +2337,12 @@ void CAhApp::CheckTaxTrade()
         Report << "Faction " << pDetails->FactionId << " : " << pDetails->HexCount << " TAX regions"   << EOL_SCR
                << pDetails->Details << EOL_SCR  << EOL_SCR;
     }
-    for (i=0; i<Trades.Count(); i++)
-    {
-        pDetails = (CTaxProdDetails*)Trades.At(i);
-        Report << "Faction " << pDetails->FactionId << " : " << pDetails->HexCount << " TRADE regions"   << EOL_SCR
-               << pDetails->Details << EOL_SCR  << EOL_SCR;
-    }
 
     Taxes.FreeAll();
-    Trades.FreeAll();
 
+    std::string trade_report = "Amount of regions: " + std::to_string(trade_regions_amount)+ std::string(EOL_SCR) + trade_out.str();
     ShowError(Report.GetData()      , Report.GetLength()      , TRUE);
+    ShowError(trade_report.c_str()      , trade_report.size(), TRUE);
 }
 
 //-------------------------------------------------------------------------

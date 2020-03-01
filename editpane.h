@@ -67,6 +67,8 @@ public:
  
     CUnit*       change_representing_unit(CUnit* unit);
     bool         save_current_orders_to_unit();
+
+    void OnOrderModified(wxCommandEvent& event);
 };
 
 #endif

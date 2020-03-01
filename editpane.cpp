@@ -226,21 +226,29 @@ CUnitOrderEditPane::CUnitOrderEditPane(wxWindow *parent, const wxString &header,
           :CEditPane(parent, header, editable, WhichFont )
 {
     unit_ = NULL;
+    m_pEditor->Bind(wxEVT_TEXT, &CUnitOrderEditPane::OnOrderModified, this);
+}
+
+void CUnitOrderEditPane::OnOrderModified(wxCommandEvent& event)
+{
+    save_current_orders_to_unit();
+    event.Skip();
 }
 
 CUnitOrderEditPane::~CUnitOrderEditPane()
-{
+{    
 }
 
 CUnit* CUnitOrderEditPane::change_representing_unit(CUnit* unit)
 {
     CUnit* prev_unit = unit_;
-    if (m_pEditor->IsModified() && unit_ != NULL)
-    {
-        unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
-        unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));
-        m_pEditor->DiscardEdits();
-    }
+    //if (m_pEditor->IsModified() && unit_ != NULL)
+    //if (unit_ != NULL)
+    //{
+    //    unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
+    //    unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));
+    //    m_pEditor->DiscardEdits();
+    //}
     unit_ = unit;
     m_pEditor->SetValue(unit_ ? wxString::FromUTF8(unit_->Orders.GetData()) : wxT(""));
     return prev_unit;
@@ -248,7 +256,7 @@ CUnit* CUnitOrderEditPane::change_representing_unit(CUnit* unit)
 
 bool CUnitOrderEditPane::save_current_orders_to_unit()
 {
-    if (m_pEditor->IsModified() && unit_ != NULL)
+    if (unit_ != NULL)
     {
         unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
         unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));

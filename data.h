@@ -515,7 +515,7 @@ public:
     CBaseColl     EdgeStructs;
     CProductColl  Products;
     std::vector<CItem> resources_;
-    std::map<std::string, long> requested_resources_;
+    std::map<std::string, long> produced_items_;
     std::map<std::string, CProductMarket> wanted_;
     std::map<std::string, CProductMarket> for_sale_;
     unsigned long Flags;

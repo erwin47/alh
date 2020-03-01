@@ -26,6 +26,14 @@ Also there will be explicitely written if any of students is not studying anymor
 In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `REC_DLG_GROUPS` may be listed groups with which ReceiveDlg will work, as with items. For example, `REC_DLG_GROUPS = trade_items,food` mean, that in ReceiveDlg in drop up list there will be possibility to choose `trade_items` or `food`, and get list of all units having any items belonging to the group. Those entities (trade_items and food) have to be defined in section `UNIT_PROPERTY_GROUPS`.
 
 ## Changelog:
+### Mar 01 2020
+- internal: fixed event at changing orders of units.
+
+### Feb 26 2020
+- internal: requested_resources_ replaced by produced_items_ with extended meaning (also items which are not a resource)
+- fixed production analysis.
+- internal: RunOrder_LandProduce fixed.
+
 ### Feb 19 2020
 - GetProdDetails: allows float variables. This means one skill level can produce 0.5 of item, if it actually do that.
 - Attack/Steal/Assassinate parser upgraded: it adds to description of the unit about it's orders. Also it adds the record to description of target units, so it's easy to see if you assassinate someone twice and so on.

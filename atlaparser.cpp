@@ -3830,9 +3830,9 @@ void CAtlaParser::compose_products_detailed(CLand* land, std::stringstream& out)
         else
             out << std::endl << "    " << resource.amount_ << " " << name;
 
-        if (land->requested_resources_.find(code) != land->requested_resources_.end())
+        if (land->produced_items_.find(code) != land->produced_items_.end())
         {
-            out << " (attempt: " << land->requested_resources_[code] << ")";
+            out << " (attempt: " << land->produced_items_[code] << ")";
         }
     }
     out << std::endl;
@@ -5106,7 +5106,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
         if (TurnSequence::SQ_PRODUCE == sequence)
         {//no need to parse sequentially
-            pLand->requested_resources_.clear();
+            pLand->produced_items_.clear();
             RunOrder_LandProduce(pLand);
         }
 
@@ -6366,7 +6366,6 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
         long item_amount_;
     };
 
-    std::map<std::string, long> prod_requests_from_land;
     std::map<std::string, std::vector<ProducerInfo>> land_producers_info;//collection for each resource
     for (CUnit* producer : producers)
     {//check requirements and predict
@@ -6417,14 +6416,7 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
 
         long basic_produce_power = (long)((man_amount*skill_lvl + tools_plus)/prod_details.per_month_);
 
-        if (prod_details.req_resources_.size() == 0)
-        {//produce from the land
-            prod_requests_from_land[order->words_order_[1]] += basic_produce_power;
-            land_producers_info[order->words_order_[1]].push_back({producer, basic_produce_power});
-            continue;
-        }
-
-        //produce from existing resources
+        //produce from existing resources (if requires)
         for (const auto& req_resource : prod_details.req_resources_)
         {
             long producer_has = unit_control::get_item_amount(producer, req_resource.first);
@@ -6435,48 +6427,64 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
                     std::to_string(producer_has) + " is enough just for "+ 
                     std::to_string(basic_produce_power));
             }
-        }            
-        unit_control::modify_item_by_produce(producer, 
-                                                order->words_order_[1], 
-                                                basic_produce_power);
-        for (const auto& req_resource : prod_details.req_resources_)
-        {
-            unit_control::modify_item_by_produce(producer, 
-                                                    req_resource.first, 
-                                                    (long)(-basic_produce_power * req_resource.second));
         }
+
+        land_control::set_produced_items(land, order->words_order_[1], basic_produce_power);
+        land_producers_info[order->words_order_[1]].push_back({producer, basic_produce_power});
     }
 
     //resolve land request (we had to collect all requests before calculation)
     for (auto& res_to_producers : land_producers_info)
     {
-        //fill land's description regarding producing request
-        long land_amount = land_control::get_resource(land, res_to_producers.first);
-        long requested_amount = prod_requests_from_land[res_to_producers.first];
-        land_control::set_requested_resources(land, res_to_producers.first, requested_amount);        
+        if (std::find_if(land->resources_.begin(), 
+                         land->resources_.end(), 
+                         [&](const CItem& item) {
+                return item.code_name_ == res_to_producers.first;
+            }) != land->resources_.end())
+        {//it's a request to land resources
+            long land_amount = land_control::get_resource(land, res_to_producers.first);
+            long requested_amount = land_control::get_produced_items(land, res_to_producers.first);
 
-        //fill producers description regarding their requests
-        double leftovers(0.0);
-        std::sort(res_to_producers.second.begin(), res_to_producers.second.end(), 
-        [](const ProducerInfo& item1, const ProducerInfo& item2){
-            return item1.item_amount_ > item2.item_amount_;
-        });
-        for (const ProducerInfo& prod_info : res_to_producers.second)
-        {
-            if (land_amount < requested_amount)
+            //fill producers description regarding their requests
+            double leftovers(0.0);
+            std::sort(res_to_producers.second.begin(), res_to_producers.second.end(), 
+            [](const ProducerInfo& item1, const ProducerInfo& item2){
+                return item1.item_amount_ > item2.item_amount_;
+            });
+            for (const ProducerInfo& prod_info : res_to_producers.second)
             {
-                double intpart;
-                leftovers += modf(((double)land_amount / requested_amount) * prod_info.item_amount_, &intpart);
-                //prod_info.item_amount_ = intpart;
-                if (leftovers >= 0.999999)
+                if (land_amount < requested_amount)
                 {
-                    intpart += 1;
-                    leftovers -= 1.0;
+                    double intpart;
+                    leftovers += modf(((double)land_amount / requested_amount) * prod_info.item_amount_, &intpart);
+                    //prod_info.item_amount_ = intpart;
+                    if (leftovers >= 0.999999)
+                    {
+                        intpart += 1;
+                        leftovers -= 1.0;
+                    }
+                    unit_control::modify_item_by_produce(prod_info.producer_, res_to_producers.first, intpart);
                 }
-                unit_control::modify_item_by_produce(prod_info.producer_, res_to_producers.first, intpart);
+                else
+                    unit_control::modify_item_by_produce(prod_info.producer_, res_to_producers.first, prod_info.item_amount_);
             }
-            else
-                unit_control::modify_item_by_produce(prod_info.producer_, res_to_producers.first, prod_info.item_amount_);
+        }
+        else
+        {//it's a production of items from other items not touching land
+            for (const ProducerInfo& prod_info : res_to_producers.second)
+            {
+                unit_control::modify_item_by_produce(prod_info.producer_, 
+                                                     res_to_producers.first, 
+                                                     prod_info.item_amount_);
+                TProdDetails prod_details;
+                gpDataHelper->GetProdDetails(res_to_producers.first.c_str(), prod_details);
+                for (const auto& req_resource : prod_details.req_resources_)
+                {
+                    unit_control::modify_item_by_produce(prod_info.producer_, 
+                                                            req_resource.first, 
+                                                            (long)(-prod_info.item_amount_ * req_resource.second));
+                }
+            }
         }
     }
 }
