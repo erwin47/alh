@@ -405,7 +405,7 @@ namespace unit_control
         std::stringstream ss;
         if (IS_NEW_UNIT(unit))
         {
-            ss << std::string(unit->Description.GetData(), unit->Description.GetLength()) << ".\r\n";
+            ss << std::string(unit->Description.GetData(), unit->Description.GetLength()) << "." << EOL_SCR;
             return ss.str();
         }
 
@@ -418,7 +418,7 @@ namespace unit_control
             ++runner;
         while (*runner != ',' && runner != begin)
             --runner;
-        ss << std::string(begin, runner).c_str() << ".\r\n";
+        ss << std::string(begin, runner).c_str() << "." << EOL_SCR;
 
         //getting items line
         ++runner;
@@ -427,7 +427,7 @@ namespace unit_control
         begin = runner;
         while (*runner != '.' && runner < end)
             ++runner;
-        ss << std::string(begin, runner).c_str() << ".\r\n";
+        ss << std::string(begin, runner).c_str() << "." << EOL_SCR;
 
         //getting misc line
         if (unit->IsOurs)
@@ -448,12 +448,12 @@ namespace unit_control
             begin = runner;
             while (*runner != '.' && *runner != ';' && runner < end)
                 ++runner;
-            ss << std::string(begin, runner).c_str() << ".\r\n";
-            ss << misc.c_str() << ".\r\n";
+            ss << std::string(begin, runner).c_str() << "." << EOL_SCR;
+            ss << misc.c_str() << "." << EOL_SCR;
         }
         if (*runner == ';') //we have description
         {
-            ss << std::string(runner, end).c_str() << ".\r\n";
+            ss << std::string(runner, end).c_str() << "." << EOL_SCR;
         }
         return ss.str();     
     }
