@@ -499,7 +499,7 @@ namespace unit_control
             ss << ", riding battle spoils";
         if (flags::is_nocross(unit))
             ss << ", won't cross water";
-        ss << ".\r\n";
+        ss << "." << EOL_SCR;
 
         //second line
         items_control::items_to_stringstream(ss, unit->men_);
@@ -513,7 +513,7 @@ namespace unit_control
             ss << ", ";
             items_control::items_to_stringstream(ss, unit->items_);
         }
-        ss << ".\r\n";
+        ss << "." << EOL_SCR;
         //Skills: tactics [TACT] 1 (30), mining [MINI] 1 (30).
         ss << "Skills: ";
         bool first = true;
@@ -534,7 +534,7 @@ namespace unit_control
             else
                 ss << skills[0].long_name_ << " [" << skill.first << "] " << level << " (" << skill.second << ")";
         }
-        ss << ".\r\n";
+        ss << "." << EOL_SCR;
         return ss.str();
     }
 
