@@ -3425,20 +3425,20 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
 
     if (pUnit)
     {
-        m_UnitDescrSrc << unit_control::get_initial_description(pUnit).c_str() << "\r\n";
+        m_UnitDescrSrc << unit_control::get_initial_description(pUnit).c_str() << EOL_SCR;
 
         for (const std::string& impact_descr : pUnit->impact_description_)
-            m_UnitDescrSrc << ";" << impact_descr.c_str() << ".\r\n";
-        m_UnitDescrSrc << "\r\n";
+            m_UnitDescrSrc << ";" << impact_descr.c_str() << "." << EOL_SCR;
+        m_UnitDescrSrc << EOL_SCR;
 
-        m_UnitDescrSrc << unit_control::get_actual_description(pUnit).c_str() << "\r\n";
+        m_UnitDescrSrc << unit_control::get_actual_description(pUnit).c_str() << EOL_SCR;
 
         if (!IS_NEW_UNIT(pUnit)) 
         {
             if (!pUnit->Errors.IsEmpty())
-                m_UnitDescrSrc << " ***** Errors:\r\n" << pUnit->Errors;
+                m_UnitDescrSrc << " ***** Errors:" << EOL_SCR << pUnit->Errors;
             if (!pUnit->Events.IsEmpty())
-                m_UnitDescrSrc << " ----- Events:\r\n" << pUnit->Events;
+                m_UnitDescrSrc << " ----- Events:" << EOL_SCR << pUnit->Events;
         }
         ReadOnly = (!pUnit->IsOurs || pUnit->Id<=0) ;
     }
