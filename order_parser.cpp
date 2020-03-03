@@ -877,6 +877,16 @@ namespace orders
                     sources.emplace_back(AutoSource{item_type, unit_share_border, priority, nullptr});
                     ret = true;
                 }
+                if (order->comment_.find(";!STORE") != std::string::npos || order->comment_.find(";$STORE") != std::string::npos)
+                {
+                    long unit_share_border, priority(-1);
+                    std::string item_type;
+                    const char* runner = order->comment_.c_str() + sizeof(";!STORE") - 1;
+                    const char* end = order->comment_.c_str() + order->comment_.size();
+                    get_demand(runner, end, item_type, unit_share_border, priority);
+                    sources.emplace_back(AutoSource{item_type, unit_share_border, priority, nullptr});
+                    ret = true;
+                }                
             }
             return ret;
         }
@@ -921,6 +931,16 @@ namespace orders
                     unit_needs.emplace_back(AutoRequirement{item_type, unit_req, priority, false, nullptr});
                     ret = true;
                 }
+                else if (order->comment_.find(";!STORE") != std::string::npos || order->comment_.find(";$STORE") != std::string::npos)
+                {
+                    long unit_req, priority(10);
+                    std::string item_type;
+                    const char* runner = order->comment_.c_str() + sizeof(";!STORE") - 1;
+                    const char* end = order->comment_.c_str() + order->comment_.size();
+                    get_demand(runner, end, item_type, unit_req, priority);
+                    unit_needs.emplace_back(AutoRequirement{item_type, unit_req, priority, false, nullptr});
+                    ret = true;
+                }                
             }
             return ret;            
         }

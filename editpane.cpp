@@ -226,6 +226,9 @@ CUnitOrderEditPane::CUnitOrderEditPane(wxWindow *parent, const wxString &header,
           :CEditPane(parent, header, editable, WhichFont )
 {
     unit_ = NULL;
+#ifdef __APPLE__
+    m_pEditor->OSXDisableAllSmartSubstitutions();
+#endif
     m_pEditor->Bind(wxEVT_TEXT, &CUnitOrderEditPane::OnOrderModified, this);
 }
 

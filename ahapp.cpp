@@ -2138,7 +2138,6 @@ bool CAhApp::GetTradeDescription(CLand* land, std::ostream& out)
     if (land->produced_items_.size() == 0 && builders.size() == 0)
         return false;
 
-
     auto land_name = gpApp->m_pAtlantis->getFullStrLandCoord(land);
     out << land_name.mb_str() << std::endl;
 
@@ -2146,19 +2145,25 @@ bool CAhApp::GetTradeDescription(CLand* land, std::ostream& out)
         out << "Production:" << std::endl;
 
     //resources
-    for (const auto& product : land->produced_items_)
+    std::sort(land->resources_.begin(), land->resources_.end(), [](const CItem& it1, const CItem& it2){
+        return it2.amount_ < it1.amount_;
+    });
+    for (const auto& resource : land->resources_)
     {
-        auto resource_it = std::find_if(land->resources_.begin(), 
-                                        land->resources_.end(), 
-                                        [&](const CItem& item) {
-                                    return item.code_name_ == product.first;
+        out << "    " << resource.code_name_ << " " << resource.amount_;
+
+        auto produce_it = std::find_if(land->produced_items_.begin(), 
+                                        land->produced_items_.end(), 
+                                        [&](const std::pair<std::string, long>& item) {
+                                    return resource.code_name_ == item.first;
                            });
-        if (resource_it != land->resources_.end())
+        if (produce_it != land->produced_items_.end())
         {
-            out << "    " << resource_it->code_name_ << " " << resource_it->amount_;
-            out << " (requested: " << product.second << ")" << std::endl;
+            out << " (requested: " << produce_it->second << ")";
         }
+        out << std::endl;
     }
+
     //products
     for (const auto& product : land->produced_items_)
     {
@@ -2169,7 +2174,7 @@ bool CAhApp::GetTradeDescription(CLand* land, std::ostream& out)
                            });
         if (resource_it == land->resources_.end())
         {
-            out << "    " << product.first << " " << product.second << std::endl;
+            out << "    produce: " << product.first << " " << product.second << std::endl;
         }
     }
 
