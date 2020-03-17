@@ -115,5 +115,9 @@ endif()
 include(${wxWidgets_USE_FILE})
 
 # add the executable
+if(WIN32)
+add_executable(ah ${AH_CPP} ${AH_HEADERS} ${PROJECT_SOURCE_DIR}/ah.rc)
+else()
 add_executable(ah ${AH_CPP} ${AH_HEADERS})
+endif()
 target_link_libraries(ah ${AH_LINK_LIST})
