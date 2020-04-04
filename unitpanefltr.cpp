@@ -469,11 +469,6 @@ void CUnitPaneFltr::OnPopupMenuIssueOrders(wxCommandEvent& event)
     if (dlg.m_Text.IsEmpty())
         return;
 
-
-    pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-    if (pOrders)
-        pOrders->save_current_orders_to_unit();
-
     idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
     while (idx>=0)
     {

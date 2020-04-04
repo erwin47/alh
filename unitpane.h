@@ -41,6 +41,7 @@ public:
     void         SelectUnit(long UnitId);
     void         SelectNextUnit();
     void         SelectPrevUnit();
+    void         DeselectAll();
 
     void         LoadUnitListHdr();
     void         SaveUnitListHdr();

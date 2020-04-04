@@ -76,7 +76,7 @@ namespace unit_control
         bool is_noaid(CUnit* unit) {  return unit->Flags & UNIT_FLAG_RECEIVING_NO_AID;  }
         bool is_avoid(CUnit* unit) {  return unit->Flags & UNIT_FLAG_AVOIDING;  }
         bool is_nocross(CUnit* unit) {  return unit->Flags & UNIT_FLAG_NO_CROSS_WATER;  }
-        bool is_sharing(CUnit* unit) {  return false;  } //not implemented
+        bool is_sharing(CUnit* unit) {  return unit->Flags & UNIT_FLAG_SHARING;  }
         bool is_reveal(CUnit* unit, std::string flag) {
             for(size_t i = 0; i < flag.size(); ++i)
                 flag[i] = std::tolower(flag[i]);
@@ -100,6 +100,15 @@ namespace unit_control
                 return unit->Flags & UNIT_FLAG_CONSUMING_FACTION;
             return false;
         }
+    }
+
+    bool is_leader(CUnit* unit)
+    {
+        EValueType         type;
+        const char       * leadership;
+        return unit->GetProperty(PRP_LEADER, type, (const void *&)leadership, eNormal) == TRUE && 
+               eCharPtr==type &&
+               (0==strcmp(leadership, SZ_LEADER) || 0==strcmp(leadership, SZ_HERO));        
     }
 
     void get_weights(CUnit* unit, long weights[5])
@@ -674,6 +683,246 @@ namespace land_control
         return -1;
     }
 
+    std::string land_full_name(CLand* land)
+    {
+        std::string ret;
+        CStr sCoord;
+        gpApp->m_pAtlantis->ComposeLandStrCoord(land, sCoord);
+        ret.append(std::string(land->TerrainType.GetData(), land->TerrainType.GetLength()));
+        ret.append(" (");
+        ret.append(std::string(sCoord.GetData(), sCoord.GetLength()));
+        ret.append(") in ");
+        ret.append(std::string(land->Name.GetData(), land->Name.GetLength()));
+        if (!land->CityName.IsEmpty())
+        {
+            ret.append(", contains ");
+            ret.append(std::string(land->CityName.GetData(), land->CityName.GetLength()));
+            ret.append(" [");
+            ret.append(std::string(land->CityType.GetData(), land->CityType.GetLength()));
+            ret.append("]");
+        }
+        return ret;
+    }
+
+    namespace economy 
+    {
+        void economy_calculations(CLand* land, CEconomy& res, std::vector<unit_control::UnitError>& errors) 
+        {//gpApp->GetUnitsMovingIntoHex(pLand->Id, ArrivingUnits);
+        //            if (pUnit && pUnit->pMovement)
+        //                  GuiColor = 1;
+        //ShowLandFinancial
+            
+            long leader_upkeep = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_LEADER);
+            long peasant_upkeep = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT);
+            long player_faction_id = game_control::get_game_config_val<long>("ATTITUDES", "PLAYER_FACTION_ID");
+            
+            //study
+            std::unordered_map<long, Student> students = get_land_students(land, errors);
+            for (const auto& student : students)
+            {
+                if (student.second.unit_->FactionId == player_faction_id)
+                    res.study_expenses_ += student.second.skill_price_ * student.second.man_amount_;
+            }
+
+            //sells
+            std::vector<Seller> sellers;
+            get_land_sells(land, sellers, errors);
+            for (const auto& seller : sellers)
+            {
+                if (seller.unit_->FactionId == player_faction_id)
+                    res.sell_income_ += seller.market_price_ * seller.items_amount_;
+            }
+
+            //tax income
+            Taxers taxers;
+            get_land_taxers(land, taxers, errors);
+            res.tax_income_ = taxers.expected_income_;
+
+            //moving in
+            CBaseColl           arriving_units;
+            CUnit*              unit_temp;
+            gpApp->GetUnitsMovingIntoHex(land->Id, arriving_units);
+            for (int i=0; i<arriving_units.Count(); ++i)
+            {
+                unit_temp = (CUnit*)arriving_units.At(i);
+                if (unit_temp != NULL)
+                {
+                    if (unit_control::is_leader(unit_temp)) {
+                        res.maintenance_ += leader_upkeep*unit_control::get_item_amount_by_mask(unit_temp, PRP_MEN);
+                    } else {
+                        res.maintenance_ += peasant_upkeep*unit_control::get_item_amount_by_mask(unit_temp, PRP_MEN);
+                    }
+                    res.moving_in_ += unit_control::get_item_amount_by_mask(unit_temp, PRP_SILVER);
+                }
+            }
+
+            perform_on_each_unit(land, [&](CUnit* unit) {
+                if (!unit->IsOurs || unit->FactionId != player_faction_id)
+                    return;
+
+                //initial amount
+                long men_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                res.initial_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_SILVER);
+                if (men_amount > 0) 
+                {
+                    //moving out
+                    if (unit->pMovement != NULL && unit->pMovement->Count() > 0)
+                        res.moving_out_ += unit_control::get_item_amount_by_mask(unit, PRP_SILVER);
+                    else 
+                    {//maintenance
+                        if (unit_control::is_leader(unit)) {
+                            res.maintenance_ += leader_upkeep*men_amount;
+                        } else {
+                            res.maintenance_ += peasant_upkeep*men_amount;
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    void get_land_taxers(CLand* land, Taxers& out, std::vector<unit_control::UnitError>& errors)
+    {
+        bool tax_orders_presence = false;
+        bool pillage_orders_presence = false;
+        out.is_pillaging_ = false;
+        out.expected_income_ = 0;
+        out.land_tax_available_ = land->Taxable;
+        out.man_amount_ = 0;
+        long tax_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER);
+        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+
+            auto tax_orders = orders::control::retrieve_orders_by_type(orders::Type::O_TAX, unit->orders_);
+            if (tax_orders.size() > 0)
+            {
+                tax_orders_presence = true;
+                out.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                out.units_.push_back(unit);
+                return;
+            }
+            auto pillage_orders = orders::control::retrieve_orders_by_type(orders::Type::O_PILLAGE, unit->orders_);
+            if (pillage_orders.size() > 0)
+            {
+                pillage_orders_presence = true;
+                out.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                out.units_.push_back(unit);
+                return;
+            }
+            auto autotax_orders = orders::control::retrieve_orders_by_type(orders::Type::O_AUTOTAX, unit->orders_);
+            if (autotax_orders.size() > 0)
+            {
+                long flag = atol(autotax_orders[autotax_orders.size() - 1]->words_order_[1].c_str());//TODO: specific order
+                if (flag == 1)
+                {
+                    tax_orders_presence = true;
+                    out.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                    out.units_.push_back(unit);
+                }
+                return;//in case that flag is set to 0, we don't want to check actual AUTOTAX flag.
+            }
+            if (unit->Flags & UNIT_FLAG_TAXING)
+            {
+                tax_orders_presence = true;
+                out.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                out.units_.push_back(unit);
+                return;
+            }
+        });
+        if (tax_orders_presence && pillage_orders_presence)
+        {
+            for (auto& unit : out.units_)
+                errors.push_back({unit, " - Taxing and pillaging in the same region!"});
+        } 
+        if (pillage_orders_presence)
+        {
+            out.is_pillaging_ = true;
+            long required_pillagers = (out.land_tax_available_-1)/(2*tax_per_man) + 1;
+            if (required_pillagers <= out.man_amount_)
+                out.expected_income_ = 2*out.land_tax_available_;
+            else
+            {
+                for (auto& unit : out.units_)
+                    errors.push_back({unit, " - Not enough pillagers, needs: "+
+                        std::to_string(required_pillagers)+", but have: "+std::to_string(out.man_amount_)});
+                out.expected_income_ = 0;
+            }                    
+        }  
+        //if we have tax orders and pillage failed
+        if (tax_orders_presence && out.expected_income_ == 0)
+        {
+            out.is_pillaging_ = false;
+            if (out.land_tax_available_ < tax_per_man*out.man_amount_)
+                out.expected_income_ = out.land_tax_available_;
+            else
+                out.expected_income_ = tax_per_man*out.man_amount_;
+        }
+    }
+
+    void get_land_sells(CLand* land, std::vector<Seller>& out, std::vector<unit_control::UnitError>& errors)
+    {
+        perform_on_each_unit(land, [&](CUnit* unit) {
+            auto sell_orders = orders::control::retrieve_orders_by_type(orders::Type::O_SELL, unit->orders_);
+            for (auto& sell_order : sell_orders)
+            {
+                std::string item_name;
+                long amount_to_sell;
+                bool all;
+                bool ignore_errors = orders::control::ignore_order(sell_order);
+                if (!ignore_errors && !orders::parser::specific::parse_sell(sell_order, item_name, amount_to_sell, all))
+                {
+                    errors.push_back({unit, " - Sell: couldn't parse order - " + sell_order->original_string_});
+                    continue;
+                }
+
+                long amount_at_unit = unit_control::get_item_amount(unit, item_name);
+                if (!ignore_errors && amount_at_unit <= 0)
+                {
+                    errors.push_back({unit, " - Sell: no items to sell - " + sell_order->original_string_});
+                    continue;
+                }
+
+                CProductMarket wanted_item = land_control::get_wanted(land, item_name);
+                if (!ignore_errors && wanted_item.item_.amount_ <= 0)
+                {
+                    errors.push_back({unit, " - Sell: items are not wanted - " + sell_order->original_string_});
+                    continue;
+                }
+
+                if (all)
+                    amount_to_sell = std::min(amount_at_unit, wanted_item.item_.amount_);
+                if (!ignore_errors && amount_to_sell <= 0)
+                {
+                    errors.push_back({unit, " - Sell: specified amount is not correct - " + sell_order->original_string_});
+                    continue;
+                }
+
+                if (amount_to_sell > amount_at_unit)
+                {
+                    std::string warning = "trying to sell " + std::to_string(amount_to_sell)+
+                                          " but has " + std::to_string(amount_at_unit);
+                    unit->impact_description_.push_back("sell issue: " + warning);
+                    amount_to_sell = amount_at_unit;
+                    errors.push_back({unit, " - Sell: " + warning});
+                }
+                if (amount_to_sell > wanted_item.item_.amount_)
+                {
+                    std::string warning = "trying to sell "+std::to_string(amount_to_sell)+
+                            " but wanted just "+std::to_string(wanted_item.item_.amount_);                    
+                    unit->impact_description_.push_back("sell issue: " + warning);
+                    amount_to_sell = wanted_item.item_.amount_;
+                    errors.push_back({unit, " - Sell: " + warning});
+                }
+                if (amount_to_sell < amount_at_unit && amount_to_sell < wanted_item.item_.amount_)
+                {
+                    unit->impact_description_.push_back("sell notice: trying to sell "+
+                        std::to_string(amount_to_sell)+" but can "+std::to_string(std::min(wanted_item.item_.amount_, amount_at_unit)));
+                }
+                
+                out.push_back({sell_order, item_name, amount_to_sell, wanted_item.price_, unit});
+            }
+        });
+    }
+
     std::unordered_map<long, Student> get_land_students(CLand* land, std::vector<unit_control::UnitError>& errors)
     {
         std::unordered_map<long, Student> students;
@@ -681,17 +930,19 @@ namespace land_control
             std::shared_ptr<orders::Order> studying_order = orders::control::get_studying_order(unit->orders_);
             if (studying_order != nullptr) 
             {
-                if (studying_order->words_order_.size() != 2)
+                std::string studying_skill;
+                long goal_lvl;
+                if (!orders::parser::specific::parse_study(studying_order, studying_skill, goal_lvl))
                 {
                     unit->impact_description_.push_back("study error: wrong command: " + studying_order->original_string_);
                     errors.push_back({unit, " - Wrong studying command!"});
                     return;
                 }
 
-                long price = gpApp->GetStudyCost(studying_order->words_order_[1].c_str());
+                long price = gpApp->GetStudyCost(studying_skill.c_str());
                 if (price <= 0)
                 {
-                    unit->impact_description_.push_back("study error: can't study " + studying_order->words_order_[1]);
+                    unit->impact_description_.push_back("study error: can't study " + studying_skill);
                     errors.push_back({unit, " - Can not study that!"});
                     return;
                 }
@@ -704,7 +955,6 @@ namespace land_control
                     return;
                 }
 
-                std::string studying_skill = studying_order->words_order_[1];
                 long max_skill = unit_control::get_max_skill_lvl(unit, studying_skill);
                 if (max_skill < 0)
                 {
@@ -721,7 +971,18 @@ namespace land_control
                     errors.push_back({unit, " - Skill is already at max level!"});
                     return;
                 }
-                
+
+                if (goal_lvl > 0)
+                {
+                    long goal_days = 30*(goal_lvl+1)*(goal_lvl)/2;
+                    if (current_days >= goal_days)
+                    {
+                        unit->impact_description_.push_back("study error: skill already reached specified goal");
+                        errors.push_back({unit, " - Skill already reached specified goal!"});
+                        return;
+                    }
+                }
+
                 unit_control::modify_silver(unit, -price * amount_of_man, "studying");
                 //support of Unit List functionality
                 if (PE_OK!=unit->SetProperty(PRP_SILVER,   eLong, (const void *)(unit->silver_.amount_), eNormal))
@@ -735,6 +996,7 @@ namespace land_control
                 students[unit->Id].days_of_teaching_ = 0;//amount of days got from a teacher
                 students[unit->Id].man_amount_ = amount_of_man;
                 students[unit->Id].order_ = studying_order;
+                students[unit->Id].skill_price_ = price;
                 students[unit->Id].unit_ = unit;                         
             }
         });

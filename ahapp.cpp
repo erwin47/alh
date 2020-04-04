@@ -2126,62 +2126,107 @@ void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & Ta
 }
 
 //-------------------------------------------------------------------------
-
-bool CAhApp::GetTradeDescription(CLand* land, std::ostream& out)
+bool CAhApp::GetTradeActivityDescription(CLand* land, std::map<int, std::vector<std::string>>& report)
 {
-    std::vector<CUnit*> builders;
-    land_control::get_units_if(land, builders, [](CUnit* unit) {
-        auto ret = orders::control::retrieve_orders_by_type(orders::Type::O_BUILD, unit->orders_);
-        return ret.size() > 0;
-    });
-
-    if (land->produced_items_.size() == 0 && builders.size() == 0)
-        return false;
-
-    auto land_name = gpApp->m_pAtlantis->getFullStrLandCoord(land);
-    out << land_name.mb_str() << std::endl;
-
-    if (land->produced_items_.size() > 0)
-        out << "Production:" << std::endl;
-
+    bool ret_val(false);
     //resources
-    std::sort(land->resources_.begin(), land->resources_.end(), [](const CItem& it1, const CItem& it2){
-        return it2.amount_ < it1.amount_;
+    if (land->produced_items_.size() > 0)
+    {
+        std::sort(land->resources_.begin(), land->resources_.end(), [](const CItem& it1, const CItem& it2){
+            return it2.amount_ < it1.amount_;
+        });
+
+        std::set<long> involved_factions;
+        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+            auto ret = orders::control::retrieve_orders_by_type(orders::Type::O_PRODUCE, unit->orders_);
+            if (ret.size() == 1)
+            {
+                std::string item;
+                long amount;
+                if (orders::parser::specific::parse_produce(ret[0], item, amount))
+                    involved_factions.insert(unit->FactionId);
+            }
+        });
+
+        for (const auto& resource : land->resources_)
+        {
+            std::string reg_line = "    " + resource.code_name_ + " " + std::to_string(resource.amount_);
+
+            auto produce_it = std::find_if(land->produced_items_.begin(), 
+                                           land->produced_items_.end(), 
+                                            [&](const std::pair<std::string, long>& item) {
+                                        return resource.code_name_ == item.first;
+                            });
+
+            for (auto& factionId : involved_factions)
+            {
+                if (produce_it != land->produced_items_.end())
+                {
+                    report[factionId].push_back(reg_line + " (requested: " + std::to_string(produce_it->second) + ")");
+                }
+                else 
+                {
+                    report[factionId].push_back(reg_line);
+                }
+            }
+        }
+
+        //products
+        for (const auto& product : land->produced_items_)
+        {
+            auto resource_it = std::find_if(land->resources_.begin(), 
+                                            land->resources_.end(), 
+                                            [&](const CItem& item) {
+                                        return item.code_name_ == product.first;
+                            });
+
+            for (auto& factionId : involved_factions)
+            {
+                if (resource_it == land->resources_.end())
+                {
+                    report[factionId].push_back("    produce: " + product.first + " " + std::to_string(product.second));
+                }
+            }
+        }
+        ret_val = true;
+    }
+
+    // compose building statistics
+    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        auto ret = orders::control::retrieve_orders_by_type(orders::Type::O_BUILD, unit->orders_);
+        if (ret.size() == 1) 
+        {
+            std::string building;
+            long unit_id;
+            bool helps;
+            if (orders::parser::specific::parse_build(ret[0], building, helps, unit_id))
+            {
+                if (helps)
+                {
+                    std::string temp = unit_control::compose_unit_name(unit);
+                    report[unit->FactionId].push_back(temp + " helps at building to " + std::to_string(unit_id));
+                }
+                else
+                {
+                    std::string temp = unit_control::compose_unit_name(unit);
+                    report[unit->FactionId].push_back(temp + " builds " + building);
+                }
+            }
+            else 
+            {//unknown format
+                std::string temp = unit_control::compose_unit_name(unit);
+                report[unit->FactionId].push_back(temp + " building with unresolved order: " + ret[0]->original_string_);
+            }
+            ret_val = true;    
+        }
+        else if (ret.size() > 1)
+        {
+            std::string temp = unit_control::compose_unit_name(unit);
+            report[unit->FactionId].push_back(temp + " hax multiple build orders.");
+            ret_val = true;
+        }        
     });
-    for (const auto& resource : land->resources_)
-    {
-        out << "    " << resource.code_name_ << " " << resource.amount_;
-
-        auto produce_it = std::find_if(land->produced_items_.begin(), 
-                                        land->produced_items_.end(), 
-                                        [&](const std::pair<std::string, long>& item) {
-                                    return resource.code_name_ == item.first;
-                           });
-        if (produce_it != land->produced_items_.end())
-        {
-            out << " (requested: " << produce_it->second << ")";
-        }
-        out << std::endl;
-    }
-
-    //products
-    for (const auto& product : land->produced_items_)
-    {
-        auto resource_it = std::find_if(land->resources_.begin(), 
-                                        land->resources_.end(), 
-                                        [&](const CItem& item) {
-                                    return item.code_name_ == product.first;
-                           });
-        if (resource_it == land->resources_.end())
-        {
-            out << "    produce: " << product.first << " " << product.second << std::endl;
-        }
-    }
-
-    if (builders.size() > 0)
-        out << "Building in the region" << std::endl;
-    //TODO: add more info about builders
-    return true;
+    return ret_val;
 }
 
 void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & TradeDetails)
@@ -2315,7 +2360,17 @@ void CAhApp::CheckTaxTrade()
     CTaxProdDetailsCollByFaction  Taxes;
     //CTaxProdDetailsCollByFaction  Trades;
     CTaxProdDetails              *pDetails;
-    long trade_regions_amount(0);
+
+    struct FactionStats 
+    {
+        long trade_regions_amount_;
+        long tax_regions_amount_;
+        long claim_requested_amount_;
+        std::string full_report_;
+    };
+    std::map<long, FactionStats> output_stats;
+
+
     std::stringstream trade_out;
 
     for (n=0; n<m_pAtlantis->m_Planes.Count(); n++)
@@ -2325,13 +2380,78 @@ void CAhApp::CheckTaxTrade()
         {
             pLand = (CLand*)pPlane->Lands.At(i);
 
+            //get tax amount
+            std::set<long> scoreboard;//<factionId>, one for region
+            land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {
+
+                if (scoreboard.find(unit->FactionId) != scoreboard.end())
+                    return;
+
+                auto tax_orders = orders::control::retrieve_orders_by_type(orders::Type::O_TAX, unit->orders_);
+                if (tax_orders.size() > 0)
+                {
+                    output_stats[unit->FactionId].tax_regions_amount_++;
+                    scoreboard.insert(unit->FactionId);
+                    return;
+                }
+                auto pillage_orders = orders::control::retrieve_orders_by_type(orders::Type::O_PILLAGE, unit->orders_);
+                if (pillage_orders.size() > 0)
+                {
+                    output_stats[unit->FactionId].tax_regions_amount_++;
+                    scoreboard.insert(unit->FactionId);
+                    return;
+                }
+                auto autotax_orders = orders::control::retrieve_orders_by_type(orders::Type::O_AUTOTAX, unit->orders_);
+                if (autotax_orders.size() > 0)
+                {
+                    long flag = atol(autotax_orders[autotax_orders.size() - 1]->words_order_[1].c_str());
+                    if (flag == 1)
+                    {
+                        output_stats[unit->FactionId].tax_regions_amount_++;
+                        scoreboard.insert(unit->FactionId);
+                    }
+                    return;//in case that flag is set to 0, we don't want to check actual AUTOTAX flag.
+                }
+                if (unit->Flags & UNIT_FLAG_TAXING)
+                {
+                    output_stats[unit->FactionId].tax_regions_amount_++;
+                    scoreboard.insert(unit->FactionId);
+                    return;
+                }
+            });
+
+            //get claim amount
+            land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {
+                long amount;
+                auto claim_orders = orders::control::retrieve_orders_by_type(orders::Type::O_CLAIM, unit->orders_);
+                for (const auto& ord : claim_orders)
+                {                    
+                    if (orders::parser::specific::parse_claim(ord, amount))
+                    {
+                        output_stats[unit->FactionId].claim_requested_amount_ += amount;
+                    }
+                    else
+                    {
+                        //TODO: add warning
+                    }                    
+                }
+            });
+
             if (pLand->Flags & LAND_TAX_NEXT)
                 CheckTaxDetails(pLand, Taxes);
 
-            if (GetTradeDescription(pLand, trade_out))
+            std::map<int, std::vector<std::string>> reg_report;
+            if (GetTradeActivityDescription(pLand, reg_report))
             {
-                ++trade_regions_amount;
-                trade_out << std::endl;
+                for (auto& fact_rep : reg_report)
+                {
+                    ++output_stats[fact_rep.first].trade_regions_amount_;
+                    output_stats[fact_rep.first].full_report_.append(land_control::land_full_name(pLand) + EOL_SCR);
+                    for (auto& line : fact_rep.second)
+                    {
+                        output_stats[fact_rep.first].full_report_.append(line + std::string(EOL_SCR));
+                    }
+                }
             }
         }
     }
@@ -2345,9 +2465,22 @@ void CAhApp::CheckTaxTrade()
 
     Taxes.FreeAll();
 
-    std::string trade_report = "Amount of regions: " + std::to_string(trade_regions_amount)+ std::string(EOL_SCR) + trade_out.str();
-    ShowError(Report.GetData()      , Report.GetLength()      , TRUE);
-    ShowError(trade_report.c_str()      , trade_report.size(), TRUE);
+    for (auto& faction_stat : output_stats)
+    {
+        std::string header = "Faction: " + std::to_string(faction_stat.first) + EOL_SCR;
+        std::string claim_amount = "Requested unclaim: " + std::to_string(faction_stat.second.claim_requested_amount_) + EOL_SCR;
+        std::string tax_amount = "Amount of tax regions: " + std::to_string(faction_stat.second.tax_regions_amount_) + EOL_SCR;
+        std::string trade_amount = "Amount of trade regions: " + std::to_string(faction_stat.second.trade_regions_amount_)+ std::string(EOL_SCR);
+        std::string trade_detailed = faction_stat.second.full_report_ + EOL_SCR;
+
+        ShowError(header.c_str(), header.size(), TRUE);
+        ShowError(claim_amount.c_str(), claim_amount.size(), TRUE);
+        ShowError(tax_amount.c_str(), tax_amount.size(), TRUE);
+        ShowError(trade_amount.c_str(), trade_amount.size(), TRUE);
+        ShowError(trade_detailed.c_str(), trade_detailed.size(), TRUE);
+
+
+    }
 }
 
 //-------------------------------------------------------------------------
@@ -3351,6 +3484,22 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
                 }
             }
 
+            /*land_control::economy::Economy economy;
+            std::vector<unit_control::UnitError> errors;
+            land_control::economy::init_economy(economy);
+            land_control::economy::economy_calculations(pLand, economy, errors);*/
+            
+            m_HexDescrSrc << EOL_SCR << "Economy:" << EOL_SCR;
+            m_HexDescrSrc << "    Initial amount: " << pLand->economy_.initial_amount_ << EOL_SCR;
+            m_HexDescrSrc << "    Tax/pillage:    " << pLand->economy_.tax_income_ << EOL_SCR;
+            m_HexDescrSrc << "    Sell income:    " << pLand->economy_.sell_income_ << EOL_SCR;
+            m_HexDescrSrc << "    Moving in:      " << pLand->economy_.moving_in_ << EOL_SCR;
+            m_HexDescrSrc << "    Maintenance:    " << pLand->economy_.maintenance_ << EOL_SCR;
+            m_HexDescrSrc << "    Moving out:     " << pLand->economy_.moving_out_ << EOL_SCR;             
+            m_HexDescrSrc << "    Study expenses: " << pLand->economy_.study_expenses_ << EOL_SCR;
+            
+            //m_HexDescrSrc << "  Balance: " << economy.sell_income_ << EOL_SCR;
+
             for (i=0; i<LAND_FLAG_COUNT; i++)
                 if (!pLand->FlagText[i].IsEmpty())
                 {
@@ -3374,6 +3523,12 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
                )
                 m_HexDescrSrc << EOL_SCR << "Events:" << EOL_SCR << pLand->Events << EOL_SCR;
             m_HexDescrSrc << EOL_SCR << "Exits:"  << EOL_SCR << pLand->Exits;
+
+            m_HexDescrSrc << EOL_SCR << "Errors:" << EOL_SCR;
+            for (const auto& error : pLand->run_orders_errors_)
+            {
+                m_HexDescrSrc << "    " << unit_control::compose_unit_name(error.unit_).c_str() << error.message_.c_str() << EOL_SCR;
+            }
         }
         pEditPane->SetSource(&m_HexDescrSrc, NULL);
     }
@@ -3401,6 +3556,10 @@ void CAhApp::OnMapSelectionChange()
 
     UpdateHexEditPane(pLand);  // NULL is Ok!
     UpdateHexUnitList(pLand);
+
+    CUnitPane* pUnitPane = reinterpret_cast<CUnitPane*>(m_Panes[AH_PANE_UNITS_HEX]);
+    pUnitPane->DeselectAll();
+    pMapPane->SetFocus();
     SetMapFrameTitle();
 }
 

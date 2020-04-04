@@ -26,6 +26,21 @@ Also there will be explicitely written if any of students is not studying anymor
 In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `REC_DLG_GROUPS` may be listed groups with which ReceiveDlg will work, as with items. For example, `REC_DLG_GROUPS = trade_items,food` mean, that in ReceiveDlg in drop up list there will be possibility to choose `trade_items` or `food`, and get list of all units having any items belonging to the group. Those entities (trade_items and food) have to be defined in section `UNIT_PROPERTY_GROUPS`.
 
 ## Changelog:
+### Apr 04 2020
+- partly added Economy & errors in Land report.
+- tax-trade-report: added claiming info
+- tax-trade-report: fix, calculations for different factions separately
+- tax-trade-report: fix, tax calculation restored
+- added support of modern formats of next orders: `STUDY`, `PRODUCE` 
+- added flag `share`
+- added `EQUIP WEAP ARMO`, `X` as parameter to number (will be used current amount of man in the unit), `STORE` (works as `SOURCE` and `NEED` simultaneously)
+- UI: deselects unit when we change the selection of a region
+- new-unit-dialogue: fix, bug with Ctrl+F when no unit selected
+- general: removed some internal events triggering
+- autoorders: internal refactoring
+- autoorders: fixed bug with duplicated orders
+- orders: added internal parsers for specific orders
+
 ### Mar 03 2020
 - Trade report is improved.
 - MacOS: OSXDisableAllSmartSubstitutions() to avoid mess attempt.

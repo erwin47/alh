@@ -143,6 +143,17 @@ namespace orders
                                        std::stringstream& out_errors);
 
         }
+        namespace specific
+        {
+            bool parse_produce(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount);
+            bool parse_build(const std::shared_ptr<orders::Order>& order, std::string& building, bool& helps, long& unit_id);
+            bool parse_claim(const std::shared_ptr<orders::Order>& order, long& amount);
+            bool parse_study(const std::shared_ptr<orders::Order>& order, std::string& skill, long& level);
+            bool parse_assassinate(const std::shared_ptr<orders::Order>& order, long& target_id);
+            bool parse_attack(const std::shared_ptr<orders::Order>& order, std::vector<long>& targets);
+            bool parse_steal(const std::shared_ptr<orders::Order>& order, long& target_id, std::string& item);
+            bool parse_sell(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount, bool& all);
+        }
 
         void recalculate_hash(UnitOrders& uorders);
     }
@@ -185,6 +196,9 @@ namespace orders
         //! removes empty lines from unit's orders.
         void remove_empty_lines(CUnit* unit);
 
+        //! check if we should ignore the order
+        bool ignore_order(const std::shared_ptr<Order>& order);
+
         //! removes orders with specified pattern in comments
         void remove_orders_by_comment(CUnit* unit, const std::string& pattern);
 
@@ -206,9 +220,8 @@ namespace orders
     struct AutoRequirement
     {
         std::string name_;
-        long amount_;//-1 all
+        long amount_;//-1 means all, -2 means equal to unit man's amount
         long priority_;//the lower the better. 10 default. 20 for -1
-        bool regional_;//determines if it is NEED or NEEDREG
         CUnit* unit_;
         std::shared_ptr<std::string> description_;
     };
@@ -227,6 +240,9 @@ namespace orders
         //! extract CaravanInfo from orders of unit
         std::shared_ptr<CaravanInfo> get_caravan_info(UnitOrders& unit_orders);
 
+        /*void get_unit_sources_and_needs(const CUnit* unit, 
+                                        std::vector<AutoSource>& sources,
+                                        std::vector<AutoRequirement>& needs);
         //! parse orders to find out all SOURCE marks of current unit
         bool get_unit_autosources(const UnitOrders& unit_orders, std::vector<AutoSource>& sources);
 
@@ -238,23 +254,31 @@ namespace orders
         
         //! checks actual amount of items in unit to define real request
         void adjust_unit_needs(CLand* land, CUnit* unit, std::vector<AutoRequirement>& unit_needs);
-
+*/
         std::unordered_map<std::string, std::vector<long>> create_source_table(const std::vector<AutoSource>& sources);
     }    
 
 namespace autoorders_control
     {
         //!gets all land sources excluding caravan sources
-        void get_land_autosources(CLand* land, std::vector<orders::AutoSource>& sources);
+        //void get_land_autosources(CLand* land, std::vector<orders::AutoSource>& sources);
+
+        void get_land_autosources_and_autoneeds(CLand* land, 
+                                                std::vector<orders::AutoSource>& sources,
+                                                std::vector<orders::AutoRequirement>& needs);
+
+        void get_land_caravan_autosources_and_autoneeds(CLand* land, 
+                                                        std::vector<orders::AutoSource>& sources,
+                                                        std::vector<orders::AutoRequirement>& needs);                                                
 
         //!gets all land's caravan sources
-        void get_land_caravan_sources(CLand* land, std::vector<orders::AutoSource>& sources);
+        //void get_land_caravan_sources(CLand* land, std::vector<orders::AutoSource>& sources);
 
         //!gets all needs of the land except foreign needs of caravans
-        void get_land_autoneeds(CLand* land, std::vector<orders::AutoRequirement>& needs);
+        //void get_land_autoneeds(CLand* land, std::vector<orders::AutoRequirement>& needs);
 
         //!gets all foreign needs of caravans
-        void get_land_caravan_needs(CLand* land, std::vector<orders::AutoRequirement>& needs);    
+       //void get_land_caravan_needs(CLand* land, std::vector<orders::AutoRequirement>& needs);    
 
         //!returns amount of items this unit can take according to his weight policy
         long weight_max_amount_of_items(CUnit* unit, const std::string& item_name);

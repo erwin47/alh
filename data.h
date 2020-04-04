@@ -473,6 +473,24 @@ public:
     int   Direction;
 };
 */
+struct CError
+{
+    std::string type_;//"Error", "Warning"
+    CUnit* unit_;
+    std::string message_;
+};
+
+struct CEconomy
+{
+    long initial_amount_;//implemented
+    long maintenance_;
+    long buy_expenses_;
+    long study_expenses_;//implemented
+    long moving_out_;
+    long moving_in_;
+    long tax_income_;
+    long sell_income_;//implemented
+};
 
 //-----------------------------------------------------------------
 
@@ -514,10 +532,14 @@ public:
     CBaseColl     UnitsSeq; // this will keep units in the sequence they were met in the report
     CBaseColl     EdgeStructs;
     CProductColl  Products;
-    std::vector<CItem> resources_;
-    std::map<std::string, long> produced_items_;
-    std::map<std::string, CProductMarket> wanted_;
-    std::map<std::string, CProductMarket> for_sale_;
+
+    std::vector<CItem>                      resources_;
+    std::map<std::string, long>             produced_items_;
+    std::map<std::string, CProductMarket>   wanted_;
+    std::map<std::string, CProductMarket>   for_sale_;
+    CEconomy                                economy_;
+    std::vector<CError>                     run_orders_errors_;
+    
     unsigned long Flags;
     unsigned long AlarmFlags;
     unsigned long EventFlags;

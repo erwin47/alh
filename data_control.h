@@ -27,6 +27,8 @@ namespace unit_control
         bool is_leader(CUnit* unit);
     }
 
+    bool is_leader(CUnit* unit);
+    
     void get_weights(CUnit* unit, long weights[5]);
     
     std::set<CItem> get_all_items(CUnit* unit);
@@ -71,7 +73,26 @@ namespace land_control
         long max_days_;
         long cur_days_;
         long days_of_teaching_;
+        long skill_price_;
         CUnit* unit_;
+    };
+
+    struct Seller
+    {
+        std::shared_ptr<orders::Order> order_;
+        std::string item_name_;
+        long items_amount_;
+        long market_price_;
+        CUnit* unit_;
+    };
+
+    struct Taxers
+    {
+        bool is_pillaging_;
+        long man_amount_;
+        long land_tax_available_;
+        long expected_income_;
+        std::vector<CUnit*> units_;
     };
 
     CProductMarket get_wanted(CLand* land, const std::string& item_code);
@@ -115,11 +136,19 @@ namespace land_control
     }
 
     long get_land_id(const char* land);
+    std::string land_full_name(CLand* land);
 
     long get_plane_id(const char* plane_name);
     CLand* get_land(int x, int y, int z);
     CLand* get_land(long land_id);
 
+    namespace economy 
+    {
+        void economy_calculations(CLand* land, CEconomy& res, std::vector<unit_control::UnitError>& errors);
+    }
+
+    void get_land_taxers(CLand* land, Taxers& out, std::vector<unit_control::UnitError>& errors);
+    void get_land_sells(CLand* land, std::vector<Seller>& out, std::vector<unit_control::UnitError>& errors);
     std::unordered_map<long, Student> get_land_students(CLand* land, std::vector<unit_control::UnitError>& errors);
     void update_students_by_land_teachers(CLand* land, std::unordered_map<long, Student>& students, std::vector<unit_control::UnitError>& errors);
 

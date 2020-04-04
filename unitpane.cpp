@@ -420,6 +420,21 @@ void CUnitPane::SelectPrevUnit()
     }
 }
 
+void CUnitPane::DeselectAll()
+{
+    long item = -1;
+    for ( ;; )
+    {
+        item = this->GetNextItem(item,
+                                 wxLIST_NEXT_ALL,
+                                 wxLIST_STATE_SELECTED);
+        if ( item == -1 )
+            break;
+
+        this->SetItemState(item, 0, wxLIST_MASK_STATE);
+    }    
+}
+
 //--------------------------------------------------------------------------
 
 void CUnitPane::OnColClicked(wxListEvent& event)
@@ -540,11 +555,7 @@ void CUnitPane::OnPopupMenuTeach (wxCommandEvent& event)
 
     if (pUnit)
     {
-        pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-        if (pOrders)
-            pOrders->save_current_orders_to_unit();
-
-        if (m_pCurLand)
+                if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
         gpApp->SetOrdersChanged(gpApp->m_pAtlantis->GenOrdersTeach(pUnit)
@@ -563,10 +574,6 @@ void CUnitPane::OnPopupMenuSplit(wxCommandEvent& event)
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
-        pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-        if (pOrders)
-            pOrders->save_current_orders_to_unit();
-
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
@@ -583,16 +590,15 @@ void CUnitPane::OnPopupMenuSplit(wxCommandEvent& event)
 void CUnitPane::OnPopupMenuCreateNew(wxCommandEvent& event)
 {
     long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    if (idx == -1)
+        return;
+
     CUnit* pUnit = GetUnit(idx);
     CLand* pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
     CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
-        pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-        if (pOrders)
-            pOrders->save_current_orders_to_unit();
-
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
@@ -611,10 +617,6 @@ void CUnitPane::OnPopupMenuReceiveItems(wxCommandEvent& event)
     long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
     CUnit* pUnit = GetUnit(idx);
     CLand* pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
-
-    CUnitOrderEditPane* pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-    if (pOrders)
-        pOrders->save_current_orders_to_unit();
 
     CReceiveDlg dlg(this, pUnit, pLand);
     if (wxID_OK == dlg.ShowModal()) // it will modify unit's orders
@@ -733,10 +735,6 @@ void CUnitPane::OnPopupMenuScoutSimple(wxCommandEvent& event)
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
-        pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-        if (pOrders)
-            pOrders->save_current_orders_to_unit();
-
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
@@ -755,10 +753,6 @@ void CUnitPane::OnPopupMenuScoutMove(wxCommandEvent& event)
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
-        pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-        if (pOrders)
-            pOrders->save_current_orders_to_unit();
-
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
@@ -777,10 +771,6 @@ void CUnitPane::OnPopupMenuScoutObserver(wxCommandEvent& event)
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
-        pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-        if (pOrders)
-            pOrders->save_current_orders_to_unit();
-
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
@@ -799,10 +789,6 @@ void CUnitPane::OnPopupMenuScoutStealth(wxCommandEvent& event)
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
-        pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-        if (pOrders)
-            pOrders->save_current_orders_to_unit();
-
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
@@ -821,10 +807,6 @@ void CUnitPane::OnPopupMenuScoutGuard(wxCommandEvent& event)
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
-        pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-        if (pOrders)
-            pOrders->save_current_orders_to_unit();
-
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
@@ -843,10 +825,6 @@ void CUnitPane::OnPopupMenuShareSilv  (wxCommandEvent& event)
 
     if (pUnit)
     {
-        pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-        if (pOrders)
-            pOrders->save_current_orders_to_unit();
-
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
@@ -868,10 +846,6 @@ void CUnitPane::OnPopupMenuGiveEverything (wxCommandEvent& event)
 
     if (pUnit)
     {
-        pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-        if (pOrders)
-            pOrders->save_current_orders_to_unit();
-
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
@@ -896,10 +870,6 @@ void CUnitPane::OnPopupMenuDiscardJunk(wxCommandEvent& WXUNUSED(event))
     // For normal units: issue orders to give away all useless items
     if (pUnit)
     {
-        pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-        if (pOrders)
-            pOrders->save_current_orders_to_unit();
-
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
@@ -932,10 +902,6 @@ void CUnitPane::OnPopupMenuDetectSpies(wxCommandEvent& WXUNUSED(event))
         if (DoCheck &&
             wxYES != wxMessageBox(wxT("Really generate orders for spy detection?  It might freeze the program on Linux!"), wxT("Confirm"), wxYES_NO, NULL))
             return;
-
-        pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-        if (pOrders)
-            pOrders->save_current_orders_to_unit();
 
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
@@ -1080,10 +1046,6 @@ void CUnitPane::OnPopupMenuIssueOrders(wxCommandEvent& event)
     dlg.m_Text.TrimRight(TRIM_ALL);
     if (dlg.m_Text.IsEmpty())
         return;
-
-    pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-    if (pOrders)
-        pOrders->save_current_orders_to_unit();
 
     idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
     while (idx>=0)

@@ -265,7 +265,7 @@ public:
     void                 CheckSailing();
     void                 CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & TaxDetails);
     void                 CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & TradeDetails);
-    bool                 GetTradeDescription(CLand* land, std::ostream& out);
+    bool                 GetTradeActivityDescription(CLand* land, std::map<int, std::vector<std::string>>& report);
     void                 CheckTaxTrade();
     void                 ExportHexes();
     void                 FindTradeRoutes();

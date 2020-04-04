@@ -31,6 +31,8 @@
 #include "ahapp.h"
 #include "editpane.h"
 
+#include "data_control.h"
+
 //--------------------------------------------------------------------
 
 
@@ -234,7 +236,12 @@ CUnitOrderEditPane::CUnitOrderEditPane(wxWindow *parent, const wxString &header,
 
 void CUnitOrderEditPane::OnOrderModified(wxCommandEvent& event)
 {
-    save_current_orders_to_unit();
+    if (unit_ != NULL)
+    {
+        unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
+        unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));
+        m_pEditor->DiscardEdits();
+    }
     event.Skip();
 }
 
@@ -244,6 +251,12 @@ CUnitOrderEditPane::~CUnitOrderEditPane()
 
 CUnit* CUnitOrderEditPane::change_representing_unit(CUnit* unit)
 {
+    //compose new unit orders label
+    int land_x, land_y, land_z;
+    LandIdToCoord(unit->LandId, land_x, land_y, land_z);
+    std::string label = unit_control::compose_unit_name(unit) + " in (" + std::to_string(land_x);
+    label += "," + std::to_string(land_y) + "," + std::to_string(land_z) + ")";
+    this->m_pHeader->SetLabel(label);
     CUnit* prev_unit = unit_;
     //if (m_pEditor->IsModified() && unit_ != NULL)
     //if (unit_ != NULL)
@@ -257,14 +270,4 @@ CUnit* CUnitOrderEditPane::change_representing_unit(CUnit* unit)
     return prev_unit;
 }
 
-bool CUnitOrderEditPane::save_current_orders_to_unit()
-{
-    if (unit_ != NULL)
-    {
-        unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
-        unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));
-        m_pEditor->DiscardEdits();
-        return true;
-    }
-    return false;
-}
+

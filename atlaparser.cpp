@@ -4668,7 +4668,11 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
         if ((stud.second.days_of_teaching_ < 30) && //there are days of teaching, and there is a room for it
             (stud.second.max_days_ - stud.second.cur_days_ - stud.second.days_of_teaching_ - (long)30 > 0))
         {
-            std::string skill = stud.second.order_->words_order_[1];
+            std::string skill;
+            long study_lvl_goal;
+            if (!orders::parser::specific::parse_study(stud.second.order_, skill, study_lvl_goal))
+                continue;//TODO warning?
+
             long teacher_skill_days = unit_control::get_current_skill_days(pMainUnit, skill);
             long teacher_skill_lvl = skills_control::get_skill_lvl_from_days(teacher_skill_days);
             
@@ -4680,6 +4684,9 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
             //pMainUnit->GetProperty(PRP_MEN, type, (const void *&)teachers_amount, eNormal);
 
             long student_skill_lvl = this->SkillDaysToLevel(stud.second.cur_days_);
+            if (study_lvl_goal != -1 && study_lvl_goal <= student_skill_lvl)
+                continue;
+
             if (teacher_skill_lvl > student_skill_lvl)
             {
                 pMainUnit->Orders.TrimRight(TRIM_ALL);
@@ -5065,6 +5072,10 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                         unit_control::order_message(unit, "Caravan speed is undefined", "(unlimited load - Storage Mode)");
                     }
                 }
+
+                //initial amount of silver
+                if (unit->IsOurs)
+                    pLand->economy_.initial_amount_ += unit_control::get_item_amount(unit, PRP_SILVER);
             });
         }
 
@@ -5077,24 +5088,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
              continue;
         }
 
-/*        if (SQ_MOVE+1 == sequence)
-        {
-            CBaseColl         ArrivingUnits;
-
-            gpApp->GetUnitsMovingIntoHex(m_pCurLand->Id, ArrivingUnits);
-            for (i=0; i<ArrivingUnits.Count(); ++i)
-            {
-                pOldUnit = (CUnit*)ArrivingUnits.At(i);
-                if (pOldUnit->Id == m_pCurLand->guiUnit)
-                {
-                    CLand * pEditedLand = gpApp->m_pAtlantis->GetLand(pOldUnit->LandId);
-                    if (pEditedLand)
-                        gpApp->m_pAtlantis->RunOrders(pEditedLand);
-                    break;
-                }
-            }
-        }*/
-
         if (TurnSequence::SQ_WORK == sequence)
         {
             if (m_EconomyWork)
@@ -5102,6 +5095,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                 RunOrder_Entertain(pLand);
                 RunOrder_Work(pLand);
             }
+        }
+
+        if (TurnSequence::SQ_SELL == sequence)
+        {//no need to parse sequentially
+            PerformOrder_Sell(pLand);
         }
 
         if (TurnSequence::SQ_PRODUCE == sequence)
@@ -5132,11 +5130,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
             LandIdToCoord(pLand->Id, X, Y, Z);
             LocA3 = NO_LOCATION;
-
-            if (TurnSequence::SQ_SELL == sequence)
-            {
-                PerformOrder_Sell(pLand, pUnit);
-            }
 
             src         = pUnit->Orders.GetData();
             while (src && *src)
@@ -6084,16 +6077,30 @@ void CAtlaParser::RunOrder_LandStudyTeach(CLand* land)
     std::vector<unit_control::UnitError> errors;
     std::unordered_map<long, land_control::Student> students_of_the_land;
     students_of_the_land = land_control::get_land_students(land, errors);
-    
+
+    //Economy
+    for (const auto& student : students_of_the_land)
+        land->economy_.study_expenses_ += student.second.skill_price_ * student.second.man_amount_;
+
     //teaching orders -- no need to wait for TurnSequence::Teach
     land_control::update_students_by_land_teachers(land, students_of_the_land, errors);
-    for (auto& error : errors)
+    for (auto& error : errors) {
+        land->run_orders_errors_.push_back({"Warning", error.unit_, error.message_});
         OrderError("Warning", error.unit_, error.message_.c_str());
+    }
+        
 
     //updating students
     for (auto& stud : students_of_the_land)
     {
-        std::string skill = stud.second.order_->words_order_[1];
+        std::string skill;
+        long study_lvl_goal;
+        if (!orders::parser::specific::parse_study(stud.second.order_, skill, study_lvl_goal))
+        {
+            OrderError("Error", stud.second.unit_, "study order " + stud.second.order_->original_string_ + " is not valid!");
+            continue;
+        }
+
         stud.second.unit_->skills_[skill] += 30 + stud.second.days_of_teaching_;
         stud.second.unit_->skills_[skill] = std::min(stud.second.unit_->skills_[skill], stud.second.max_days_);
         
@@ -6111,14 +6118,22 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
         if (orders::control::has_orders_with_type(orders::Type::O_ASSASSINATE, unit->orders_))
         {
             auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_ASSASSINATE, unit->orders_);
-            if (orders.size() > 1 || orders[0]->words_order_.size() > 2)
+            if (orders.size() > 1)
             {
                 unit->impact_description_.push_back("assassinate: multiple targets!");
                 OrderError("Error", unit, " more than 1 assassinate order");                        
                 return;
             }
+            long target_id;
+            if (!orders::parser::specific::parse_assassinate(orders[0], target_id))
+            {
+                unit->impact_description_.push_back("assassinate: wrong format!");
+                OrderError("Error", unit, " wrong format assassinate order");
+                return;
+            }
+
             CUnit* target_unit = land_control::find_first_unit_if(land, [&](CUnit* unit) {
-                return unit->Id == atol(orders[0]->words_order_[1].c_str());
+                return unit->Id == target_id;
             });
             if (target_unit == nullptr)
             {
@@ -6134,7 +6149,7 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
             }
             else 
             {
-                std::string mess = "target " + orders[0]->words_order_[1];
+                std::string mess = "target " + std::to_string(target_id);
                 unit->impact_description_.push_back("assassinate: " + mess);
                 target_unit->impact_description_.push_back("Is going to be assassinated by " + std::string(unit->Name.GetData()));
                 return;         
@@ -6143,32 +6158,38 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
         }
         if (orders::control::has_orders_with_type(orders::Type::O_ATTACK, unit->orders_))
         {
+            std::vector<long> targets;
             auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_ATTACK, unit->orders_);
             for (auto& order : orders)
             {
-                for (size_t i = 1; i < order->words_order_.size(); ++i)
+                if (!orders::parser::specific::parse_attack(order, targets))
                 {
-                    CUnit* target_unit = land_control::find_first_unit_if(land, [&](CUnit* unit) {
-                        return unit->Id == atol(order->words_order_[i].c_str());
-                    });
-                    if (target_unit == nullptr)
-                    {
-                        std::string mess = order->words_order_[i] + " not existing target!";
-                        unit->impact_description_.push_back("attack: " + mess);
-                        OrderError("Error", unit, mess.c_str());
-                        continue;
-                    }
-                    if (target_unit != nullptr && target_unit->FactionId == unit->FactionId)
-                    {
-                        std::string mess = order->words_order_[i] + " belongs to the same faction!";
-                        unit->impact_description_.push_back("attack: " + mess);
-                        OrderError("Error", unit, mess.c_str());
-                    }
-                    else 
-                    {
-                        target_unit->impact_description_.push_back("Is attacked by " + std::string(unit->Name.GetData()));
-                    }    
+                    OrderError("Error", unit, "Couldn't parse attack order: " + order->original_string_);
+                    continue;
                 }
+            }
+            for (auto& target : targets)
+            {
+                CUnit* target_unit = land_control::find_first_unit_if(land, [&](CUnit* unit) {
+                    return unit->Id == target;
+                });
+                if (target_unit == nullptr)
+                {
+                    std::string mess = std::to_string(target) + " not existing target!";
+                    unit->impact_description_.push_back("attack: " + mess);
+                    OrderError("Error", unit, mess.c_str());
+                    continue;
+                }
+                if (target_unit != nullptr && target_unit->FactionId == unit->FactionId)
+                {
+                    std::string mess = std::to_string(target) + " belongs to the same faction!";
+                    unit->impact_description_.push_back("attack: " + mess);
+                    OrderError("Error", unit, mess.c_str());
+                }
+                else 
+                {
+                    target_unit->impact_description_.push_back("Is attacked by " + std::string(unit->Name.GetData()));
+                }  
             }
         }
         if (orders::control::has_orders_with_type(orders::Type::O_STEAL, unit->orders_))
@@ -6180,14 +6201,16 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
                 OrderError("Error", unit, " more than 1 stealing order");
                 return;
             }
-            if (orders[0]->words_order_.size() != 3)
+            long target_id;
+            std::string item;
+            if (!orders::parser::specific::parse_steal(orders[0], target_id, item))
             {
                 unit->impact_description_.push_back("steal: wrong format, should be 'STEAL XXX ITEM'!");
                 OrderError("Error", unit, " wrong format, should be 'STEAL XXX ITEM'!");
                 return;
             }
             CUnit* target_unit = land_control::find_first_unit_if(land, [&](CUnit* unit) {
-                return unit->Id == atol(orders[0]->words_order_[1].c_str());
+                return unit->Id == target_id;
             });
             if (target_unit == nullptr)
             {
@@ -6203,9 +6226,9 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
             } 
             else 
             {
-                std::string mess = "going to steal " + orders[0]->words_order_[2] + " from " + orders[0]->words_order_[1];
+                std::string mess = "going to steal " + item + " from " + std::string(target_unit->Name.GetData());
                 unit->impact_description_.push_back("steal: " + mess);
-                target_unit->impact_description_.push_back(orders[0]->words_order_[2] + " is going to be stolen by " + std::string(unit->Name.GetData()));
+                target_unit->impact_description_.push_back(item + " is going to be stolen by " + std::string(unit->Name.GetData()));
                 return;            
             }
         }
@@ -6383,13 +6406,20 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
             OrderError("Error", producer, " duplicated produce orders!");
             continue;
         }
-        std::shared_ptr<orders::Order> order = produce_orders[0];
+        std::string item;
+        long goal_amount;
+        if (!orders::parser::specific::parse_produce(produce_orders[0], item, goal_amount))
+        {
+            producer->impact_description_.push_back("Produce: wrong order format!");
+            OrderError("Error", producer, " wrong produce format!");
+            continue;
+        }
 
         TProdDetails prod_details;
-        gpDataHelper->GetProdDetails(order->words_order_[1].c_str(), prod_details);
+        gpDataHelper->GetProdDetails(item.c_str(), prod_details);
         if (prod_details.skill_name_.empty() || prod_details.per_month_<=0)
         {//check details settings
-            std::string mess = " production requirements for '" + order->words_order_[1] + "' are not configured!";
+            std::string mess = " production requirements for '" + item + "' are not configured!";
             producer->impact_description_.push_back("Produce:"+mess);
             OrderError("Warning", producer, mess);
             continue;
@@ -6414,14 +6444,17 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
             tools_plus = tool_amount * prod_details.tool_plus_;
         }
 
+        //how many this unit can produce
         long basic_produce_power = (long)((man_amount*skill_lvl + tools_plus)/prod_details.per_month_);
-
+        
+        if (goal_amount > 0)//restriction by goal
+            basic_produce_power = std::min(goal_amount, basic_produce_power);
         //produce from existing resources (if requires)
         for (const auto& req_resource : prod_details.req_resources_)
         {
             long producer_has = unit_control::get_item_amount(producer, req_resource.first);
             if (producer_has / req_resource.second < (long)(basic_produce_power))
-            {
+            {//restriction by existing resources
                 basic_produce_power = (long)(producer_has / req_resource.second);
                 producer->impact_description_.push_back("produce: "+req_resource.first+" " +
                     std::to_string(producer_has) + " is enough just for "+ 
@@ -6429,8 +6462,8 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
             }
         }
 
-        land_control::set_produced_items(land, order->words_order_[1], basic_produce_power);
-        land_producers_info[order->words_order_[1]].push_back({producer, basic_produce_power});
+        land_control::set_produced_items(land, item, basic_produce_power);
+        land_producers_info[item].push_back({producer, basic_produce_power});
     }
 
     //resolve land request (we had to collect all requests before calculation)
@@ -7424,13 +7457,65 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
 
 //-------------------------------------------------------------
 
+void CAtlaParser::PerformOrder_Sell(CLand * land)
+{
+    std::vector<land_control::Seller> sellers;
+    std::vector<unit_control::UnitError> errors;
+    land_control::get_land_sells(land, sellers, errors);
+    long player_faction_id = game_control::get_game_config_val<long>("ATTITUDES", "PLAYER_FACTION_ID");
+
+    for (const auto& seller : sellers) {
+        //Economy
+        if (seller.unit_->FactionId == player_faction_id)
+            land->economy_.sell_income_ += seller.items_amount_ * seller.market_price_;
+
+        //the sell
+        if (gpDataHelper->IsMan(seller.item_name_.c_str()))
+            unit_control::modify_man_from_market(seller.unit_, seller.item_name_, -seller.items_amount_, seller.market_price_);
+        else
+            unit_control::modify_item_from_market(seller.unit_, seller.item_name_, -seller.items_amount_, seller.market_price_);        
+
+        //prorerties support for functionality based on properties
+        CStr LandProp(32);
+        MakeQualifiedPropertyName(PRP_WANTED_AMOUNT_PREFIX, seller.item_name_.c_str(), LandProp);
+        CProductMarket wanted_item = land_control::get_wanted(land, seller.item_name_);
+        if ( (PE_OK!=seller.unit_->SetProperty(seller.item_name_.c_str(), 
+                                               eLong, 
+                                               (const void *)unit_control::get_item_amount(seller.unit_, seller.item_name_),  
+                                               eNormal)) || // This is the old code
+             (PE_OK!=seller.unit_->SetProperty(PRP_SILVER, 
+                                               eLong, 
+                                               (const void *)unit_control::get_item_amount(seller.unit_, PRP_SILVER), 
+                                               eNormal)) || // This is ALMOST the old code
+             (PE_OK!=land->SetProperty(LandProp.GetData(), 
+                                       eLong, 
+                                       (const void *)(wanted_item.item_.amount_ - seller.items_amount_),  
+                                       eNormal)))
+            OrderError("Error", seller.unit_, std::string(NOSET) + BUG);            
+        seller.unit_->CalcWeightsAndMovement();  
+    }
+
+    for (const auto& error : errors) {
+        land->run_orders_errors_.push_back({"Error", error.unit_, error.message_});
+        OrderError("Error", error.unit_, error.message_);
+    }
+}
+
 void CAtlaParser::PerformOrder_Sell(CLand* land, CUnit* unit)
 {
     auto sell_orders = orders::control::retrieve_orders_by_type(orders::Type::O_SELL, unit->orders_);
     for (auto& sell_order : sell_orders)
     {
-        bool ignore_errors = (sell_order->comment_.find("NE") != std::string::npos);
-        std::string item_name = sell_order->words_order_[2];
+        std::string item_name;
+        long amount_to_sell;
+        bool all;
+        bool ignore_errors = orders::control::ignore_order(sell_order);
+        if (!ignore_errors && !orders::parser::specific::parse_sell(sell_order, item_name, amount_to_sell, all))
+        {
+            OrderError("Error", unit, "sell issue, couldn't parse order: " + sell_order->original_string_);
+            continue;
+        }
+
         long amount_at_unit = unit_control::get_item_amount(unit, item_name);
         if (!ignore_errors && amount_at_unit <= 0)
         {
@@ -7445,8 +7530,7 @@ void CAtlaParser::PerformOrder_Sell(CLand* land, CUnit* unit)
             continue;
         }
 
-        long amount_to_sell = atol(sell_order->words_order_[1].c_str());
-        if (strcasecmp(sell_order->words_order_[1].c_str(), "all") == 0)
+        if (all)
             amount_to_sell = std::min(amount_at_unit, wanted_item.item_.amount_);
         if (!ignore_errors && amount_to_sell <= 0)
         {
@@ -8184,13 +8268,10 @@ BOOL CAtlaParser::ApplyDefaultOrders(BOOL EmptyOnly)
 
         //collect all sources of region, including sources from caravans
         std::vector<orders::AutoSource> land_sources, caravan_sources;
-        orders::autoorders_control::get_land_autosources(land, land_sources);
-        orders::autoorders_control::get_land_caravan_sources(land, caravan_sources);
-        
-        //collect all needs of region, including needs from caravans
         std::vector<orders::AutoRequirement> needs;
-        orders::autoorders_control::get_land_autoneeds(land, needs);
-        orders::autoorders_control::get_land_caravan_needs(land, needs);
+        orders::autoorders_control::get_land_autosources_and_autoneeds(land, land_sources, needs);
+        orders::autoorders_control::get_land_caravan_autosources_and_autoneeds(land, caravan_sources, needs);
+
         if (needs.size() == 0)
             return;
 

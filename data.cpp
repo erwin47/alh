@@ -363,12 +363,25 @@ void CLand::DeleteAllNewUnits(int factionId)
     }
 }
 
+void init_economy(CEconomy& res)
+{
+    res.initial_amount_ = 0;
+    res.buy_expenses_ = 0;
+    res.maintenance_ = 0;
+    res.moving_in_ = 0;
+    res.moving_out_ = 0;
+    res.sell_income_ = 0;
+    res.study_expenses_ = 0;
+    res.tax_income_ = 0;
+}
 
 void CLand::ResetUnitsAndStructs()
 {
     int       i, k;
     CUnit   * pUnit;
     CStruct * pStruct;
+
+    init_economy(economy_);
 
     for (i=Units.Count()-1; i>=0; i--)
     {
