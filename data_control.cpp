@@ -111,6 +111,15 @@ namespace unit_control
                (0==strcmp(leadership, SZ_LEADER) || 0==strcmp(leadership, SZ_HERO));        
     }
 
+    long get_upkeep(CUnit* unit) 
+    {
+        long man_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+        if (is_leader(unit))
+            return man_amount*game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_LEADER);
+        else
+            return man_amount*game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT);
+    }
+
     void get_weights(CUnit* unit, long weights[5])
     {
         int *cur_weights;
@@ -612,6 +621,9 @@ namespace unit_control
 
 namespace land_control
 {
+    void get_land_coordinates(long land_id, int& x, int& y, int& z) {
+        LandIdToCoord(land_id, x, y, z);
+    }
     CLand* get_land(int x, int y, int z)
     {
         return gpApp->m_pAtlantis->GetLand(x, y, z, TRUE);
@@ -752,7 +764,7 @@ namespace land_control
                     } else {
                         res.maintenance_ += peasant_upkeep*unit_control::get_item_amount_by_mask(unit_temp, PRP_MEN);
                     }
-                    res.moving_in_ += unit_control::get_item_amount_by_mask(unit_temp, PRP_SILVER);
+                    res.moving_in_ += unit_control::get_item_amount(unit_temp, PRP_SILVER);
                 }
             }
 
@@ -762,12 +774,12 @@ namespace land_control
 
                 //initial amount
                 long men_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-                res.initial_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_SILVER);
+                res.initial_amount_ += unit_control::get_item_amount(unit, PRP_SILVER);
                 if (men_amount > 0) 
                 {
                     //moving out
                     if (unit->pMovement != NULL && unit->pMovement->Count() > 0)
-                        res.moving_out_ += unit_control::get_item_amount_by_mask(unit, PRP_SILVER);
+                        res.moving_out_ += unit_control::get_item_amount(unit, PRP_SILVER);
                     else 
                     {//maintenance
                         if (unit_control::is_leader(unit)) {
@@ -783,29 +795,40 @@ namespace land_control
 
     void get_land_taxers(CLand* land, Taxers& out, std::vector<unit_control::UnitError>& errors)
     {
-        bool tax_orders_presence = false;
-        bool pillage_orders_presence = false;
+        long tax_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER);
+
         out.is_pillaging_ = false;
         out.expected_income_ = 0;
-        out.land_tax_available_ = land->Taxable;
         out.man_amount_ = 0;
-        long tax_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER);
+        out.land_tax_available_ = land->Taxable;
+
+        Taxers tax;
+        tax.is_pillaging_ = false;
+        tax.expected_income_ = 0;
+        tax.man_amount_ = 0;
+        tax.land_tax_available_ = land->Taxable;
+        Taxers pillage;
+        pillage.is_pillaging_ = true;
+        pillage.expected_income_ = 0;
+        pillage.man_amount_ = 0;
+        pillage.land_tax_available_ = land->Taxable;
         land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+
+            if (!unit->IsOurs)
+                return;
 
             auto tax_orders = orders::control::retrieve_orders_by_type(orders::Type::O_TAX, unit->orders_);
             if (tax_orders.size() > 0)
             {
-                tax_orders_presence = true;
-                out.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-                out.units_.push_back(unit);
+                tax.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                tax.units_.push_back(unit);
                 return;
             }
             auto pillage_orders = orders::control::retrieve_orders_by_type(orders::Type::O_PILLAGE, unit->orders_);
             if (pillage_orders.size() > 0)
             {
-                pillage_orders_presence = true;
-                out.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-                out.units_.push_back(unit);
+                pillage.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                pillage.units_.push_back(unit);
                 return;
             }
             auto autotax_orders = orders::control::retrieve_orders_by_type(orders::Type::O_AUTOTAX, unit->orders_);
@@ -814,47 +837,52 @@ namespace land_control
                 long flag = atol(autotax_orders[autotax_orders.size() - 1]->words_order_[1].c_str());//TODO: specific order
                 if (flag == 1)
                 {
-                    tax_orders_presence = true;
-                    out.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-                    out.units_.push_back(unit);
+                    tax.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                    tax.units_.push_back(unit);
                 }
                 return;//in case that flag is set to 0, we don't want to check actual AUTOTAX flag.
             }
             if (unit->Flags & UNIT_FLAG_TAXING)
             {
-                tax_orders_presence = true;
-                out.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-                out.units_.push_back(unit);
+                tax.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                tax.units_.push_back(unit);
                 return;
             }
         });
-        if (tax_orders_presence && pillage_orders_presence)
+        if (pillage.man_amount_ > 0)
         {
-            for (auto& unit : out.units_)
-                errors.push_back({unit, " - Taxing and pillaging in the same region!"});
-        } 
-        if (pillage_orders_presence)
-        {
-            out.is_pillaging_ = true;
-            long required_pillagers = (out.land_tax_available_-1)/(2*tax_per_man) + 1;
-            if (required_pillagers <= out.man_amount_)
-                out.expected_income_ = 2*out.land_tax_available_;
+            long required_pillagers = (pillage.land_tax_available_-1)/(2*tax_per_man) + 1;
+            if (required_pillagers <= pillage.man_amount_) 
+            {
+                pillage.expected_income_ = 2*pillage.land_tax_available_;
+                out = pillage;
+            }                
             else
             {
-                for (auto& unit : out.units_)
+                for (auto& unit : pillage.units_)
                     errors.push_back({unit, " - Not enough pillagers, needs: "+
-                        std::to_string(required_pillagers)+", but have: "+std::to_string(out.man_amount_)});
-                out.expected_income_ = 0;
+                        std::to_string(required_pillagers)+", but have: "+std::to_string(pillage.man_amount_)});
+                pillage.expected_income_ = 0;
             }                    
         }  
         //if we have tax orders and pillage failed
-        if (tax_orders_presence && out.expected_income_ == 0)
+        if (tax.man_amount_ > 0)
         {
-            out.is_pillaging_ = false;
-            if (out.land_tax_available_ < tax_per_man*out.man_amount_)
-                out.expected_income_ = out.land_tax_available_;
+            if (pillage.expected_income_ > 0) 
+            {//pillage already succeed
+                for (auto& unit : tax.units_)
+                    errors.push_back({unit, " - is trying to tax, while region is pillaged!"});
+            }
+            else if (tax.land_tax_available_ < tax_per_man*tax.man_amount_)
+            {
+                tax.expected_income_ = tax.land_tax_available_;
+                out = tax;
+            }                
             else
-                out.expected_income_ = tax_per_man*out.man_amount_;
+            {
+                tax.expected_income_ = tax_per_man*tax.man_amount_;
+                out = tax;
+            }                
         }
     }
 

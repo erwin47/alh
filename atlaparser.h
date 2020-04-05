@@ -166,7 +166,7 @@ enum class TurnSequence
        SQ_ENTERTAIN,
        SQ_WORK   ,
        SQ_MAINTENANCE   ,//maybe we need a past-end step
-       SQ_LAST = SQ_WORK
+       SQ_LAST
 };
 
 inline TurnSequence operator++(TurnSequence& x) {
@@ -353,6 +353,7 @@ protected:
     void         RunOrder_LandProduce      (CLand* land);
     void         RunOrder_LandStudyTeach   (CLand* land);
     void         RunOrder_LandAggression   (CLand* land);//steal, assassinate, attack
+    void         RunOrder_LandTaxPillage   (CLand* land);
     //void         RunOrder_Study            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Name             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_SailAIII         (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3);

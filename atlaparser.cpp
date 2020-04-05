@@ -5081,11 +5081,12 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
         if (sequence == TurnSequence::SQ_TAX)
         {
-             if (m_EconomyTaxPillage && pLand->Taxable > 0)
-             {
-                RunOrder_TaxPillage(pLand);
-             }
-             continue;
+            RunOrder_LandTaxPillage(pLand);
+            if (m_EconomyTaxPillage && pLand->Taxable > 0)
+            {
+               RunOrder_TaxPillage(pLand);
+            }
+            continue;
         }
 
         if (TurnSequence::SQ_WORK == sequence)
@@ -5792,6 +5793,38 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             {
                 RunOrder_ShareSilver(Line, ErrorLine, skiperror, pLand, SHARE_UPKEEP, wxT("maintainance"));
             }
+
+            //calculate silver for incoming units
+            CBaseColl           arriving_units;
+            CUnit*              unit_temp;
+            gpApp->GetUnitsMovingIntoHex(pLand->Id, arriving_units);
+            for (int i=0; i<arriving_units.Count(); ++i)
+            {
+                unit_temp = (CUnit*)arriving_units.At(i);
+                if (unit_temp != NULL)
+                {
+                    pLand->economy_.maintenance_ += unit_control::get_upkeep(unit_temp);
+                    pLand->economy_.moving_in_ += unit_control::get_item_amount(unit_temp, PRP_SILVER);
+                }
+            }
+
+            land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {
+                if (!unit->IsOurs)
+                    return;
+
+                long men_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                if (men_amount > 0) 
+                {
+                    //moving out
+                    if (unit->pMovement != NULL && unit->pMovement->Count() > 0)
+                        pLand->economy_.moving_out_ += unit_control::get_item_amount(unit, PRP_SILVER);
+                    else 
+                    {//maintenance
+                        pLand->economy_.maintenance_ += unit_control::get_upkeep(unit);
+                    }
+                }
+            });        
+
         }
     }   // phases loop
 
@@ -5879,6 +5912,21 @@ void CAtlaParser::DistributeSilver(CLand * pLand, int unitFlag, int silver, int 
 }
 
 //-------------------------------------------------------------
+
+void CAtlaParser::RunOrder_LandTaxPillage(CLand* land)
+{
+    land_control::Taxers taxers;
+    std::vector<unit_control::UnitError> errors;
+    land_control::get_land_taxers(land, taxers, errors);
+
+    land->economy_.tax_income_ = taxers.expected_income_;
+
+    for (const auto& error : errors)
+    {
+        land->run_orders_errors_.push_back({"Error", error.unit_, error.message_});
+        OrderError("Error", error.unit_, error.message_);
+    }
+}
 
 void CAtlaParser::RunOrder_TaxPillage(CLand * pLand)
 {

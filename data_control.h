@@ -29,6 +29,8 @@ namespace unit_control
 
     bool is_leader(CUnit* unit);
     
+    long get_upkeep(CUnit* unit);
+
     void get_weights(CUnit* unit, long weights[5]);
     
     std::set<CItem> get_all_items(CUnit* unit);
@@ -136,6 +138,7 @@ namespace land_control
     }
 
     long get_land_id(const char* land);
+    void get_land_coordinates(long land_id, int& x, int& y, int& z);
     std::string land_full_name(CLand* land);
 
     long get_plane_id(const char* plane_name);

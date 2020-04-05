@@ -382,6 +382,7 @@ void CLand::ResetUnitsAndStructs()
     CStruct * pStruct;
 
     init_economy(economy_);
+    run_orders_errors_.clear();
 
     for (i=Units.Count()-1; i>=0; i--)
     {

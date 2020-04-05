@@ -3497,6 +3497,13 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
             m_HexDescrSrc << "    Maintenance:    " << pLand->economy_.maintenance_ << EOL_SCR;
             m_HexDescrSrc << "    Moving out:     " << pLand->economy_.moving_out_ << EOL_SCR;             
             m_HexDescrSrc << "    Study expenses: " << pLand->economy_.study_expenses_ << EOL_SCR;
+            m_HexDescrSrc << "  Balance:          " << pLand->economy_.initial_amount_ +
+                                                       pLand->economy_.tax_income_ +
+                                                       pLand->economy_.sell_income_ + 
+                                                       pLand->economy_.moving_in_ -
+                                                       pLand->economy_.maintenance_ -
+                                                       pLand->economy_.moving_out_ - 
+                                                       pLand->economy_.study_expenses_ << EOL_SCR;
             
             //m_HexDescrSrc << "  Balance: " << economy.sell_income_ << EOL_SCR;
 
@@ -3524,7 +3531,8 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
                 m_HexDescrSrc << EOL_SCR << "Events:" << EOL_SCR << pLand->Events << EOL_SCR;
             m_HexDescrSrc << EOL_SCR << "Exits:"  << EOL_SCR << pLand->Exits;
 
-            m_HexDescrSrc << EOL_SCR << "Errors:" << EOL_SCR;
+            if (pLand->run_orders_errors_.size() > 0)
+                m_HexDescrSrc << EOL_SCR << "Errors:" << EOL_SCR;
             for (const auto& error : pLand->run_orders_errors_)
             {
                 m_HexDescrSrc << "    " << unit_control::compose_unit_name(error.unit_).c_str() << error.message_.c_str() << EOL_SCR;
@@ -3553,6 +3561,9 @@ void CAhApp::OnMapSelectionChange()
 
     if (pMapPane)
         pLand   = m_pAtlantis->GetLand(pMapPane->m_SelHexX, pMapPane->m_SelHexY, pMapPane->m_SelPlane, TRUE);
+
+    if (pLand != NULL)
+        m_pAtlantis->RunLandOrders(pLand);
 
     UpdateHexEditPane(pLand);  // NULL is Ok!
     UpdateHexUnitList(pLand);

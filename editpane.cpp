@@ -241,6 +241,18 @@ void CUnitOrderEditPane::OnOrderModified(wxCommandEvent& event)
         unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
         unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));
         m_pEditor->DiscardEdits();
+        
+        //need to rerun orders for at least current land and land where it goes:
+        CLand* land = land_control::get_land(unit_->LandId);
+        gpApp->m_pAtlantis->RunLandOrders(land);
+/*
+        if (unit_->pMovement && unit_->pMovement->Count()>0)
+        {
+            long DestinationLandId = (long)unit_->pMovement->At(unit_->pMovement->Count()-1);
+            CLand* destinationLand = land_control::get_land(DestinationLandId);
+            if (destinationLand != NULL)
+                gpApp->m_pAtlantis->RunLandOrders(destinationLand);
+        }  */      
     }
     event.Skip();
 }
