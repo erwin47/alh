@@ -3,7 +3,7 @@
 #include "data_control.h"
 #include <algorithm>
 #include <sstream>
-
+#include <cctype> //for std::tolower
 #include "ah_control.h"
 
 namespace items_control

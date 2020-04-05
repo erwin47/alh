@@ -47,6 +47,9 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 - autoorders: fixed bug with duplicated orders
 - orders: added internal parsers for specific orders
 
+### Mar 17 2020
+- Added fix for Windows build.
+
 ### Mar 03 2020
 - Trade report is improved.
 - MacOS: OSXDisableAllSmartSubstitutions() to avoid mess attempt.
