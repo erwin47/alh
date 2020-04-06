@@ -3497,7 +3497,10 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
             m_HexDescrSrc << "    Maintenance:    " << pLand->economy_.maintenance_ << EOL_SCR;
             m_HexDescrSrc << "    Moving out:     " << pLand->economy_.moving_out_ << EOL_SCR;             
             m_HexDescrSrc << "    Study expenses: " << pLand->economy_.study_expenses_ << EOL_SCR;
-            m_HexDescrSrc << "  Balance:          " << pLand->economy_.initial_amount_ +
+            m_HexDescrSrc << "  Balance Buy:      " << pLand->economy_.initial_amount_ +
+                                                       pLand->economy_.tax_income_ +
+                                                       pLand->economy_.sell_income_ << EOL_SCR;
+            m_HexDescrSrc << "  Balance End:      " << pLand->economy_.initial_amount_ +
                                                        pLand->economy_.tax_income_ +
                                                        pLand->economy_.sell_income_ + 
                                                        pLand->economy_.moving_in_ -
@@ -3525,12 +3528,23 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
                         m_HexDescrSrc << EOL_SCR << pLand->FlagText[i];
             }
 
+            //events/exits
             if (!pLand->Events.IsEmpty() &&
                  0 != stricmp(SkipSpaces(pLand->Events.GetData()), "none")
                )
                 m_HexDescrSrc << EOL_SCR << "Events:" << EOL_SCR << pLand->Events << EOL_SCR;
             m_HexDescrSrc << EOL_SCR << "Exits:"  << EOL_SCR << pLand->Exits;
 
+            //weights
+            if (pLand->Structs.Count() > 0)
+                m_HexDescrSrc << EOL_SCR << "Weights:" << EOL_SCR;
+            for (int x=0; x<pLand->Structs.Count(); x++)
+            {
+                CStruct* pStruct = (CStruct*)pLand->Structs.At(x);
+                m_HexDescrSrc << "    building [" << pStruct->Id << "]: weight" << pStruct->Load << ", known capacity " << pStruct->MaxLoad << EOL_SCR;
+            }
+
+            //errors
             if (pLand->run_orders_errors_.size() > 0)
                 m_HexDescrSrc << EOL_SCR << "Errors:" << EOL_SCR;
             for (const auto& error : pLand->run_orders_errors_)

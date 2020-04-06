@@ -27,11 +27,12 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 
 ## Changelog:
 ### Apr 06 2020
-- Economy: all the parameters calculated correctly, added Balance
-- Economy: each time we change selection of a region on the map, it recalculates Orders for the region.
-- Errors: report about errors is represented correctly in land description if there is no errors :-)
+- Land description: all the parameters of Economy calculated correctly (except buying yet), added Balance
+- Land description: report about errors is represented correctly if there is no errors :-)
+- Land description: added building weight calculation until Fleet support
+- Orders: each time we change selection of a region on the map, it recalculates Orders for the region.
 - Orders: each time order is modified, it will be racalculated for the land.
-
+ 
 ### Apr 04 2020
 - partly added Economy & errors in Land report.
 - tax-trade-report: added claiming info
