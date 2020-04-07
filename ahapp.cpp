@@ -3570,17 +3570,18 @@ void CAhApp::UpdateHexUnitList(CLand * pLand)
 
 void CAhApp::OnMapSelectionChange()
 {
-    CLand       * pLand    = NULL;
-    CMapPane    * pMapPane = (CMapPane* )m_Panes[AH_PANE_MAP];
+    CLand* land    = NULL;
+    CMapPane* pMapPane = (CMapPane* )m_Panes[AH_PANE_MAP];
 
     if (pMapPane)
-        pLand   = m_pAtlantis->GetLand(pMapPane->m_SelHexX, pMapPane->m_SelHexY, pMapPane->m_SelPlane, TRUE);
+        land   = m_pAtlantis->GetLand(pMapPane->m_SelHexX, pMapPane->m_SelHexY, pMapPane->m_SelPlane, TRUE);
 
-    if (pLand != NULL)
-        m_pAtlantis->RunLandOrders(pLand);
+    if (land != NULL) {
+        m_pAtlantis->RunLandOrders(land);
+    }
 
-    UpdateHexEditPane(pLand);  // NULL is Ok!
-    UpdateHexUnitList(pLand);
+    UpdateHexEditPane(land);  // NULL is Ok!
+    UpdateHexUnitList(land);
 
     CUnitPane* pUnitPane = reinterpret_cast<CUnitPane*>(m_Panes[AH_PANE_UNITS_HEX]);
     pUnitPane->DeselectAll();

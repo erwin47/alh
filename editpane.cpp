@@ -236,25 +236,16 @@ CUnitOrderEditPane::CUnitOrderEditPane(wxWindow *parent, const wxString &header,
 
 void CUnitOrderEditPane::OnOrderModified(wxCommandEvent& event)
 {
-    if (unit_ != NULL)
+    if (unit_ != NULL && m_pEditor->IsModified())
     {
         unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
         unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));
         m_pEditor->DiscardEdits();
-        
+
         //need to rerun orders for at least current land and land where it goes:
-        CLand* land = land_control::get_land(unit_->LandId);
-        gpApp->m_pAtlantis->RunLandOrders(land);
-/*
-        if (unit_->pMovement && unit_->pMovement->Count()>0)
-        {
-            long DestinationLandId = (long)unit_->pMovement->At(unit_->pMovement->Count()-1);
-            CLand* destinationLand = land_control::get_land(DestinationLandId);
-            if (destinationLand != NULL)
-                gpApp->m_pAtlantis->RunLandOrders(destinationLand);
-        }  */      
+        //CLand* land = land_control::get_land(unit_->LandId);
+        //gpApp->m_pAtlantis->RunLandOrders(land);
     }
-    event.Skip();
 }
 
 CUnitOrderEditPane::~CUnitOrderEditPane()
@@ -278,7 +269,7 @@ CUnit* CUnitOrderEditPane::change_representing_unit(CUnit* unit)
     //    m_pEditor->DiscardEdits();
     //}
     unit_ = unit;
-    m_pEditor->SetValue(unit_ ? wxString::FromUTF8(unit_->Orders.GetData()) : wxT(""));
+    m_pEditor->ChangeValue(unit_ ? wxString::FromUTF8(unit_->Orders.GetData()) : wxT(""));
     return prev_unit;
 }
 

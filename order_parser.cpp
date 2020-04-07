@@ -1161,10 +1161,6 @@ namespace orders
                                         std::vector<AutoSource>& sources,
                                         std::vector<AutoRequirement>& needs)
         {
-            if (unit->Id == 1585)
-            {
-                int i = 5;
-            }            
             std::set<CItem> items_to_giveout;
             if (unit->caravan_info_ != nullptr)
                 items_to_giveout = unit_control::get_all_items(unit);
@@ -1422,11 +1418,6 @@ namespace orders
             land_control::perform_on_each_unit(land, [&](CUnit* unit) {
                 if (unit->IsOurs && unit->caravan_info_ == nullptr)
                 {
-                    if (unit->Id == 6482)
-                    {
-                        int i = 5;
-                    }
-
                     cur_needs.clear();
                     orders::autoorders::get_unit_sources_and_needs(unit, sources, cur_needs);
                     for (auto& need : cur_needs)
@@ -1444,10 +1435,6 @@ namespace orders
                         needs.insert(needs.end(), cur_needs.begin(), cur_needs.end());                                       
                 }
             });            
-            
-            int i = 5;
-
-
         }
 
         void get_land_caravan_autosources_and_autoneeds(CLand* land, 
@@ -1457,11 +1444,6 @@ namespace orders
             land_control::perform_on_each_unit(land, [&](CUnit* unit) {
                 if (unit->IsOurs && unit->caravan_info_ != nullptr)
                 {
-                    if (unit->Id == 6482)
-                    {
-                        int i = 5;
-                    }
-
                     for (const auto& region : unit->caravan_info_->regions_)
                     {
                         CLand* farland = land_control::get_land(region.x_, region.y_, region.z_);
