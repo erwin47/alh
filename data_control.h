@@ -11,10 +11,20 @@
 #define strcasecmp _stricmp
 #endif
 
+
+namespace item_control
+{
+    //take on input full name, plural or code, returns code
+    std::string codename(const std::string& name);
+
+    int weight(const std::string& item_code);
+}
+
 namespace unit_control
 {
     struct UnitError
     {
+        std::string type_;
         CUnit* unit_;
         std::string message_;
     };
@@ -85,7 +95,7 @@ namespace land_control
         CUnit* unit_;
     };
 
-    struct Seller
+    struct Trader
     {
         std::shared_ptr<orders::Order> order_;
         std::string item_name_;
@@ -157,7 +167,8 @@ namespace land_control
     }
 
     void get_land_taxers(CLand* land, Taxers& out, std::vector<unit_control::UnitError>& errors);
-    void get_land_sells(CLand* land, std::vector<Seller>& out, std::vector<unit_control::UnitError>& errors);
+    void get_land_sells(CLand* land, std::vector<Trader>& out, std::vector<unit_control::UnitError>& errors);
+    void get_land_buys(CLand* land, std::vector<Trader>& out, std::vector<unit_control::UnitError>& errors);
     std::unordered_map<long, Student> get_land_students(CLand* land, std::vector<unit_control::UnitError>& errors);
     void update_students_by_land_teachers(CLand* land, std::unordered_map<long, Student>& students, std::vector<unit_control::UnitError>& errors);
 

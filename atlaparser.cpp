@@ -4661,6 +4661,9 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
     std::unordered_map<long, land_control::Student> students = land_control::get_land_students(pLand, errors);
     land_control::update_students_by_land_teachers(pLand, students, errors);
 
+    for (auto& error : errors)
+        OrderError(error.type_, error.unit_, error.message_);
+
     BOOL changed = FALSE;
     for (const auto& stud : students)
     {
@@ -5923,8 +5926,8 @@ void CAtlaParser::RunOrder_LandTaxPillage(CLand* land)
 
     for (const auto& error : errors)
     {
-        land->run_orders_errors_.push_back({"Error", error.unit_, error.message_});
-        OrderError("Error", error.unit_, error.message_);
+        land->run_orders_errors_.push_back({error.type_, error.unit_, error.message_});
+        OrderError(error.type_, error.unit_, error.message_);
     }
 }
 
@@ -6133,8 +6136,8 @@ void CAtlaParser::RunOrder_LandStudyTeach(CLand* land)
     //teaching orders -- no need to wait for TurnSequence::Teach
     land_control::update_students_by_land_teachers(land, students_of_the_land, errors);
     for (auto& error : errors) {
-        land->run_orders_errors_.push_back({"Warning", error.unit_, error.message_});
-        OrderError("Warning", error.unit_, error.message_.c_str());
+        land->run_orders_errors_.push_back({error.type_, error.unit_, error.message_});
+        OrderError(error.type_, error.unit_, error.message_);
     }
         
 
@@ -6272,9 +6275,19 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
                 OrderError("Error", unit, " target belongs to the same faction");
                 return;
             } 
+            else if (unit_control::get_item_amount(target_unit, item) == 0 && 
+                     item_control::weight(item) > 0)
+            {
+                unit->impact_description_.push_back("steal: there is no such item: " + item);
+                OrderError("Error", unit, " steal: there is no such item: " + item);
+                return;
+            }
             else 
             {
                 std::string mess = "going to steal " + item + " from " + std::string(target_unit->Name.GetData());
+                if (unit_control::get_item_amount(target_unit, item) == 0)
+                    mess.append(", amount is unknown");
+
                 unit->impact_description_.push_back("steal: " + mess);
                 target_unit->impact_description_.push_back(item + " is going to be stolen by " + std::string(unit->Name.GetData()));
                 return;            
@@ -7381,6 +7394,69 @@ void CAtlaParser::AdjustSkillsAfterGivingMen(CUnit * pUnitGive, CUnit * pUnitTak
 
 //-------------------------------------------------------------
 
+void CAtlaParser::PerformOrder_Buy(CLand * land)
+{
+    std::vector<land_control::Trader> buyers;
+    std::vector<unit_control::UnitError> errors;
+    land_control::get_land_buys(land, buyers, errors);
+    long player_faction_id = game_control::get_game_config_val<long>("ATTITUDES", "PLAYER_FACTION_ID");
+
+    for (const auto& buyer : buyers) 
+    {
+        //Economy
+        if (buyer.unit_->FactionId == player_faction_id)
+            land->economy_.buy_expenses_ += buyer.items_amount_ * buyer.market_price_;
+
+        //Modification of state
+        if (gpDataHelper->IsMan(buyer.item_name_.c_str()))
+        {
+            if (unit_control::get_item_amount(buyer.unit_, "LEAD") > 0)
+            {
+                SetUnitProperty(buyer.unit_, PRP_LEADER, eCharPtr, SZ_LEADER, eNormal);
+            }
+            unit_control::modify_man_from_market(buyer.unit_, buyer.item_name_, buyer.items_amount_, buyer.market_price_);
+        }
+        else
+        {
+            unit_control::modify_item_from_market(buyer.unit_, buyer.item_name_, buyer.items_amount_, buyer.market_price_);
+        } 
+
+        //properties support:
+        CStr                LandProp(32);
+        MakeQualifiedPropertyName(PRP_SALE_PRICE_PREFIX, buyer.item_name_.c_str(), LandProp);
+        CProductMarket selled_item = land_control::get_for_sale(land, buyer.item_name_);
+        if ( (PE_OK!=buyer.unit_->SetProperty(buyer.item_name_.c_str(), 
+                                        eLong, 
+                                        (const void *)unit_control::get_item_amount(buyer.unit_, buyer.item_name_),
+                                        eNormal)) ||
+                (PE_OK!=buyer.unit_->SetProperty(PRP_SILVER,
+                                           eLong, 
+                                           (const void *)unit_control::get_item_amount(buyer.unit_, PRP_SILVER), 
+                                           eNormal)) ||
+                (PE_OK!=land->SetProperty(LandProp.GetData(), 
+                                           eLong, 
+                                           (const void *)(selled_item.item_.amount_ - buyer.items_amount_),  
+                                           eNormal)))
+        {
+            errors.push_back({"Error", buyer.unit_, " - Can not set unit property"});
+        }
+
+        //should it be counted as production in the region
+        if (game_control::get_game_config_val<long>("COMMON", "TRADE_ITEMS_AS_PROD") != 0)
+        {
+            if (gpDataHelper->IsTradeItem(buyer.item_name_.c_str()))
+            {
+                land_control::set_produced_items(land, buyer.item_name_, buyer.items_amount_);
+                buyer.unit_->Flags |= UNIT_FLAG_PRODUCING;
+            }
+        }
+
+        buyer.unit_->CalcWeightsAndMovement();
+    }    
+
+}
+
+
 void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params)
 {
     EValueType          type;
@@ -7507,7 +7583,7 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
 
 void CAtlaParser::PerformOrder_Sell(CLand * land)
 {
-    std::vector<land_control::Seller> sellers;
+    std::vector<land_control::Trader> sellers;
     std::vector<unit_control::UnitError> errors;
     land_control::get_land_sells(land, sellers, errors);
     long player_faction_id = game_control::get_game_config_val<long>("ATTITUDES", "PLAYER_FACTION_ID");
@@ -7544,84 +7620,10 @@ void CAtlaParser::PerformOrder_Sell(CLand * land)
     }
 
     for (const auto& error : errors) {
-        land->run_orders_errors_.push_back({"Error", error.unit_, error.message_});
-        OrderError("Error", error.unit_, error.message_);
+        land->run_orders_errors_.push_back({error.type_, error.unit_, error.message_});
+        OrderError(error.type_, error.unit_, error.message_);
     }
 }
-
-void CAtlaParser::PerformOrder_Sell(CLand* land, CUnit* unit)
-{
-    auto sell_orders = orders::control::retrieve_orders_by_type(orders::Type::O_SELL, unit->orders_);
-    for (auto& sell_order : sell_orders)
-    {
-        std::string item_name;
-        long amount_to_sell;
-        bool all;
-        bool ignore_errors = orders::control::ignore_order(sell_order);
-        if (!ignore_errors && !orders::parser::specific::parse_sell(sell_order, item_name, amount_to_sell, all))
-        {
-            OrderError("Error", unit, "sell issue, couldn't parse order: " + sell_order->original_string_);
-            continue;
-        }
-
-        long amount_at_unit = unit_control::get_item_amount(unit, item_name);
-        if (!ignore_errors && amount_at_unit <= 0)
-        {
-            OrderError("Error", unit, "sell issue: no items to sell: " + sell_order->original_string_);
-            continue;
-        }
-
-        CProductMarket wanted_item = land_control::get_wanted(land, item_name);
-        if (!ignore_errors && wanted_item.item_.amount_ <= 0)
-        {
-            OrderError("Error", unit, "sell issue: items are not wanted: " + sell_order->original_string_);
-            continue;
-        }
-
-        if (all)
-            amount_to_sell = std::min(amount_at_unit, wanted_item.item_.amount_);
-        if (!ignore_errors && amount_to_sell <= 0)
-        {
-            OrderError("Error", unit, "sell issue: specified amount is not correct: " + sell_order->original_string_);
-            continue;
-        }
-
-        if (amount_to_sell > amount_at_unit)
-        {
-            unit->impact_description_.push_back("sell issue: trying to sell "+
-                std::to_string(amount_to_sell)+" but has "+std::to_string(amount_at_unit));
-            amount_to_sell = amount_at_unit;
-        }
-        if (amount_to_sell > wanted_item.item_.amount_)
-        {
-            unit->impact_description_.push_back("sell issue: trying to sell "+
-                std::to_string(amount_to_sell)+" but wanted just "+std::to_string(wanted_item.item_.amount_));
-            amount_to_sell = wanted_item.item_.amount_;
-        }
-        if (amount_to_sell < amount_at_unit && amount_to_sell < wanted_item.item_.amount_)
-        {
-            unit->impact_description_.push_back("sell notice: trying to sell "+
-                std::to_string(amount_to_sell)+" but can "+std::to_string(std::min(wanted_item.item_.amount_, amount_at_unit)));
-        }
-        
-        if (gpDataHelper->IsMan(item_name.c_str()))
-            unit_control::modify_man_from_market(unit, item_name, -amount_to_sell, wanted_item.price_);
-        else
-            unit_control::modify_item_from_market(unit, item_name, -amount_to_sell, wanted_item.price_);
-
-        //prorerties support for functionality based on properties
-        CStr LandProp(32);
-        MakeQualifiedPropertyName(PRP_WANTED_AMOUNT_PREFIX, item_name.c_str(), LandProp);
-        if ( (PE_OK!=unit->SetProperty(item_name.c_str(), eLong, (const void *)unit_control::get_item_amount(unit, item_name),  eNormal)) || // This is the old code
-            (PE_OK!=unit->SetProperty(PRP_SILVER, eLong, (const void *)unit_control::get_item_amount(unit, PRP_SILVER), eNormal)) || // This is ALMOST the old code
-            (PE_OK!=land->SetProperty(LandProp.GetData(), eLong, (const void *)(wanted_item.item_.amount_ - amount_to_sell),  eNormal)))
-            OrderError("Error", unit, std::string(NOSET) + BUG);
-
-        unit->CalcWeightsAndMovement();        
-    }
-}
-
-
 
 void CAtlaParser::RunOrder_Sell(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params)
 {

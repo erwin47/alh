@@ -550,13 +550,13 @@ namespace orders
             {
                 if (order->words_order_.size() == 3)
                 {
-                    item = order->words_order_[2];
+                    item = gpApp->ResolveAlias(order->words_order_[2].c_str());
                     amount = atol(order->words_order_[1].c_str());
                     return true;
                 }
                 else if (order->words_order_.size() == 2)
                 {
-                    item = order->words_order_[1];
+                    item = gpApp->ResolveAlias(order->words_order_[1].c_str());
                     amount = -1;
                     return true;
                 }
@@ -567,7 +567,7 @@ namespace orders
             {
                 if (order->words_order_.size() == 2) 
                 {//build TYPE
-                    building = order->words_order_[1];
+                    building = gpApp->ResolveAlias(order->words_order_[1].c_str());
                     helps = false;
                     unit_id = -1;
                     return true;
@@ -595,13 +595,14 @@ namespace orders
             {
                 if (order->words_order_.size() == 2)
                 {
-                    skill = order->words_order_[1];
+                    
+                    skill = gpApp->ResolveAlias(order->words_order_[1].c_str());
                     level = -1;
                     return true;
                 }
                 else if (order->words_order_.size() == 3)
                 {
-                    skill = order->words_order_[1];
+                    skill = gpApp->ResolveAlias(order->words_order_[1].c_str());
                     level = atol(order->words_order_[2].c_str());
                     return true;
                 }             
@@ -636,12 +637,12 @@ namespace orders
                 if (order->words_order_.size() == 3)
                 {
                     target_id = atol(order->words_order_[1].c_str());
-                    item = order->words_order_[2];
+                    item = item_control::codename(order->words_order_[2]);
                     return true;
                 }
                 return false;
             }
-            bool parse_sell(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount, bool& all)
+            bool parse_sellbuy(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount, bool& all)
             {
                 if (order->words_order_.size() == 3)
                 {
@@ -655,7 +656,7 @@ namespace orders
                         all = false;
                         amount = atol(order->words_order_[1].c_str());
                     }
-                    item = order->words_order_[2];
+                    item = item_control::codename(order->words_order_[2]);
                     return true;
                 }
                 return false;            

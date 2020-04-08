@@ -26,6 +26,12 @@ Also there will be explicitely written if any of students is not studying anymor
 In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `REC_DLG_GROUPS` may be listed groups with which ReceiveDlg will work, as with items. For example, `REC_DLG_GROUPS = trade_items,food` mean, that in ReceiveDlg in drop up list there will be possibility to choose `trade_items` or `food`, and get list of all units having any items belonging to the group. Those entities (trade_items and food) have to be defined in section `UNIT_PROPERTY_GROUPS`.
 
 ## Changelog:
+### Apr 08 2020
+- Land description: upgraded Economy, still requires work/entertain and claim.
+- Internal: added better type system to messages
+- Internal: buying handling with new mechanics
+- Steal: better warnings (regarding item weight & visibility)
+
 ### Apr 06 2020
 - Land description: all the parameters of Economy calculated correctly (except buying yet), added Balance
 - Land description: report about errors is represented correctly if there is no errors :-)

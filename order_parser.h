@@ -152,7 +152,7 @@ namespace orders
             bool parse_assassinate(const std::shared_ptr<orders::Order>& order, long& target_id);
             bool parse_attack(const std::shared_ptr<orders::Order>& order, std::vector<long>& targets);
             bool parse_steal(const std::shared_ptr<orders::Order>& order, long& target_id, std::string& item);
-            bool parse_sell(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount, bool& all);
+            bool parse_sellbuy(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount, bool& all);
         }
 
         void recalculate_hash(UnitOrders& uorders);

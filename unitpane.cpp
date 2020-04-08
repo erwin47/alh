@@ -432,7 +432,7 @@ void CUnitPane::DeselectAll()
             break;
 
         this->SetItemState(item, 0, wxLIST_MASK_STATE);
-    }    
+    }
 }
 
 //--------------------------------------------------------------------------

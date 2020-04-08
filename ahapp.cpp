@@ -2224,8 +2224,11 @@ bool CAhApp::GetTradeActivityDescription(CLand* land, std::map<int, std::vector<
             std::string temp = unit_control::compose_unit_name(unit);
             report[unit->FactionId].push_back(temp + " hax multiple build orders.");
             ret_val = true;
-        }        
+        }
     });
+
+    //trade items
+    //TODO
     return ret_val;
 }
 
@@ -3490,20 +3493,25 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
             land_control::economy::economy_calculations(pLand, economy, errors);*/
             
             m_HexDescrSrc << EOL_SCR << "Economy:" << EOL_SCR;
-            m_HexDescrSrc << "    Initial amount: " << pLand->economy_.initial_amount_ << EOL_SCR;
-            m_HexDescrSrc << "    Tax/pillage:    " << pLand->economy_.tax_income_ << EOL_SCR;
-            m_HexDescrSrc << "    Sell income:    " << pLand->economy_.sell_income_ << EOL_SCR;
-            m_HexDescrSrc << "    Moving in:      " << pLand->economy_.moving_in_ << EOL_SCR;
-            m_HexDescrSrc << "    Maintenance:    " << pLand->economy_.maintenance_ << EOL_SCR;
-            m_HexDescrSrc << "    Moving out:     " << pLand->economy_.moving_out_ << EOL_SCR;             
-            m_HexDescrSrc << "    Study expenses: " << pLand->economy_.study_expenses_ << EOL_SCR;
-            m_HexDescrSrc << "  Balance Buy:      " << pLand->economy_.initial_amount_ +
-                                                       pLand->economy_.tax_income_ +
-                                                       pLand->economy_.sell_income_ << EOL_SCR;
-            m_HexDescrSrc << "  Balance End:      " << pLand->economy_.initial_amount_ +
+            m_HexDescrSrc << "    Initial amount:   " << pLand->economy_.initial_amount_ << EOL_SCR;
+            m_HexDescrSrc << "    Claim:           +unknown" << EOL_SCR;
+            m_HexDescrSrc << "    Tax/pillage:     +" << pLand->economy_.tax_income_ << EOL_SCR;
+            m_HexDescrSrc << "    Sell income:     +" << pLand->economy_.sell_income_ << EOL_SCR;
+            m_HexDescrSrc << "    Buy expenses:    -" << pLand->economy_.buy_expenses_ << EOL_SCR;
+            m_HexDescrSrc << "  Balance:     " << pLand->economy_.initial_amount_ +
+                                                   pLand->economy_.tax_income_ +
+                                                   pLand->economy_.sell_income_ - 
+                                                   pLand->economy_.buy_expenses_ << EOL_SCR;
+            m_HexDescrSrc << "    Moving in:       +" << pLand->economy_.moving_in_ << EOL_SCR;
+            m_HexDescrSrc << "    Moving out:      -" << pLand->economy_.moving_out_ << EOL_SCR;             
+            m_HexDescrSrc << "    Study expenses:  -" << pLand->economy_.study_expenses_ << EOL_SCR;
+            m_HexDescrSrc << "    Work/enterntain: +unknown" << EOL_SCR;
+            m_HexDescrSrc << "    Maintenance:     -" << pLand->economy_.maintenance_ << EOL_SCR;
+            m_HexDescrSrc << "  Balance End: " << pLand->economy_.initial_amount_ +
                                                        pLand->economy_.tax_income_ +
                                                        pLand->economy_.sell_income_ + 
                                                        pLand->economy_.moving_in_ -
+                                                       pLand->economy_.buy_expenses_ -
                                                        pLand->economy_.maintenance_ -
                                                        pLand->economy_.moving_out_ - 
                                                        pLand->economy_.study_expenses_ << EOL_SCR;
@@ -3541,7 +3549,7 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
             for (int x=0; x<pLand->Structs.Count(); x++)
             {
                 CStruct* pStruct = (CStruct*)pLand->Structs.At(x);
-                m_HexDescrSrc << "    building [" << pStruct->Id << "]: weight" << pStruct->Load << ", known capacity " << pStruct->MaxLoad << EOL_SCR;
+                m_HexDescrSrc << "    building [" << pStruct->Id << "]: weight " << pStruct->Load << ", known capacity " << pStruct->MaxLoad << EOL_SCR;
             }
 
             //errors

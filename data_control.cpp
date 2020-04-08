@@ -6,8 +6,22 @@
 #include <cctype> //for std::tolower
 #include "ah_control.h"
 
-namespace items_control
+namespace item_control
 {
+    std::string codename(const std::string& name)
+    {
+        std::string code, long_name, plural_name;
+        if (gpApp->ResolveAliasItems(name, code, long_name, plural_name))
+            return code;
+        return name;
+    }
+
+    int weight(const std::string& item_code) 
+    {
+        std::vector<long> vars = game_control::get_game_config<long>(SZ_SECT_WEIGHT_MOVE, item_code.c_str());
+        return vars[0];
+    }
+
     CItem get_by_code(const std::set<CItem>& items, const std::string& code_name)
     {
         auto it = std::find_if(items.begin(), items.end(), [&code_name](const CItem& prod) {
@@ -63,7 +77,6 @@ namespace items_control
             item_to_stringstream(ss, item);
         }
     }
-
 }
 
 namespace unit_control
@@ -195,18 +208,18 @@ namespace unit_control
             if (codename == PRP_SILVER)
                 return unit->silver_initial_.amount_;
             else if (gpApp->IsMan(codename.c_str()))
-                return items_control::get_by_code(unit->men_initial_, codename).amount_;
+                return item_control::get_by_code(unit->men_initial_, codename).amount_;
             else
-                return items_control::get_by_code(unit->items_initial_, codename).amount_;
+                return item_control::get_by_code(unit->items_initial_, codename).amount_;
         }
         else
         {
             if (codename == PRP_SILVER)
                 return unit->silver_.amount_;
             else if (gpApp->IsMan(codename.c_str()))
-                return items_control::get_by_code(unit->men_, codename).amount_;
+                return item_control::get_by_code(unit->men_, codename).amount_;
             else
-                return items_control::get_by_code(unit->items_, codename).amount_;
+                return item_control::get_by_code(unit->items_, codename).amount_;
         }
     }
     
@@ -273,7 +286,7 @@ namespace unit_control
         
         if (gpDataHelper->ImmediateProdCheck())
         {
-            items_control::modify_amount(unit->items_, codename, new_amount);
+            item_control::modify_amount(unit->items_, codename, new_amount);
         }        
 
         std::stringstream ss;
@@ -291,7 +304,7 @@ namespace unit_control
             return;
 
         unit->silver_.amount_ += -new_amount*price;
-        items_control::modify_amount(unit->items_, codename, new_amount);
+        item_control::modify_amount(unit->items_, codename, new_amount);
 
         std::stringstream ss;
         if (new_amount > 0)
@@ -301,6 +314,7 @@ namespace unit_control
 
         unit->impact_description_.push_back(ss.str());
     }
+
     void modify_man_from_market(CUnit* unit, const std::string& codename, long new_amount, long price)
     {
         if (new_amount == 0)
@@ -310,7 +324,7 @@ namespace unit_control
         std::stringstream ss;
         if (new_amount < 0)
         {//assuming we can sell peasants, but we actually can't
-            items_control::modify_amount(unit->men_, codename, new_amount);
+            item_control::modify_amount(unit->men_, codename, new_amount);
             ss << "sell " << abs(new_amount) << " of " << codename << " for " << price << "$ per each";
         }
         else //new_amount > 0
@@ -323,7 +337,7 @@ namespace unit_control
             for (auto& skill: unit->skills_)
                 skill.second = skill.second * current_man_amount / (current_man_amount + new_amount);
             
-            items_control::modify_amount(unit->men_, codename, new_amount);
+            item_control::modify_amount(unit->men_, codename, new_amount);
             ss << "buy " << new_amount << " of " << codename << " by " << price << "$ per each";
         }
         unit->impact_description_.push_back(ss.str());
@@ -337,7 +351,7 @@ namespace unit_control
         if (codename == PRP_SILVER)
             unit->silver_.amount_ += new_amount;
         else
-            items_control::modify_amount(unit->items_, codename, new_amount);
+            item_control::modify_amount(unit->items_, codename, new_amount);
 
         std::stringstream ss;
         std::string action, direction, source_name;
@@ -401,7 +415,7 @@ namespace unit_control
             action = "gives";
             direction = "to";
         }
-        items_control::modify_amount(unit->men_, codename, new_amount);
+        item_control::modify_amount(unit->men_, codename, new_amount);
 
         //print out impact
         ss << action << " " << abs(new_amount) << " of " << codename << " ";
@@ -520,16 +534,16 @@ namespace unit_control
         ss << "." << EOL_SCR;
 
         //second line
-        items_control::items_to_stringstream(ss, unit->men_);
+        item_control::items_to_stringstream(ss, unit->men_);
         if (unit->silver_.amount_ != 0)
         {
             ss << ", ";
-            items_control::item_to_stringstream(ss, unit->silver_);
+            item_control::item_to_stringstream(ss, unit->silver_);
         }
         if (unit->items_.size() > 0)
         {
             ss << ", ";
-            items_control::items_to_stringstream(ss, unit->items_);
+            item_control::items_to_stringstream(ss, unit->items_);
         }
         ss << "." << EOL_SCR;
         //Skills: tactics [TACT] 1 (30), mining [MINI] 1 (30).
@@ -724,6 +738,8 @@ namespace land_control
         //                  GuiColor = 1;
         //ShowLandFinancial
             
+
+
             long leader_upkeep = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_LEADER);
             long peasant_upkeep = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT);
             long player_faction_id = game_control::get_game_config_val<long>("ATTITUDES", "PLAYER_FACTION_ID");
@@ -737,7 +753,7 @@ namespace land_control
             }
 
             //sells
-            std::vector<Seller> sellers;
+            std::vector<Trader> sellers;
             get_land_sells(land, sellers, errors);
             for (const auto& seller : sellers)
             {
@@ -860,7 +876,7 @@ namespace land_control
             else
             {
                 for (auto& unit : pillage.units_)
-                    errors.push_back({unit, " - Not enough pillagers, needs: "+
+                    errors.push_back({"Warning", unit, " - Not enough pillagers, needs: "+
                         std::to_string(required_pillagers)+", but have: "+std::to_string(pillage.man_amount_)});
                 pillage.expected_income_ = 0;
             }                    
@@ -871,7 +887,7 @@ namespace land_control
             if (pillage.expected_income_ > 0) 
             {//pillage already succeed
                 for (auto& unit : tax.units_)
-                    errors.push_back({unit, " - is trying to tax, while region is pillaged!"});
+                    errors.push_back({"Error", unit, " - is trying to tax, while region is pillaged!"});
             }
             else if (tax.land_tax_available_ < tax_per_man*tax.man_amount_)
             {
@@ -886,7 +902,44 @@ namespace land_control
         }
     }
 
-    void get_land_sells(CLand* land, std::vector<Seller>& out, std::vector<unit_control::UnitError>& errors)
+    void get_land_buys(CLand* land, std::vector<Trader>& out, std::vector<unit_control::UnitError>& errors)
+    {
+        perform_on_each_unit(land, [&](CUnit* unit) {
+            auto buy_orders = orders::control::retrieve_orders_by_type(orders::Type::O_BUY, unit->orders_);
+            for (auto& buy_order : buy_orders)
+            {
+                std::string item_name;
+                long amount_to_buy;
+                bool all;
+                bool ignore_errors = orders::control::ignore_order(buy_order);
+                if (!ignore_errors && !orders::parser::specific::parse_sellbuy(buy_order, item_name, amount_to_buy, all))
+                {
+                    errors.push_back({"Error", unit, " - Buy: couldn't parse order - " + buy_order->original_string_});
+                    continue;
+                }
+
+                if (stricmp(item_name.c_str(), "peas") == 0 ||
+                    stricmp(item_name.c_str(), "peasant") == 0 ||
+                    stricmp(item_name.c_str(), "peasants") == 0)
+                    item_name = std::string(land->PeasantRace.GetData(), land->PeasantRace.GetLength());                   
+
+                CProductMarket sell_item = land_control::get_for_sale(land, item_name);
+                if (!ignore_errors && sell_item.item_.amount_ <= 0)
+                {
+                    errors.push_back({"Error", unit, " - Buy: items are not selling - " + buy_order->original_string_});
+                    continue;
+                }
+
+                if (all)
+                    amount_to_buy = sell_item.item_.amount_;
+
+                out.push_back({buy_order, item_name, amount_to_buy, sell_item.price_, unit});
+            }
+        });
+    }
+
+
+    void get_land_sells(CLand* land, std::vector<Trader>& out, std::vector<unit_control::UnitError>& errors)
     {
         perform_on_each_unit(land, [&](CUnit* unit) {
             auto sell_orders = orders::control::retrieve_orders_by_type(orders::Type::O_SELL, unit->orders_);
@@ -896,23 +949,23 @@ namespace land_control
                 long amount_to_sell;
                 bool all;
                 bool ignore_errors = orders::control::ignore_order(sell_order);
-                if (!ignore_errors && !orders::parser::specific::parse_sell(sell_order, item_name, amount_to_sell, all))
+                if (!ignore_errors && !orders::parser::specific::parse_sellbuy(sell_order, item_name, amount_to_sell, all))
                 {
-                    errors.push_back({unit, " - Sell: couldn't parse order - " + sell_order->original_string_});
+                    errors.push_back({"Error", unit, " - Sell: couldn't parse order - " + sell_order->original_string_});
                     continue;
                 }
 
                 long amount_at_unit = unit_control::get_item_amount(unit, item_name);
                 if (!ignore_errors && amount_at_unit <= 0)
                 {
-                    errors.push_back({unit, " - Sell: no items to sell - " + sell_order->original_string_});
+                    errors.push_back({"Warning", unit, " - Sell: no items to sell - " + sell_order->original_string_});
                     continue;
                 }
 
                 CProductMarket wanted_item = land_control::get_wanted(land, item_name);
                 if (!ignore_errors && wanted_item.item_.amount_ <= 0)
                 {
-                    errors.push_back({unit, " - Sell: items are not wanted - " + sell_order->original_string_});
+                    errors.push_back({"Error", unit, " - Sell: items are not wanted - " + sell_order->original_string_});
                     continue;
                 }
 
@@ -920,7 +973,7 @@ namespace land_control
                     amount_to_sell = std::min(amount_at_unit, wanted_item.item_.amount_);
                 if (!ignore_errors && amount_to_sell <= 0)
                 {
-                    errors.push_back({unit, " - Sell: specified amount is not correct - " + sell_order->original_string_});
+                    errors.push_back({"Warning", unit, " - Sell: specified amount is not correct - " + sell_order->original_string_});
                     continue;
                 }
 
@@ -930,7 +983,7 @@ namespace land_control
                                           " but has " + std::to_string(amount_at_unit);
                     unit->impact_description_.push_back("sell issue: " + warning);
                     amount_to_sell = amount_at_unit;
-                    errors.push_back({unit, " - Sell: " + warning});
+                    errors.push_back({"Warning", unit, " - Sell: " + warning});
                 }
                 if (amount_to_sell > wanted_item.item_.amount_)
                 {
@@ -938,7 +991,7 @@ namespace land_control
                             " but wanted just "+std::to_string(wanted_item.item_.amount_);                    
                     unit->impact_description_.push_back("sell issue: " + warning);
                     amount_to_sell = wanted_item.item_.amount_;
-                    errors.push_back({unit, " - Sell: " + warning});
+                    errors.push_back({"Warning", unit, " - Sell: " + warning});
                 }
                 if (amount_to_sell < amount_at_unit && amount_to_sell < wanted_item.item_.amount_)
                 {
@@ -963,7 +1016,7 @@ namespace land_control
                 if (!orders::parser::specific::parse_study(studying_order, studying_skill, goal_lvl))
                 {
                     unit->impact_description_.push_back("study error: wrong command: " + studying_order->original_string_);
-                    errors.push_back({unit, " - Wrong studying command!"});
+                    errors.push_back({"Error", unit, " - Wrong studying command!"});
                     return;
                 }
 
@@ -971,7 +1024,7 @@ namespace land_control
                 if (price <= 0)
                 {
                     unit->impact_description_.push_back("study error: can't study " + studying_skill);
-                    errors.push_back({unit, " - Can not study that!"});
+                    errors.push_back({"Error", unit, " - Can not study that!"});
                     return;
                 }
 
@@ -979,7 +1032,7 @@ namespace land_control
                 if (amount_of_man == 0)//order is given, but unit is empty
                 {
                     unit->impact_description_.push_back("study error: no men in unit to study anything");
-                    errors.push_back({unit, " - There are no men in the unit!"});
+                    errors.push_back({"Warning", unit, " - There are no men in the unit!"});
                     return;
                 }
 
@@ -987,7 +1040,7 @@ namespace land_control
                 if (max_skill < 0)
                 {
                     unit->impact_description_.push_back("study error: skill wasn't determined");
-                    errors.push_back({unit, " - Skill max level wasn't determined!"});
+                    errors.push_back({"Error", unit, " - Skill max level wasn't determined!"});
                     return;
                 }
 
@@ -996,7 +1049,7 @@ namespace land_control
                 if (current_days >= max_days)
                 {
                     unit->impact_description_.push_back("study error: skill is already at max level");
-                    errors.push_back({unit, " - Skill is already at max level!"});
+                    errors.push_back({"Error", unit, " - Skill is already at max level!"});
                     return;
                 }
 
@@ -1006,7 +1059,7 @@ namespace land_control
                     if (current_days >= goal_days)
                     {
                         unit->impact_description_.push_back("study error: skill already reached specified goal");
-                        errors.push_back({unit, " - Skill already reached specified goal!"});
+                        errors.push_back({"Warning", unit, " - Skill already reached specified goal!"});
                         return;
                     }
                 }
@@ -1015,7 +1068,7 @@ namespace land_control
                 //support of Unit List functionality
                 if (PE_OK!=unit->SetProperty(PRP_SILVER,   eLong, (const void *)(unit->silver_.amount_), eNormal))
                 {
-                    errors.push_back({unit, " - Cannot set unit's property - it's a bug!"});
+                    errors.push_back({"Error", unit, " - Cannot set unit's property - it's a bug!"});
                 }                  
 
                 students[unit->Id];
@@ -1044,7 +1097,7 @@ namespace land_control
             if (teachers_amount <= 0)
             {
                 unit->impact_description_.push_back("teaching: have no men to teach");
-                errors.push_back({unit, " have no men to teach"});
+                errors.push_back({"Warning", unit, " have no men to teach"});
                 return;
             }
             std::vector<Student*> active_students;
@@ -1054,19 +1107,19 @@ namespace land_control
                 if (studId == unit->Id)
                 {
                     unit->impact_description_.push_back(unit_control::compose_unit_number(studId) + " can't teach himself");
-                    errors.push_back({unit, " can't teach himself"});
+                    errors.push_back({"Error", unit, " can't teach himself"});
                     continue;
                 }
                 if (students.find(studId) == students.end())
                 {
                     unit->impact_description_.push_back(unit_control::compose_unit_number(studId) + " is not studying");
-                    errors.push_back({unit, unit_control::compose_unit_number(studId) + " is not studying"});
+                    errors.push_back({"Warning", unit, unit_control::compose_unit_number(studId) + " is not studying"});
                     continue;
                 }
                 if (students[studId].max_days_ - students[studId].cur_days_ - students[studId].days_of_teaching_- (long)30 <= 0)
                 {
                     unit->impact_description_.push_back(unit_control::compose_unit_name(students[studId].unit_) + " doesn't need any teacher more");
-                    errors.push_back({unit, unit_control::compose_unit_number(studId) + " doesn't need any teacher more"});
+                    errors.push_back({"Warning", unit, unit_control::compose_unit_number(studId) + " doesn't need any teacher more"});
                     continue;
                 }
 
@@ -1077,7 +1130,7 @@ namespace land_control
                 if (teacher_lvl <= student_lvl)
                 {
                     unit->impact_description_.push_back("Can't teach " + unit_control::compose_unit_name(students[studId].unit_));
-                    errors.push_back({unit, "Can't teach " + unit_control::compose_unit_number(studId)});
+                    errors.push_back({"Error", unit, "Can't teach " + unit_control::compose_unit_number(studId)});
                     continue;                        
                 }
                 students_amount += students[studId].man_amount_;
