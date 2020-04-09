@@ -491,6 +491,8 @@ void CUnitPane::OnRClick(wxListEvent& event)
 {
     wxMenu       menu;
     long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    if (idx == -1)
+        return;
     CUnit      * pUnit = GetUnit(idx);
 
     int nItems = GetSelectedItemCount();
