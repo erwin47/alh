@@ -190,12 +190,16 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define UNIT_FLAG_CONSUMING_UNIT    0x00020000
 #define UNIT_FLAG_CONSUMING_FACTION 0x00010000
 #define UNIT_FLAG_NO_CROSS_WATER    0x00008000
-#define UNIT_FLAG_SPOILS            0x00004000
-#define UNIT_FLAG_SHARING           0x00002000
-#define UNIT_FLAG_TEMP              0x00001000
-#define UNIT_FLAG_ENTERTAINING      0x00000800
-#define UNIT_FLAG_WORKING           0x00000400
-
+#define UNIT_FLAG_SPOILS_NONE       0x00004000
+#define UNIT_FLAG_SPOILS_WALK       0x00002000
+#define UNIT_FLAG_SPOILS_RIDE       0x00001000
+#define UNIT_FLAG_SPOILS_FLY        0x00000800
+#define UNIT_FLAG_SPOILS_SWIM       0x00000400
+#define UNIT_FLAG_SPOILS_SAIL       0x00000200
+#define UNIT_FLAG_SHARING           0x00000100
+#define UNIT_FLAG_TEMP              0x00000080
+#define UNIT_FLAG_ENTERTAINING      0x00000040
+#define UNIT_FLAG_WORKING           0x00000020
 
 #define UNIT_CUSTOM_FLAG_COUNT   8
 #define UNIT_CUSTOM_FLAG_MASK    0xFF
@@ -411,6 +415,8 @@ public:
 
     std::shared_ptr<orders::CaravanInfo> caravan_info_;
 
+    long struct_id_;//!<struct to which it belongs (0 if none)
+
     bool            IsOurs;
     long            FactionId;
     CFaction      * pFaction;
@@ -449,18 +455,23 @@ protected:
 class CStruct : public CBaseObject
 {
 public:
-    CStruct() : CBaseObject() {LandId=0; OwnerUnitId=0; Attr=0; Location=NO_LOCATION;
-                               Load=0; SailingPower=0; MaxLoad=0; MinSailingPower=0;};
+    CStruct() : CBaseObject(), LandId(0), OwnerUnitId(0), Attr(0), occupied_capacity_(0),
+                                SailingPower(0), capacity_(0), MinSailingPower(0)
+    {}
     virtual void ResetNormalProperties();
     long LandId;
     long OwnerUnitId;
     long Attr;
-    CStr Kind;
-    int  Location;
-    long Load;
     long SailingPower;
-    long MaxLoad;
     long MinSailingPower;
+    int  Location;
+    
+    long occupied_capacity_;
+    long capacity_;
+    std::string type_;
+    std::string name_;
+    std::string original_description_;
+    std::vector<std::pair<std::string, long> > fleet_ships_;
 };
 
 //-----------------------------------------------------------------
@@ -473,6 +484,16 @@ public:
     int   Direction;
 };
 */
+struct CStructure
+{
+    std::string                 name_;
+    long                        capacity_;
+    long                        flags_;
+    std::vector<std::string>    substructures_;
+    CLand*                      land_;
+    std::vector<CUnit*>         units_;    
+};
+
 struct CError
 {
     std::string type_;//"Error", "Warning"
@@ -482,14 +503,14 @@ struct CError
 
 struct CEconomy
 {
-    long initial_amount_;//implemented
+    long initial_amount_;
     long maintenance_;
     long buy_expenses_;
-    long study_expenses_;//implemented
+    long study_expenses_;
     long moving_out_;
     long moving_in_;
     long tax_income_;
-    long sell_income_;//implemented
+    long sell_income_;
 };
 
 //-----------------------------------------------------------------
@@ -505,7 +526,6 @@ public:
     void      DeleteAllNewUnits(int factionId);
     void      ResetUnitsAndStructs();
     CStruct * GetStructById(long id);
-    void      CalcStructsLoad();
     void      SetFlagsFromUnits();
     CStruct * AddNewStruct(CStruct * pNewStruct);
     void      RemoveEdgeStructs(int direction);
@@ -647,7 +667,7 @@ class CGameDataHelper
 public:
     void         ReportError       (const char * msg, int msglen, BOOL orderrelated);
     long         GetStudyCost      (const char * skill);
-    long         GetStructAttr     (const char * kind, long & MaxLoad, long & MinSailingPower);
+    //bool         GetStructAttr     (const char * kind, long & MaxLoad, long & MinSailingPower, long& flags);
     const char * GetConfString     (const char * section, const char * param);
     BOOL         GetOrderId        (const char * order, long & id);
     BOOL         IsTradeItem       (const char * item);

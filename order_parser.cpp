@@ -47,7 +47,7 @@ namespace orders
         {"NAME", orders::Type::O_NAME},
         {"NOAID", orders::Type::O_NOAID},
         {"NOCROSS", orders::Type::O_NOCROSS},
-        {"NOSPOILS", orders::Type::O_NOSPOILS},
+        {"SPOILS", orders::Type::O_SPOILS},
         {"OPTION", orders::Type::O_OPTION},
         {"PASSWORD", orders::Type::O_PASSWORD},
         {"PILLAGE", orders::Type::O_PILLAGE},
@@ -119,7 +119,7 @@ namespace orders
         {orders::Type::O_NAME, [](const std::vector<std::string>&) {  return true;  } },
         {orders::Type::O_NOAID, [](const std::vector<std::string>&) {  return true;  } },
         {orders::Type::O_NOCROSS, [](const std::vector<std::string>&) {  return true;  } },
-        {orders::Type::O_NOSPOILS, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_SPOILS, [](const std::vector<std::string>&) {  return true;  } },
         {orders::Type::O_OPTION, [](const std::vector<std::string>&) {  return true;  } },
         {orders::Type::O_PASSWORD, [](const std::vector<std::string>&) {  return true;  } },
         {orders::Type::O_PILLAGE, [](const std::vector<std::string>&) {  return true;  } },
@@ -661,12 +661,54 @@ namespace orders
                 }
                 return false;            
             }
+
+            bool parse_flags(const std::shared_ptr<orders::Order>& order, bool& flag)
+            {
+                if (order->words_order_.size() == 2)
+                {
+                    flag = (atol(order->words_order_[1].c_str()) == 1);
+                    return true;
+                }
+                return false;
+            }
+
+            bool parse_flags_with_param(const std::shared_ptr<orders::Order>& order, std::string& param)
+            {
+                if (order->words_order_.size() == 1)
+                {
+                    param.clear();
+                    return true;
+                }
+                else if (order->words_order_.size() == 2)
+                {
+                    param = order->words_order_[1];
+                    return true;
+                }
+                return false;
+            }
         }        
     }
 
 
     namespace control
     {
+        template<> 
+        long flag_by_order_type<orders::Type::O_AUTOTAX>() {  return UNIT_FLAG_TAXING; }
+        template<>
+        long flag_by_order_type<orders::Type::O_AVOID>() {  return UNIT_FLAG_AVOIDING; }
+        template<>
+        long flag_by_order_type<orders::Type::O_BEHIND>() {  return UNIT_FLAG_BEHIND; }
+        template<>
+        long flag_by_order_type<orders::Type::O_GUARD>() {  return UNIT_FLAG_GUARDING; }
+        template<>
+        long flag_by_order_type<orders::Type::O_HOLD>() {  return UNIT_FLAG_HOLDING; }
+        template<>
+        long flag_by_order_type<orders::Type::O_NOAID>() {  return UNIT_FLAG_RECEIVING_NO_AID; }
+        template<>
+        long flag_by_order_type<orders::Type::O_NOCROSS>() {  return UNIT_FLAG_NO_CROSS_WATER; }
+        template<>
+        long flag_by_order_type<orders::Type::O_SHARE>() {  return UNIT_FLAG_SHARING; }
+
         bool ignore_order(const std::shared_ptr<Order>& order)
         {
             return (strnicmp(order->comment_.c_str(), ";$ne", 4) == 0 ||

@@ -52,7 +52,7 @@ namespace orders
         O_NAME,
         O_NOAID,
         O_NOCROSS,
-        O_NOSPOILS,
+        O_SPOILS,
         O_OPTION,
         O_PASSWORD,
         O_PILLAGE,
@@ -66,7 +66,6 @@ namespace orders
         O_SELL,
         O_SHARE,
         O_SHOW,
-        O_SPOILS,
         O_STEAL,
         O_STUDY,
         O_TAX,
@@ -153,6 +152,9 @@ namespace orders
             bool parse_attack(const std::shared_ptr<orders::Order>& order, std::vector<long>& targets);
             bool parse_steal(const std::shared_ptr<orders::Order>& order, long& target_id, std::string& item);
             bool parse_sellbuy(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount, bool& all);
+            bool parse_flags(const std::shared_ptr<orders::Order>& order, bool& flag);
+            bool parse_flags_with_param(const std::shared_ptr<orders::Order>& order, std::string& param);
+
         }
 
         void recalculate_hash(UnitOrders& uorders);
@@ -207,6 +209,9 @@ namespace orders
         
         std::vector<long> get_students(CUnit* unit);
         std::shared_ptr<Order> get_studying_order(const UnitOrders& unit_orders);
+
+        template<orders::Type TYPE>
+        long flag_by_order_type();
     }
 
     struct AutoSource

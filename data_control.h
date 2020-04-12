@@ -40,10 +40,12 @@ namespace unit_control
         bool is_reveal(CUnit* unit, std::string flag);
         bool is_spoils(CUnit* unit, std::string flag);
         bool is_consume(CUnit* unit, std::string flag);
-        bool is_leader(CUnit* unit);
     }
 
     bool is_leader(CUnit* unit);
+    long structure_id(const CUnit* unit);
+    bool is_struct_owner(const CUnit* unit);
+    void set_structure(CUnit* unit, long struct_id, bool owns);
     
     long get_upkeep(CUnit* unit);
 
@@ -120,6 +122,25 @@ namespace land_control
     void set_produced_items(CLand* land, const std::string& item_code, long amount);
     long get_produced_items(CLand* land, const std::string& item_code);
 
+    CStruct* get_struct(CLand* land, long struct_id);
+    long get_struct_weight(CLand* land, long struct_id);
+
+    template<typename T>
+    void perform_on_each_struct(CLand* land, T Pred)
+    {
+        for (size_t i = 0; i < land->Structs.Count(); i++)
+        {
+            CStruct* structure = (CStruct*)land->Structs.At(i);
+            Pred(structure);
+        }    
+    }
+    namespace structures
+    {
+        void update_struct_weights(CLand* land);
+    }
+    
+
+
     template<typename T>
     void get_units_if(CLand* land, std::vector<CUnit*>& units, T Pred)
     {
@@ -166,6 +187,7 @@ namespace land_control
         void economy_calculations(CLand* land, CEconomy& res, std::vector<unit_control::UnitError>& errors);
     }
 
+    void apply_land_flags(CLand* land, std::vector<unit_control::UnitError>& errors);
     void get_land_taxers(CLand* land, Taxers& out, std::vector<unit_control::UnitError>& errors);
     void get_land_sells(CLand* land, std::vector<Trader>& out, std::vector<unit_control::UnitError>& errors);
     void get_land_buys(CLand* land, std::vector<Trader>& out, std::vector<unit_control::UnitError>& errors);
@@ -220,6 +242,14 @@ namespace game_control
         return convert_to<T>(get_gpapp_config(section, key));
     }
 
+    bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag);
+
+}
+
+namespace struct_control
+{
+    void parse_struct(const std::string& line, long& id, std::string& name, 
+                      std::string& type, std::vector<std::pair<std::string, long>>& substructures);
 }
 
 /*namespace json_control

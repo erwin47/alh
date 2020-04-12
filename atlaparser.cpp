@@ -221,10 +221,12 @@ CAtlaParser::CAtlaParser(CGameDataHelper * pHelper)
     // MZ - Added for Arcadia
     m_UnitFlagsHash.Insert("sharing"                     ,     (void*)UNIT_FLAG_SHARING           );
 
-    m_UnitFlagsHash.Insert("weightless battle spoils"    ,     (void*)UNIT_FLAG_SPOILS            );
-    m_UnitFlagsHash.Insert("flying battle spoils"        ,     (void*)UNIT_FLAG_SPOILS            );
-    m_UnitFlagsHash.Insert("walking battle spoils"       ,     (void*)UNIT_FLAG_SPOILS            );
-    m_UnitFlagsHash.Insert("riding battle spoils"        ,     (void*)UNIT_FLAG_SPOILS            );
+    m_UnitFlagsHash.Insert("weightless battle spoils"    ,     (void*)UNIT_FLAG_SPOILS_NONE       );
+    m_UnitFlagsHash.Insert("flying battle spoils"        ,     (void*)UNIT_FLAG_SPOILS_FLY        );
+    m_UnitFlagsHash.Insert("walking battle spoils"       ,     (void*)UNIT_FLAG_SPOILS_WALK       );
+    m_UnitFlagsHash.Insert("riding battle spoils"        ,     (void*)UNIT_FLAG_SPOILS_RIDE       );
+    m_UnitFlagsHash.Insert("swimming battle spoils"      ,     (void*)UNIT_FLAG_SPOILS_SWIM       );
+    m_UnitFlagsHash.Insert("sailing battle spoils"       ,     (void*)UNIT_FLAG_SPOILS_SAIL       );
 }
 
 //----------------------------------------------------------------------
@@ -1918,8 +1920,11 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
                 pStruct     = new CStruct;
                 pStruct->Id = -no;  // negative, so it does not clash with structures!
                 pStruct->Description = CurLine.GetData();
-                pStruct->Kind        = STRUCT_GATE;
-                pStruct->Attr        = gpDataHelper->GetStructAttr(pStruct->Kind.GetData(), pStruct->MaxLoad, pStruct->MinSailingPower);
+                pStruct->type_        = STRUCT_GATE;
+                if (!game_control::get_struct_attributes(pStruct->type_, 
+                        pStruct->capacity_, pStruct->MinSailingPower, pStruct->Attr))
+                    OrderError("Error", pLand, nullptr, "Couldn't parse Gate data");
+
                 pLand->AddNewStruct(pStruct);
 
                 p = SkipSpaces(p);
@@ -2230,13 +2235,21 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
     }
     if (m_pCurStruct)
     {
-        SetUnitProperty(pUnit, PRP_STRUCT_ID,   eLong,    (void*)m_pCurStruct->Id,      eBoth);
-        SetUnitProperty(pUnit, PRP_STRUCT_NAME, eCharPtr, m_pCurStruct->Name.GetData(), eBoth);
         if (0==m_pCurStruct->OwnerUnitId)
         {
-            m_pCurStruct->OwnerUnitId = pUnit->Id;
             SetUnitProperty(pUnit, PRP_STRUCT_OWNER, eCharPtr, YES, eBoth);
+            SetUnitProperty(pUnit, PRP_STRUCT_ID,   eLong,    (void*)m_pCurStruct->Id,      eBoth);
+            SetUnitProperty(pUnit, PRP_STRUCT_NAME, eCharPtr, m_pCurStruct->name_.c_str(), eBoth);
+            unit_control::set_structure(pUnit, m_pCurStruct->Id, true);
+            m_pCurStruct->OwnerUnitId = pUnit->Id;
         }
+        else
+        {
+            SetUnitProperty(pUnit, PRP_STRUCT_ID,   eLong,    (void*)m_pCurStruct->Id,      eBoth);
+            SetUnitProperty(pUnit, PRP_STRUCT_NAME, eCharPtr, m_pCurStruct->name_.c_str(), eBoth);
+            unit_control::set_structure(pUnit, m_pCurStruct->Id, false);
+        }
+        
     }
 
     // ===== Read Faction Name, which may follow!
@@ -2510,88 +2523,34 @@ int CAtlaParser::ParseStructure(CStr & FirstLine)
     //+ Ship [100] : Longboat, needs 10.
     //+ Forager [101] : Longboat.
     //+ Shaft [1] : Shaft, contains an inner location.
-
+    //+ Three aspens [141] : Fleet, 3 Longships; Load: 263/300; Sailors: 12/12; MaxSpeed: 6.
+    //+ Ship [197] : Fleet, 3 Galleons, 1 Galley; Sail directions: N, NW.
     // Description is terminated by a unit or an empty line
-
-    CStr         S;
-    CStr         Name;
-    const char * p;
-    long         id;
-    CStruct    * pStruct;
-    char         ch;
-    CStr         CurLine(64);
-    CStr         TmpDescr(64);
-    CStr         Kind;
-    int          Location = NO_LOCATION;
-    int          i;
-
     if (!m_pCurLand)
-        goto Exit;
+        return ERR_OK;
 
-    p  = FirstLine.GetData();
-    p  = Name.GetToken(p, '[');
-    p  = S.GetToken(p, ']');
-    id = atol(S.GetData());
-    if (0==id)
-        goto Exit;
+    CStruct* pStruct = new CStruct();
+    pStruct->original_description_ = std::string(FirstLine.GetData(), FirstLine.GetLength());
 
-    TmpDescr = FirstLine;
-    TmpDescr.TrimRight(TRIM_ALL);
-    while (ReadNextLine(CurLine))
+    struct_control::parse_struct(pStruct->original_description_,
+                                 pStruct->Id, pStruct->name_, pStruct->type_, pStruct->fleet_ships_);
+
+    //pStruct->Name = pStruct->name_.c_str();
+    for (const auto& subship : pStruct->fleet_ships_)
     {
-        const char * s = SkipSpaces(CurLine.GetData());
-        if (!s || !*s)
-            break;
-
-        if (strchr(STRUCT_UNIT_START, *s))
-        {
-            PutLineBack(CurLine);
-            break;
-        }
-
-        CurLine.TrimRight(TRIM_ALL);
-        TmpDescr << EOL_SCR << CurLine;
+        long load(0), spower(0);
+        std::string code, name, longname;
+        game_control::get_struct_attributes(subship.first, load, spower, pStruct->Attr);
+        pStruct->capacity_ += load * subship.second;
+        pStruct->MinSailingPower += spower * subship.second;
     }
 
-    p  = S.GetToken(TmpDescr.GetData(), ':');
-    p  = Kind.GetToken(p, ",.;", ch);
-
-    Name << " [" << id << "]";
-
-    // check for Arcadia III ships at the hex edges
-    // + Ship [104] : Galley (Northern hexside).
-    p = strchr(Kind.GetData(), '(');
-    if (p && *p)
-    {
-        S.GetToken(p+1, ')');
-        S.Normalize();
-        for (i=0; i<(int)sizeof(LocationsShipsArcadia)/(int)sizeof(const char*); i++)
-            if (0==stricmp(S.GetData(), LocationsShipsArcadia[i]))
-            {
-                Location = i;
-                break;
-            }
-        i = p - Kind.GetData();
-        Kind.DelSubStr(i, Kind.GetLength()-i);
-        Kind.TrimRight(TRIM_ALL);
-    }
-
-
-    pStruct              = new CStruct;
-    pStruct->Id          = id;
-    pStruct->Name        = &Name.GetData()[sizeof(HDR_STRUCTURE)-1];
-    pStruct->Description = TmpDescr;
-    pStruct->Kind        = Kind;
-    pStruct->Attr        = gpDataHelper->GetStructAttr(pStruct->Kind.GetData(), pStruct->MaxLoad, pStruct->MinSailingPower);
-    pStruct->Location    = Location;
     if (pStruct->Attr & (SA_ROAD_N | SA_ROAD_NE | SA_ROAD_SE | SA_ROAD_S | SA_ROAD_SW | SA_ROAD_NW ))
-        if (pStruct->Description.FindSubStr("needs") > 0 || pStruct->Description.FindSubStr("decay") > 0 )
+        if (pStruct->original_description_.find("needs") != std::string::npos || 
+            pStruct->original_description_.find("decay") != std::string::npos)
             pStruct->Attr |= SA_ROAD_BAD;
 
     m_pCurStruct         = m_pCurLand->AddNewStruct(pStruct);
-
-
-Exit:
     return ERR_OK;
 }
 
@@ -2721,12 +2680,14 @@ void CAtlaParser::ApplySailingEvents()
                     for (nu=0; nu<pLand->Units.Count(); nu++)
                     {
                         pUnit = (CUnit*)pLand->Units.At(nu);
-                        if (pUnit->GetProperty(PRP_STRUCT_ID   , type , value , eOriginal) && eLong==type &&
-                            pUnit->GetProperty(PRP_STRUCT_OWNER, type2, value2, eOriginal) && eCharPtr==type2)
+                        if (unit_control::structure_id(pUnit) > 0 &&//pUnit->GetProperty(PRP_STRUCT_ID   , type , value , eOriginal) && eLong==type &&
+                            unit_control::is_struct_owner(pUnit))//pUnit->GetProperty(PRP_STRUCT_OWNER, type2, value2, eOriginal) && eCharPtr==type2)
+                        {
                             if (pSailEvent->Id == (long)value && value2 && *((char*)value2)  )
                             {
                                 pUnit->Events << pSailEvent->Description;
                             }
+                        }
                     }
                 }
             }
@@ -3882,7 +3843,7 @@ BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane,
             {
                 pEdge = (CStruct*)pLand->EdgeStructs.At(nstr);
                 if (pEdge->Location == i)
-                    sExits << ", " << pEdge->Kind;
+                    sExits << ", " << pEdge->type_.c_str();
             }
             sExits  << "." << EOL_FILE;;
         }
@@ -3942,7 +3903,7 @@ BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane,
         for (i=0; i<pLand->UnitsSeq.Count(); i++)
         {
             pUnit = (CUnit *)pLand->UnitsSeq.At(i);
-            if (!IS_NEW_UNIT(pUnit) && !pUnit->GetProperty(PRP_STRUCT_ID, type, value, eOriginal) )
+            if (!IS_NEW_UNIT(pUnit) && unit_control::structure_id(pUnit) == 0)//!pUnit->GetProperty(PRP_STRUCT_ID, type, value, eOriginal) )
             {
                 sLine << pUnit->Description;
                 sLine.TrimRight(TRIM_ALL);
@@ -3967,7 +3928,9 @@ BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane,
                 for (i=0; i<pLand->UnitsSeq.Count(); i++)
                 {
                     pUnit = (CUnit *)pLand->UnitsSeq.At(i);
-                    if (!IS_NEW_UNIT(pUnit) && pUnit->GetProperty(PRP_STRUCT_ID, type, value, eOriginal) && eLong==type && (long)value==pStruct->Id)
+                    if (!IS_NEW_UNIT(pUnit) && 
+                        unit_control::structure_id(pUnit) == pStruct->Id)
+                        //pUnit->GetProperty(PRP_STRUCT_ID, type, value, eOriginal) && eLong==type && (long)value==pStruct->Id)
                     {
                         sLine << pUnit->Description;
                         sLine.TrimRight(TRIM_ALL);
@@ -4061,7 +4024,7 @@ int  CAtlaParser::SaveOrders(const char * FNameOut, const char * password, BOOL 
                         {
                             wxString landDescr = wxString::FromUTF8(pLand->Description.GetData());
                             wxString s = wxString::Format(wxT("Unable to save new unit orders in %s."), landDescr.BeforeFirst('.').c_str());
-                            OrderError("Warning", pUnit, s.ToStdString());
+                            OrderError("Warning", pLand, pUnit, s.ToStdString());
                         }
                     }
                 }
@@ -4117,7 +4080,7 @@ int  CAtlaParser::SaveOrders(const char * FNameOut, const char * password, BOOL 
                 {
                     wxString landDescr = wxString::FromUTF8(pLand->Description.GetData());
                     wxString s = wxString::Format(wxT("Unable to save new unit orders in %s."), landDescr.BeforeFirst('.').c_str());
-                    OrderError("Warning", 0, s.ToStdString());
+                    OrderError("Warning", pLand, 0, s.ToStdString());
                     FormOrders.clear();
                 }
             }
@@ -4208,6 +4171,8 @@ CUnit * CAtlaParser::SplitUnit(CUnit * pOrigUnit, long newId)
         // Copy persistent settings from the creating unit
         if (pOrigUnit->GetProperty(PRP_FRIEND_OR_FOE, type, value, eNormal) && eLong==type)
             SetUnitProperty(pUnitNew,PRP_FRIEND_OR_FOE, type, value, eNormal);
+        
+        unit_control::set_structure(pUnitNew, unit_control::structure_id(pOrigUnit), false);
         if (pOrigUnit->GetProperty(PRP_STRUCT_ID, type, value, eOriginal) && eLong==type)
             SetUnitProperty(pUnitNew,PRP_STRUCT_ID, type, value, eBoth);
         if (pOrigUnit->GetProperty(PRP_STRUCT_NAME, type, value, eOriginal) && eCharPtr==type)
@@ -4378,26 +4343,32 @@ void CAtlaParser::OrderErrFinalize()
 }
 
 
-
-void CAtlaParser::OrderError(const std::string& type, CUnit* unit, const std::string& Msg)
+void CAtlaParser::OrderError(const std::string& type, CLand* land, CUnit* unit, const std::string& Msg)
 {
     CStr         S(32);
     CStr         prefix;
-    long unit_id(0);
-    std::string unit_name("Unit");
-    if (unit)
-    {
-        unit_id = unit->Id;
-        unit_name = unit_control::compose_unit_name(unit);
 
-        if (IS_NEW_UNIT(unit))
-        {
-            CStr         land;
-            ComposeLandStrCoord(GetLand(unit->LandId), land);
-            prefix.Format("(%s) ", land.GetData());
-        }
+    std::string land_name;
+    if (land != nullptr)
+    {
+        CStr         land_name_cstr;
+        ComposeLandStrCoord(land, land_name_cstr);
+        land_name = std::string(land_name_cstr.GetData(), land_name_cstr.GetLength()) + " ";
+        land->run_orders_errors_.push_back({type, unit, Msg});
     }
-    S.Format("%s%s (%d) %s : %s%s", prefix.GetData(), unit_name.c_str(), unit_id, type.c_str(), Msg.c_str(), EOL_SCR);
+
+    std::string unit_name;
+    if (unit != nullptr)
+    {
+        if (IS_NEW_UNIT(unit))
+            unit_name = land_name + " " + unit_control::compose_unit_name(unit);
+        else
+            unit_name = unit_control::compose_unit_name(unit);
+
+        unit->impact_description_.push_back(Msg);
+    }
+    
+    S.Format("%s%s %s : %s%s", land_name.c_str(), unit_name.c_str(), type.c_str(), Msg.c_str(), EOL_SCR);
     m_sOrderErrors << S;
 }
 
@@ -4425,7 +4396,7 @@ void CAtlaParser::GenericErr(int Severity, const char * Msg)
 #define GEN_ERR(pUnit, msg)                 \
 {                                           \
     Line << msg;                            \
-    OrderError("Error", pUnit, Line.GetData()); \
+    OrderError("Error", pLand, pUnit, Line.GetData()); \
     return Changed;                         \
 }
 
@@ -4543,14 +4514,14 @@ BOOL CAtlaParser::GenGiveEverything(CUnit * pFrom, const char * To)
         if (!GetTargetUnitId(p, pFrom->FactionId, n1))
         {
             S << "Invalid unit id " << To;
-            OrderError("Error", pFrom, S.GetData());
+            OrderError("Error", pLand, pFrom, S.GetData());
             break;
         }
         Dummy.Id = n1;
         if (n1 != 0 && !pLand->Units.Search(&Dummy, i) )
         {
             S << "Can not find unit " << To;
-            OrderError("Error", pFrom, S.GetData());
+            OrderError("Error", pLand, pFrom, S.GetData());
             break;
         }
 
@@ -4662,7 +4633,9 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
     land_control::update_students_by_land_teachers(pLand, students, errors);
 
     for (auto& error : errors)
-        OrderError(error.type_, error.unit_, error.message_);
+    {
+        OrderError(error.type_, pLand, error.unit_, error.message_);
+    }        
 
     BOOL changed = FALSE;
     for (const auto& stud : students)
@@ -4899,7 +4872,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     {                                                \
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
-        OrderError("Warning", pUnit, ErrorLine.GetData()); \
+        OrderError("Warning", pLand, pUnit, ErrorLine.GetData()); \
     }                                                \
     continue;                                        \
 }
@@ -4910,7 +4883,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     {                                                \
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
-        OrderError("Warning", pUnit, ErrorLine.GetData()); \
+        OrderError("Warning", pLand, pUnit, ErrorLine.GetData()); \
     }                                                \
 }
 
@@ -4920,7 +4893,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     {                                                \
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
-        OrderError("Warning", pUnit, ErrorLine.GetData()); \
+        OrderError("Warning", pLand, pUnit, ErrorLine.GetData()); \
         break;                                       \
     }                                                \
 }
@@ -5082,6 +5055,27 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             });
         }
 
+        if (sequence == TurnSequence::SQ_FORM)
+        {            
+        }
+        if (sequence == TurnSequence::SQ_CLAIM)
+        {
+            RunOrder_LandFlags(pLand);
+        }
+        if (sequence == TurnSequence::SQ_LEAVE)
+        {
+        }
+        if (sequence == TurnSequence::SQ_ENTER)
+        {
+        }
+        if (sequence == TurnSequence::SQ_PROMOTE)
+        {
+        }
+        if (sequence == TurnSequence::SQ_STEAL) //for SQ_ATTACK, SQ_ASSASSINATE
+        {
+            RunOrder_LandAggression(pLand);
+        } 
+
         if (sequence == TurnSequence::SQ_TAX)
         {
             RunOrder_LandTaxPillage(pLand);
@@ -5106,6 +5100,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             PerformOrder_Sell(pLand);
         }
 
+        if (TurnSequence::SQ_BUY == sequence)
+        {//no need to parse sequentially
+            PerformOrder_Buy(pLand);
+        }
+
         if (TurnSequence::SQ_PRODUCE == sequence)
         {//no need to parse sequentially
             pLand->produced_items_.clear();
@@ -5117,10 +5116,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             RunOrder_LandStudyTeach(pLand);
         }
 
-        if (TurnSequence::SQ_STEAL==sequence) //for SQ_ATTACK, SQ_ASSASSINATE
-        {
-            RunOrder_LandAggression(pLand);
-        }        
+       
 
         for (mainidx=0; mainidx<pLand->UnitsSeq.Count(); mainidx++)
         {
@@ -5294,8 +5290,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
 
                     case O_BUY:
-                        if (TurnSequence::SQ_BUY==sequence)
-                            RunOrder_Buy(Line, ErrorLine, skiperror, pUnit, pLand, p);
+                        //if (TurnSequence::SQ_BUY==sequence)
+                            //RunOrder_Buy(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
 
 
@@ -5311,7 +5307,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
                         if (TurnSequence::SQ_FORM==sequence)
                         {
-                            SHOW_WARN_CONTINUE(" - Do not manually enter a FORM command - use the split context-menu");
+                            SHOW_WARN_CONTINUE(" - Do not manually enter a FORM command - use the split context-menu or Create New Unit dialog");
                             break;
                             if (!IS_NEW_UNIT_ID(n1))
                                 SHOW_WARN_CONTINUE(" - Invalid new unit number!");
@@ -5330,6 +5326,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                             int attitude = gpDataHelper->GetAttitudeForFaction(pUnit->FactionId);
                             SetUnitProperty(pUnitNew,PRP_FRIEND_OR_FOE,eLong,(void *) attitude,eNormal);
 
+                            unit_control::set_structure(pUnitNew, unit_control::structure_id(pUnit), false);
                             if (pUnit->GetProperty(PRP_STRUCT_ID, type, value, eOriginal) )
                                 pUnitNew->SetProperty(PRP_STRUCT_ID, type, value, eBoth);
                             if (pUnit->GetProperty(PRP_STRUCT_NAME, type, value, eOriginal) )
@@ -5452,17 +5449,20 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                     case O_LEAVE:
                         if (TurnSequence::SQ_LEAVE==sequence)
                         {
-                            if (pUnit->GetProperty(PRP_STRUCT_ID, type, (const void *&)n1) && eLong==type)
+                            long struct_id = unit_control::structure_id(pUnit);
+                            if (struct_id > 0)
                             {
-                                pStruct  = pLand->GetStructById(n1);
+                                pStruct  = pLand->GetStructById(struct_id);
                                 if (pStruct && pStruct->OwnerUnitId == pUnit->Id)
                                     pStruct->OwnerUnitId = 0;
                             }
 
+                            unit_control::set_structure(pUnit, 0, false);
                             if ( (PE_OK!=pUnit->SetProperty(PRP_STRUCT_NAME,  eCharPtr, "", eNormal)) ||
                                 (PE_OK!=pUnit->SetProperty(PRP_STRUCT_OWNER, eCharPtr, "", eNormal)) ||
                                 (PE_OK!=pUnit->SetProperty(PRP_STRUCT_ID,    eLong   ,  0, eNormal)) )
                                 SHOW_WARN_CONTINUE(NOSETUNIT << pUnit->Id << BUG);
+                            //TODO: set new owner HERE
                         }
                         break;
 
@@ -5475,6 +5475,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                             pStruct  = pLand->GetStructById(n1);
                             if (pStruct)
                             {
+                                unit_control::set_structure(pUnit, pStruct->Id, pStruct->OwnerUnitId == 0);
                                 if (0==pStruct->OwnerUnitId)
                                 {
                                     pStruct->OwnerUnitId = pUnit->Id;
@@ -5482,10 +5483,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                                 }
                                 else
                                     S1.Empty();
+                                    
                                 if ( (PE_OK!=pUnit->SetProperty(PRP_STRUCT_ID,  eLong, 0,                  eNormal)) ||
                                     (PE_OK!=pUnit->SetProperty(PRP_STRUCT_ID,  eLong, (void*)pStruct->Id, eNormal)) ||
                                     (PE_OK!=pUnit->SetProperty(PRP_STRUCT_NAME,  eCharPtr, "",                      eNormal)) ||
-                                    (PE_OK!=pUnit->SetProperty(PRP_STRUCT_NAME,  eCharPtr, pStruct->Name.GetData(), eNormal)) ||
+                                    (PE_OK!=pUnit->SetProperty(PRP_STRUCT_NAME,  eCharPtr, pStruct->name_.c_str(), eNormal)) ||
                                     (PE_OK!=pUnit->SetProperty(PRP_STRUCT_OWNER, eCharPtr, S1.GetData(), eNormal)) )
                                     SHOW_WARN_CONTINUE(NOSETUNIT << pUnit->Id << BUG);
                             }
@@ -5519,7 +5521,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
                     // autotax flag must be removed in the very first pass, or land flag will be set and never removed
                     case O_AUTOTAX:
-                        if (TurnSequence::SQ_CLAIM==sequence)
+                        /*if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5528,11 +5530,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                                 pUnit->Flags &= ~UNIT_FLAG_TAXING;
                             else
                                 SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }
+                        }*/
                         break;
 
                     case O_GUARD:
-                        if (TurnSequence::SQ_CLAIM==sequence)
+                        /*if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5545,11 +5547,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                                 pUnit->Flags &= ~UNIT_FLAG_GUARDING;
                             else
                                 SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }
+                        }*/
                         break;
 
                     case O_AVOID:
-                        if (TurnSequence::SQ_CLAIM==sequence)
+                        /*if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5562,11 +5564,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                                 pUnit->Flags &= ~UNIT_FLAG_AVOIDING;
                             else
                                 SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }
+                        }*/
                         break;
 
                     case O_BEHIND:
-                        if (TurnSequence::SQ_CLAIM==sequence)
+                        /*if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5575,11 +5577,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                                 pUnit->Flags &= ~UNIT_FLAG_BEHIND;
                             else
                                 SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }
+                        }*/
                         break;
 
                     case O_HOLD:
-                        if (TurnSequence::SQ_CLAIM==sequence)
+                       /* if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5588,11 +5590,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                                 pUnit->Flags &= ~UNIT_FLAG_HOLDING;
                             else
                                 SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }
+                        }*/
                         break;
 
                     case O_NOAID:
-                        if (TurnSequence::SQ_CLAIM==sequence)
+                        /*if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5601,11 +5603,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                                 pUnit->Flags &= ~UNIT_FLAG_RECEIVING_NO_AID;
                             else
                                 SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }
+                        }*/
                         break;
 
                     case O_NOCROSS:
-                        if (TurnSequence::SQ_CLAIM==sequence)
+                        /*if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5614,23 +5616,23 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                                 pUnit->Flags &= ~UNIT_FLAG_NO_CROSS_WATER;
                             else
                                 SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }
+                        }*/
                         break;
 
                     case O_SPOILS:
-                        if (TurnSequence::SQ_CLAIM==sequence)
+                        /*if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (N1.IsEmpty() || 0==stricmp(N1.GetData(), "ALL"))
                                 pUnit->Flags &= ~UNIT_FLAG_SPOILS;
                             else
                                 pUnit->Flags |=  UNIT_FLAG_SPOILS;
-                        }
+                        }*/
                         break;
 
                     // MZ - Added for Arcadia
                     case O_SHARE:
-                        if (TurnSequence::SQ_CLAIM==sequence)
+                        /*if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             if (0==stricmp(N1.GetData(), "1"))
@@ -5639,11 +5641,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                                 pUnit->Flags &= ~UNIT_FLAG_SHARING;
                             else
                                 SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }
+                        }*/
                         break;
 
                     case O_REVEAL:
-                        if (TurnSequence::SQ_CLAIM==sequence)
+                        /*if (TurnSequence::SQ_CLAIM==sequence)
                         {
 
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
@@ -5664,11 +5666,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                             }
                             else
                                 SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }
+                        }*/
                         break;
 
                     case O_CONSUME:
-                        if (TurnSequence::SQ_CLAIM==sequence)
+                        /*if (TurnSequence::SQ_CLAIM==sequence)
                         {
 
                             p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
@@ -5689,7 +5691,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                             }
                             else
                                 SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }
+                        }*/
                         break;
 
 
@@ -5831,7 +5833,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         }
     }   // phases loop
 
-    pLand->CalcStructsLoad();
+    land_control::structures::update_struct_weights(pLand);
     pLand->SetFlagsFromUnits();
     OrderErrFinalize();
 }
@@ -5926,8 +5928,7 @@ void CAtlaParser::RunOrder_LandTaxPillage(CLand* land)
 
     for (const auto& error : errors)
     {
-        land->run_orders_errors_.push_back({error.type_, error.unit_, error.message_});
-        OrderError(error.type_, error.unit_, error.message_);
+        OrderError(error.type_, land, error.unit_, error.message_);
     }
 }
 
@@ -6136,8 +6137,7 @@ void CAtlaParser::RunOrder_LandStudyTeach(CLand* land)
     //teaching orders -- no need to wait for TurnSequence::Teach
     land_control::update_students_by_land_teachers(land, students_of_the_land, errors);
     for (auto& error : errors) {
-        land->run_orders_errors_.push_back({error.type_, error.unit_, error.message_});
-        OrderError(error.type_, error.unit_, error.message_);
+        OrderError(error.type_, land, error.unit_, error.message_);
     }
         
 
@@ -6148,7 +6148,7 @@ void CAtlaParser::RunOrder_LandStudyTeach(CLand* land)
         long study_lvl_goal;
         if (!orders::parser::specific::parse_study(stud.second.order_, skill, study_lvl_goal))
         {
-            OrderError("Error", stud.second.unit_, "study order " + stud.second.order_->original_string_ + " is not valid!");
+            OrderError("Error", land, stud.second.unit_, "study order " + stud.second.order_->original_string_ + " is not valid!");
             continue;
         }
 
@@ -6171,15 +6171,13 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
             auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_ASSASSINATE, unit->orders_);
             if (orders.size() > 1)
             {
-                unit->impact_description_.push_back("assassinate: multiple targets!");
-                OrderError("Error", unit, " more than 1 assassinate order");                        
+                OrderError("Error", land, unit, " more than 1 assassinate order");                        
                 return;
             }
             long target_id;
             if (!orders::parser::specific::parse_assassinate(orders[0], target_id))
             {
-                unit->impact_description_.push_back("assassinate: wrong format!");
-                OrderError("Error", unit, " wrong format assassinate order");
+                OrderError("Error", land, unit, "assassinate: wrong format");
                 return;
             }
 
@@ -6188,14 +6186,12 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
             });
             if (target_unit == nullptr)
             {
-                unit->impact_description_.push_back("assassinate: not existing target!");
-                OrderError("Error", unit, " not existing target");
+                OrderError("Error", land, unit, "assassinate: not existing target");
                 return;
             }
             if (target_unit != nullptr && target_unit->FactionId == unit->FactionId)
             {
-                unit->impact_description_.push_back("assassinate: target belongs to the same faction!");
-                OrderError("Error", unit, " target belongs to the same faction");
+                OrderError("Error", land, unit, "assassinate: target belongs to the same faction");
                 return;
             }
             else 
@@ -6215,7 +6211,7 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
             {
                 if (!orders::parser::specific::parse_attack(order, targets))
                 {
-                    OrderError("Error", unit, "Couldn't parse attack order: " + order->original_string_);
+                    OrderError("Error", land, unit, "Couldn't parse attack order: " + order->original_string_);
                     continue;
                 }
             }
@@ -6226,16 +6222,14 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
                 });
                 if (target_unit == nullptr)
                 {
-                    std::string mess = std::to_string(target) + " not existing target!";
-                    unit->impact_description_.push_back("attack: " + mess);
-                    OrderError("Error", unit, mess.c_str());
+                    std::string mess = "attack: "+std::to_string(target)+"not existing target!";
+                    OrderError("Error", land, unit, mess.c_str());
                     continue;
                 }
                 if (target_unit != nullptr && target_unit->FactionId == unit->FactionId)
                 {
-                    std::string mess = std::to_string(target) + " belongs to the same faction!";
-                    unit->impact_description_.push_back("attack: " + mess);
-                    OrderError("Error", unit, mess.c_str());
+                    std::string mess = "attack: "+std::to_string(target)+"belongs to the same faction!";
+                    OrderError("Error", land, unit, mess.c_str());
                 }
                 else 
                 {
@@ -6248,16 +6242,14 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
             auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_STEAL, unit->orders_);
             if (orders.size() > 1)
             {
-                unit->impact_description_.push_back("steal: multiple targets!");
-                OrderError("Error", unit, " more than 1 stealing order");
+                OrderError("Error", land, unit, "steal: more than 1 stealing order");
                 return;
             }
             long target_id;
             std::string item;
             if (!orders::parser::specific::parse_steal(orders[0], target_id, item))
             {
-                unit->impact_description_.push_back("steal: wrong format, should be 'STEAL XXX ITEM'!");
-                OrderError("Error", unit, " wrong format, should be 'STEAL XXX ITEM'!");
+                OrderError("Error", land, unit, "steal: wrong format, should be 'STEAL XXX ITEM'!");
                 return;
             }
             CUnit* target_unit = land_control::find_first_unit_if(land, [&](CUnit* unit) {
@@ -6265,21 +6257,18 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
             });
             if (target_unit == nullptr)
             {
-                unit->impact_description_.push_back("steal: not existing target!");
-                OrderError("Error", unit, " not existing target");
+                OrderError("Error", land, unit, "steal: not existing target");
                 return;
             }
             if (target_unit != nullptr && target_unit->FactionId == unit->FactionId)
             {
-                unit->impact_description_.push_back("steal: target belongs to the same faction!");
-                OrderError("Error", unit, " target belongs to the same faction");
+                OrderError("Error", land, unit, "steal: target belongs to the same faction");
                 return;
             } 
             else if (unit_control::get_item_amount(target_unit, item) == 0 && 
                      item_control::weight(item) > 0)
             {
-                unit->impact_description_.push_back("steal: there is no such item: " + item);
-                OrderError("Error", unit, " steal: there is no such item: " + item);
+                OrderError("Error", land, unit, "steal: "+std::to_string(target_unit->Id)+" has no: " + item);
                 return;
             }
             else 
@@ -6456,23 +6445,20 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
         long man_amount = unit_control::get_item_amount_by_mask(producer, PRP_MEN);
         if (man_amount <= 0)
         {
-            producer->impact_description_.push_back("Produce: no man in the unit!");
-            OrderError("Warning", producer, " no man in the unit!");
+            OrderError("Warning", land, producer, "produce: no man in the unit!");
         }
 
         auto produce_orders = orders::control::retrieve_orders_by_type(orders::Type::O_PRODUCE, producer->orders_);
         if (produce_orders.size() > 1)
         {//check amount of produce orders
-            producer->impact_description_.push_back("Produce: duplicated produce orders!");
-            OrderError("Error", producer, " duplicated produce orders!");
+            OrderError("Error", land, producer, "produce: more than one production order!");
             continue;
         }
         std::string item;
         long goal_amount;
         if (!orders::parser::specific::parse_produce(produce_orders[0], item, goal_amount))
         {
-            producer->impact_description_.push_back("Produce: wrong order format!");
-            OrderError("Error", producer, " wrong produce format!");
+            OrderError("Error", land, producer, "produce: wrong format!");
             continue;
         }
 
@@ -6480,9 +6466,8 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
         gpDataHelper->GetProdDetails(item.c_str(), prod_details);
         if (prod_details.skill_name_.empty() || prod_details.per_month_<=0)
         {//check details settings
-            std::string mess = " production requirements for '" + item + "' are not configured!";
-            producer->impact_description_.push_back("Produce:"+mess);
-            OrderError("Warning", producer, mess);
+            std::string mess = "produce: production requirements for '" + item + "' are not configured!";
+            OrderError("Warning", land, producer, mess);
             continue;
         }
 
@@ -6490,10 +6475,9 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
         long skill_lvl = skills_control::get_skill_lvl_from_days(skill_days);
         if (skill_lvl < prod_details.skill_level_)
         {//check skill requirements
-            std::string mess = " skill '" + prod_details.skill_name_ +
-                "' of level " + std::to_string(skill_lvl) + " is required to produce!";
-            producer->impact_description_.push_back("Produce:"+mess);
-            OrderError("Error", producer, mess);
+            std::string mess = "produce: skill '" + prod_details.skill_name_ +
+                "' (" + std::to_string(skill_lvl) + ") is required to produce!";
+            OrderError("Error", land, producer, mess);
             continue;
         }
 
@@ -6763,6 +6747,16 @@ void CAtlaParser::RunOrder_Withdraw(CStr & Line, CStr & ErrorLine, BOOL skiperro
 
 }
 
+void CAtlaParser::RunOrder_LandFlags(CLand* land)
+{
+    std::vector<unit_control::UnitError> errors;
+    land_control::apply_land_flags(land, errors);
+    for (const auto& error : errors)
+    {
+        OrderError(error.type_, land, error.unit_, error.message_);
+    }
+}
+
 //-------------------------------------------------------------
 void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
 {
@@ -6789,14 +6783,14 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
                                                         out_errors))
             {
                 unit->impact_description_.push_back(out_errors.str());
-                OrderError("Error", unit, out_errors.str().c_str());
+                OrderError("Error", land, unit, out_errors.str().c_str());
                 continue;
             }
 
             if (receiving_unit->Id == unit->Id)
             {
                 unit->impact_description_.push_back("give: attempts to give to itself");
-                OrderError("Error", unit, "give: attempts to give to itself");
+                OrderError("Error", land, unit, "give: attempts to give to itself");
                 continue;
             }
 
@@ -6810,7 +6804,7 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
                                                              out_errors))
             {
                 unit->impact_description_.push_back(out_errors.str());
-                OrderError("Error", unit, out_errors.str().c_str());
+                OrderError("Error", land, unit, out_errors.str().c_str());
                 continue;                
             }
 
@@ -6822,7 +6816,7 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
                 if (receiving_unit->FactionId == unit->FactionId)
                 {
                     unit->impact_description_.push_back("give unit: target belongs to the same faction");
-                    OrderError("Error", unit, "give unit: target belongs to the same faction");                    
+                    OrderError("Error", land, unit, "give unit: target belongs to the same faction");                    
                 }
                 continue;
             }
@@ -7280,7 +7274,7 @@ void CAtlaParser::AdjustSkillsAfterGivingMen(CUnit * pUnitGive, CUnit * pUnitTak
     if (pUnitGive->GetProperty(PRP_LEADER, type, valueGive, eNormal) && eCharPtr!=type)
     {
         S = "Wrong property type ";  S << BUG;
-        OrderError("Warning", pUnitGive,  S.GetData());
+        OrderError("Warning", nullptr, pUnitGive,  S.GetData());
         return;
     }
     if (!pUnitTake->GetProperty(PRP_LEADER, type, valueTake, eNormal))
@@ -7290,7 +7284,7 @@ void CAtlaParser::AdjustSkillsAfterGivingMen(CUnit * pUnitGive, CUnit * pUnitTak
     else if (eCharPtr!=type)
     {
         S = "Wrong property type ";  S << BUG;
-        OrderError("Warning", pUnitTake,  S.GetData());
+        OrderError("Warning", nullptr, pUnitTake,  S.GetData());
         return;
     }
 
@@ -7454,6 +7448,10 @@ void CAtlaParser::PerformOrder_Buy(CLand * land)
         buyer.unit_->CalcWeightsAndMovement();
     }    
 
+    for (auto& error : errors) {
+        OrderError(error.type_, land, error.unit_, error.message_);
+    }
+
 }
 
 
@@ -7615,13 +7613,12 @@ void CAtlaParser::PerformOrder_Sell(CLand * land)
                                        eLong, 
                                        (const void *)(wanted_item.item_.amount_ - seller.items_amount_),  
                                        eNormal)))
-            OrderError("Error", seller.unit_, std::string(NOSET) + BUG);            
+            OrderError("Error", land, seller.unit_, std::string(NOSET) + BUG);            
         seller.unit_->CalcWeightsAndMovement();  
     }
 
     for (const auto& error : errors) {
-        land->run_orders_errors_.push_back({error.type_, error.unit_, error.message_});
-        OrderError(error.type_, error.unit_, error.message_);
+        OrderError(error.type_, land, error.unit_, error.message_);
     }
 }
 
@@ -7743,18 +7740,24 @@ void CAtlaParser::RunOrder_Promote(CStr & Line, CStr & ErrorLine, BOOL skiperror
             pUnit2 = (CUnit*)pLand->Units.At(idx);
             params      = NULL;
 
-            if (!pUnit->GetProperty(PRP_STRUCT_ID, type, (const void *&)id1, eNormal) )
-                SHOW_WARN_CONTINUE(" - The unit is not inside a struct");
-            if (eLong!=type)
-                SHOW_WARN_CONTINUE(NOTNUMERIC << pUnit->Id << BUG);
-
-            if (!pUnit2->GetProperty(PRP_STRUCT_ID, type, (const void *&)id2, eNormal) )
-                SHOW_WARN_CONTINUE(" - The unit is not inside a struct");
-            if (eLong!=type)
-                SHOW_WARN_CONTINUE(NOTNUMERIC << pUnit2->Id << BUG);
-
-            if (id1 != id2)
-                SHOW_WARN_CONTINUE(" - Units are not in the same struct");
+            long struct_id = unit_control::structure_id(pUnit);
+            if (struct_id == 0)
+            {
+                OrderError("Error", pLand, pUnit, "promote: units isn't in structure");
+                return;
+            }
+            if (!unit_control::is_struct_owner(pUnit))
+            {
+                OrderError("Error", pLand, pUnit, "promote: units isn't owner of structure");
+                return;
+            }
+            if (struct_id != unit_control::structure_id(pUnit2))
+            {
+                OrderError("Error", pLand, pUnit, "promote: target unit isn't in the same structure");
+                return;
+            }
+            unit_control::set_structure(pUnit, struct_id, false);
+            unit_control::set_structure(pUnit2, struct_id, true);
 
             if   (PE_OK!=pUnit ->SetProperty(PRP_STRUCT_OWNER, eCharPtr, "",  eNormal))
                 SHOW_WARN_CONTINUE(NOSETUNIT << pUnit->Id << BUG);
@@ -7843,25 +7846,13 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
     {
         // should we do Arcadia III handling?
         if (O_SAIL == order &&
-            pUnit->GetProperty(PRP_STRUCT_ID, type, (const void *&)n1) && eLong==type)
+            unit_control::structure_id(pUnit) > 0)
         {
-            pStruct  = pLand->GetStructById(n1);
-            if (pStruct && NO_LOCATION != pStruct->Location)
-            {
-                // here we go!
-                if (NO_LOCATION == LocA3)
-                    LocA3 = pStruct->Location; // init it here
-                RunOrder_SailAIII(Line, ErrorLine, skiperror, pUnit, pLand, params, X, Y, LocA3);
-                //return;
-                goto SomeChecks;
-            }
+            pStruct  = pLand->GetStructById(unit_control::structure_id(pUnit));
         }
 
         // Determine whether the unit is currently in a structure
-        if (pUnit->GetProperty(PRP_STRUCT_ID, type, value, eNormal) && eLong==type)
-        {
-            currentStruct = (long)value;
-        }
+        currentStruct = unit_control::structure_id(pUnit);
 
         while (params)
         {
@@ -8036,20 +8027,22 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
         if (O_SAIL == order)
         {
             // ship's sailing power
-            if (!pUnit->GetProperty(PRP_STRUCT_ID, type, (const void *&)structid, eNormal) || (eLong!=type))
+            if (unit_control::structure_id(pUnit) == 0)
                 SHOW_WARN_CONTINUE(" - Must be in a ship to issue SAIL order!");
 
             S = "SAIL"; S << PRP_SKILL_POSTFIX;
             if (!pUnit->GetProperty(S.GetData(), type, (const void *&)skill, eNormal) || (eLong!=type) || (skill<=0))
                 SHOW_WARN_CONTINUE(" - Needs SAIL skill!");
 
-            Dummy.Id = structid;
-            if (!pLand->Structs.Search(&Dummy, idx))
+            pStruct  = pLand->GetStructById(unit_control::structure_id(pUnit));
+            if (pStruct == nullptr)
+            {
                 SHOW_WARN_CONTINUE(" - Invalid Struct Id " << BUG);
-
-            pStruct = (CStruct*)pLand->Structs.At(idx);
-            if (pStruct)
+            }                
+            else
+            {
                 pStruct->SailingPower += (nmen*skill);
+            }                
         }
         else
         {
@@ -8350,6 +8343,7 @@ BOOL CAtlaParser::ApplyDefaultOrders(BOOL EmptyOnly)
     });
 
     RunOrders(NULL);
+    return TRUE;
 }
 
 //-------------------------------------------------------------

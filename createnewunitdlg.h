@@ -54,6 +54,7 @@ class CCreateNewUnit : public CResizableDlg
     wxCheckBox* flag_noaid_;
     wxCheckBox* flag_guard_;
     wxCheckBox* flag_nocross_;
+    wxCheckBox* flag_share_;
 
     wxRadioBox* radiobox_flag_reveal_;
     wxRadioBox* radiobox_flag_spoils_;

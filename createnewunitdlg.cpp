@@ -300,8 +300,10 @@ void CCreateNewUnit::InitializeFlags(CUnit* unit)
     flag_noaid_->SetValue(unit_control::flags::is_noaid(unit));
     flag_guard_ = new wxCheckBox(this, -1, "guard");
     flag_guard_->SetValue(unit_control::flags::is_guard(unit));
-    flag_nocross_ =  new wxCheckBox(this, -1, "nocross");
+    flag_nocross_ = new wxCheckBox(this, -1, "nocross");
     flag_nocross_->SetValue(unit_control::flags::is_nocross(unit));
+    flag_share_ = new wxCheckBox(this, -1, "share");
+    flag_share_->SetValue(unit_control::flags::is_sharing(unit));
 
     wxArrayString buf;
     buf.Add(wxT("none"));
@@ -319,10 +321,25 @@ void CCreateNewUnit::InitializeFlags(CUnit* unit)
     buf.Add(wxT("walk"));
     buf.Add(wxT("ride"));    
     buf.Add(wxT("fly"));
+    buf.Add(wxT("swim"));
+    buf.Add(wxT("sail"));
     buf.Add(wxT("all"));
     radiobox_flag_spoils_ = new wxRadioBox(this, -1, wxT("spoils"), wxDefaultPosition,
                         wxDefaultSize, buf, 1);
-    radiobox_flag_spoils_->SetSelection(4);
+    if (unit_control::flags::is_spoils(unit, "none"))
+        radiobox_flag_spoils_->SetSelection(0);
+    else if (unit_control::flags::is_spoils(unit, "walk"))
+        radiobox_flag_spoils_->SetSelection(1);
+    else if (unit_control::flags::is_spoils(unit, "ride"))
+        radiobox_flag_spoils_->SetSelection(2);
+    else if (unit_control::flags::is_spoils(unit, "fly"))
+        radiobox_flag_spoils_->SetSelection(3);
+    else if (unit_control::flags::is_spoils(unit, "swim"))
+        radiobox_flag_spoils_->SetSelection(4);
+    else if (unit_control::flags::is_spoils(unit, "sail"))
+        radiobox_flag_spoils_->SetSelection(5);
+    else if (unit_control::flags::is_spoils(unit, "all"))
+        radiobox_flag_spoils_->SetSelection(6);
 
     buf.clear();
     buf.Add(wxT("none"));
@@ -347,6 +364,7 @@ wxBoxSizer* CCreateNewUnit::FlagsToForm()
     temp_sizer->Add(flag_noaid_, 0, wxALL);
     temp_sizer->Add(flag_guard_, 0, wxALL);
     temp_sizer->Add(flag_nocross_, 0, wxALL);
+    temp_sizer->Add(flag_share_, 0, wxALL);
     temp_sizer->Add(radiobox_flag_consume_, 0, wxALL);
     flagsizer->Add(temp_sizer, 0, wxALL);
     flagsizer->Add(new wxStaticLine(this, -1, wxDefaultPosition, wxDefaultSize, wxLI_VERTICAL), 0, 0);
@@ -423,6 +441,7 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
     unit_order << "noaid " << (flag_noaid_->IsChecked()? 1 : 0) << std::endl;
     unit_order << "guard " << (flag_guard_->IsChecked()? 1 : 0) << std::endl;
     unit_order << "nocross " << (flag_nocross_->IsChecked()? 1 : 0) << std::endl;
+    unit_order << "share " << (flag_share_->IsChecked()? 1 : 0) << std::endl;
     std::string temp_flag = radiobox_flag_reveal_->GetString(radiobox_flag_reveal_->GetSelection()).ToStdString();
     unit_order << "reveal " << (temp_flag.compare("none") ? temp_flag : "") << std::endl;
     temp_flag = radiobox_flag_spoils_->GetString(radiobox_flag_spoils_->GetSelection()).ToStdString();

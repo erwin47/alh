@@ -84,7 +84,7 @@ enum {
     O_NAME,
     O_NOAID,
     O_NOCROSS,
-    O_NOSPOILS,
+    O_SPOILS,
     O_OPTION,
     O_PASSWORD,
     O_PILLAGE,
@@ -98,7 +98,6 @@ enum {
     O_SELL,
     O_SHARE,
     O_SHOW,
-    O_SPOILS,
     O_STEAL,
     O_STUDY,
     O_TAX,
@@ -331,7 +330,7 @@ protected:
     void         PutLineBack (CStr & s);
 
     void         GenericErr(int Severity, const char * Msg);
-    void         OrderError(const std::string& type, CUnit* unit, const std::string& Msg);
+    void         OrderError(const std::string& type, CLand* land, CUnit* unit, const std::string& Msg);
     void         OrderErrFinalize();
     void         OrderProcess_Teach(BOOL skiperror, CUnit * pUnit);
 
@@ -348,7 +347,8 @@ protected:
     void         RunOrder_Send             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Produce          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     
-    //!calculates give orders up to specified unit (or for all units if NULL)
+    void         RunOrder_LandFlags        (CLand* land);
+//!calculates give orders up to specified unit (or for all units if NULL)
     void         RunOrder_LandGive         (CLand* land, CUnit* up_to = NULL);
     void         RunOrder_LandProduce      (CLand* land);
     void         RunOrder_LandStudyTeach   (CLand* land);

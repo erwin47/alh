@@ -876,7 +876,7 @@ void CMapPane::DrawEdgeStructures(wxDC * pDC, CLand * pLand, wxPoint * point, in
             int xa2=0, ya2=0, xb2=0, yb2=0;
 
             CStruct               * pEdge = (CStruct*)pLand->EdgeStructs.At(i);
-            CEdgeStructProperties * pProps = GetEdgeProps(pEdge->Kind.GetData());
+            CEdgeStructProperties * pProps = GetEdgeProps(pEdge->type_.c_str());
 
             wxPen * pPen = pProps->pen;
             int offset = 1;
@@ -897,6 +897,7 @@ void CMapPane::DrawEdgeStructures(wxDC * pDC, CLand * pLand, wxPoint * point, in
             case EDGE_SHAPE_BORDER:
                 // parallel
                 if(pLand->Flags&LAND_IS_WATER) break;
+                
                 switch (pEdge->Location)
                 {
                 case North:

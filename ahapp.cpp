@@ -954,49 +954,6 @@ void CAhApp::ShowError(const char * msg, int msglen, BOOL ignore_disabled)
 
 //-------------------------------------------------------------------------
 
-long CAhApp::GetStructAttr(const char * kind, long & MaxLoad, long & MinSailingPower)
-{
-    const char * attrlist;
-    const char * p;
-    CStr         S, Name;
-    long         attr = 0;
-
-    MaxLoad         = 0;
-    MinSailingPower = 0;
-
-    attrlist = GetConfig(SZ_SECT_STRUCTS, ResolveAlias(kind));
-    while (attrlist && *attrlist)
-    {
-        attrlist = S.GetToken(attrlist, ',', TRIM_ALL);
-        if (S.IsEmpty())
-            break;
-
-        if      (0==stricmp(SZ_ATTR_STRUCT_MOBILE , S.GetData()))      attr |= SA_MOBILE ;
-        else if (0==stricmp(SZ_ATTR_STRUCT_HIDDEN , S.GetData()))      attr |= SA_HIDDEN ;
-        else if (0==stricmp(SZ_ATTR_STRUCT_SHAFT  , S.GetData()))      attr |= SA_SHAFT  ;
-        else if (0==stricmp(SZ_ATTR_STRUCT_GATE   , S.GetData()))      attr |= SA_GATE   ;
-        else if (0==stricmp(SZ_ATTR_STRUCT_ROAD_N , S.GetData()))      attr |= SA_ROAD_N ;
-        else if (0==stricmp(SZ_ATTR_STRUCT_ROAD_NE, S.GetData()))      attr |= SA_ROAD_NE;
-        else if (0==stricmp(SZ_ATTR_STRUCT_ROAD_SE, S.GetData()))      attr |= SA_ROAD_SE;
-        else if (0==stricmp(SZ_ATTR_STRUCT_ROAD_S , S.GetData()))      attr |= SA_ROAD_S ;
-        else if (0==stricmp(SZ_ATTR_STRUCT_ROAD_SW, S.GetData()))      attr |= SA_ROAD_SW;
-        else if (0==stricmp(SZ_ATTR_STRUCT_ROAD_NW, S.GetData()))      attr |= SA_ROAD_NW;
-        else
-        {
-            // Two-token attributes, MaxLoad & MinSailingPower.
-            p = SkipSpaces(Name.GetToken(S.GetData(), ' ', TRIM_ALL));
-            if      (0==stricmp(SZ_ATTR_STRUCT_MAX_LOAD, Name.GetData()))   MaxLoad         = atol(p);
-            else if (0==stricmp(SZ_ATTR_STRUCT_MIN_SAIL, Name.GetData()))   MinSailingPower = atol(p);
-        }
-
-    }
-    if (0 == stricmp(kind, STRUCT_GATE))
-        attr |= SA_GATE; // to compensate for legacy missing gate flag in the config
-    return attr;
-}
-
-//-------------------------------------------------------------------------
-
 const char * CAhApp::ResolveAlias(const char * alias)
 {
     const char * p = SkipSpaces(GetConfig(SZ_SECT_ALIAS, alias));
@@ -2009,7 +1966,8 @@ void CAhApp::UpdateEdgeStructs()
                             for(k=pLand->EdgeStructs.Count()-1; k>=0; k--)
                             {
                                 pEdge = (CStruct*) pLand->EdgeStructs.At(k);
-                                if((pEdge != NULL) && (pEdge->Location == d))                          adj_land->AddNewEdgeStruct(pEdge->Kind.GetData(), adj_dir);
+                                if((pEdge != NULL) && (pEdge->Location == d))                          
+                                    adj_land->AddNewEdgeStruct(pEdge->type_.c_str(), adj_dir);
                             }
                         }
                         // set CoastBits
@@ -2543,8 +2501,8 @@ void CAhApp::CheckSailing()
                 pStruct = (CStruct*)pLand->Structs.At(x);
                 if ((pStruct->Attr & SA_MOBILE) && pStruct->SailingPower > 0)
                 {
-                    if (pStruct->Load > pStruct->MaxLoad)
-                        Error << pLand->TerrainType << " (" << sCoord << ") - Ship " << pStruct->Id << " is overloaded by " << (pStruct->Load - pStruct->MaxLoad) << "." << EOL_SCR;
+                    if (pStruct->occupied_capacity_ > pStruct->capacity_)
+                        Error << pLand->TerrainType << " (" << sCoord << ") - Ship " << pStruct->Id << " is overloaded by " << (pStruct->occupied_capacity_ - pStruct->capacity_) << "." << EOL_SCR;
                     if (pStruct->SailingPower < pStruct->MinSailingPower)
                         Error << pLand->TerrainType << " (" << sCoord << ") - Ship " << pStruct->Id << " is underpowered by " << (pStruct->MinSailingPower - pStruct->SailingPower) << "." << EOL_SCR;
                 }
@@ -2703,8 +2661,9 @@ void CAhApp::PostLoadReport()
             pPlane = (CPlane*)m_pAtlantis->m_Planes.At(n);
             for (i=0; i<pPlane->Lands.Count(); i++)
             {
-                ((CLand*)pPlane->Lands.At(i))->CalcStructsLoad();
-                ((CLand*)pPlane->Lands.At(i))->SetFlagsFromUnits(); // maybe not needed here...
+                CLand* land = (CLand*)pPlane->Lands.At(i);
+                land_control::structures::update_struct_weights(land);
+                land->SetFlagsFromUnits(); // maybe not needed here...
             }
         }
     }
@@ -3479,10 +3438,10 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
                 for (i=0; i<pLand->Structs.Count(); i++)
                 {
                     pStruct = (CStruct*)pLand->Structs.At(i);
-                    m_HexDescrSrc << pStruct->Description;
+                    m_HexDescrSrc << pStruct->original_description_.c_str();
                     m_HexDescrSrc.TrimRight(TRIM_ALL);
                     if (pStruct->Attr & SA_MOBILE)
-                        m_HexDescrSrc << " Load: " << pStruct->Load << ", Power: " << pStruct->SailingPower << ".";
+                        m_HexDescrSrc << " Load: " << pStruct->occupied_capacity_ << ", Power: " << pStruct->SailingPower << ".";
                     m_HexDescrSrc << EOL_SCR;
                 }
             }
@@ -3549,7 +3508,7 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
             for (int x=0; x<pLand->Structs.Count(); x++)
             {
                 CStruct* pStruct = (CStruct*)pLand->Structs.At(x);
-                m_HexDescrSrc << "    building [" << pStruct->Id << "]: weight " << pStruct->Load << ", known capacity " << pStruct->MaxLoad << EOL_SCR;
+                m_HexDescrSrc << "    building [" << pStruct->Id << "]: weight " << pStruct->occupied_capacity_ << ", known capacity " << pStruct->capacity_ << EOL_SCR;
             }
 
             //errors
@@ -5160,11 +5119,6 @@ long  CGameDataHelper::GetStudyCost(const char * skill)
 {
     return gpApp->GetStudyCost(skill);
 };
-
-long  CGameDataHelper::GetStructAttr(const char * kind, long & MaxLoad, long & MinSailingPower)
-{
-    return gpApp->GetStructAttr(kind, MaxLoad, MinSailingPower);
-}
 
 const char *  CGameDataHelper::ResolveAlias(const char * alias)
 {

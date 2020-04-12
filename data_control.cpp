@@ -100,6 +100,26 @@ namespace unit_control
             return false;
         }
         bool is_spoils(CUnit* unit, const std::string flag) {
+            if (stricmp("none", flag.c_str()) == 0)
+                return unit->Flags & UNIT_FLAG_SPOILS_NONE;
+            else if (stricmp("walk", flag.c_str()) == 0)
+                return unit->Flags & UNIT_FLAG_SPOILS_WALK;
+            else if (stricmp("ride", flag.c_str()) == 0)
+                return unit->Flags & UNIT_FLAG_SPOILS_RIDE;
+            else if (stricmp("fly", flag.c_str()) == 0)
+                return unit->Flags & UNIT_FLAG_SPOILS_FLY;
+            else if (stricmp("swim", flag.c_str()) == 0)
+                return unit->Flags & UNIT_FLAG_SPOILS_SWIM;
+            else if (stricmp("sail", flag.c_str()) == 0)
+                return unit->Flags & UNIT_FLAG_SPOILS_SAIL;
+            else if (stricmp("all", flag.c_str()) == 0)
+                return unit->Flags ^ UNIT_FLAG_SPOILS_NONE &&
+                       unit->Flags ^ UNIT_FLAG_SPOILS_WALK &&
+                       unit->Flags ^ UNIT_FLAG_SPOILS_RIDE &&
+                       unit->Flags ^ UNIT_FLAG_SPOILS_FLY &&
+                       unit->Flags ^ UNIT_FLAG_SPOILS_SWIM &&
+                       unit->Flags ^ UNIT_FLAG_SPOILS_SAIL;
+
             // not implemented
             return false;
         }
@@ -122,6 +142,23 @@ namespace unit_control
         return unit->GetProperty(PRP_LEADER, type, (const void *&)leadership, eNormal) == TRUE && 
                eCharPtr==type &&
                (0==strcmp(leadership, SZ_LEADER) || 0==strcmp(leadership, SZ_HERO));        
+    }
+
+
+    long structure_id(const CUnit* unit)
+    {
+        return unit->struct_id_ & 0x0000FFFF;
+    }
+
+    bool is_struct_owner(const CUnit* unit)
+    {
+        return unit->struct_id_ & 0xFFFF0000 ? true : false;
+    }
+    void set_structure(CUnit* unit, long struct_id, bool owns)
+    {
+        unit->struct_id_ = struct_id;
+        if (owns)
+            unit->struct_id_ |= 0x00010000;
     }
 
     long get_upkeep(CUnit* unit) 
@@ -248,6 +285,8 @@ namespace unit_control
 
     std::string compose_unit_name(CUnit* unit)
     {
+        if (unit == nullptr)
+            return "general";
         std::string res;
         res.reserve(128);
         res.append(std::string(unit->Name.GetData(), unit->Name.GetLength()));
@@ -527,8 +566,16 @@ namespace unit_control
             ss << ", consuming faction's food";
         if (flags::is_spoils(unit, "none"))
             ss << ", weightless battle spoils";
+        else if (flags::is_spoils(unit, "walk"))
+            ss << ", walking battle spoils";
         else if (flags::is_spoils(unit, "ride"))
             ss << ", riding battle spoils";
+        else if (flags::is_spoils(unit, "fly"))
+            ss << ", flying battle spoils";
+        else if (flags::is_spoils(unit, "swim"))
+            ss << ", swimming battle spoils";
+        else if (flags::is_spoils(unit, "sail"))
+            ss << ", sailing battle spoils";                                                            
         if (flags::is_nocross(unit))
             ss << ", won't cross water";
         ss << "." << EOL_SCR;
@@ -709,6 +756,53 @@ namespace land_control
         return -1;
     }
 
+    CStruct* get_struct(CLand* land, long struct_id)
+    {
+        int k;
+        CBaseObject         Dummy;
+        Dummy.Id = struct_id;
+        if (land->Structs.Search(&Dummy, k))
+        {
+            return (CStruct*)land->Structs.At(k);
+        }
+        return nullptr;
+    }
+
+    long get_struct_weight(CLand* land, long struct_id)
+    {
+        long res(0);
+        perform_on_each_unit(land, [&](CUnit* unit) {
+            if (unit_control::structure_id(unit) == struct_id)
+            {
+                long weights[5] = {0};
+                unit_control::get_weights(unit, weights);
+                res += weights[0];
+            }
+        });
+        return res;
+    }
+
+    namespace structures
+    {
+        void update_struct_weights(CLand* land)
+        {
+            perform_on_each_struct(land, [&](CStruct* structure) {
+                structure->occupied_capacity_ = 0;
+            });
+
+            perform_on_each_unit(land, [&](CUnit* unit) {
+                CStruct* cur_structure = get_struct(land, unit_control::structure_id(unit));
+                if (cur_structure != nullptr)
+                {
+                    long weights[5] = {0};
+                    unit_control::get_weights(unit, weights);
+                    cur_structure->occupied_capacity_ += weights[0];
+                }
+            });
+        }
+
+    }
+
     std::string land_full_name(CLand* land)
     {
         std::string ret;
@@ -809,6 +903,186 @@ namespace land_control
         }
     }
 
+    template<orders::Type TYPE>
+    void affect_other_flags(CUnit* unit)  {  return;  }
+    template<>
+    void affect_other_flags<orders::Type::O_AVOID>(CUnit* unit)
+    {
+        unit->Flags &= ~(orders::control::flag_by_order_type<orders::Type::O_GUARD>());
+        return;
+    }    
+    template<>
+    void affect_other_flags<orders::Type::O_GUARD>(CUnit* unit)
+    {
+        unit->Flags &= ~(orders::control::flag_by_order_type<orders::Type::O_AVOID>());
+        return;
+    }    
+
+    template<orders::Type TYPE>
+    void apply_flag(CUnit* unit, std::vector<unit_control::UnitError>& errors) 
+    {
+        if (orders::control::has_orders_with_type(TYPE, unit->orders_)) {
+            auto orders = orders::control::retrieve_orders_by_type(TYPE, unit->orders_);
+            if (orders.size() > 0)
+            {
+                bool flag;
+                if (orders::parser::specific::parse_flags(orders[orders.size()-1], flag))//take last
+                {
+                    if (flag)
+                    {
+                        unit->Flags |= orders::control::flag_by_order_type<TYPE>();
+                        affect_other_flags<TYPE>(unit);
+                    }                        
+                    else
+                        unit->Flags &= ~(orders::control::flag_by_order_type<TYPE>());
+
+                }
+                else 
+                    errors.push_back({"Error", unit, "couldn't parse order: "+(orders[orders.size()-1])->original_string_});
+            }
+            else 
+                errors.push_back({"Error", unit, "Internal error in hashtable: doesn't have order "+std::to_string((int)TYPE)});
+        }        
+    }
+
+    template<>
+    void apply_flag<orders::Type::O_REVEAL>(CUnit* unit, std::vector<unit_control::UnitError>& errors) 
+    {
+        if (orders::control::has_orders_with_type(orders::Type::O_REVEAL, unit->orders_)) {
+            auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_REVEAL, unit->orders_);
+            if (orders.size() > 0)
+            {
+                std::string param;
+                if (orders::parser::specific::parse_flags_with_param(orders[orders.size()-1], param))//take last
+                {
+                    if (stricmp("unit", param.c_str()) == 0)
+                    {
+                        unit->Flags |= UNIT_FLAG_REVEALING_UNIT;
+                        unit->Flags &= ~UNIT_FLAG_REVEALING_FACTION;
+                    }
+                    else if (stricmp("faction", param.c_str()) == 0)
+                    {
+                        unit->Flags &= ~UNIT_FLAG_REVEALING_UNIT;
+                        unit->Flags |= UNIT_FLAG_REVEALING_FACTION;
+                    }
+                    else if (param.empty())
+                    {
+                        unit->Flags &= ~UNIT_FLAG_REVEALING_UNIT;
+                        unit->Flags &= ~UNIT_FLAG_REVEALING_FACTION;
+                    }
+                    else
+                        errors.push_back({"Error", unit, "unknown parameter in order: "+(orders[orders.size()-1])->original_string_});
+                }
+                else 
+                    errors.push_back({"Error", unit, "couldn't parse order: "+(orders[orders.size()-1])->original_string_});
+            }
+            else 
+                errors.push_back({"Error", unit, "Internal error in hashtable: doesn't have order `reveal`"});
+        }        
+    }
+
+    template<>
+    void apply_flag<orders::Type::O_CONSUME>(CUnit* unit, std::vector<unit_control::UnitError>& errors) 
+    {
+        if (orders::control::has_orders_with_type(orders::Type::O_CONSUME, unit->orders_)) {
+            auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_CONSUME, unit->orders_);
+            if (orders.size() > 0)
+            {
+                std::string param;
+                if (orders::parser::specific::parse_flags_with_param(orders[orders.size()-1], param))//take last
+                {
+                    if (stricmp("unit", param.c_str()) == 0)
+                    {
+                        unit->Flags |= UNIT_FLAG_CONSUMING_UNIT;
+                        unit->Flags &= ~UNIT_FLAG_CONSUMING_FACTION;
+                    }
+                    else if (stricmp("faction", param.c_str()) == 0)
+                    {
+                        unit->Flags &= ~UNIT_FLAG_CONSUMING_UNIT;
+                        unit->Flags |= UNIT_FLAG_CONSUMING_FACTION;
+                    }
+                    else if (param.empty())
+                    {
+                        unit->Flags &= ~UNIT_FLAG_CONSUMING_UNIT;
+                        unit->Flags &= ~UNIT_FLAG_CONSUMING_FACTION;
+                    }
+                    else
+                        errors.push_back({"Error", unit, "unknown parameter in order: "+(orders[orders.size()-1])->original_string_});
+                }
+                else 
+                    errors.push_back({"Error", unit, "couldn't parse order: "+(orders[orders.size()-1])->original_string_});
+            }
+            else 
+                errors.push_back({"Error", unit, "Internal error in hashtable: doesn't have order `consume`"});
+        }        
+    }
+
+    void set_spoils_flags(CUnit* unit, long flag)
+    {
+        unit->Flags &= ~UNIT_FLAG_SPOILS_NONE;
+        unit->Flags &= ~UNIT_FLAG_SPOILS_WALK;
+        unit->Flags &= ~UNIT_FLAG_SPOILS_RIDE;
+        unit->Flags &= ~UNIT_FLAG_SPOILS_FLY;
+        unit->Flags &= ~UNIT_FLAG_SPOILS_SWIM;
+        unit->Flags &= ~UNIT_FLAG_SPOILS_SAIL;
+        unit->Flags |= flag;
+    }
+
+    template<>
+    void apply_flag<orders::Type::O_SPOILS>(CUnit* unit, std::vector<unit_control::UnitError>& errors) 
+    {
+        if (orders::control::has_orders_with_type(orders::Type::O_SPOILS, unit->orders_)) {
+            auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_SPOILS, unit->orders_);
+            if (orders.size() > 0)
+            {
+                std::string param;
+                if (orders::parser::specific::parse_flags_with_param(orders[orders.size()-1], param))//take last
+                {
+                    if (stricmp("none", param.c_str()) == 0)
+                        set_spoils_flags(unit, UNIT_FLAG_SPOILS_NONE);
+                    else if (stricmp("walk", param.c_str()) == 0)
+                        set_spoils_flags(unit, UNIT_FLAG_SPOILS_WALK);
+                    else if (stricmp("ride", param.c_str()) == 0)
+                        set_spoils_flags(unit, UNIT_FLAG_SPOILS_RIDE);
+                    else if (stricmp("fly", param.c_str()) == 0)
+                        set_spoils_flags(unit, UNIT_FLAG_SPOILS_FLY);
+                    else if (stricmp("swim", param.c_str()) == 0)
+                        set_spoils_flags(unit, UNIT_FLAG_SPOILS_SWIM);
+                    else if (stricmp("sail", param.c_str()) == 0)
+                        set_spoils_flags(unit, UNIT_FLAG_SPOILS_SAIL);
+                    else if (param.empty() || stricmp("all", param.c_str()) == 0)
+                        set_spoils_flags(unit, 0);
+                    else
+                        errors.push_back({"Error", unit, "unknown parameter in order: "+(orders[orders.size()-1])->original_string_});
+                }
+                else 
+                    errors.push_back({"Error", unit, "couldn't parse order: "+(orders[orders.size()-1])->original_string_});
+            }
+            else 
+                errors.push_back({"Error", unit, "Internal error in hashtable: doesn't have order `consume`"});
+        }        
+    }    
+
+    void apply_land_flags(CLand* land, std::vector<unit_control::UnitError>& errors)
+    {
+        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+            if (!unit->IsOurs)
+                return;
+
+            apply_flag<orders::Type::O_AUTOTAX>(unit, errors);
+            apply_flag<orders::Type::O_AVOID>(unit, errors);
+            apply_flag<orders::Type::O_BEHIND>(unit, errors);
+            apply_flag<orders::Type::O_GUARD>(unit, errors);//discards avoid, should go after
+            apply_flag<orders::Type::O_HOLD>(unit, errors);
+            apply_flag<orders::Type::O_NOAID>(unit, errors);
+            apply_flag<orders::Type::O_NOCROSS>(unit, errors);
+            apply_flag<orders::Type::O_SPOILS>(unit, errors);
+            apply_flag<orders::Type::O_SHARE>(unit, errors);
+            apply_flag<orders::Type::O_REVEAL>(unit, errors);
+            apply_flag<orders::Type::O_CONSUME>(unit, errors);
+        });        
+    }
+
     void get_land_taxers(CLand* land, Taxers& out, std::vector<unit_control::UnitError>& errors)
     {
         long tax_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER);
@@ -904,6 +1178,8 @@ namespace land_control
 
     void get_land_buys(CLand* land, std::vector<Trader>& out, std::vector<unit_control::UnitError>& errors)
     {
+        std::map<std::string, long> request_table;
+
         perform_on_each_unit(land, [&](CUnit* unit) {
             auto buy_orders = orders::control::retrieve_orders_by_type(orders::Type::O_BUY, unit->orders_);
             for (auto& buy_order : buy_orders)
@@ -933,9 +1209,23 @@ namespace land_control
                 if (all)
                     amount_to_buy = sell_item.item_.amount_;
 
+                if (sell_item.item_.amount_ < amount_to_buy) {
+                    errors.push_back({"Warning", unit, " - Buy: attempt to buy " + std::to_string(amount_to_buy) +
+                                                       ", but available just " + std::to_string(sell_item.item_.amount_)});
+                    amount_to_buy = sell_item.item_.amount_;
+                }
+                request_table[item_name] += amount_to_buy;
                 out.push_back({buy_order, item_name, amount_to_buy, sell_item.price_, unit});
             }
         });
+
+        for (const auto& request : request_table)
+        {
+            CProductMarket sell_item = land_control::get_for_sale(land, request.first);
+            if (sell_item.item_.amount_ < request.second)
+                errors.push_back({"Warning", nullptr, " - request ("+std::to_string(request.second)+
+                                  ") is higher than the offer ("+std::to_string(sell_item.item_.amount_)+")"});
+        }
     }
 
 
@@ -981,22 +1271,20 @@ namespace land_control
                 {
                     std::string warning = "trying to sell " + std::to_string(amount_to_sell)+
                                           " but has " + std::to_string(amount_at_unit);
-                    unit->impact_description_.push_back("sell issue: " + warning);
-                    amount_to_sell = amount_at_unit;
                     errors.push_back({"Warning", unit, " - Sell: " + warning});
+                    amount_to_sell = amount_at_unit;
                 }
                 if (amount_to_sell > wanted_item.item_.amount_)
                 {
                     std::string warning = "trying to sell "+std::to_string(amount_to_sell)+
                             " but wanted just "+std::to_string(wanted_item.item_.amount_);                    
-                    unit->impact_description_.push_back("sell issue: " + warning);
+                    errors.push_back({"Warning", unit, "sell: " + warning});
                     amount_to_sell = wanted_item.item_.amount_;
-                    errors.push_back({"Warning", unit, " - Sell: " + warning});
                 }
                 if (amount_to_sell < amount_at_unit && amount_to_sell < wanted_item.item_.amount_)
                 {
-                    unit->impact_description_.push_back("sell notice: trying to sell "+
-                        std::to_string(amount_to_sell)+" but can "+std::to_string(std::min(wanted_item.item_.amount_, amount_at_unit)));
+                    errors.push_back({"Warning", unit, "sell: trying to sell "+
+                        std::to_string(amount_to_sell)+" but can "+std::to_string(std::min(wanted_item.item_.amount_, amount_at_unit))});
                 }
                 
                 out.push_back({sell_order, item_name, amount_to_sell, wanted_item.price_, unit});
@@ -1015,32 +1303,28 @@ namespace land_control
                 long goal_lvl;
                 if (!orders::parser::specific::parse_study(studying_order, studying_skill, goal_lvl))
                 {
-                    unit->impact_description_.push_back("study error: wrong command: " + studying_order->original_string_);
-                    errors.push_back({"Error", unit, " - Wrong studying command!"});
+                    errors.push_back({"Error", unit, "study: wrong studying command: " + studying_order->original_string_});
                     return;
                 }
 
                 long price = gpApp->GetStudyCost(studying_skill.c_str());
                 if (price <= 0)
                 {
-                    unit->impact_description_.push_back("study error: can't study " + studying_skill);
-                    errors.push_back({"Error", unit, " - Can not study that!"});
+                    errors.push_back({"Error", unit, "study: can not study " + studying_skill});
                     return;
                 }
 
                 long amount_of_man = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
                 if (amount_of_man == 0)//order is given, but unit is empty
                 {
-                    unit->impact_description_.push_back("study error: no men in unit to study anything");
-                    errors.push_back({"Warning", unit, " - There are no men in the unit!"});
+                    errors.push_back({"Warning", unit, "study: no men in the unit!"});
                     return;
                 }
 
                 long max_skill = unit_control::get_max_skill_lvl(unit, studying_skill);
                 if (max_skill < 0)
                 {
-                    unit->impact_description_.push_back("study error: skill wasn't determined");
-                    errors.push_back({"Error", unit, " - Skill max level wasn't determined!"});
+                    errors.push_back({"Error", unit, "study: skill max level wasn't determined."});
                     return;
                 }
 
@@ -1048,8 +1332,7 @@ namespace land_control
                 long max_days = 30*(max_skill+1)*(max_skill)/2;
                 if (current_days >= max_days)
                 {
-                    unit->impact_description_.push_back("study error: skill is already at max level");
-                    errors.push_back({"Error", unit, " - Skill is already at max level!"});
+                    errors.push_back({"Error", unit, "study: skill is already at max level."});
                     return;
                 }
 
@@ -1058,8 +1341,7 @@ namespace land_control
                     long goal_days = 30*(goal_lvl+1)*(goal_lvl)/2;
                     if (current_days >= goal_days)
                     {
-                        unit->impact_description_.push_back("study error: skill already reached specified goal");
-                        errors.push_back({"Warning", unit, " - Skill already reached specified goal!"});
+                        errors.push_back({"Warning", unit, "study: skill already reached specified goal."});
                         return;
                     }
                 }
@@ -1068,7 +1350,7 @@ namespace land_control
                 //support of Unit List functionality
                 if (PE_OK!=unit->SetProperty(PRP_SILVER,   eLong, (const void *)(unit->silver_.amount_), eNormal))
                 {
-                    errors.push_back({"Error", unit, " - Cannot set unit's property - it's a bug!"});
+                    errors.push_back({"Error", unit, "property: cannot set, probably a bug."});
                 }                  
 
                 students[unit->Id];
@@ -1096,8 +1378,7 @@ namespace land_control
             long teachers_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
             if (teachers_amount <= 0)
             {
-                unit->impact_description_.push_back("teaching: have no men to teach");
-                errors.push_back({"Warning", unit, " have no men to teach"});
+                errors.push_back({"Warning", unit, "teach: have no teaching men"});
                 return;
             }
             std::vector<Student*> active_students;
@@ -1106,20 +1387,17 @@ namespace land_control
             {
                 if (studId == unit->Id)
                 {
-                    unit->impact_description_.push_back(unit_control::compose_unit_number(studId) + " can't teach himself");
-                    errors.push_back({"Error", unit, " can't teach himself"});
+                    errors.push_back({"Error", unit, "teach: can't teach himself"});
                     continue;
                 }
                 if (students.find(studId) == students.end())
                 {
-                    unit->impact_description_.push_back(unit_control::compose_unit_number(studId) + " is not studying");
-                    errors.push_back({"Warning", unit, unit_control::compose_unit_number(studId) + " is not studying"});
+                    errors.push_back({"Warning", unit, "teach: " + unit_control::compose_unit_number(studId) + " is not studying"});
                     continue;
                 }
                 if (students[studId].max_days_ - students[studId].cur_days_ - students[studId].days_of_teaching_- (long)30 <= 0)
                 {
-                    unit->impact_description_.push_back(unit_control::compose_unit_name(students[studId].unit_) + " doesn't need any teacher more");
-                    errors.push_back({"Warning", unit, unit_control::compose_unit_number(studId) + " doesn't need any teacher more"});
+                    errors.push_back({"Warning", unit, "teach: "+ unit_control::compose_unit_number(studId) + " doesn't need any teacher more"});
                     continue;
                 }
 
@@ -1129,8 +1407,7 @@ namespace land_control
                 long student_lvl = skills_control::get_skill_lvl_from_days(students[studId].cur_days_);
                 if (teacher_lvl <= student_lvl)
                 {
-                    unit->impact_description_.push_back("Can't teach " + unit_control::compose_unit_name(students[studId].unit_));
-                    errors.push_back({"Error", unit, "Can't teach " + unit_control::compose_unit_number(studId)});
+                    errors.push_back({"Error", unit, "teach: can't teach " + unit_control::compose_unit_name(students[studId].unit_)});
                     continue;                        
                 }
                 students_amount += students[studId].man_amount_;
@@ -1198,4 +1475,160 @@ namespace game_control
     {
         return gpApp->GetConfig(section, key);
     }
+
+    bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag)
+    {
+        std::string codename, name, plural_name;
+        if (!gpApp->ResolveAliasItems(struct_type, codename, name, plural_name))
+            name = struct_type;
+
+        std::vector<std::string> struct_parameters = game_control::get_game_config<std::string>(SZ_SECT_STRUCTS, name.c_str());
+        if (struct_parameters.size() == 0 && name[name.size()-1] == 's')
+        {
+            std::string name_without_s = name.substr(0, name.size()-1);
+            struct_parameters = game_control::get_game_config<std::string>(SZ_SECT_STRUCTS, name_without_s.c_str());
+            if (struct_parameters.size() == 0)
+                return false;
+        }
+        for (const auto& param : struct_parameters)
+        {
+            if      (param == SZ_ATTR_STRUCT_MOBILE)    structFlag |= SA_MOBILE;
+            else if (param == SZ_ATTR_STRUCT_HIDDEN)    structFlag |= SA_HIDDEN ;
+            else if (param == SZ_ATTR_STRUCT_SHAFT)     structFlag |= SA_SHAFT  ;
+            else if (param == SZ_ATTR_STRUCT_GATE)      structFlag |= SA_GATE   ;
+            else if (param == SZ_ATTR_STRUCT_ROAD_N)    structFlag |= SA_ROAD_N ;
+            else if (param == SZ_ATTR_STRUCT_ROAD_NE)   structFlag |= SA_ROAD_NE;
+            else if (param == SZ_ATTR_STRUCT_ROAD_SE)   structFlag |= SA_ROAD_SE;
+            else if (param == SZ_ATTR_STRUCT_ROAD_S)    structFlag |= SA_ROAD_S ;
+            else if (param == SZ_ATTR_STRUCT_ROAD_SW)   structFlag |= SA_ROAD_SW;
+            else if (param == SZ_ATTR_STRUCT_ROAD_NW)   structFlag |= SA_ROAD_NW;
+            else
+            {
+                // Two-token attributes, MaxLoad & MinSailingPower.
+                size_t separator = param.find(' ');
+                if (separator == std::string::npos)
+                {
+                    //TODO: print out the wrong setting
+                    continue;
+                }
+
+                std::string key = param.substr(0, separator);
+                long        val = atol(param.substr(separator+1).c_str());
+                if (key == SZ_ATTR_STRUCT_MAX_LOAD)
+                    capacity += val;
+                else if (key == SZ_ATTR_STRUCT_MIN_SAIL)
+                    sailPower += val;
+            }
+
+        }
+
+        if (0 == stricmp(name.c_str(), STRUCT_GATE))
+            structFlag |= SA_GATE; // to compensate for legacy missing gate flag in the config
+        return true;        
+    }
+
 }
+
+#include <algorithm> 
+#include <cctype>
+#include <locale>
+
+namespace struct_control 
+{
+    // trim from start (in place)
+    static inline void ltrim(std::string &s) {
+        s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
+            return !std::isspace(ch);
+        }));
+    }
+
+    // trim from end (in place)
+    static inline void rtrim(std::string &s) {
+        s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
+            return !std::isspace(ch);
+        }).base(), s.end());
+    }
+
+    // trim from both ends (in place)
+    static inline std::string trim(std::string s) {
+        ltrim(s);
+        rtrim(s);
+        return s;
+    }
+
+    void split_to_chunks(const std::string& str, char c, std::vector<std::string>& chunks)
+    {
+        size_t pos = 0;
+        size_t cur = str.find(c, pos);
+        while(cur != std::string::npos)
+        {
+            chunks.push_back(trim(str.substr(pos, cur - pos)));
+            pos = cur+1;
+            cur = str.find(c, pos);
+        }
+        size_t end_point = str.find('.', pos);
+        chunks.push_back(trim(str.substr(pos, end_point-pos)));
+    }
+
+    void parse_struct(const std::string& line, long& id, std::string& name, 
+                      std::string& type, std::vector<std::pair<std::string, long>>& substructures)
+    {
+        std::vector<std::string> chunks;
+        std::vector<std::string> pieces;
+        split_to_chunks(line, ';', chunks);
+        for (const std::string& chunk : chunks)
+            split_to_chunks(chunk, ':', pieces);
+
+        //0 - name & number
+        //1 - type
+        //>1 - parameters
+
+        //get name and number
+        {
+            size_t start = pieces[0].find_first_of('+');
+            if (start == std::string::npos)
+                return;
+            size_t open_bracer = pieces[0].find_first_of('[', start);
+            if (open_bracer == std::string::npos)
+                return;
+            size_t close_bracer = pieces[0].find_first_of(']', open_bracer);
+            if (close_bracer == std::string::npos)
+                return;
+
+            id = atoi(&(pieces[0][open_bracer+1]));
+            name = pieces[0].substr(start+2, close_bracer+1);
+            trim(name);
+        }
+
+        //get type and substructures
+        {
+            if (pieces.size() == 1)
+                return;
+
+            std::vector<std::string> parts;
+            split_to_chunks(pieces[1], ',', parts);
+            type = trim(parts[0]);
+            if (type.find("Fleet") != std::string::npos)//known type with substructs
+            {                
+                std::vector<std::string> pair;
+                for(size_t i = 1; i < parts.size(); ++i)
+                {
+                    split_to_chunks(parts[i], ' ', pair);
+                    substructures.push_back({pair[1], atoi(pair[0].c_str())});
+                }
+            }
+            else 
+            {
+                long capacity, sailPower, structFlag;
+                game_control::get_struct_attributes(type, capacity, sailPower, structFlag);
+                if (structFlag & SA_MOBILE)
+                {//its still the ship, so we will handle it as Fleet
+                    substructures.push_back({type, 1});
+                    type = "Fleet";
+                }
+            }
+        }
+
+    }
+}
+

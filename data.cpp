@@ -478,11 +478,14 @@ CStruct * CLand::AddNewStruct(CStruct * pNewStruct)
         pStruct->Name           = pNewStruct->Name       ;
         pStruct->LandId         = pNewStruct->LandId     ;
         pStruct->OwnerUnitId    = pNewStruct->OwnerUnitId;
-        pStruct->Load           = pNewStruct->Load       ;
+        pStruct->occupied_capacity_           = pNewStruct->occupied_capacity_       ;
         pStruct->Attr           = pNewStruct->Attr       ;
-        pStruct->Kind           = pNewStruct->Kind       ;
-        pStruct->Location       = pNewStruct->Location   ;
-
+        pStruct->type_          = pNewStruct->type_      ;
+        pStruct->capacity_      = pNewStruct->capacity_      ;
+        pStruct->name_          = pNewStruct->name_      ;
+        pStruct->original_description_          = pNewStruct->original_description_      ;
+	    pStruct->Location       = pNewStruct->Location   ;
+        pStruct->fleet_ships_   = pNewStruct->fleet_ships_   ;
         delete pNewStruct;
     }
     else
@@ -688,32 +691,6 @@ int CLand::FindExit(long hexId) const
 
 //-------------------------------------------------------------
 
-void CLand::CalcStructsLoad()
-{
-    int                 i, k;
-    CUnit             * pUnit;
-    CBaseObject         Dummy;
-    CStruct           * pStruct;
-    EValueType          type;
-    const void        * value;
-
-    for (i=Units.Count()-1; i>=0; i--)
-    {
-        pUnit = (CUnit*)UnitsSeq.At(i);
-        if (pUnit->GetProperty(PRP_STRUCT_ID, type, value, eNormal) && (eLong==type) && ((long)value > 0))
-        {
-            Dummy.Id = (long)value;
-            if (Structs.Search(&Dummy, k))
-            {
-                pStruct = (CStruct*)Structs.At(k);
-                pStruct->Load += pUnit->Weight[0];
-            }
-        }
-    }
-}
-
-//-------------------------------------------------------------
-
 void CLand::RemoveEdgeStructs(int direction)
 {
     CStruct * pEdge;
@@ -732,7 +709,7 @@ void CLand::AddNewEdgeStruct(const char * name, int direction)
 {
     CStruct * pEdge = new CStruct;
 
-    pEdge->Kind     = name;
+    pEdge->type_    = name;
     pEdge->Location = direction % 6;
     EdgeStructs.Insert(pEdge);
 }
@@ -1102,7 +1079,13 @@ BOOL CUnit::GetProperty(const char  *  name,
         if (Flags & UNIT_FLAG_CONSUMING_UNIT   )  sValue << "cU";
         else if (Flags & UNIT_FLAG_CONSUMING_FACTION)  sValue << "cF";
         if (Flags & UNIT_FLAG_NO_CROSS_WATER   )  sValue << 'x';
-        if (Flags & UNIT_FLAG_SPOILS           )  sValue << 's';
+        if (Flags & UNIT_FLAG_SPOILS_NONE)  sValue << "sN"; 
+        if (Flags & UNIT_FLAG_SPOILS_WALK)  sValue << "sW";
+        if (Flags & UNIT_FLAG_SPOILS_RIDE)  sValue << "sR";
+        if (Flags & UNIT_FLAG_SPOILS_FLY)  sValue << "sF";
+        if (Flags & UNIT_FLAG_SPOILS_SWIM)  sValue << "sS";
+        if (Flags & UNIT_FLAG_SPOILS_SAIL)  sValue << "sL";
+
         // MZ - Added for Arcadia
         if (Flags & UNIT_FLAG_SHARING          )  sValue << 'z';
 
@@ -1314,7 +1297,7 @@ void CUnit::DebugPrint(CStr & sDest)
 void CStruct::ResetNormalProperties()
 {
     TPropertyHolder::ResetNormalProperties();
-    Load         = 0;
+    occupied_capacity_  = 0;
     SailingPower = 0;
 }
 
