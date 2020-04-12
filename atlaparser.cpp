@@ -2545,6 +2545,11 @@ int CAtlaParser::ParseStructure(CStr & FirstLine)
         pStruct->MinSailingPower += spower * subship.second;
     }
 
+    if (pStruct->fleet_ships_.size() == 0)
+    {//for non-mobile it needs to load flags
+        game_control::get_struct_attributes(pStruct->type_, pStruct->capacity_, pStruct->MinSailingPower, pStruct->Attr);
+    }
+
     if (pStruct->Attr & (SA_ROAD_N | SA_ROAD_NE | SA_ROAD_SE | SA_ROAD_S | SA_ROAD_SW | SA_ROAD_NW ))
         if (pStruct->original_description_.find("needs") != std::string::npos || 
             pStruct->original_description_.find("decay") != std::string::npos)

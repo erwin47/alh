@@ -3441,7 +3441,9 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
                     m_HexDescrSrc << pStruct->original_description_.c_str();
                     m_HexDescrSrc.TrimRight(TRIM_ALL);
                     if (pStruct->Attr & SA_MOBILE)
-                        m_HexDescrSrc << " Load: " << pStruct->occupied_capacity_ << ", Power: " << pStruct->SailingPower << ".";
+                        m_HexDescrSrc << " Forecast: Load[" << pStruct->occupied_capacity_ << 
+                        "/" << pStruct->capacity_ << "], Power[" << pStruct->SailingPower << 
+                        "/" << pStruct->MinSailingPower << "].";
                     m_HexDescrSrc << EOL_SCR;
                 }
             }
