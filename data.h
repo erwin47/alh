@@ -466,8 +466,9 @@ public:
     long MinSailingPower;
     int  Location;
     
+    long dest_land_id_;//for shafts
     long occupied_capacity_;
-    long capacity_;
+    long capacity_;//for MOBILE
     std::string type_;
     std::string name_;
     std::string original_description_;

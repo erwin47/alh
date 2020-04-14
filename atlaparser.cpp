@@ -1919,7 +1919,7 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
                 no = atol(S.GetData());
                 pStruct     = new CStruct;
                 pStruct->Id = -no;  // negative, so it does not clash with structures!
-                pStruct->Description = CurLine.GetData();
+                pStruct->original_description_ = std::string(CurLine.GetData(), CurLine.GetLength());
                 pStruct->type_        = STRUCT_GATE;
                 if (!game_control::get_struct_attributes(pStruct->type_, 
                         pStruct->capacity_, pStruct->MinSailingPower, pStruct->Attr))
@@ -2588,23 +2588,15 @@ bool CAtlaParser::LinkShaft(CLand * pLand, CLand * pLandDest, int structIdx)
         if (pStruct->Attr & SA_SHAFT)
         {
             ComposeLandStrCoord(pLandDest, S);
-            // Strip the trailing dot
-            if ('.' ==  pStruct->Description.GetData()[ pStruct->Description.GetLength()-1])
-                 pStruct->Description.DelCh( pStruct->Description.GetLength()-1);
+            std::string new_link = "; links to (" + std::string(S.GetData(),S.GetLength()) + ")";
 
-            // Remove any previous links
-            n = pStruct->Description.FindSubStr("; links to");
-            if (n > 0) pStruct->Description.DelSubStr(n, 9999);
+            size_t links_pos = pStruct->original_description_.find("; links to");
+            size_t dot_pos = pStruct->original_description_.find_last_of('.');
+            if (links_pos != std::string::npos)
+                pStruct->original_description_.replace(links_pos, dot_pos - links_pos, new_link);
+            else 
+                pStruct->original_description_.insert(dot_pos, new_link);
 
-            // Get the start of the last line into n, so it can be wordwrapped
-            p = strrchr( pStruct->Description.GetData(), '\n');
-            n = p ? ( pStruct->Description.GetData()-p) : 0;
-
-            T.Empty();
-            T << "; links to (" << S << ").";
-            if (n+T.GetLength() > 64)
-                 pStruct->Description << EOL_SCR << "  ";
-            pStruct->Description << T;
             return true;
         }
     }
@@ -2621,7 +2613,6 @@ void CAtlaParser::SetShaftLinks()
     int          i,j;
     EValueType   type;
     const void * value;
-    int          subStrResult;
 
     for (i=0; i<m_LandsToBeLinked.Count(); i++)
     {
@@ -2637,11 +2628,13 @@ void CAtlaParser::SetShaftLinks()
             if (pStruct->Attr & SA_SHAFT  )
             {
                 pLandDest = GetLand((long)value);
-                subStrResult = pStruct->Description.FindSubStr("links");
-                if (pLandDest && subStrResult >= 0 && GetLandFlexible(wxString::FromUTF8(pStruct->Description.GetData())) == pLandDest)
+
+                size_t links_pos = pStruct->original_description_.find("links");
+                if (pLandDest && links_pos != std::string::npos && 
+                    GetLandFlexible(wxString::FromUTF8(pStruct->original_description_.c_str())) == pLandDest)
                     break;
 
-                if (pLandDest && subStrResult < 0)
+                if (pLandDest && links_pos == std::string::npos)
                 {
                     LinkShaft(pLand, pLandDest, j);
                     break;
@@ -3924,7 +3917,7 @@ BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane,
             || pOptions->SaveStructs || pOptions->SaveUnits)
         {
             sLine << EOL_FILE;
-            sLine << pStruct->Description.GetData();
+            sLine << pStruct->original_description_.c_str();
             sLine.TrimRight(TRIM_ALL);
             sLine << EOL_FILE;
 
@@ -7955,9 +7948,9 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                         CStruct * pStruct = (CStruct*)pLandCurrent->Structs.At(currentStruct-1);
                         if (pStruct->Attr & SA_SHAFT)
                         {
-                            if (pStruct->Description.FindSubStr("links to (") >= 0)
+                            if (pStruct->original_description_.find("links to (") != std::string::npos)
                             {
-                                pLandExit = GetLandFlexible(wxString::FromUTF8(pStruct->Description.GetData()));
+                                pLandExit = GetLandFlexible(wxString::FromUTF8(pStruct->original_description_.c_str()));
                                 if (pLandExit)
                                 {
                                     if (!pUnit->pMovement)

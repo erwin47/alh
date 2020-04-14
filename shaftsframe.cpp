@@ -82,7 +82,7 @@ void ShaftsFrame::UpdateSelect(wxChoice * choice, CLand * pLand)
     for (long j=0; j<pLand->Structs.Count(); ++j)
     {
         pStruct = (CStruct*)pLand->Structs.At(j);
-        choice->Append(wxString::FromUTF8(pStruct->Description.GetData()), (void *)j);
+        choice->Append(wxString::FromUTF8(pStruct->original_description_.c_str()), (void *)j);
     }
 }
 

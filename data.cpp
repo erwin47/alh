@@ -465,16 +465,16 @@ CStruct * CLand::AddNewStruct(CStruct * pNewStruct)
             int  x1, x2, x3;
             BOOL Link;
 
-            x1   = pNewStruct->Description.FindSubStr(";");
-            x2   = pNewStruct->Description.FindSubStr("links");
-            x3   = pNewStruct->Description.FindSubStr("to");
-            Link = ( x1>=0 && x1<x2 && x2<x3 );
+            x1   = pNewStruct->original_description_.find(";");
+            x2   = pNewStruct->original_description_.find("links");
+            x3   = pNewStruct->original_description_.find("to");
+            Link = ( x1 != std::string::npos && x1<x2 && x2<x3 );
 
-            if (Link || pNewStruct->Description.GetLength() > pStruct->Description.GetLength())
-                pStruct->Description= pNewStruct->Description;
+            if (Link || pNewStruct->original_description_.size() > pStruct->original_description_.size())
+                pStruct->original_description_= pNewStruct->original_description_;
         }
         else
-            pStruct->Description= pNewStruct->Description;
+            pStruct->original_description_= pNewStruct->original_description_;
         pStruct->Name           = pNewStruct->Name       ;
         pStruct->LandId         = pNewStruct->LandId     ;
         pStruct->OwnerUnitId    = pNewStruct->OwnerUnitId;
@@ -483,7 +483,6 @@ CStruct * CLand::AddNewStruct(CStruct * pNewStruct)
         pStruct->type_          = pNewStruct->type_      ;
         pStruct->capacity_      = pNewStruct->capacity_      ;
         pStruct->name_          = pNewStruct->name_      ;
-        pStruct->original_description_          = pNewStruct->original_description_      ;
 	    pStruct->Location       = pNewStruct->Location   ;
         pStruct->fleet_ships_   = pNewStruct->fleet_ships_   ;
         delete pNewStruct;

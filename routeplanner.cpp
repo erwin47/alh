@@ -98,9 +98,9 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, RO
                     if (pStruct->Attr & SA_SHAFT  )
                     {
                         Log << "      Found Shaft\n";
-                        if (pStruct->Description.FindSubStr("links to (") >= 0)
+                        if (pStruct->original_description_.find("links to (") != std::string::npos)
                         {
-                            pLandExit = gpApp->m_pAtlantis->GetLandFlexible(pStruct->Description.GetData());
+                            pLandExit = gpApp->m_pAtlantis->GetLandFlexible(pStruct->original_description_.c_str());
                             if (pLandExit)
                             {
                                 Log << "      Found connection to landExit\n";
