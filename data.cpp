@@ -741,6 +741,7 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
     FlagsOrg      = 0;
     silver_initial_.amount_ = 0;
     silver_initial_.code_name_ = PRP_SILVER;
+    struct_id_ = 0;
 
     FlagsLast     = ~Flags;
     reqMovementSpeed = 0;
@@ -787,7 +788,9 @@ CUnit * CUnit::AllocSimpleCopy()
     pUnit->silver_initial_ = silver_initial_;
     pUnit->men_ = men_;
     pUnit->men_initial_ = men_initial_;
-
+    pUnit->impact_description_ = impact_description_;
+    pUnit->struct_id_ = struct_id_;
+    pUnit->struct_id_initial_ = struct_id_initial_;
     pUnit->Orders                 = Orders               ;
     pUnit->Errors                 = Errors               ;
     pUnit->Events                 = Events               ;
@@ -858,6 +861,14 @@ void CUnit::ResetNormalProperties()
     orders_ = orders::parser::parse_lines_to_orders(std::string(Orders.GetData(), Orders.GetLength()));
     impact_description_.clear();
     caravan_info_ = nullptr;
+    struct_id_ = struct_id_initial_;
+    
+    /*if (struct_id_initial_ != 0)
+    {
+        pUnit->struct_id_initial_ = m_pCurStruct->Id | 0x00010000;//TODO: generalize
+        pUnit->struct_id_ = pUnit->struct_id_initial_;        
+        SetProperty(PRP_SILVER, eLong, (const void*)silver_initial_.amount_, eNormal);
+    }*/
     
     Flags     = FlagsOrg;
     FlagsLast = ~Flags;

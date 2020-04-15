@@ -416,6 +416,7 @@ public:
     std::shared_ptr<orders::CaravanInfo> caravan_info_;
 
     long struct_id_;//!<struct to which it belongs (0 if none)
+    long struct_id_initial_;//!<struct to which it belongs (0 if none)
 
     bool            IsOurs;
     long            FactionId;

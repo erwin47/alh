@@ -280,6 +280,8 @@ public:
 
     const char * ReadPropertyName(const char * src, CStr & Name);
 
+    void         OrderError(const std::string& type, CLand* land, CUnit* unit, const std::string& Msg);
+
 protected:
     int          ParseFactionInfo(BOOL GetNo, BOOL Join);
     int          ParseEvents(BOOL IsEvents=TRUE);
@@ -330,7 +332,7 @@ protected:
     void         PutLineBack (CStr & s);
 
     void         GenericErr(int Severity, const char * Msg);
-    void         OrderError(const std::string& type, CLand* land, CUnit* unit, const std::string& Msg);
+    
     void         OrderErrFinalize();
     void         OrderProcess_Teach(BOOL skiperror, CUnit * pUnit);
 

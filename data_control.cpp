@@ -789,7 +789,7 @@ namespace land_control
             perform_on_each_struct(land, [&](CStruct* structure) {
                 structure->occupied_capacity_ = 0;
             });
-
+            
             perform_on_each_unit(land, [&](CUnit* unit) {
                 CStruct* cur_structure = get_struct(land, unit_control::structure_id(unit));
                 if (cur_structure != nullptr)

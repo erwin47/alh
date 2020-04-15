@@ -2240,14 +2240,18 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
             SetUnitProperty(pUnit, PRP_STRUCT_OWNER, eCharPtr, YES, eBoth);
             SetUnitProperty(pUnit, PRP_STRUCT_ID,   eLong,    (void*)m_pCurStruct->Id,      eBoth);
             SetUnitProperty(pUnit, PRP_STRUCT_NAME, eCharPtr, m_pCurStruct->name_.c_str(), eBoth);
-            unit_control::set_structure(pUnit, m_pCurStruct->Id, true);
+            //unit_control::set_structure(pUnit, m_pCurStruct->Id, true);
+            pUnit->struct_id_initial_ = m_pCurStruct->Id | 0x00010000;//TODO: generalize
+            pUnit->struct_id_ = pUnit->struct_id_initial_;
             m_pCurStruct->OwnerUnitId = pUnit->Id;
         }
         else
         {
             SetUnitProperty(pUnit, PRP_STRUCT_ID,   eLong,    (void*)m_pCurStruct->Id,      eBoth);
             SetUnitProperty(pUnit, PRP_STRUCT_NAME, eCharPtr, m_pCurStruct->name_.c_str(), eBoth);
-            unit_control::set_structure(pUnit, m_pCurStruct->Id, false);
+            //unit_control::set_structure(pUnit, m_pCurStruct->Id, false);
+            pUnit->struct_id_initial_ = m_pCurStruct->Id;//TODO: generalize
+            pUnit->struct_id_ = pUnit->struct_id_initial_;            
         }
         
     }
@@ -5456,9 +5460,13 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                             }
 
                             unit_control::set_structure(pUnit, 0, false);
+                            //pUnit->DelProperty(PRP_STRUCT_NAME);
+                            //pUnit->DelProperty(PRP_STRUCT_OWNER);
+                            //pUnit->DelProperty(PRP_STRUCT_ID);
+
                             if ( (PE_OK!=pUnit->SetProperty(PRP_STRUCT_NAME,  eCharPtr, "", eNormal)) ||
                                 (PE_OK!=pUnit->SetProperty(PRP_STRUCT_OWNER, eCharPtr, "", eNormal)) ||
-                                (PE_OK!=pUnit->SetProperty(PRP_STRUCT_ID,    eLong   ,  0, eNormal)) )
+                                (PE_OK!=pUnit->SetProperty(PRP_STRUCT_ID,    eLong,  0, eNormal)) )
                                 SHOW_WARN_CONTINUE(NOSETUNIT << pUnit->Id << BUG);
                             //TODO: set new owner HERE
                         }
