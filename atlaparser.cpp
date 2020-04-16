@@ -4625,10 +4625,10 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
     if (peasant_can_teach == 0 && !pMainUnit->GetProperty(PRP_LEADER, type, value, eNormal))
         return FALSE;
 
-    //to reset studying prediction of RunOrders, to be clean before the calculation
-    land_control::perform_on_each_unit(pLand, [](CUnit* unit) {
-        unit->skills_ = unit->skills_initial_;
-    });
+    //recalculate state to previous to TEACH action, so all RunOrders teach & study modification
+    //wouldn't affect the process, but all give & buy would.
+    RunLandOrders(pLand, TurnSequence::SQ_FIRST, TurnSequence::SQ_MOVE);
+
     //get teaching days map
     std::vector<unit_control::UnitError> errors;
     std::unordered_map<long, land_control::Student> students = land_control::get_land_students(pLand, errors);
