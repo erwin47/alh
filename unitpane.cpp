@@ -645,7 +645,7 @@ bool CUnitPane::CreateScout(CUnit * pUnit, ScoutType scoutType)
 
     newUnitOrders << wxT("name unit scout\n");
 
-    gpApp->m_pAtlantis->ReadPropertyName(m_pCurLand->PeasantRace.GetData(), race);
+    gpApp->m_pAtlantis->ReadPropertyName(m_pCurLand->current_state_.peasant_race_.c_str(), race);
 
     if (race.IsEmpty())
         return false; // When there is no race to buy, we cannot make a scout.

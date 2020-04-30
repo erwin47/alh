@@ -11,6 +11,26 @@
 #define strcasecmp _stricmp
 #endif
 
+// trim from start (in place)
+static inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
+        return !std::isspace(ch) && !(ch == '\r') && !(ch == '\n') && !(ch == '\t');
+    }));
+}
+
+// trim from end (in place)
+static inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
+        return !std::isspace(ch) && !(ch == '\r') && !(ch == '\n') && !(ch == '\t');
+    }).base(), s.end());
+}
+
+// trim from both ends (in place)
+static inline std::string trim(std::string s) {
+    ltrim(s);
+    rtrim(s);
+    return s;
+}
 
 namespace item_control
 {
@@ -115,12 +135,19 @@ namespace land_control
         std::vector<CUnit*> units_;
     };
 
-    CProductMarket get_wanted(CLand* land, const std::string& item_code);
-    CProductMarket get_for_sale(CLand* land, const std::string& item_code);
-    void add_resource(CLand* land, const CItem& item);
-    long get_resource(CLand* land, const std::string& item_code);
-    void set_produced_items(CLand* land, const std::string& item_code, long amount);
-    long get_produced_items(CLand* land, const std::string& item_code);
+    struct ActionUnit
+    {
+        std::string action_;
+        std::string description_;
+        CUnit* unit_;
+    };
+
+    CProductMarket get_wanted(LandState& state, const std::string& item_code);
+    CProductMarket get_for_sale(LandState& state, const std::string& item_code);
+    void add_resource(LandState& state, const CItem& item);
+    long get_resource(LandState& state, const std::string& item_code);
+    void set_produced_items(LandState& state, const std::string& item_code, long amount);
+    long get_produced_items(LandState& state, const std::string& item_code);
 
     CStruct* get_struct(CLand* land, long struct_id);
     long get_struct_weight(CLand* land, long struct_id);
@@ -128,18 +155,34 @@ namespace land_control
     template<typename T>
     void perform_on_each_struct(CLand* land, T Pred)
     {
-        for (size_t i = 0; i < land->Structs.Count(); i++)
-        {
-            CStruct* structure = (CStruct*)land->Structs.At(i);
+        for (auto& structure : land->current_state_.structures_) {
             Pred(structure);
-        }    
+        }
     }
+
+    template<typename T>
+    CStruct* find_first_structure_if(CLand* land, T Pred)
+    {
+        for (auto& structure : land->current_state_.structures_) {
+            if (Pred(structure))
+                return structure;
+        }
+        return nullptr;    
+    }    
+
     namespace structures
     {
         void update_struct_weights(CLand* land);
-    }
-    
+        
+        CStruct* add_structure(CLand* land, LandState& lstate, CStruct* structure);
+        CStruct* remove_structure(CLand* land, LandState& lstate, CStruct* structure);
+        void clean_structures(LandState& lstate);//except HIDDEN & SHAFTS
 
+        bool link_shafts(CLand* from, CLand* to, long struct_id);
+
+        void land_flags_update(CLand* land, CStruct* structure);
+
+    }
 
     template<typename T>
     void get_units_if(CLand* land, std::vector<CUnit*>& units, T Pred)
@@ -188,6 +231,7 @@ namespace land_control
     }
 
     void apply_land_flags(CLand* land, std::vector<unit_control::UnitError>& errors);
+    void get_land_builders(CLand* land, std::vector<ActionUnit>& out, std::vector<unit_control::UnitError>& errors);
     void get_land_taxers(CLand* land, Taxers& out, std::vector<unit_control::UnitError>& errors);
     void get_land_sells(CLand* land, std::vector<Trader>& out, std::vector<unit_control::UnitError>& errors);
     void get_land_buys(CLand* land, std::vector<Trader>& out, std::vector<unit_control::UnitError>& errors);
@@ -250,6 +294,16 @@ namespace struct_control
 {
     void parse_struct(const std::string& line, long& id, std::string& name, 
                       std::string& type, std::vector<std::pair<std::string, long>>& substructures);
+
+    namespace flags {
+        inline bool is_shaft(CStruct* structure) {  return structure->Attr & SA_SHAFT;  }
+        inline bool is_ship(CStruct* structure) {  return structure->Attr & SA_MOBILE;  }
+    }
+
+    void copy_structure(CStruct* from, CStruct* to);
+
+    bool has_link(CStruct* structure);
+    
 }
 
 /*namespace json_control

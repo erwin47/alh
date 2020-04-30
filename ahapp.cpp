@@ -2015,7 +2015,6 @@ void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & Ta
 {
     int               x;
     CUnit           * pUnit;
-//    long              tax = pLand->Taxable;
     EValueType        type;
     long              men;
     CStr              sCoord;
@@ -2041,7 +2040,7 @@ void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & Ta
             }
             if (Factions.Insert(pDetail))
             {
-                pDetail->amount = pLand->Taxable;
+                pDetail->amount = pLand->current_state_.tax_amount_;
                 pDetail->HexCount++;
             }
             if (pUnit->GetProperty(PRP_MEN, type, (const void *&)men, eNormal) && eLong==type)
@@ -2071,9 +2070,9 @@ void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & Ta
         while (x < 245);
 
         if (pDetail->amount > 0)
-            OneLine << wxT("is undertaxed by ") << pDetail->amount << wxT(" silv (") << 100 * (pLand->Taxable - pDetail->amount) / (pLand->Taxable+1) << wxT("% of $") << pLand->Taxable << wxT(").") << wxString::FromUTF8(EOL_SCR);
+            OneLine << wxT("is undertaxed by ") << pDetail->amount << wxT(" silv (") << 100 * (pLand->current_state_.tax_amount_ - pDetail->amount) / (pLand->current_state_.tax_amount_+1) << wxT("% of $") << pLand->current_state_.tax_amount_ << wxT(").") << wxString::FromUTF8(EOL_SCR);
         else if (pDetail->amount<0)
-            OneLine << wxT("is overtaxed  by ") << (-pDetail->amount) << wxT(" silv (") << 100 * (pLand->Taxable - pDetail->amount) / (pLand->Taxable+1) << wxT("% of $") << pLand->Taxable << wxT(").") << wxString::FromUTF8(EOL_SCR);
+            OneLine << wxT("is overtaxed  by ") << (-pDetail->amount) << wxT(" silv (") << 100 * (pLand->current_state_.tax_amount_ - pDetail->amount) / (pLand->current_state_.tax_amount_+1) << wxT("% of $") << pLand->current_state_.tax_amount_ << wxT(").") << wxString::FromUTF8(EOL_SCR);
         else
             OneLine << wxString::FromUTF8(EOL_SCR);
 
@@ -2088,9 +2087,11 @@ bool CAhApp::GetTradeActivityDescription(CLand* land, std::map<int, std::vector<
 {
     bool ret_val(false);
     //resources
-    if (land->produced_items_.size() > 0)
+    if (land->current_state_.produced_items_.size() > 0)
     {
-        std::sort(land->resources_.begin(), land->resources_.end(), [](const CItem& it1, const CItem& it2){
+        std::sort(land->current_state_.resources_.begin(), 
+                  land->current_state_.resources_.end(), 
+                  [](const CItem& it1, const CItem& it2){
             return it2.amount_ < it1.amount_;
         });
 
@@ -2106,19 +2107,19 @@ bool CAhApp::GetTradeActivityDescription(CLand* land, std::map<int, std::vector<
             }
         });
 
-        for (const auto& resource : land->resources_)
+        for (const auto& resource : land->current_state_.resources_)
         {
             std::string reg_line = "    " + resource.code_name_ + " " + std::to_string(resource.amount_);
 
-            auto produce_it = std::find_if(land->produced_items_.begin(), 
-                                           land->produced_items_.end(), 
+            auto produce_it = std::find_if(land->current_state_.produced_items_.begin(), 
+                                           land->current_state_.produced_items_.end(), 
                                             [&](const std::pair<std::string, long>& item) {
                                         return resource.code_name_ == item.first;
                             });
 
             for (auto& factionId : involved_factions)
             {
-                if (produce_it != land->produced_items_.end())
+                if (produce_it != land->current_state_.produced_items_.end())
                 {
                     report[factionId].push_back(reg_line + " (requested: " + std::to_string(produce_it->second) + ")");
                 }
@@ -2130,17 +2131,17 @@ bool CAhApp::GetTradeActivityDescription(CLand* land, std::map<int, std::vector<
         }
 
         //products
-        for (const auto& product : land->produced_items_)
+        for (const auto& product : land->current_state_.produced_items_)
         {
-            auto resource_it = std::find_if(land->resources_.begin(), 
-                                            land->resources_.end(), 
+            auto resource_it = std::find_if(land->current_state_.resources_.begin(), 
+                                            land->current_state_.resources_.end(), 
                                             [&](const CItem& item) {
                                         return item.code_name_ == product.first;
                             });
 
             for (auto& factionId : involved_factions)
             {
-                if (resource_it == land->resources_.end())
+                if (resource_it == land->current_state_.resources_.end())
                 {
                     report[factionId].push_back("    produce: " + product.first + " " + std::to_string(product.second));
                 }
@@ -2150,41 +2151,20 @@ bool CAhApp::GetTradeActivityDescription(CLand* land, std::map<int, std::vector<
     }
 
     // compose building statistics
-    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-        auto ret = orders::control::retrieve_orders_by_type(orders::Type::O_BUILD, unit->orders_);
-        if (ret.size() == 1) 
-        {
-            std::string building;
-            long unit_id;
-            bool helps;
-            if (orders::parser::specific::parse_build(ret[0], building, helps, unit_id))
-            {
-                if (helps)
-                {
-                    std::string temp = unit_control::compose_unit_name(unit);
-                    report[unit->FactionId].push_back(temp + " helps at building to " + std::to_string(unit_id));
-                }
-                else
-                {
-                    std::string temp = unit_control::compose_unit_name(unit);
-                    report[unit->FactionId].push_back(temp + " builds " + building);
-                }
-            }
-            else 
-            {//unknown format
-                std::string temp = unit_control::compose_unit_name(unit);
-                report[unit->FactionId].push_back(temp + " building with unresolved order: " + ret[0]->original_string_);
-            }
-            ret_val = true;    
-        }
-        else if (ret.size() > 1)
-        {
-            std::string temp = unit_control::compose_unit_name(unit);
-            report[unit->FactionId].push_back(temp + " hax multiple build orders.");
-            ret_val = true;
-        }
-    });
-
+    std::vector<unit_control::UnitError> errors;
+    std::vector<land_control::ActionUnit> build_orders;
+    land_control::get_land_builders(land, build_orders, errors);
+    for (auto& action : build_orders)
+    {
+        std::string temp = unit_control::compose_unit_name(action.unit_);
+        report[action.unit_->FactionId].push_back("    " + temp + " " + action.description_);
+        ret_val = true;
+    }
+    for (auto& error : errors)
+    {
+        std::string temp = unit_control::compose_unit_name(error.unit_);
+        report[error.unit_->FactionId].push_back("    " + temp + " " + error.type_ + ": " + error.message_);
+    }
     //trade items
     //TODO
     return ret_val;
@@ -2483,30 +2463,26 @@ void CAhApp::CheckProduction()
 
 void CAhApp::CheckSailing()
 {
-    int    n, i, x;
-    CLand  * pLand;
-    CPlane * pPlane;
-    CStruct* pStruct;
     CStr     Error(64), S(32), sCoord(32);
 
-    for (n=0; n<m_pAtlantis->m_Planes.Count(); n++)
+    for (int n=0; n<m_pAtlantis->m_Planes.Count(); n++)
     {
-        pPlane = (CPlane*)m_pAtlantis->m_Planes.At(n);
-        for (i=0; i<pPlane->Lands.Count(); i++)
+        CPlane* pPlane = (CPlane*)m_pAtlantis->m_Planes.At(n);
+        for (int i=0; i<pPlane->Lands.Count(); i++)
         {
-            pLand = (CLand*)pPlane->Lands.At(i);
-            m_pAtlantis->ComposeLandStrCoord(pLand, sCoord);
-            for (x=0; x<pLand->Structs.Count(); x++)
-            {
-                pStruct = (CStruct*)pLand->Structs.At(x);
-                if ((pStruct->Attr & SA_MOBILE) && pStruct->SailingPower > 0)
+            CLand* land = (CLand*)pPlane->Lands.At(i);
+            m_pAtlantis->ComposeLandStrCoord(land, sCoord);
+
+            land_control::perform_on_each_struct(land, [&](CStruct* structure) {
+                if (struct_control::flags::is_ship(structure) && 
+                    structure->SailingPower > 0)
                 {
-                    if (pStruct->occupied_capacity_ > pStruct->capacity_)
-                        Error << pLand->TerrainType << " (" << sCoord << ") - Ship " << pStruct->Id << " is overloaded by " << (pStruct->occupied_capacity_ - pStruct->capacity_) << "." << EOL_SCR;
-                    if (pStruct->SailingPower < pStruct->MinSailingPower)
-                        Error << pLand->TerrainType << " (" << sCoord << ") - Ship " << pStruct->Id << " is underpowered by " << (pStruct->MinSailingPower - pStruct->SailingPower) << "." << EOL_SCR;
+                    if (structure->occupied_capacity_ > structure->capacity_)
+                        Error << land->TerrainType << " (" << sCoord << ") - Ship " << structure->Id << " is overloaded by " << (structure->occupied_capacity_ - structure->capacity_) << "." << EOL_SCR;
+                    if (structure->SailingPower < structure->MinSailingPower)
+                        Error << land->TerrainType << " (" << sCoord << ") - Ship " << structure->Id << " is underpowered by " << (structure->MinSailingPower - structure->SailingPower) << "." << EOL_SCR;                    
                 }
-            }
+            });
         }
     }
 
@@ -3431,53 +3407,47 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
             m_pAtlantis->compose_products_detailed(pLand, ss);
             m_HexDescrSrc << ss.str().c_str();
 
-            if (pLand->Structs.Count()>0)
+            if (pLand->current_state_.structures_.size()>0)
             {
                 m_HexDescrSrc.TrimRight(TRIM_ALL);
                 m_HexDescrSrc << EOL_SCR << "-----------" << EOL_SCR;
-                for (i=0; i<pLand->Structs.Count(); i++)
-                {
-                    pStruct = (CStruct*)pLand->Structs.At(i);
-                    m_HexDescrSrc << pStruct->original_description_.c_str();
-                    m_HexDescrSrc.TrimRight(TRIM_ALL);
-                    if (pStruct->Attr & SA_MOBILE)
-                        m_HexDescrSrc << " Forecast: Load[" << pStruct->occupied_capacity_ << 
-                        "/" << pStruct->capacity_ << "], Power[" << pStruct->SailingPower << 
-                        "/" << pStruct->MinSailingPower << "].";
-                    m_HexDescrSrc << EOL_SCR;
-                }
             }
 
-            /*land_control::economy::Economy economy;
-            std::vector<unit_control::UnitError> errors;
-            land_control::economy::init_economy(economy);
-            land_control::economy::economy_calculations(pLand, economy, errors);*/
+            land_control::perform_on_each_struct(pLand, [&](CStruct* structure) {
+                m_HexDescrSrc << structure->original_description_.c_str();
+                m_HexDescrSrc.TrimRight(TRIM_ALL); 
+                if (struct_control::flags::is_ship(structure)) {
+                    m_HexDescrSrc << " Forecast: Load[" << structure->occupied_capacity_ << 
+                    "/" << structure->capacity_ << "], Power[" << structure->SailingPower << 
+                    "/" << structure->MinSailingPower << "].";                        
+                }
+                m_HexDescrSrc << EOL_SCR;
+            });
             
             m_HexDescrSrc << EOL_SCR << "Economy:" << EOL_SCR;
-            m_HexDescrSrc << "    Initial amount:   " << pLand->economy_.initial_amount_ << EOL_SCR;
+            m_HexDescrSrc << "    Initial amount:   " << pLand->current_state_.economy_.initial_amount_ << EOL_SCR;
             m_HexDescrSrc << "    Claim:           +unknown" << EOL_SCR;
-            m_HexDescrSrc << "    Tax/pillage:     +" << pLand->economy_.tax_income_ << EOL_SCR;
-            m_HexDescrSrc << "    Sell income:     +" << pLand->economy_.sell_income_ << EOL_SCR;
-            m_HexDescrSrc << "    Buy expenses:    -" << pLand->economy_.buy_expenses_ << EOL_SCR;
-            m_HexDescrSrc << "  Balance:     " << pLand->economy_.initial_amount_ +
-                                                   pLand->economy_.tax_income_ +
-                                                   pLand->economy_.sell_income_ - 
-                                                   pLand->economy_.buy_expenses_ << EOL_SCR;
-            m_HexDescrSrc << "    Moving in:       +" << pLand->economy_.moving_in_ << EOL_SCR;
-            m_HexDescrSrc << "    Moving out:      -" << pLand->economy_.moving_out_ << EOL_SCR;             
-            m_HexDescrSrc << "    Study expenses:  -" << pLand->economy_.study_expenses_ << EOL_SCR;
+            m_HexDescrSrc << "    Tax/pillage:     +" << pLand->current_state_.economy_.tax_income_ << EOL_SCR;
+            m_HexDescrSrc << "    Sell income:     +" << pLand->current_state_.economy_.sell_income_ << EOL_SCR;
+            m_HexDescrSrc << "    Buy expenses:    -" << pLand->current_state_.economy_.buy_expenses_ << EOL_SCR;
+            m_HexDescrSrc << "  Balance:     " << pLand->current_state_.economy_.initial_amount_ +
+                                                   pLand->current_state_.economy_.tax_income_ +
+                                                   pLand->current_state_.economy_.sell_income_ - 
+                                                   pLand->current_state_.economy_.buy_expenses_ << EOL_SCR;
+            m_HexDescrSrc << "    Moving in:       +" << std::max(pLand->current_state_.economy_.moving_in_, (long)0) << EOL_SCR;
+            m_HexDescrSrc << "    Moving out:      -" << std::max(pLand->current_state_.economy_.moving_out_, (long)0) << EOL_SCR;             
+            m_HexDescrSrc << "    Study expenses:  -" << pLand->current_state_.economy_.study_expenses_ << EOL_SCR;
             m_HexDescrSrc << "    Work/enterntain: +unknown" << EOL_SCR;
-            m_HexDescrSrc << "    Maintenance:     -" << pLand->economy_.maintenance_ << EOL_SCR;
-            m_HexDescrSrc << "  Balance End: " << pLand->economy_.initial_amount_ +
-                                                       pLand->economy_.tax_income_ +
-                                                       pLand->economy_.sell_income_ + 
-                                                       pLand->economy_.moving_in_ -
-                                                       pLand->economy_.buy_expenses_ -
-                                                       pLand->economy_.maintenance_ -
-                                                       pLand->economy_.moving_out_ - 
-                                                       pLand->economy_.study_expenses_ << EOL_SCR;
+            m_HexDescrSrc << "    Maintenance:     -" << pLand->current_state_.economy_.maintenance_ << EOL_SCR;
+            m_HexDescrSrc << "  Balance End: " << pLand->current_state_.economy_.initial_amount_ +
+                                                       pLand->current_state_.economy_.tax_income_ +
+                                                       pLand->current_state_.economy_.sell_income_ + 
+                                                       std::max(pLand->current_state_.economy_.moving_in_, (long)0) -
+                                                       pLand->current_state_.economy_.buy_expenses_ -
+                                                       pLand->current_state_.economy_.maintenance_ -
+                                                       std::max(pLand->current_state_.economy_.moving_out_, (long)0) - 
+                                                       pLand->current_state_.economy_.study_expenses_ << EOL_SCR;
             
-            //m_HexDescrSrc << "  Balance: " << economy.sell_income_ << EOL_SCR;
 
             for (i=0; i<LAND_FLAG_COUNT; i++)
                 if (!pLand->FlagText[i].IsEmpty())
@@ -3485,7 +3455,6 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
                     FlagsEmpty = FALSE;
                     break;
                 }
-
 
             if (!FlagsEmpty)
             {
@@ -3504,19 +3473,10 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
                 m_HexDescrSrc << EOL_SCR << "Events:" << EOL_SCR << pLand->Events << EOL_SCR;
             m_HexDescrSrc << EOL_SCR << "Exits:"  << EOL_SCR << pLand->Exits;
 
-            //weights
-            if (pLand->Structs.Count() > 0)
-                m_HexDescrSrc << EOL_SCR << "Weights:" << EOL_SCR;
-            for (int x=0; x<pLand->Structs.Count(); x++)
-            {
-                CStruct* pStruct = (CStruct*)pLand->Structs.At(x);
-                m_HexDescrSrc << "    building [" << pStruct->Id << "]: weight " << pStruct->occupied_capacity_ << ", known capacity " << pStruct->capacity_ << EOL_SCR;
-            }
-
             //errors
-            if (pLand->run_orders_errors_.size() > 0)
+            if (pLand->current_state_.run_orders_errors_.size() > 0)
                 m_HexDescrSrc << EOL_SCR << "Errors:" << EOL_SCR;
-            for (const auto& error : pLand->run_orders_errors_)
+            for (const auto& error : pLand->current_state_.run_orders_errors_)
             {
                 m_HexDescrSrc << "    " << unit_control::compose_unit_name(error.unit_).c_str() << error.message_.c_str() << EOL_SCR;
             }
@@ -4512,8 +4472,8 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
         }
 
         long TotalTax = TaxOur + TaxTheir;
-        if (TotalTax > 0 && TotalTax > pCurLand->Taxable)
-            TaxOur =  (long)(((double)pCurLand->Taxable) / TotalTax * TaxOur);
+        if (TotalTax > 0 && TotalTax > pCurLand->current_state_.tax_amount_)
+            TaxOur =  (long)(((double)pCurLand->current_state_.tax_amount_) / TotalTax * TaxOur);
 
         long TotalWages = WorkOur + WorkTheir;
         if (TotalWages > 0 && TotalWages > pCurLand->MaxWages)
@@ -4571,7 +4531,7 @@ void CAhApp::AddTempHex(int X, int Y, int Plane)
     pLand->pPlane       = pPlane;
     pLand->Name         = SZ_MANUAL_HEX_PROVINCE;
     pLand->TerrainType  = sTerrain;
-    pLand->Taxable      = 0;
+    pLand->current_state_.tax_amount_      = 0;
     pLand->Description  << sTerrain << " (" << (long)X << "," << (long)Y << ") in " SZ_MANUAL_HEX_PROVINCE; // ", 0 peasants (unknown), $0.";
     pPlane->Lands.Insert ( pLand );
 }

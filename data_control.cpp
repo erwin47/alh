@@ -708,9 +708,9 @@ namespace land_control
         return -1;
     }
 
-    void add_resource(CLand* land, const CItem& item)
+    void add_resource(LandState& state, const CItem& item)
     {
-        for (auto& res : land->resources_)
+        for (auto& res : state.resources_)
         {
             if (res.code_name_ == item.code_name_)
             {
@@ -718,26 +718,26 @@ namespace land_control
                 return;
             }
         }
-        land->resources_.emplace_back(item);
+        state.resources_.emplace_back(item);
     }
 
-    CProductMarket get_wanted(CLand* land, const std::string& item_code)
+    CProductMarket get_wanted(LandState& state, const std::string& item_code)
     {
-        if (land->wanted_.find(item_code) != land->wanted_.end())
-            return land->wanted_[item_code];
+        if (state.wanted_.find(item_code) != state.wanted_.end())
+            return state.wanted_[item_code];
         return {0, {0, item_code}};
     }
 
-    CProductMarket get_for_sale(CLand* land, const std::string& item_code)
+    CProductMarket get_for_sale(LandState& state, const std::string& item_code)
     {
-        if (land->for_sale_.find(item_code) != land->for_sale_.end())
-            return land->for_sale_[item_code];
+        if (state.for_sale_.find(item_code) != state.for_sale_.end())
+            return state.for_sale_[item_code];
         return {0, {0, item_code}};
     }
 
-    long get_resource(CLand* land, const std::string& item_code)
+    long get_resource(LandState& state, const std::string& item_code)
     {
-        for (const auto& resource : land->resources_)
+        for (const auto& resource : state.resources_)
         {
             if (resource.code_name_ == item_code)
                 return resource.amount_;
@@ -745,27 +745,22 @@ namespace land_control
         return 0;
     }
 
-    void set_produced_items(CLand* land, const std::string& item_code, long amount)
+    void set_produced_items(LandState& state, const std::string& item_code, long amount)
     {
-        land->produced_items_[item_code] += amount;
+        state.produced_items_[item_code] += amount;
     }
-    long get_produced_items(CLand* land, const std::string& item_code)
+    long get_produced_items(LandState& state, const std::string& item_code)
     {
-        if (land->produced_items_.find(item_code) != land->produced_items_.end())
-            return land->produced_items_[item_code];
+        if (state.produced_items_.find(item_code) != state.produced_items_.end())
+            return state.produced_items_[item_code];
         return -1;
     }
 
     CStruct* get_struct(CLand* land, long struct_id)
     {
-        int k;
-        CBaseObject         Dummy;
-        Dummy.Id = struct_id;
-        if (land->Structs.Search(&Dummy, k))
-        {
-            return (CStruct*)land->Structs.At(k);
-        }
-        return nullptr;
+        return find_first_structure_if(land, [&](CStruct* structure) {
+            return structure->Id == struct_id;
+        });
     }
 
     long get_struct_weight(CLand* land, long struct_id)
@@ -799,6 +794,83 @@ namespace land_control
                     cur_structure->occupied_capacity_ += weights[0];
                 }
             });
+        }
+
+        void clean_structures(LandState& lstate)
+        {
+            lstate.structures_.erase(std::remove_if(lstate.structures_.begin(), 
+                                                    lstate.structures_.end(),
+                                                    [](CStruct* structure){
+                                            return (structure->Attr & SA_HIDDEN) == 0 &&   // keep the gates!
+                                                (structure->Attr & SA_SHAFT) == 0;
+                                    }), lstate.structures_.end());
+        }
+
+        CStruct* add_structure(CLand* land, LandState& lstate, CStruct* structure)
+        {
+            auto existing_struct_it = std::find_if(lstate.structures_.begin(), 
+                                                   lstate.structures_.end(), 
+                                                   [&](CStruct* cur_struct) {
+                                        return cur_struct->Id == structure->Id;
+                                    });
+            if (existing_struct_it != lstate.structures_.end())
+            {
+                struct_control::copy_structure(structure, *existing_struct_it);
+                delete(structure);//backward compatibility
+                structure = *existing_struct_it;//for return
+            }                
+            else
+            {
+                lstate.structures_.push_back(structure);
+                land_control::structures::land_flags_update(land, structure);
+            }
+                
+            //backward compatibility
+            return structure;
+        }   
+
+        bool link_shafts(CLand* from, CLand* to, long struct_id)
+        {
+            if (from && to)
+            {
+                CStruct* structure = land_control::get_struct(from, struct_id);
+                if (structure != nullptr && struct_control::flags::is_shaft(structure))
+                {
+                    CStr         destLandDescription;
+                    gpApp->m_pAtlantis->ComposeLandStrCoord(to, destLandDescription);
+                    std::string new_link = "; links to (" + 
+                        std::string(destLandDescription.GetData(),destLandDescription.GetLength()) + ")";
+
+                    size_t links_pos = structure->original_description_.find("; links to");
+                    size_t dot_pos = structure->original_description_.find_last_of('.');
+                    if (links_pos != std::string::npos)
+                        structure->original_description_.replace(links_pos, dot_pos - links_pos, new_link);
+                    else 
+                        structure->original_description_.insert(dot_pos, new_link);
+
+                    return true;            
+                }
+            }
+            return false;
+        }
+
+        void land_flags_update(CLand* land, CStruct* structure)
+        {
+            //flags manipulation
+            if (0 == structure->Attr)                 land->Flags |= LAND_STR_GENERIC;
+            else
+            {
+                if (structure->Attr & SA_HIDDEN )     land->Flags |= LAND_STR_HIDDEN ;
+                if (structure->Attr & SA_MOBILE )     land->Flags |= LAND_STR_MOBILE ;
+                if (structure->Attr & SA_SHAFT  )     land->Flags |= LAND_STR_SHAFT  ;
+                if (structure->Attr & SA_GATE   )     land->Flags |= LAND_STR_GATE   ;
+                if (structure->Attr & SA_ROAD_N )     land->Flags |= LAND_STR_ROAD_N ;
+                if (structure->Attr & SA_ROAD_NE)     land->Flags |= LAND_STR_ROAD_NE;
+                if (structure->Attr & SA_ROAD_SE)     land->Flags |= LAND_STR_ROAD_SE;
+                if (structure->Attr & SA_ROAD_S )     land->Flags |= LAND_STR_ROAD_S ;
+                if (structure->Attr & SA_ROAD_SW)     land->Flags |= LAND_STR_ROAD_SW;
+                if (structure->Attr & SA_ROAD_NW)     land->Flags |= LAND_STR_ROAD_NW;
+            }            
         }
 
     }
@@ -1083,6 +1155,43 @@ namespace land_control
         });        
     }
 
+    void get_land_builders(CLand* land, std::vector<ActionUnit>& out, std::vector<unit_control::UnitError>& errors)
+    {
+        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+            auto ret = orders::control::retrieve_orders_by_type(orders::Type::O_BUILD, unit->orders_);
+            if (ret.size() == 1) 
+            {
+                std::string building;
+                long unit_id;
+                bool helps;
+                if (orders::parser::specific::parse_build(ret[0], building, helps, unit_id))
+                {
+                    if (helps)
+                        out.push_back({"build", "helps to build to " + std::to_string(unit_id), unit});
+                    else if (building.empty()) 
+                    {
+                        CStruct* structure = land_control::get_struct(land, unit_control::structure_id(unit));
+                        if (structure != nullptr)
+                            out.push_back({"build", "continue to build "+structure->name_ + " : " + structure->type_, unit});
+                        else
+                            errors.push_back({"Error", unit, "build: continue to build outside of building"});
+                    }                        
+                    else
+                        out.push_back({"build", "build new " + building, unit});
+                }
+                else 
+                {//unknown format
+                    errors.push_back({"Error", unit, "build: unknown format: "+ret[0]->original_string_});
+                }
+            }
+            else if (ret.size() > 1)
+            {
+                errors.push_back({"Error", unit, "build: multiple build orders."});
+            }
+        });        
+    }
+
+
     void get_land_taxers(CLand* land, Taxers& out, std::vector<unit_control::UnitError>& errors)
     {
         long tax_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER);
@@ -1090,18 +1199,18 @@ namespace land_control
         out.is_pillaging_ = false;
         out.expected_income_ = 0;
         out.man_amount_ = 0;
-        out.land_tax_available_ = land->Taxable;
+        out.land_tax_available_ = land->current_state_.tax_amount_;
 
         Taxers tax;
         tax.is_pillaging_ = false;
         tax.expected_income_ = 0;
         tax.man_amount_ = 0;
-        tax.land_tax_available_ = land->Taxable;
+        tax.land_tax_available_ = land->current_state_.tax_amount_;
         Taxers pillage;
         pillage.is_pillaging_ = true;
         pillage.expected_income_ = 0;
         pillage.man_amount_ = 0;
-        pillage.land_tax_available_ = land->Taxable;
+        pillage.land_tax_available_ = land->current_state_.tax_amount_;
         land_control::perform_on_each_unit(land, [&](CUnit* unit) {
 
             if (!unit->IsOurs)
@@ -1187,8 +1296,7 @@ namespace land_control
                 std::string item_name;
                 long amount_to_buy;
                 bool all;
-                bool ignore_errors = orders::control::ignore_order(buy_order);
-                if (!ignore_errors && !orders::parser::specific::parse_sellbuy(buy_order, item_name, amount_to_buy, all))
+                if (!orders::parser::specific::parse_sellbuy(buy_order, item_name, amount_to_buy, all))
                 {
                     errors.push_back({"Error", unit, " - Buy: couldn't parse order - " + buy_order->original_string_});
                     continue;
@@ -1197,10 +1305,10 @@ namespace land_control
                 if (stricmp(item_name.c_str(), "peas") == 0 ||
                     stricmp(item_name.c_str(), "peasant") == 0 ||
                     stricmp(item_name.c_str(), "peasants") == 0)
-                    item_name = std::string(land->PeasantRace.GetData(), land->PeasantRace.GetLength());                   
+                    item_name = land->current_state_.peasant_race_;
 
-                CProductMarket sell_item = land_control::get_for_sale(land, item_name);
-                if (!ignore_errors && sell_item.item_.amount_ <= 0)
+                CProductMarket sell_item = land_control::get_for_sale(land->current_state_, item_name);
+                if (sell_item.item_.amount_ <= 0)
                 {
                     errors.push_back({"Error", unit, " - Buy: items are not selling - " + buy_order->original_string_});
                     continue;
@@ -1221,7 +1329,7 @@ namespace land_control
 
         for (const auto& request : request_table)
         {
-            CProductMarket sell_item = land_control::get_for_sale(land, request.first);
+            CProductMarket sell_item = land_control::get_for_sale(land->current_state_, request.first);
             if (sell_item.item_.amount_ < request.second)
                 errors.push_back({"Warning", nullptr, " - request ("+std::to_string(request.second)+
                                   ") is higher than the offer ("+std::to_string(sell_item.item_.amount_)+")"});
@@ -1238,22 +1346,21 @@ namespace land_control
                 std::string item_name;
                 long amount_to_sell;
                 bool all;
-                bool ignore_errors = orders::control::ignore_order(sell_order);
-                if (!ignore_errors && !orders::parser::specific::parse_sellbuy(sell_order, item_name, amount_to_sell, all))
+                if (!orders::parser::specific::parse_sellbuy(sell_order, item_name, amount_to_sell, all))
                 {
                     errors.push_back({"Error", unit, " - Sell: couldn't parse order - " + sell_order->original_string_});
                     continue;
                 }
 
                 long amount_at_unit = unit_control::get_item_amount(unit, item_name);
-                if (!ignore_errors && amount_at_unit <= 0)
+                if (amount_at_unit <= 0)
                 {
                     errors.push_back({"Warning", unit, " - Sell: no items to sell - " + sell_order->original_string_});
                     continue;
                 }
 
-                CProductMarket wanted_item = land_control::get_wanted(land, item_name);
-                if (!ignore_errors && wanted_item.item_.amount_ <= 0)
+                CProductMarket wanted_item = land_control::get_wanted(land->current_state_, item_name);
+                if (wanted_item.item_.amount_ <= 0)
                 {
                     errors.push_back({"Error", unit, " - Sell: items are not wanted - " + sell_order->original_string_});
                     continue;
@@ -1261,7 +1368,7 @@ namespace land_control
 
                 if (all)
                     amount_to_sell = std::min(amount_at_unit, wanted_item.item_.amount_);
-                if (!ignore_errors && amount_to_sell <= 0)
+                if (amount_to_sell <= 0)
                 {
                     errors.push_back({"Warning", unit, " - Sell: specified amount is not correct - " + sell_order->original_string_});
                     continue;
@@ -1535,27 +1642,6 @@ namespace game_control
 
 namespace struct_control 
 {
-    // trim from start (in place)
-    static inline void ltrim(std::string &s) {
-        s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
-            return !std::isspace(ch);
-        }));
-    }
-
-    // trim from end (in place)
-    static inline void rtrim(std::string &s) {
-        s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
-            return !std::isspace(ch);
-        }).base(), s.end());
-    }
-
-    // trim from both ends (in place)
-    static inline std::string trim(std::string s) {
-        ltrim(s);
-        rtrim(s);
-        return s;
-    }
-
     void split_to_chunks(const std::string& str, char c, std::vector<std::string>& chunks)
     {
         size_t pos = 0;
@@ -1613,6 +1699,7 @@ namespace struct_control
                 std::vector<std::string> pair;
                 for(size_t i = 1; i < parts.size(); ++i)
                 {
+                    pair.clear();
                     split_to_chunks(parts[i], ' ', pair);
                     substructures.push_back({pair[1], atoi(pair[0].c_str())});
                 }
@@ -1628,7 +1715,33 @@ namespace struct_control
                 }
             }
         }
-
     }
+
+    bool has_link(CStruct* structure) {
+        size_t  x1, x2, x3;
+        x1   = structure->original_description_.find(";");
+        x2   = structure->original_description_.find("links");
+        x3   = structure->original_description_.find("to");
+        return x1 != std::string::npos && x1<x2 && x2<x3;
+    }
+
+    void copy_structure(CStruct* fromStruct, CStruct* toStruct)
+    {
+        if (!flags::is_shaft(toStruct) || has_link(fromStruct) ||
+                fromStruct->original_description_.size() > toStruct->original_description_.size())
+            toStruct->original_description_= fromStruct->original_description_;
+        
+        //toStruct->Name                  = fromStruct->Name       ;
+        toStruct->LandId                = fromStruct->LandId     ;
+        toStruct->OwnerUnitId           = fromStruct->OwnerUnitId;
+        toStruct->occupied_capacity_    = fromStruct->occupied_capacity_       ;
+        toStruct->Attr                  = fromStruct->Attr       ;
+        toStruct->type_                 = fromStruct->type_      ;
+        toStruct->capacity_             = fromStruct->capacity_      ;
+        toStruct->name_                 = fromStruct->name_      ;
+	    toStruct->Location              = fromStruct->Location   ;
+        toStruct->fleet_ships_          = fromStruct->fleet_ships_   ;        
+    }
+
 }
 

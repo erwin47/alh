@@ -130,12 +130,17 @@ void CCreateNewUnit::InitializeBuyItems(CLand* land)
 {
     spin_buy_units_amount_ = new wxSpinCtrl(this, -1, wxT("0"), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 100000);
     combobox_buy_units_type_ = new wxComboBox(this, -1, wxT("buying"), wxDefaultPosition, wxDefaultSize, 0, NULL);
-    for (auto& item : land->for_sale_)
+    for (auto& item : land->current_state_.for_sale_)
     {
         std::string codename, name, plural;
-        gpApp->ResolveAliasItems(item.first, codename, name, plural);
-        std::string temp = plural + std::string(": ") +
-            std::to_string(item.second.item_.amount_) + std::string(" at $") + std::to_string(item.second.price_);
+        std::string temp;
+        if (gpApp->ResolveAliasItems(item.first, codename, name, plural))
+            temp = plural + std::string(": ") + std::to_string(item.second.item_.amount_) + 
+                std::string(" at $") + std::to_string(item.second.price_);
+        else
+            temp = item.first + std::string(": ") + std::to_string(item.second.item_.amount_) + 
+                std::string(" at $") + std::to_string(item.second.price_);
+
         combobox_buy_units_type_->Append( temp );
         sale_products_.insert({temp, item.second});
     }

@@ -228,7 +228,6 @@ public:
     BOOL       SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane, SAVE_HEX_OPTIONS * pOptions);
     long       SkillDaysToLevel(long days);
     CUnit *    SplitUnit(CUnit * pOrigUnit, long newId);
-    bool       LinkShaft(CLand * pLand, CLand * pLandDest, int structIdx);
     wxString   getFullStrLandCoord(CLand *);
     BOOL       CheckResourcesForProduction(CUnit * pUnit, CLand * pLand, CStr & Error);
     void       ExtrapolateLandCoord(int &x, int &y, int z, int direction) const;
@@ -402,7 +401,7 @@ protected:
     CBaseCollByName  m_PlanesNamed;
     CBaseColl        m_LandsToBeLinked;
     CHashStrToLong   m_UnitFlagsHash;
-    CBaseColl        m_TempSailingEvents;
+    std::map<long, std::string> sailing_events_;//struct_id, collection of events
 
     CLand          * m_pCurLand   ;
     CStruct        * m_pCurStruct ;

@@ -267,7 +267,6 @@ CLand::CLand() : CBaseObject(), Units(32), UnitsSeq(32)
 {
     Flags=0;
     AlarmFlags=0;
-    EventFlags=0;
     guiUnit=0;
     pPlane=NULL;
     CoastBits=0;
@@ -277,6 +276,8 @@ CLand::CLand() : CBaseObject(), Units(32), UnitsSeq(32)
     Wages = 0.0;
     MaxWages = 0;
     Entertainment = 0;
+    init_land_state(initial_state_);
+    init_land_state(current_state_);
     for(int i=0; i<=ATT_UNDECLARED; i++) Troops[i]=0;
     ResetAllExits();
 }
@@ -286,7 +287,7 @@ CLand::CLand() : CBaseObject(), Units(32), UnitsSeq(32)
 CLand::~CLand()
 {
     ResetUnitsAndStructs();
-    Structs.FreeAll();
+    //Structs.FreeAll();
     EdgeStructs.FreeAll();
     Units.DeleteAll();
     UnitsSeq.DeleteAll();
@@ -297,7 +298,7 @@ void CLand::DebugPrint(CStr & sDest)
 {
     CBaseObject::DebugPrint(sDest);
 
-    sDest << "Taxable   = " << Taxable << "\n";
+    sDest << "Taxable   = " << current_state_.tax_amount_ << "\n";
 }
 
 //-------------------------------------------------------------
@@ -375,14 +376,26 @@ void init_economy(CEconomy& res)
     res.tax_income_ = 0;
 }
 
+void init_land_state(LandState& lstate)
+{
+    lstate.tax_amount_ = 0;
+    lstate.peasants_amount_ = 0;
+    lstate.resources_.clear();
+    lstate.produced_items_.clear();
+    lstate.wanted_.clear();
+    lstate.for_sale_.clear();
+    lstate.structures_.clear();
+    init_economy(lstate.economy_);
+    lstate.run_orders_errors_.clear();
+}
+
 void CLand::ResetUnitsAndStructs()
 {
-    int       i, k;
+    int       i;
     CUnit   * pUnit;
     CStruct * pStruct;
 
-    init_economy(economy_);
-    run_orders_errors_.clear();
+    current_state_ = initial_state_;
 
     for (i=Units.Count()-1; i>=0; i--)
     {
@@ -402,9 +415,9 @@ void CLand::ResetUnitsAndStructs()
             pUnit->pStudents->DeleteAll(); // probably deleting it would not be very usefull
     }
 
-    for (k=0; k<Structs.Count(); k++)
+    for (size_t k=0; k<initial_state_.structures_.size(); k++)
     {
-        pStruct = (CStruct*)Structs.At(k);
+        pStruct = initial_state_.structures_[k];
         pStruct->ResetNormalProperties();
     }
 }
@@ -432,22 +445,7 @@ int CLand::GetNextNewUnitNo()
 }
 
 //-------------------------------------------------------------
-
-CStruct * CLand::GetStructById(long id)
-{
-    CStruct     * pStruct = NULL;
-    CBaseObject   Dummy;
-    int       i;
-
-    Dummy.Id = id;
-    if (Structs.Search(&Dummy, i))
-        pStruct = (CStruct*)Structs.At(i);
-
-    return pStruct;
-}
-
-//-------------------------------------------------------------
-
+/*
 CStruct * CLand::AddNewStruct(CStruct * pNewStruct)
 {
     int       idx;
@@ -456,12 +454,10 @@ CStruct * CLand::AddNewStruct(CStruct * pNewStruct)
     if (Structs.Search(pNewStruct, idx))
     {
         pStruct = (CStruct*)Structs.At(idx);
-
 //        if (0==stricmp(pStruct->Kind.GetData(), "Shaft") )
         if (pStruct->Attr & SA_SHAFT  )
         {
-            // process links for shafts
-
+            // preserve links to shafts
             int  x1, x2, x3;
             BOOL Link;
 
@@ -475,7 +471,7 @@ CStruct * CLand::AddNewStruct(CStruct * pNewStruct)
         }
         else
             pStruct->original_description_= pNewStruct->original_description_;
-        pStruct->Name           = pNewStruct->Name       ;
+        //pStruct->Name           = pNewStruct->Name       ;
         pStruct->LandId         = pNewStruct->LandId     ;
         pStruct->OwnerUnitId    = pNewStruct->OwnerUnitId;
         pStruct->occupied_capacity_           = pNewStruct->occupied_capacity_       ;
@@ -490,6 +486,8 @@ CStruct * CLand::AddNewStruct(CStruct * pNewStruct)
     else
     {
         Structs.Insert(pNewStruct);
+
+        //flags manipulation
         if (0 == pNewStruct->Attr)                 Flags |= LAND_STR_GENERIC;
         else
         {
@@ -510,7 +508,7 @@ CStruct * CLand::AddNewStruct(CStruct * pNewStruct)
     }
 
     return pStruct;
-}
+}*/
 
 //-------------------------------------------------------------
 

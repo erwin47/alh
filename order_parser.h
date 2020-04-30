@@ -143,7 +143,13 @@ namespace orders
 
         }
         namespace specific
-        {
+        {   //except = 0 give target_id all item
+            //except > 0 give target_id all item except except
+            //except = -1 -- give target_id amount item
+            //target_id < 0 -- NEW ID
+            //target_faction_id == 0 -- not specified
+            bool parse_give(const std::shared_ptr<orders::Order>& order, long& target_id, 
+                            long& target_faction_id, long& amount, std::string& item, long& except);
             bool parse_produce(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount);
             bool parse_build(const std::shared_ptr<orders::Order>& order, std::string& building, bool& helps, long& unit_id);
             bool parse_claim(const std::shared_ptr<orders::Order>& order, long& amount);
@@ -198,9 +204,6 @@ namespace orders
         //! removes empty lines from unit's orders.
         void remove_empty_lines(CUnit* unit);
 
-        //! check if we should ignore the order
-        bool ignore_order(const std::shared_ptr<Order>& order);
-
         //! removes orders with specified pattern in comments
         void remove_orders_by_comment(CUnit* unit, const std::string& pattern);
 
@@ -233,9 +236,6 @@ namespace orders
 
     namespace autoorders 
     {
-        //! checks if warnings related to current order have to be suspended 
-        bool should_suspend_warnings(const std::shared_ptr<Order>& order);
-
         //! checks if orders of unit contain caravan info
         bool is_caravan(const UnitOrders& unit_orders);
 
@@ -265,6 +265,8 @@ namespace orders
 
 namespace autoorders_control
     {
+        //bool is_region_in_caravan_list(CaravanInfo& caravan_info, CLand* land);
+
         //!gets all land sources excluding caravan sources
         //void get_land_autosources(CLand* land, std::vector<orders::AutoSource>& sources);
 

@@ -46,6 +46,7 @@
 #include "atlaparser.h"
 #include "flagsdlg.h"
 #include "hexfilterdlg.h"
+#include "data_control.h"
 
 #include <math.h>
 
@@ -1137,21 +1138,15 @@ void CMapPane::DrawUnitColumn(wxDC * pDC, int x0, int y0, int height)
 
 //--------------------------------------------------------------------------
 
-#define SET_ROAD_PEN(attr)                                              \
-    BadRoad = FALSE;                                                    \
-    for (i=0; i<pLand->Structs.Count(); i++)                            \
-    {                                                                   \
-        pStruct = (CStruct*)pLand->Structs.At(i);                       \
-        if (pStruct->Attr & attr)                                       \
-        {                                                               \
-            BadRoad = ((pStruct->Attr & SA_ROAD_BAD) > 0);              \
-            break;                                                      \
-        }                                                               \
-    }                                                                   \
-    if (BadRoad)                                                        \
-        pDC->SetPen(*m_pPenRoadBad);                                    \
-    else                                                                \
-        pDC->SetPen(*m_pPenRoad);                                       \
+#define SET_ROAD_PEN(attr)                                                          \
+    CStruct* s = land_control::find_first_structure_if(pLand, [](CStruct* str) {    \
+        return (str->Attr & attr);                                                  \
+    });                                                                             \
+    if (s != nullptr && (s->Attr & SA_ROAD_BAD))                                    \
+        pDC->SetPen(*m_pPenRoadBad);                                                \
+    else                                                                            \
+        pDC->SetPen(*m_pPenRoad);                                                 
+
 
 void CMapPane::DrawRoads(wxDC * pDC, CLand * pLand, int x0, int y0)
 {
@@ -2951,7 +2946,7 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
         pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
         if (pLand)
         {
-            pStruct  = pLand->GetStructById(n1);
+            pStruct  = land_control::get_struct(pLand, n1);
             if (pStruct && NO_LOCATION != pStruct->Location)
             {
                 wx_a = wx; wy_a = wy;

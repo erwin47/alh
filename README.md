@@ -26,6 +26,20 @@ Also there will be explicitely written if any of students is not studying anymor
 In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `REC_DLG_GROUPS` may be listed groups with which ReceiveDlg will work, as with items. For example, `REC_DLG_GROUPS = trade_items,food` mean, that in ReceiveDlg in drop up list there will be possibility to choose `trade_items` or `food`, and get list of all units having any items belonging to the group. Those entities (trade_items and food) have to be defined in section `UNIT_PROPERTY_GROUPS`.
 
 ## Changelog:
+### Apr 30 2020
+- internal: added state to land: initial and current (a step for ships giving)
+- internal: simplified & upgraded sailing events handling
+- internal: give order parsing & handling upgraded (a step for ships giving)
+- internal: build orders parser upgraded
+- routeplanner: upgraded, now it works with swimming units (impacts caravans & Zorky's automove orders)
+- caravan: acts as caravan just in regions from it's list
+- region description: added `crafts` section after `production`
+- production: added warning for production of items, which are not crafts, and not presented among resources of region
+- shaft linking: fixed & upgraded, should work correctly now
+- ships: correct forecast of sailors & weight
+- teaching: feature, for leader students it prints `lead` instead of `man` in comments
+- CreateNewUnit dialog: fixed representation of item if it's unknown to game data
+
 ### Apr 16 2020
 - bug: fixed teach orders generation for cases when students were given/bought, it wasn't calculated correctly.
 

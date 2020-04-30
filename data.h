@@ -473,7 +473,7 @@ public:
     std::string type_;
     std::string name_;
     std::string original_description_;
-    std::vector<std::pair<std::string, long> > fleet_ships_;
+    std::vector<std::pair<std::string, long> > fleet_ships_;//for fleets
 };
 
 //-----------------------------------------------------------------
@@ -515,7 +515,27 @@ struct CEconomy
     long sell_income_;
 };
 
+void init_economy(CEconomy& res);
+
 //-----------------------------------------------------------------
+
+struct LandState
+{
+    long            tax_amount_;
+    long            peasants_amount_;
+    std::string     peasant_race_;
+
+    std::vector<CItem>                      resources_;
+    std::map<std::string, long>             produced_items_;
+    std::map<std::string, CProductMarket>   wanted_;
+    std::map<std::string, CProductMarket>   for_sale_;
+    std::vector<CStruct*>                   structures_;
+
+    CEconomy                                economy_;
+    std::vector<CError>                     run_orders_errors_;
+};
+
+void init_land_state(LandState& lstate);
 
 class CLand : public CBaseObject
 {
@@ -527,9 +547,8 @@ public:
     void      RemoveUnit(CUnit * pUnit);
     void      DeleteAllNewUnits(int factionId);
     void      ResetUnitsAndStructs();
-    CStruct * GetStructById(long id);
     void      SetFlagsFromUnits();
-    CStruct * AddNewStruct(CStruct * pNewStruct);
+    //CStruct * AddNewStruct(CStruct * pNewStruct);
     void      RemoveEdgeStructs(int direction);
     void      AddNewEdgeStruct(const char * name, int direction);
     int       GetNextNewUnitNo();
@@ -540,20 +559,26 @@ public:
 
     virtual void DebugPrint(CStr & sDest);
 
-    long          Taxable;
-    long          Peasants;
-    CStr          PeasantRace;
+    //long          Taxable;
+
     CStr          TerrainType;
     CStr          CityName;
     CStr          CityType;
     CStr          FlagText[LAND_FLAG_COUNT];
     CStr          Exits;
     CStr          Events;
-    CBaseCollById Structs;
+    //CBaseCollById Structs;
     CBaseCollById Units;
     CBaseColl     UnitsSeq; // this will keep units in the sequence they were met in the report
     CBaseColl     EdgeStructs;
     CProductColl  Products;
+
+    LandState initial_state_;
+    LandState current_state_;
+
+/*
+    long          peasants_amount_;
+    std::string   peasant_race_;
 
     std::vector<CItem>                      resources_;
     std::map<std::string, long>             produced_items_;
@@ -561,10 +586,9 @@ public:
     std::map<std::string, CProductMarket>   for_sale_;
     CEconomy                                economy_;
     std::vector<CError>                     run_orders_errors_;
-    
+*/
     unsigned long Flags;
     unsigned long AlarmFlags;
-    unsigned long EventFlags;
     int           xExit[6]; // storage for the coordinates of the exit
     int           yExit[6]; // storage for the coordinates of the exit
     int           CoastBits;

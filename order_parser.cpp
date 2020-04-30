@@ -546,8 +546,134 @@ namespace orders
 
         namespace specific
         {
+            //target_id < 0 -- new unit number
+            //target_id == 0 -- giving out
+            //target_faction_id = 0 -- current faction
+            template<typename ITER>
+            bool parse_unit_id(ITER& it_beg, ITER it_end, long& target_id, long& target_faction_id)
+            {
+                target_faction_id = 0;
+                target_id = 0;
+                if (it_beg >= it_end)
+                    return false;
+
+                if ((*it_beg).size() == 1 && (*it_beg)[0] == '0')
+                {//target is giving out.
+                    it_beg += 1;
+                    return true;
+                }
+
+                if (stricmp((*it_beg).c_str(), "FACTION") == 0)
+                {//other faction new unit
+                    it_beg += 1;
+                    if (it_beg >= it_end)
+                        return false;
+                    target_faction_id = atol((*it_beg).c_str());
+                    if (target_faction_id <= 0)
+                        return false;
+
+                    it_beg += 1;
+                    if (it_beg >= it_end || stricmp((*it_beg).c_str(), "NEW") != 0)
+                        return false;
+
+                    it_beg += 1;
+                    if (it_beg >= it_end)
+                        return false;
+                    target_id = atol((*it_beg).c_str());
+                    if (target_id <= 0)
+                        return false;
+                    target_id = -target_id;
+
+                    it_beg += 1;
+                    return true;
+                }
+
+                if (stricmp((*it_beg).c_str(), "NEW") == 0)
+                {//local new unit
+                    it_beg += 1;
+                    if (it_beg >= it_end)
+                        return false;
+                    target_id = atol((*it_beg).c_str());
+                    if (target_id <= 0)
+                        return false;
+                    target_id = -target_id;
+
+                    it_beg += 1;
+                    return true;
+                }
+                target_id = atol((*it_beg).c_str());
+                if (target_id <= 0)
+                    return false;                    
+                it_beg += 1;
+                return true;
+            }
+
+
+            bool parse_give(const std::shared_ptr<orders::Order>& order, long& target_id,
+                long& target_faction_id, long& amount, std::string& item, long& except)
+            {
+                std::vector<std::string>::iterator it_beg = order->words_order_.begin();
+                if (it_beg == order->words_order_.end() || 
+                        stricmp((*it_beg).c_str(), "GIVE") != 0)
+                    return false;
+
+                it_beg +=1;
+                if (!parse_unit_id(it_beg, order->words_order_.end(), target_id, target_faction_id))
+                    return false;
+
+                if (stricmp("UNIT", (*it_beg).c_str()) == 0)
+                {
+                    amount = 0;
+                    item = "UNIT";
+                    return true;
+                }
+
+                if (stricmp("ALL", (*it_beg).c_str()) == 0)
+                {
+                    amount = 0;
+                    except = 0;
+                    it_beg += 1;
+                } 
+                else
+                {
+                    amount = atol((*it_beg).c_str());
+                    except = -1;
+                    it_beg += 1;
+                }
+
+                if (it_beg >= order->words_order_.end())
+                    return false;
+
+                std::string name, plural;
+                if (!gpApp->ResolveAliasItems((*it_beg), item, name, plural))
+                    item = (*it_beg);
+                it_beg += 1;
+
+                if (it_beg < order->words_order_.end())
+                {
+                    if (except == 0 && //ALL EXCEPT variant
+                        stricmp("EXCEPT", (*it_beg).c_str()) == 0)
+                    {
+                        it_beg += 1;
+                        if (it_beg >= order->words_order_.end())
+                            return false;
+
+                        except = atol((*it_beg).c_str());
+                        if (except <= 0)
+                            return false;
+                        return true;
+                    }
+                    return false;//additional words without EXCEPT
+                }
+                return true;
+            }
+
             bool parse_produce(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount)
             {
+                if (order->words_order_.size() == 0 || 
+                        stricmp(order->words_order_[0].c_str(), "produce") != 0)
+                    return false;
+
                 if (order->words_order_.size() == 3)
                 {
                     item = gpApp->ResolveAlias(order->words_order_[2].c_str());
@@ -565,9 +691,20 @@ namespace orders
 
             bool parse_build(const std::shared_ptr<orders::Order>& order, std::string& building, bool& helps, long& unit_id)
             {
+                if (order->words_order_.size() == 0 || 
+                        stricmp(order->words_order_[0].c_str(), "build") != 0)
+                    return false;
+
+                if (order->words_order_.size() == 1) 
+                {//build
+                    building.clear();
+                    helps = false;
+                    unit_id = -1;
+                    return true;
+                }
                 if (order->words_order_.size() == 2) 
                 {//build TYPE
-                    building = gpApp->ResolveAlias(order->words_order_[1].c_str());
+                    building = order->words_order_[1];
                     helps = false;
                     unit_id = -1;
                     return true;
@@ -584,6 +721,10 @@ namespace orders
             }
             bool parse_claim(const std::shared_ptr<orders::Order>& order, long& amount)
             {
+                if (order->words_order_.size() == 0 || 
+                        stricmp(order->words_order_[0].c_str(), "claim") != 0)
+                    return false;
+
                 if (order->words_order_.size() == 2)
                 {
                     amount = atol(order->words_order_[1].c_str());
@@ -593,6 +734,10 @@ namespace orders
             }
             bool parse_study(const std::shared_ptr<orders::Order>& order, std::string& skill, long& level)
             {
+                if (order->words_order_.size() == 0 || 
+                        stricmp(order->words_order_[0].c_str(), "study") != 0)
+                    return false;
+
                 if (order->words_order_.size() == 2)
                 {
                     
@@ -610,6 +755,10 @@ namespace orders
             }
             bool parse_assassinate(const std::shared_ptr<orders::Order>& order, long& target_id)
             {
+                if (order->words_order_.size() == 0 || 
+                        stricmp(order->words_order_[0].c_str(), "assassinate") != 0)
+                    return false;
+
                 if (order->words_order_.size() == 2)
                 {
                     target_id = atol(order->words_order_[1].c_str());
@@ -619,6 +768,10 @@ namespace orders
             }
             bool parse_attack(const std::shared_ptr<orders::Order>& order, std::vector<long>& targets)
             {
+                if (order->words_order_.size() == 0 || 
+                        stricmp(order->words_order_[0].c_str(), "attack") != 0)
+                    return false;
+
                 if (order->words_order_.size() < 2)
                     return false;
 
@@ -634,6 +787,10 @@ namespace orders
             }
             bool parse_steal(const std::shared_ptr<orders::Order>& order, long& target_id, std::string& item)
             {
+                if (order->words_order_.size() == 0 || 
+                        stricmp(order->words_order_[0].c_str(), "steal") != 0)
+                    return false;
+
                 if (order->words_order_.size() == 3)
                 {
                     target_id = atol(order->words_order_[1].c_str());
@@ -644,6 +801,10 @@ namespace orders
             }
             bool parse_sellbuy(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount, bool& all)
             {
+                if (order->words_order_.size() == 0 || 
+                        (stricmp(order->words_order_[0].c_str(), "sell") != 0 &&
+                         stricmp(order->words_order_[0].c_str(), "buy") != 0))
+                    return false;                
                 if (order->words_order_.size() == 3)
                 {
                     if (strnicmp(order->words_order_[1].c_str(), "all", 3) == 0)
@@ -711,7 +872,8 @@ namespace orders
 
         bool ignore_order(const std::shared_ptr<Order>& order)
         {
-            return (strnicmp(order->comment_.c_str(), ";$ne", 4) == 0 ||
+            return order->comment_.size() == 4 && //to avoid other comments which fit ";$ne*"/";!ne*"
+                    (strnicmp(order->comment_.c_str(), ";$ne", 4) == 0 ||
                     strnicmp(order->comment_.c_str(), ";!ne", 4) == 0);
         }
         void remove_empty_lines(CUnit* unit)
@@ -765,8 +927,10 @@ namespace orders
 
             std::vector<std::shared_ptr<Order>> res;
             std::vector<size_t> ids = unit_orders.hash_.at(type);
-            for (const auto& id : ids)
-                res.push_back(unit_orders.orders_[id]);
+            for (const auto& id : ids) {
+                if (!ignore_order(unit_orders.orders_[id]))//we don't parse orders with `;$ne`
+                    res.push_back(unit_orders.orders_[id]);
+            }                
             return res;
         }
 
@@ -859,11 +1023,6 @@ namespace orders
 
     namespace autoorders 
     {
-        bool should_suspend_warnings(const std::shared_ptr<Order>& order)
-        {
-            return order->comment_.find("$NE") != std::string::npos || order->comment_.find("!NE") != std::string::npos;
-        }
-
         bool is_caravan(const UnitOrders& unit_orders)
         {
             auto orders = control::retrieve_orders_by_type(orders::Type::O_COMMENT, unit_orders);
@@ -1453,6 +1612,18 @@ namespace orders
 
     namespace autoorders_control
     {
+        bool is_region_in_caravan_list(std::shared_ptr<orders::CaravanInfo>& caravan_info, CLand* land)
+        {
+            int x, y, z;
+            LandIdToCoord(land->Id, x, y, z);
+            return std::find_if(caravan_info->regions_.begin(), 
+                                caravan_info->regions_.end(), 
+                                [&](RegionInfo& reginfo) {
+                                    return x == reginfo.x_ && y == reginfo.y_ &&
+                                        z == reginfo.z_;
+                                }) != caravan_info->regions_.end();
+        }
+
         void get_land_autosources_and_autoneeds(CLand* land, 
                                                 std::vector<orders::AutoSource>& sources,
                                                 std::vector<orders::AutoRequirement>& needs)
@@ -1485,7 +1656,17 @@ namespace orders
                                                         std::vector<orders::AutoRequirement>& needs)
         {
             land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-                if (unit->IsOurs && unit->caravan_info_ != nullptr)
+
+                //41,45
+                int x, y, z;
+                LandIdToCoord(land->Id, x, y, z);
+                if (x == 41 && y == 45)
+                {
+                    int i = 5;
+                }
+
+                if (unit->IsOurs && unit->caravan_info_ != nullptr && 
+                    is_region_in_caravan_list(unit->caravan_info_, land))
                 {
                     for (const auto& region : unit->caravan_info_->regions_)
                     {

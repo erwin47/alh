@@ -277,7 +277,7 @@ void CAtlaParser::Clear()
     m_HexEvents.Description.Empty();
     m_Errors.Description.Empty();
     m_NewProducts.FreeAll();
-    m_TempSailingEvents.FreeAll();
+    sailing_events_.clear();
 }
 
 //----------------------------------------------------------------------
@@ -573,10 +573,7 @@ void CAtlaParser::ParseOneMovementEvent(const char * params, const char * struct
     // collect info for linking sail events to captains
     if (structid && fullevent)
     {
-        pSailEvent              = new CBaseObject;
-        pSailEvent->Id          = atol(structid);
-        pSailEvent->Description = fullevent;
-        m_TempSailingEvents.Insert(pSailEvent);
+        sailing_events_[atol(structid)].append(fullevent);
     }
 
 }
@@ -1317,7 +1314,8 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
                     if ('$'==*p)
                     {
                         N1.GetInteger(++p, Valid);
-                        pLand->Taxable = atol(N1.GetData());
+                        
+                        pLand->initial_state_.tax_amount_ = atol(N1.GetData());
                     }
                     else
                     {
@@ -1328,14 +1326,16 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
                         {
                             if (0==stricmp("peasants", S2.GetData()))
                             {
-                                pLand->Peasants = n1;
+                                CStr peasant_race;
+                                pLand->initial_state_.peasants_amount_ = n1;
                                 p  = S2.GetToken(p, '(', TRIM_ALL);
-                                p  = pLand->PeasantRace.GetToken(p, ')', TRIM_ALL);
-                                pLand->PeasantRace.Replace('\r', ' ');
-                                pLand->PeasantRace.Replace('\n', ' ');
-                                pLand->PeasantRace.Replace('\t', ' ');
-                                pLand->PeasantRace.Normalize();
-                                pLand->PeasantRace.Replace(' ', '_');
+                                p  = peasant_race.GetToken(p, ')', TRIM_ALL);
+                                peasant_race.Replace('\r', ' ');
+                                peasant_race.Replace('\n', ' ');
+                                peasant_race.Replace('\t', ' ');
+                                peasant_race.Normalize();
+                                peasant_race.Replace(' ', '_');
+                                pLand->initial_state_.peasant_race_ = std::string(peasant_race.GetData(), peasant_race.GetLength());
                             }
                         }
                         else if (0==stricmp("contains", S1.GetData()))
@@ -1419,9 +1419,17 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
                         //temp_product.long_name_ = S1.GetData();
                         
                         if (eSale == SectType)
-                            pLand->for_sale_[temp_product.item_.code_name_] = temp_product;
+                            pLand->initial_state_.for_sale_[temp_product.item_.code_name_] = temp_product;
                         else
-                            pLand->wanted_[temp_product.item_.code_name_] = temp_product;
+                            pLand->initial_state_.wanted_[temp_product.item_.code_name_] = temp_product;
+
+                        std::string long_name, long_name_plural;
+                        gpApp->ResolveAliasItems(temp_product.item_.code_name_, temp_product.item_.code_name_, long_name, long_name_plural);
+                        if (n1 > 1)
+                            long_name_plural = std::string(S1.GetData(), S1.GetLength());
+                        else
+                            long_name = std::string(S1.GetData(), S1.GetLength());
+                        gpApp->SetAliasItems(temp_product.item_.code_name_, long_name, long_name_plural);
 
                         if (eSale == SectType)
                             MakeQualifiedPropertyName(PRP_SALE_AMOUNT_PREFIX, S2.GetData(), Buf);
@@ -1476,7 +1484,7 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
                                 m_NewProducts.Insert(pNewProd);
                             }
                         pLand->Products.Insert(pProd);
-                        land_control::add_resource(pLand, *pProd);
+                        land_control::add_resource(pLand->initial_state_, *pProd);
 
                         // also set as a property to simplify searching
                         MakeQualifiedPropertyName(PRP_RESOURCE_PREFIX, ShortName.GetData(), Buf);
@@ -1693,7 +1701,7 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
             pLand->TerrainType  = Name;
             pLand->Description.Empty();
             pLand->Products.FreeAll();
-            pLand->resources_.clear();
+            init_land_state(pLand->initial_state_);
         }
         if (0!=stricmp(pLand->Name.GetData(), LandName.GetData()) )
         {
@@ -1702,6 +1710,7 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
             GenericErr(1, S.GetData());
             pLand->Name     = LandName;
             pLand->Description.Empty();
+            init_land_state(pLand->initial_state_);
         }
     }
     else
@@ -1711,7 +1720,7 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
         pLand->pPlane       = pPlane;
         pLand->Name         = LandName;
         pLand->TerrainType  = Name;
-        pLand->Taxable      = 0;
+        init_land_state(pLand->initial_state_);
         pPlane->Lands.Insert(pLand);
     }
 
@@ -1768,14 +1777,16 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
         goto Exit;
     }
 
-    // Structures can be destroyed, so remove those coming from history
-    for (i=pLand->Structs.Count()-1; i>=0; i--)
-    {
-        pStruct = (CStruct*)pLand->Structs.At(i);
-        if (0==(pStruct->Attr & SA_HIDDEN) &&   // keep the gates!
-            0==(pStruct->Attr & SA_SHAFT ) )    // keep the shafts!
-            pLand->Structs.AtFree(i);
-    }
+    //Structures can be destroyed, so remove those coming from history
+    land_control::structures::clean_structures(pLand->initial_state_);
+
+    //for (i=pLand->Structs.Count()-1; i>=0; i--)
+    //{
+    //    pStruct = (CStruct*)pLand->Structs.At(i);
+    //    if (0==(pStruct->Attr & SA_HIDDEN) &&   // keep the gates!
+    //        0==(pStruct->Attr & SA_SHAFT ) )    // keep the shafts!
+    //        pLand->Structs.AtFree(i);
+    //}
 
     // now  goes extended land description terminated by exits list
     // And check for other headers just in case!
@@ -1925,7 +1936,8 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
                         pStruct->capacity_, pStruct->MinSailingPower, pStruct->Attr))
                     OrderError("Error", pLand, nullptr, "Couldn't parse Gate data");
 
-                pLand->AddNewStruct(pStruct);
+                land_control::structures::add_structure(pLand, pLand->initial_state_, pStruct);
+                //pLand->AddNewStruct(pStruct);
 
                 p = SkipSpaces(p);
                 p = SkipSpaces(S.GetToken(p, ' '));  // S = of
@@ -1934,23 +1946,20 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
                 DoBreak = FALSE;
 
 
-                pGate = new CBaseObject;
-                pGate->Id = no;
                 if (m_Gates.Search(pGate, idx))
                 {
-                    delete pGate;
                     pGate = (CBaseObject*)m_Gates.At(idx);
                 }
                 else
-                    idx = -1;
-
+                {
+                    pGate = new CBaseObject;
+                    pGate->Id = no;
+                    m_Gates.Insert(pGate);
+                }
                 ComposeLandStrCoord(pLand, sCoord);
                 pGate->Description.Format("Gate % 4d. ", no);
                 pGate->Description << pLand->TerrainType << " (" << sCoord << ")";
                 pGate->Name        = pGate->Description;
-
-                if (idx<0)
-                    m_Gates.Insert(pGate);
             }
             break;
         }
@@ -2559,7 +2568,8 @@ int CAtlaParser::ParseStructure(CStr & FirstLine)
             pStruct->original_description_.find("decay") != std::string::npos)
             pStruct->Attr |= SA_ROAD_BAD;
 
-    m_pCurStruct         = m_pCurLand->AddNewStruct(pStruct);
+    m_pCurStruct = land_control::structures::add_structure(m_pCurLand, m_pCurLand->initial_state_, pStruct);
+    //m_pCurStruct = m_pCurLand->AddNewStruct(pStruct);
     return ERR_OK;
 }
 
@@ -2579,72 +2589,36 @@ wxString CAtlaParser::getFullStrLandCoord(CLand * pLand)
 
 //----------------------------------------------------------------------
 
-bool CAtlaParser::LinkShaft(CLand * pLand, CLand * pLandDest, int structIdx)
-{
-    CStruct    * pStruct;
-    CStr         S, T;
-    int          n;
-    const char * p;
-
-    if (pLand && pLandDest && structIdx >=0 && structIdx < pLand->Structs.Count())
-    {
-        pStruct = (CStruct*)pLand->Structs.At(structIdx);
-        if (pStruct->Attr & SA_SHAFT)
-        {
-            ComposeLandStrCoord(pLandDest, S);
-            std::string new_link = "; links to (" + std::string(S.GetData(),S.GetLength()) + ")";
-
-            size_t links_pos = pStruct->original_description_.find("; links to");
-            size_t dot_pos = pStruct->original_description_.find_last_of('.');
-            if (links_pos != std::string::npos)
-                pStruct->original_description_.replace(links_pos, dot_pos - links_pos, new_link);
-            else 
-                pStruct->original_description_.insert(dot_pos, new_link);
-
-            return true;
-        }
-    }
-    return false;
-}
-
-//----------------------------------------------------------------------
-
 void CAtlaParser::SetShaftLinks()
 {
-    CLand      * pLand;
-    CLand      * pLandDest;
-    CStruct    * pStruct;
-    int          i,j;
+    CLand* pLand;
     EValueType   type;
     const void * value;
 
-    for (i=0; i<m_LandsToBeLinked.Count(); i++)
+    for (int i=0; i<m_LandsToBeLinked.Count(); i++)
     {
-        pLand = (CLand*)m_LandsToBeLinked.At(i);
+        CLand* land = (CLand*)m_LandsToBeLinked.At(i);
 
-        if (!pLand->GetProperty(PRP_LAND_LINK, type, value, eOriginal) || eLong!=type)
+        if (!land->GetProperty(PRP_LAND_LINK, type, value, eOriginal) || eLong!=type)
             continue;
 
-        // Change the description of the first shaft which is not linked yet to the hex given, avoiding duplicates.
-        for (j=0; j<pLand->Structs.Count(); j++)
-        {
-            pStruct = (CStruct*)pLand->Structs.At(j);
-            if (pStruct->Attr & SA_SHAFT  )
+        land_control::perform_on_each_struct(land, [&](CStruct* structure) {
+            if (struct_control::flags::is_shaft(structure))
             {
-                pLandDest = GetLand((long)value);
+                CLand* target_land = land_control::get_land((long)value);
 
-                size_t links_pos = pStruct->original_description_.find("links");
-                if (pLandDest && links_pos != std::string::npos && 
-                    GetLandFlexible(wxString::FromUTF8(pStruct->original_description_.c_str())) == pLandDest)
-                    break;
+                size_t links_pos = structure->original_description_.find("links");
+                if (target_land && links_pos != std::string::npos && 
+                    GetLandFlexible(wxString::FromUTF8(structure->original_description_.c_str())) == target_land)
+                    //link exists, and this link is already point to this land
+                    return;
 
-                if (pLandDest && links_pos == std::string::npos)
+                if (target_land && links_pos == std::string::npos)
                 {
-                    LinkShaft(pLand, pLandDest, j);
-                    break;
+                    land_control::structures::link_shafts(land, target_land, structure->Id);
                 }
             }
-        }
+        });
     }
     m_LandsToBeLinked.DeleteAll();
 }
@@ -2653,49 +2627,21 @@ void CAtlaParser::SetShaftLinks()
 
 void CAtlaParser::ApplySailingEvents()
 {
-    int                ne, np, nl, nu, idx;
-    CBaseObject      * pSailEvent;
-    CPlane           * pPlane;
-    CLand            * pLand;
-    CUnit            * pUnit;
-    EValueType         type, type2;
-    const void       * value, * value2;
-
-    if (0 == m_TempSailingEvents.Count())
-        return;
-
-    for (np=0; np<m_Planes.Count(); np++)
-    {
-        pPlane = (CPlane*)m_Planes.At(np);
-
-        for (nl=0; nl<pPlane->Lands.Count(); nl++)
+    for (int i=0; i<m_Planes.Count(); ++i)
+    {    
+        CPlane* plane = (CPlane*)m_Planes.At(i);
+        for (int j = 0; j < plane->Lands.Count(); ++j)
         {
-            pLand = (CLand*)pPlane->Lands.At(nl);
+            CLand* land = (CLand*)plane->Lands.At(j);
+            land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+                long unit_struct_id = unit_control::structure_id(unit);
 
-            for (ne=0; ne<m_TempSailingEvents.Count(); ne++)
-            {
-                pSailEvent = (CBaseObject*)m_TempSailingEvents.At(ne);
-
-                if (pLand->Structs.Search(pSailEvent, idx))
-                {
-                    // we do not care about the ship, we care about the captain!
-                    for (nu=0; nu<pLand->Units.Count(); nu++)
-                    {
-                        pUnit = (CUnit*)pLand->Units.At(nu);
-                        if (unit_control::structure_id(pUnit) > 0 &&//pUnit->GetProperty(PRP_STRUCT_ID   , type , value , eOriginal) && eLong==type &&
-                            unit_control::is_struct_owner(pUnit))//pUnit->GetProperty(PRP_STRUCT_OWNER, type2, value2, eOriginal) && eCharPtr==type2)
-                        {
-                            if (pSailEvent->Id == (long)value && value2 && *((char*)value2)  )
-                            {
-                                pUnit->Events << pSailEvent->Description;
-                            }
-                        }
-                    }
-                }
-            }
+                if (unit_struct_id > 0 && unit_control::is_struct_owner(unit))
+                    unit->Events << sailing_events_[unit_struct_id].c_str();
+            });
         }
     }
-    m_TempSailingEvents.FreeAll();
+    sailing_events_.clear();
 }
 
 //----------------------------------------------------------------------
@@ -3776,10 +3722,10 @@ void CAtlaParser::compose_products_detailed(CLand* land, std::stringstream& out)
     std::string code, name, plural;
 
     out << "  Products:";
-    std::sort(land->resources_.begin(), land->resources_.end(), [](const CItem& it1, const CItem& it2) {
+    std::sort(land->current_state_.resources_.begin(), land->current_state_.resources_.end(), [](const CItem& it1, const CItem& it2) {
         return it1.amount_ > it2.amount_;
     });
-    for (const auto& resource : land->resources_)
+    for (const auto& resource : land->current_state_.resources_)
     {
         if (!gpApp->ResolveAliasItems(resource.code_name_, code, name, plural))
         {
@@ -3793,9 +3739,41 @@ void CAtlaParser::compose_products_detailed(CLand* land, std::stringstream& out)
         else
             out << std::endl << "    " << resource.amount_ << " " << name;
 
-        if (land->produced_items_.find(code) != land->produced_items_.end())
+        if (land->current_state_.produced_items_.find(code) != land->current_state_.produced_items_.end())
         {
-            out << " (attempt: " << land->produced_items_[code] << ")";
+            out << " (attempt: " << land->current_state_.produced_items_[code] << ")";
+        }
+    }
+    out << std::endl;
+
+    std::vector<CItem> crafted;
+    for (const auto& production : land->current_state_.produced_items_)
+    {
+        if (std::find_if(land->current_state_.resources_.begin(),
+                     land->current_state_.resources_.end(), [&](const CItem& item) {
+                return production.first == item.code_name_;
+            }) == land->current_state_.resources_.end())
+        {
+            crafted.push_back({production.second, production.first});
+            //out << std::endl << "    " << production.second << " " << production.first;
+        }
+    }
+
+    if (crafted.size() > 0)
+    {
+        out << "  Crafts:";
+        for (auto& craft : crafted)
+        {
+            if (!gpApp->ResolveAliasItems(craft.code_name_, code, name, plural))
+            {
+                code = craft.code_name_;
+                name = craft.code_name_;
+                plural = craft.code_name_;
+            }
+            if (craft.amount_ > 1)
+                out << std::endl << "    " << craft.amount_ << " " << plural;
+            else
+                out << std::endl << "    " << craft.amount_ << " " << name;            
         }
     }
     out << std::endl;
@@ -3914,35 +3892,33 @@ BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane,
         }
 
     // Gates and structs
-    for (g=0; g<pLand->Structs.Count(); g++)
-    {
-        pStruct = (CStruct*)pLand->Structs.At(g);
-        if (0==(SA_MOBILE & pStruct->Attr) && pOptions->AlwaysSaveImmobStructs // save history
-            || pOptions->SaveStructs || pOptions->SaveUnits)
+    land_control::perform_on_each_struct(pLand, [&](CStruct* structure) {
+        if (!struct_control::flags::is_ship(structure) && 
+            (pOptions->AlwaysSaveImmobStructs || pOptions->SaveStructs || pOptions->SaveUnits))
         {
             sLine << EOL_FILE;
-            sLine << pStruct->original_description_.c_str();
+            sLine << structure->original_description_.c_str();
             sLine.TrimRight(TRIM_ALL);
             sLine << EOL_FILE;
 
             // Units inside structs, not optimized, does not matter
             if (pOptions->SaveUnits)
-                for (i=0; i<pLand->UnitsSeq.Count(); i++)
-                {
-                    pUnit = (CUnit *)pLand->UnitsSeq.At(i);
-                    if (!IS_NEW_UNIT(pUnit) && 
-                        unit_control::structure_id(pUnit) == pStruct->Id)
-                        //pUnit->GetProperty(PRP_STRUCT_ID, type, value, eOriginal) && eLong==type && (long)value==pStruct->Id)
+            {
+                land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {
+                    if (!IS_NEW_UNIT(unit) && 
+                        unit_control::structure_id(unit) == structure->Id)
                     {
-                        sLine << pUnit->Description;
+                        sLine << unit->Description;
                         sLine.TrimRight(TRIM_ALL);
                         sLine << EOL_FILE;
                     }
-                }
+                });
+            }
             Dest.WriteBuf(sLine.GetData(), sLine.GetLength());
-            sLine.Empty();
+            sLine.Empty();            
         }
-    }
+
+    });
 
     sLine << EOL_FILE << EOL_FILE;
     Dest.WriteBuf(sLine.GetData (), sLine.GetLength());
@@ -4356,7 +4332,7 @@ void CAtlaParser::OrderError(const std::string& type, CLand* land, CUnit* unit, 
         CStr         land_name_cstr;
         ComposeLandStrCoord(land, land_name_cstr);
         land_name = std::string(land_name_cstr.GetData(), land_name_cstr.GetLength()) + " ";
-        land->run_orders_errors_.push_back({type, unit, Msg});
+        land->current_state_.run_orders_errors_.push_back({type, unit, Msg});
     }
 
     std::string unit_name;
@@ -4687,7 +4663,10 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
                 for (size_t i = order.size(); i < indent; ++i)
                     pMainUnit->Orders << " ";
                 pMainUnit->Orders << ";" << skill.c_str() << " " << stud.second.cur_days_ << "(" << stud.second.max_days_ << ")";
-                pMainUnit->Orders << " man: " << stud.second.man_amount_;
+                if (unit_control::is_leader(stud.second.unit_))
+                    pMainUnit->Orders << " lead: " << stud.second.man_amount_;
+                else
+                    pMainUnit->Orders << " man: " << stud.second.man_amount_;
                 changed = TRUE;
             }
         }
@@ -5053,7 +5032,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
                 //initial amount of silver
                 if (unit->IsOurs)
-                    pLand->economy_.initial_amount_ += unit_control::get_item_amount(unit, PRP_SILVER);
+                    pLand->current_state_.economy_.initial_amount_ += unit_control::get_item_amount(unit, PRP_SILVER);
             });
         }
 
@@ -5077,18 +5056,54 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         {
             RunOrder_LandAggression(pLand);
         } 
+        if (sequence == TurnSequence::SQ_GIVE)
+        {
+            RunOrder_LandGive(pLand);
+        } 
+        if (sequence == TurnSequence::SQ_JOIN) {}
+        if (sequence == TurnSequence::SQ_EXCHANGE) {}
+        if (sequence == TurnSequence::SQ_PILLAGE) {}
 
         if (sequence == TurnSequence::SQ_TAX)
         {
             RunOrder_LandTaxPillage(pLand);
-            if (m_EconomyTaxPillage && pLand->Taxable > 0)
+            if (m_EconomyTaxPillage && pLand->current_state_.tax_amount_ > 0)
             {
                RunOrder_TaxPillage(pLand);
             }
-            continue;
+            //continue;
+        }
+        if (sequence == TurnSequence::SQ_CAST) {}
+
+        if (sequence == TurnSequence::SQ_SELL)
+        {//no need to parse sequentially
+            PerformOrder_Sell(pLand);
         }
 
-        if (TurnSequence::SQ_WORK == sequence)
+        if (sequence == TurnSequence::SQ_BUY)
+        {//no need to parse sequentially
+            PerformOrder_Buy(pLand);
+        }
+        if (sequence == TurnSequence::SQ_FORGET) {}
+        if (sequence == TurnSequence::SQ_WITHDRAW) {}
+        if (sequence == TurnSequence::SQ_SAIL) {}
+        if (sequence == TurnSequence::SQ_MOVE) {}
+        if (sequence == TurnSequence::SQ_TEACH) {}
+
+        if (sequence == TurnSequence::SQ_STUDY)
+        {//no need to parse sequentially
+            RunOrder_LandStudyTeach(pLand);
+        }
+
+        if (sequence == TurnSequence::SQ_PRODUCE)
+        {//no need to parse sequentially
+            pLand->current_state_.produced_items_.clear();
+            RunOrder_LandProduce(pLand);
+        }
+        if (sequence == TurnSequence::SQ_BUILD) {}
+        if (sequence == TurnSequence::SQ_ENTERTAIN) {}
+
+        if (sequence == TurnSequence::SQ_WORK)
         {
             if (m_EconomyWork)
             {
@@ -5096,29 +5111,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                 RunOrder_Work(pLand);
             }
         }
-
-        if (TurnSequence::SQ_SELL == sequence)
-        {//no need to parse sequentially
-            PerformOrder_Sell(pLand);
-        }
-
-        if (TurnSequence::SQ_BUY == sequence)
-        {//no need to parse sequentially
-            PerformOrder_Buy(pLand);
-        }
-
-        if (TurnSequence::SQ_PRODUCE == sequence)
-        {//no need to parse sequentially
-            pLand->produced_items_.clear();
-            RunOrder_LandProduce(pLand);
-        }
-
-        if (TurnSequence::SQ_STUDY == sequence)
-        {//no need to parse sequentially
-            RunOrder_LandStudyTeach(pLand);
-        }
-
-       
+        if (sequence == TurnSequence::SQ_MAINTENANCE) {}
 
         for (mainidx=0; mainidx<pLand->UnitsSeq.Count(); mainidx++)
         {
@@ -5256,12 +5249,12 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
                     case O_GIVE:
                         if (TurnSequence::SQ_GIVE == sequence)
-                            RunOrder_Give(Line, ErrorLine, skiperror, pUnit, pLand, p, FALSE);
+                            //RunOrder_Give(Line, ErrorLine, skiperror, pUnit, pLand, p, FALSE);
                         break;
 
                     case O_GIVEIF:
                         if (TurnSequence::SQ_GIVE == sequence)
-                            RunOrder_Give(Line, ErrorLine, skiperror, pUnit, pLand, p, TRUE);
+                            //RunOrder_Give(Line, ErrorLine, skiperror, pUnit, pLand, p, TRUE);
                         break;
 
                     case O_TAKE:
@@ -5454,7 +5447,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                             long struct_id = unit_control::structure_id(pUnit);
                             if (struct_id > 0)
                             {
-                                pStruct  = pLand->GetStructById(struct_id);
+                                pStruct  = land_control::get_struct(pLand, struct_id);
                                 if (pStruct && pStruct->OwnerUnitId == pUnit->Id)
                                     pStruct->OwnerUnitId = 0;
                             }
@@ -5478,7 +5471,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                         {
                             p        = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
                             n1       = atol(N1.GetData());
-                            pStruct  = pLand->GetStructById(n1);
+                            pStruct  = land_control::get_struct(pLand, n1);
                             if (pStruct)
                             {
                                 unit_control::set_structure(pUnit, pStruct->Id, pStruct->OwnerUnitId == 0);
@@ -5750,8 +5743,13 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             {
                 int movementMode;
                 bool noCross;
+                wxString Log;
                 GetMovementMode(pUnit, movementMode, noCross, O_MOVE);
-                wxString route = RoutePlanner::GetRoute(pLand, destination_land, movementMode, RoutePlanner::ROUTE_MARKUP_TURN);
+                wxString route = RoutePlanner::GetRoute(pLand, destination_land, movementMode, RoutePlanner::ROUTE_MARKUP_TURN, noCross, Log);
+                if (Log.size() > 0)
+                {
+                    m_sOrderErrors << Log.c_str();
+                }
                 if (!route.IsEmpty())
                 {
                     if (route.Length() > 66)
@@ -5814,8 +5812,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                 unit_temp = (CUnit*)arriving_units.At(i);
                 if (unit_temp != NULL)
                 {
-                    pLand->economy_.maintenance_ += unit_control::get_upkeep(unit_temp);
-                    pLand->economy_.moving_in_ += unit_control::get_item_amount(unit_temp, PRP_SILVER);
+                    pLand->current_state_.economy_.maintenance_ += unit_control::get_upkeep(unit_temp);
+                    pLand->current_state_.economy_.moving_in_ += unit_control::get_item_amount(unit_temp, PRP_SILVER);
                 }
             }
 
@@ -5828,10 +5826,10 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                 {
                     //moving out
                     if (unit->pMovement != NULL && unit->pMovement->Count() > 0)
-                        pLand->economy_.moving_out_ += unit_control::get_item_amount(unit, PRP_SILVER);
+                        pLand->current_state_.economy_.moving_out_ += unit_control::get_item_amount(unit, PRP_SILVER);
                     else 
                     {//maintenance
-                        pLand->economy_.maintenance_ += unit_control::get_upkeep(unit);
+                        pLand->current_state_.economy_.maintenance_ += unit_control::get_upkeep(unit);
                     }
                 }
             });        
@@ -5930,7 +5928,7 @@ void CAtlaParser::RunOrder_LandTaxPillage(CLand* land)
     std::vector<unit_control::UnitError> errors;
     land_control::get_land_taxers(land, taxers, errors);
 
-    land->economy_.tax_income_ = taxers.expected_income_;
+    land->current_state_.economy_.tax_income_ = taxers.expected_income_;
 
     for (const auto& error : errors)
     {
@@ -5940,7 +5938,7 @@ void CAtlaParser::RunOrder_LandTaxPillage(CLand* land)
 
 void CAtlaParser::RunOrder_TaxPillage(CLand * pLand)
 {
-    if (pLand->Taxable == 0)
+    if (pLand->current_state_.tax_amount_ == 0)
         return;
 
     long pillagers = CountMenWithFlag(pLand, UNIT_FLAG_PILLAGING);
@@ -5950,14 +5948,14 @@ void CAtlaParser::RunOrder_TaxPillage(CLand * pLand)
     {
         const int maxTaxPerTaxer = atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER));
 
-        if (pillagers && (pillagers * maxTaxPerTaxer * 2 >= pLand->Taxable))
+        if (pillagers && (pillagers * maxTaxPerTaxer * 2 >= pLand->current_state_.tax_amount_))
         {
-            long silver = pLand->Taxable * 2;
+            long silver = pLand->current_state_.tax_amount_ * 2;
             DistributeSilver(pLand, UNIT_FLAG_PILLAGING, silver, pillagers);
         }
         else if (taxers)
         {
-            long silver = std::min(pLand->Taxable, maxTaxPerTaxer * taxers);
+            long silver = std::min(pLand->current_state_.tax_amount_, maxTaxPerTaxer * taxers);
             DistributeSilver(pLand, UNIT_FLAG_TAXING, silver, taxers);
         }
     }
@@ -6138,7 +6136,7 @@ void CAtlaParser::RunOrder_LandStudyTeach(CLand* land)
 
     //Economy
     for (const auto& student : students_of_the_land)
-        land->economy_.study_expenses_ += student.second.skill_price_ * student.second.man_amount_;
+        land->current_state_.economy_.study_expenses_ += student.second.skill_price_ * student.second.man_amount_;
 
     //teaching orders -- no need to wait for TurnSequence::Teach
     land_control::update_students_by_land_teachers(land, students_of_the_land, errors);
@@ -6513,21 +6511,21 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
             }
         }
 
-        land_control::set_produced_items(land, item, basic_produce_power);
+        land_control::set_produced_items(land->current_state_, item, basic_produce_power);
         land_producers_info[item].push_back({producer, basic_produce_power});
     }
 
     //resolve land request (we had to collect all requests before calculation)
     for (auto& res_to_producers : land_producers_info)
     {
-        if (std::find_if(land->resources_.begin(), 
-                         land->resources_.end(), 
+        if (std::find_if(land->current_state_.resources_.begin(), 
+                         land->current_state_.resources_.end(), 
                          [&](const CItem& item) {
                 return item.code_name_ == res_to_producers.first;
-            }) != land->resources_.end())
+            }) != land->current_state_.resources_.end())
         {//it's a request to land resources
-            long land_amount = land_control::get_resource(land, res_to_producers.first);
-            long requested_amount = land_control::get_produced_items(land, res_to_producers.first);
+            long land_amount = land_control::get_resource(land->current_state_, res_to_producers.first);
+            long requested_amount = land_control::get_produced_items(land->current_state_, res_to_producers.first);
 
             //fill producers description regarding their requests
             double leftovers(0.0);
@@ -6554,14 +6552,25 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
             }
         }
         else
-        {//it's a production of items from other items not touching land
+        {//it's a production of items from other items not touching land 
+         //or request to lands resource which doesnt presented here
+            TProdDetails prod_details;
+            gpDataHelper->GetProdDetails(res_to_producers.first.c_str(), prod_details);
+
             for (const ProducerInfo& prod_info : res_to_producers.second)
             {
+                if (prod_details.req_resources_.size() == 0)
+                {
+                    std::string mess = "produce: '" + res_to_producers.first +
+                        "' is not a craft, and not presented among land resources";
+                    OrderError("Warning", land, prod_info.producer_, mess);
+                    continue;                
+                }
+
                 unit_control::modify_item_by_produce(prod_info.producer_, 
                                                      res_to_producers.first, 
                                                      prod_info.item_amount_);
-                TProdDetails prod_details;
-                gpDataHelper->GetProdDetails(res_to_producers.first.c_str(), prod_details);
+
                 for (const auto& req_resource : prod_details.req_resources_)
                 {
                     unit_control::modify_item_by_produce(prod_info.producer_, 
@@ -6769,8 +6778,8 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
     for (size_t i = 0; i < land->UnitsSeq.Count(); i++)
     {
         CUnit* unit = (CUnit*)land->UnitsSeq.At(i);
-        if (unit->Id == up_to->Id)
-            break;
+        if (up_to != nullptr && unit->Id == up_to->Id)
+            return;
 
         if (!orders::control::has_orders_with_type(orders::Type::O_GIVE, unit->orders_))
             continue;
@@ -6778,71 +6787,113 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
         auto give_orders = orders::control::retrieve_orders_by_type(orders::Type::O_GIVE, unit->orders_);
         for (const auto& give_order : give_orders)
         {
-            size_t iter = 1;
-            bool drop_out;
-            std::stringstream out_errors;
-            CUnit* receiving_unit;
-            if (!orders::parser::give::parse_target_unit(unit, 
-                                                        give_order->words_order_, 
-                                                        iter,
-                                                        receiving_unit,
-                                                        out_errors))
-            {
-                unit->impact_description_.push_back(out_errors.str());
-                OrderError("Error", land, unit, out_errors.str().c_str());
-                continue;
-            }
-
-            if (receiving_unit->Id == unit->Id)
-            {
-                unit->impact_description_.push_back("give: attempts to give to itself");
-                OrderError("Error", land, unit, "give: attempts to give to itself");
-                continue;
-            }
-
-            size_t amount;
+            long target_id, target_faction_id, amount, except;
             std::string item_code;
-            if (!orders::parser::give::parse_amount_and_item(unit, 
-                                                             give_order->words_order_, 
-                                                             iter, 
-                                                             amount, 
-                                                             item_code,
-                                                             out_errors))
+            if (!orders::parser::specific::parse_give(give_order, target_id, target_faction_id, amount, item_code, except))
             {
-                unit->impact_description_.push_back(out_errors.str());
-                OrderError("Error", land, unit, out_errors.str().c_str());
-                continue;                
-            }
-
-            if (item_code == "UNIT" && amount == 0)
-            {
-                if (receiving_unit == nullptr)
-                    continue;//giving unit away, nothing to do
-
-                if (receiving_unit->FactionId == unit->FactionId)
-                {
-                    unit->impact_description_.push_back("give unit: target belongs to the same faction");
-                    OrderError("Error", land, unit, "give unit: target belongs to the same faction");                    
-                }
+                OrderError("Error", land, unit, "give: couldn't parse order: "+give_order->original_string_);
                 continue;
             }
-                
+
+            if (target_id < 0)//NEW X
+            {
+                if (target_faction_id == 0)//faction wasn't specified
+                    target_id = NEW_UNIT_ID(abs(target_id), unit->FactionId);
+                else
+                    target_id = NEW_UNIT_ID(abs(target_id), target_faction_id);
+            }
+
+            CUnit* target_unit = nullptr;
+            if (target_id > 0)
+            {
+                target_unit = land_control::find_first_unit_if(land, [&](CUnit* cur_unit) {
+                    return cur_unit->Id == target_id;
+                });
+                if (target_unit == nullptr)
+                {
+                    OrderError("Error", land, unit, "give: can't locate target unit: "+give_order->original_string_);
+                    continue;
+                }
+            }
+
+            if (stricmp(item_code.c_str(), "UNIT") == 0)
+            {
+                if (target_unit == nullptr)
+                    unit->impact_description_.push_back("give: drop off unit");
+                else if (target_unit->FactionId == unit->FactionId)
+                    OrderError("Error", land, unit, "give: transfer unit to yourself: "+give_order->original_string_);
+                else 
+                    unit->impact_description_.push_back("give: transfer unit to faction "+std::to_string(target_unit->FactionId));
+                continue;
+            }
+
+            if (unit_control::get_item_amount(unit, item_code) == 0)
+            {//can't find items in unit
+                std::string another_name, another_plural;
+                if (gpApp->ResolveAliasItems(item_code, item_code, another_name, another_plural))
+                {
+                    auto struct_parameters = game_control::get_game_config<std::string>(SZ_SECT_STRUCTS, another_name.c_str());
+                    if (struct_parameters.size() > 0)
+                    {//its a structure
+                        //TODO
+                    }
+                }
+                OrderError("Error", land, unit, "give: no items to give in order: "+give_order->original_string_);
+                OrderError("Warning", land, unit, "give: if you try to give a ship, please, add it to ALIASES_ITEMS related to object in STRUCTURES (nut supported yet)");
+                OrderError("Warning", land, unit, "give: if you try to give item class, please, add it to UNIT_PROPERTY_GROUPS of your config (nut supported yet)");
+                continue;
+            }
+
+            if (except >= 0)//ALL + optional(EXCEPT)
+                amount = std::max(unit_control::get_item_amount(unit, item_code) - except, (long)0);
+
+            if (amount > unit_control::get_item_amount(unit, item_code))
+            {
+                OrderError("Warning", land, unit, "give: "+std::to_string(unit_control::get_item_amount(unit, item_code))+
+                    " instead of "+std::to_string(amount)+", no more items");
+                amount = std::min(amount, unit_control::get_item_amount(unit, item_code));
+            }
+
             if (gpDataHelper->IsMan(item_code.c_str()))
             {
-                unit_control::modify_man_from_unit(unit, receiving_unit, item_code, -amount);
-                if (receiving_unit != nullptr)
-                    unit_control::modify_man_from_unit(receiving_unit, unit, item_code, amount);                    
+                unit_control::modify_man_from_unit(unit, target_unit, item_code, -amount);
+                if (target_unit != nullptr)
+                    unit_control::modify_man_from_unit(target_unit, unit, item_code, amount);
+                //for compliance with old version
+                //AdjustSkillsAfterGivingMen(unit, target_unit, item_code, amount);
             }
             else
             {
-                unit_control::modify_item_from_unit(unit, receiving_unit, item_code, -amount);
-                if (receiving_unit != nullptr)
-                    unit_control::modify_item_from_unit(receiving_unit, unit, item_code, amount);
-            } 
+                unit_control::modify_item_from_unit(unit, target_unit, item_code, -amount);
+                if (target_unit != nullptr)
+                    unit_control::modify_item_from_unit(target_unit, unit, item_code, amount);
+            }
 
-            unit->SetProperty(item_code.c_str(), eLong, (const void*)(-amount), eNormal);
-            if (receiving_unit != nullptr)
-                receiving_unit->SetProperty(item_code.c_str(), eLong, (const void*)(amount), eNormal);
+            //old properties support
+            if (PE_OK!=unit->SetProperty(item_code.c_str(), 
+                                                eLong, 
+                                                (const void *)unit_control::get_item_amount(unit, item_code, true),
+                                                eOriginal) ||
+                PE_OK!=unit->SetProperty(item_code.c_str(), 
+                                                eLong, 
+                                                (const void *)unit_control::get_item_amount(unit, item_code),
+                                                eNormal))
+                OrderError("Error", land, unit, "give: couldn't SetProperty correctly!");
+            if (target_unit != nullptr)
+            {
+                if (PE_OK!=target_unit->SetProperty(item_code.c_str(), 
+                                                eLong, 
+                                                (const void *)unit_control::get_item_amount(target_unit, item_code, true),
+                                                eOriginal) ||
+                    PE_OK!=target_unit->SetProperty(item_code.c_str(), 
+                                eLong, 
+                                (const void *)unit_control::get_item_amount(target_unit, item_code),
+                                eNormal))
+                    OrderError("Error", land, unit, "give: couldn't SetProperty correctly!");
+            }                
+            unit->CalcWeightsAndMovement();
+            if (target_unit)
+                target_unit->CalcWeightsAndMovement();
         }
     }    
 }
@@ -7405,7 +7456,7 @@ void CAtlaParser::PerformOrder_Buy(CLand * land)
     {
         //Economy
         if (buyer.unit_->FactionId == player_faction_id)
-            land->economy_.buy_expenses_ += buyer.items_amount_ * buyer.market_price_;
+            land->current_state_.economy_.buy_expenses_ += buyer.items_amount_ * buyer.market_price_;
 
         //Modification of state
         if (gpDataHelper->IsMan(buyer.item_name_.c_str()))
@@ -7424,7 +7475,7 @@ void CAtlaParser::PerformOrder_Buy(CLand * land)
         //properties support:
         CStr                LandProp(32);
         MakeQualifiedPropertyName(PRP_SALE_PRICE_PREFIX, buyer.item_name_.c_str(), LandProp);
-        CProductMarket selled_item = land_control::get_for_sale(land, buyer.item_name_);
+        CProductMarket selled_item = land_control::get_for_sale(land->current_state_, buyer.item_name_);
         if ( (PE_OK!=buyer.unit_->SetProperty(buyer.item_name_.c_str(), 
                                         eLong, 
                                         (const void *)unit_control::get_item_amount(buyer.unit_, buyer.item_name_),
@@ -7446,7 +7497,7 @@ void CAtlaParser::PerformOrder_Buy(CLand * land)
         {
             if (gpDataHelper->IsTradeItem(buyer.item_name_.c_str()))
             {
-                land_control::set_produced_items(land, buyer.item_name_, buyer.items_amount_);
+                land_control::set_produced_items(land->current_state_, buyer.item_name_, buyer.items_amount_);
                 buyer.unit_->Flags |= UNIT_FLAG_PRODUCING;
             }
         }
@@ -7493,8 +7544,8 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
         // buying peasants requires substituting the alias by the real type of men.
         if (0==stricmp(S1.GetData(), "peas") || 0==stricmp(S1.GetData(), "peasant")
             || 0==stricmp(S1.GetData(), "peasants"))
-            if (!pLand->PeasantRace.IsEmpty())
-                ReadPropertyName(pLand->PeasantRace.GetData(), S1);
+            if (!pLand->current_state_.peasant_race_.empty())
+                ReadPropertyName(pLand->current_state_.peasant_race_.c_str(), S1);
 
         // men/man is a category and cannot be aliased
         if (S1.FindSubStr("HUMANS") != -1) S1 = "MAN";
@@ -7595,7 +7646,7 @@ void CAtlaParser::PerformOrder_Sell(CLand * land)
     for (const auto& seller : sellers) {
         //Economy
         if (seller.unit_->FactionId == player_faction_id)
-            land->economy_.sell_income_ += seller.items_amount_ * seller.market_price_;
+            land->current_state_.economy_.sell_income_ += seller.items_amount_ * seller.market_price_;
 
         //the sell
         if (gpDataHelper->IsMan(seller.item_name_.c_str()))
@@ -7606,7 +7657,7 @@ void CAtlaParser::PerformOrder_Sell(CLand * land)
         //prorerties support for functionality based on properties
         CStr LandProp(32);
         MakeQualifiedPropertyName(PRP_WANTED_AMOUNT_PREFIX, seller.item_name_.c_str(), LandProp);
-        CProductMarket wanted_item = land_control::get_wanted(land, seller.item_name_);
+        CProductMarket wanted_item = land_control::get_wanted(land->current_state_, seller.item_name_);
         if ( (PE_OK!=seller.unit_->SetProperty(seller.item_name_.c_str(), 
                                                eLong, 
                                                (const void *)unit_control::get_item_amount(seller.unit_, seller.item_name_),  
@@ -7772,7 +7823,7 @@ void CAtlaParser::RunOrder_Promote(CStr & Line, CStr & ErrorLine, BOOL skiperror
                  (PE_OK!=pUnit2->SetProperty(PRP_STRUCT_OWNER, eCharPtr, YES, eNormal)) )
                 SHOW_WARN_CONTINUE(NOSETUNIT << pUnit2->Id << BUG);
 
-            pStruct = pLand->GetStructById(id1);
+            pStruct = land_control::get_struct(pLand, id1);
             if (pStruct)
                 pStruct->OwnerUnitId = pUnit2->Id;
         }
@@ -7854,7 +7905,7 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
         if (O_SAIL == order &&
             unit_control::structure_id(pUnit) > 0)
         {
-            pStruct  = pLand->GetStructById(unit_control::structure_id(pUnit));
+            pStruct  = land_control::get_struct(pLand, unit_control::structure_id(pUnit));
         }
 
         // Determine whether the unit is currently in a structure
@@ -7947,13 +7998,13 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                     {
                         SHOW_WARN_CONTINUE(" - Going through shaft in unvisited hex!");
                     }
-                    else if (pLandCurrent->Structs.Count() < currentStruct)
+                    else if (pLandCurrent->current_state_.structures_.size() < currentStruct)
                     {
                         SHOW_WARN_CONTINUE(" - No such structure!");
                     }
                     else
                     {
-                        CStruct * pStruct = (CStruct*)pLandCurrent->Structs.At(currentStruct-1);
+                        CStruct * pStruct = land_control::get_struct(pLandCurrent, currentStruct);
                         if (pStruct->Attr & SA_SHAFT)
                         {
                             if (pStruct->original_description_.find("links to (") != std::string::npos)
@@ -8040,7 +8091,7 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
             if (!pUnit->GetProperty(S.GetData(), type, (const void *&)skill, eNormal) || (eLong!=type) || (skill<=0))
                 SHOW_WARN_CONTINUE(" - Needs SAIL skill!");
 
-            pStruct  = pLand->GetStructById(unit_control::structure_id(pUnit));
+            pStruct  = land_control::get_struct(pLand, unit_control::structure_id(pUnit));
             if (pStruct == nullptr)
             {
                 SHOW_WARN_CONTINUE(" - Invalid Struct Id " << BUG);
@@ -8599,7 +8650,7 @@ void CAtlaParser::LookupAdvancedResourceVisibility(CUnit * pUnit, CLand * pLand)
                                 pProd->amount_    = 0;
                                 pProd->code_name_ = Dummy.code_name_;
                                 pLand->Products.Insert(pProd);
-                                land_control::add_resource(pLand, *pProd);
+                                land_control::add_resource(pLand->current_state_, *pProd);
                             }
                         }
                 }
@@ -8634,9 +8685,6 @@ bool CAtlaParser::IsRoadConnected(CLand * pLand0, CLand * pLand1, int direction)
     // Result only valid if land0 is connected to land1 in direction
     int road0 = SA_ROAD_N;
     int road1 = SA_ROAD_N;
-    int i;
-    CStruct* pStruct;
-
     switch (direction)
     {
         case North     : road0 = SA_ROAD_N;  road1 = SA_ROAD_S;     break;
@@ -8647,30 +8695,17 @@ bool CAtlaParser::IsRoadConnected(CLand * pLand0, CLand * pLand1, int direction)
         case Northwest : road0 = SA_ROAD_NW; road1 = SA_ROAD_SE;    break;
     }
 
-    bool Found = false;
-    bool BadRoad = false;
+    CStruct* road_structure = land_control::find_first_structure_if(pLand0, [&](CStruct* structure) {
+        return (structure->Attr & road0) && !(structure->Attr & SA_ROAD_BAD);
+    });
+    if (road_structure == nullptr)
+        return false;
 
-    for (i=0; i<pLand0->Structs.Count(); i++)
-    {
-        pStruct = (CStruct*)pLand0->Structs.At(i);
-        if (pStruct->Attr & road0)
-        {
-            BadRoad = ((pStruct->Attr & SA_ROAD_BAD) > 0);
-            if (!BadRoad) Found = true;
-        }
-    }
-    if (!Found) return false;
-    Found = false;
-    for (i=0; i<pLand1->Structs.Count(); i++)
-    {
-        pStruct = (CStruct*)pLand1->Structs.At(i);
-        if (pStruct->Attr & road1)
-        {
-            BadRoad = ((pStruct->Attr & SA_ROAD_BAD) > 0);
-            if (!BadRoad) Found = true;
-        }
-    }
-    return Found;
+    road_structure = land_control::find_first_structure_if(pLand1, [&](CStruct* structure) {
+        return (structure->Attr & road1) && !(structure->Attr & SA_ROAD_BAD);
+    });
+
+    return road_structure != nullptr;
 }
 
 //-------------------------------------------------------------
