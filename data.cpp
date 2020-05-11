@@ -1431,6 +1431,34 @@ void SplitQualifiedPropertyName(const char * fullname, CStr & Prefix, CStr & Sho
 
 //--------------------------------------------------------------------------
 
+bool evaluateLandByFilter(CLand* land, CStr * Property, eCompareOp * CompareOp, CStr * sValue, long * lValue, int count)
+{
+    bool ok = false;
+    for (int i=0; i < count; ++i)
+    {
+        if (strnicmp(Property[i].GetData(), "REG[NAME]", sizeof("REG[NAME]")-1) == 0)
+        {
+            switch (CompareOp[i])
+            {
+            case GT: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) >  0); break;
+            case GE: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) >= 0); break;
+            case EQ: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) == 0); break;
+            case LE: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) <= 0); break;
+            case LT: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) <  0); break;
+            case NE: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) != 0); break;
+            default: break;
+            }
+        }
+    }
+    return ok;
+;
+}
+
+
+
+
+
+
 BOOL EvaluateBaseObjectByBoxes(CBaseObject * pObj, CStr * Property, eCompareOp * CompareOp, CStr * sValue, long * lValue, int count)
 {
     int i;

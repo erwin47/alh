@@ -303,6 +303,21 @@ namespace unit_control
         return std::to_string(number);
     }
 
+    bool modify_item_property(CUnit* unit, const std::string& item) 
+    {
+        //old properties support
+        if (PE_OK!=unit->SetProperty(item.c_str(), 
+                                    eLong, 
+                                    (const void *)unit_control::get_item_amount(unit, item, true),
+                                    eOriginal) ||
+            PE_OK!=unit->SetProperty(item.c_str(), 
+                                    eLong, 
+                                    (const void *)unit_control::get_item_amount(unit, item),
+                                    eNormal))
+            return false;
+        return true;
+    }
+
     void modify_silver(CUnit* unit, long new_amount, const std::string& reason)
     {
         if (new_amount == 0)
@@ -315,7 +330,8 @@ namespace unit_control
             ss << "gets " << new_amount << " of silver from " << reason;
         else
             ss << "loses " << new_amount << " of silver to " << reason;
-        unit->impact_description_.push_back(ss.str());        
+        unit->impact_description_.push_back(ss.str());
+        modify_item_property(unit, PRP_SILVER);        
     }
 
     void modify_item_by_produce(CUnit* unit, const std::string& codename, long new_amount)
@@ -335,6 +351,42 @@ namespace unit_control
             ss << "spent: " << abs(new_amount) << " " << codename << " for production";
 
         unit->impact_description_.push_back(ss.str());
+        //properties support
+        modify_item_property(unit, codename);
+        unit->CalcWeightsAndMovement();        
+    }
+
+    void modify_item_by_reason(CUnit* unit, const std::string& codename, long new_amount, const std::string& reason)
+    {
+        if (new_amount == 0)
+            return;
+
+        if (stricmp(codename.c_str(), PRP_SILVER) == 0)
+            unit->silver_.amount_ += new_amount;
+        else if (gpApp->IsMan(codename.c_str()))
+            item_control::modify_amount(unit->men_, codename, new_amount);
+        else 
+            item_control::modify_amount(unit->items_, codename, new_amount);
+
+        //pretty print
+        std::string code, name, plural;
+        if (!gpApp->ResolveAliasItems(codename, code, name, plural))
+        {
+            name = codename;
+            plural = codename;
+        }
+
+        std::stringstream ss;
+        if (new_amount > 0)
+            ss << "got " << new_amount << " " << (abs(new_amount) == 1 ? name : plural) << " " << reason;
+        else
+            ss << "lost " << abs(new_amount) << " " << (abs(new_amount) == 1 ? name : plural) << " " << reason;
+
+        unit->impact_description_.push_back(ss.str());
+
+        //properties support
+        modify_item_property(unit, codename);
+        unit->CalcWeightsAndMovement();
     }
 
     void modify_item_from_market(CUnit* unit, const std::string& codename, long new_amount, long price)
@@ -352,6 +404,10 @@ namespace unit_control
             ss << "sell " << abs(new_amount) << " of " << codename << " for " << price << "$ per each";
 
         unit->impact_description_.push_back(ss.str());
+
+        modify_item_property(unit, PRP_SILVER);
+        modify_item_property(unit, codename);
+        unit->CalcWeightsAndMovement();        
     }
 
     void modify_man_from_market(CUnit* unit, const std::string& codename, long new_amount, long price)
@@ -360,26 +416,29 @@ namespace unit_control
             return;
 
         unit->silver_.amount_ += -new_amount*price;
+        item_control::modify_amount(unit->men_, codename, new_amount);
+
         std::stringstream ss;
         if (new_amount < 0)
         {//assuming we can sell peasants, but we actually can't
-            item_control::modify_amount(unit->men_, codename, new_amount);
             ss << "sell " << abs(new_amount) << " of " << codename << " for " << price << "$ per each";
         }
         else //new_amount > 0
         {
-            long current_man_amount(0);
-            for (const auto& nation : unit->men_)
-                current_man_amount += nation.amount_;
+            long current_man_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+            //for (const auto& nation : unit->men_)
+            //    current_man_amount += nation.amount_;
 
             //calculate days of knowledge according to new amount of peasants
             for (auto& skill: unit->skills_)
                 skill.second = skill.second * current_man_amount / (current_man_amount + new_amount);
             
-            item_control::modify_amount(unit->men_, codename, new_amount);
             ss << "buy " << new_amount << " of " << codename << " by " << price << "$ per each";
         }
         unit->impact_description_.push_back(ss.str());
+        modify_item_property(unit, PRP_SILVER);
+        modify_item_property(unit, codename);
+        unit->CalcWeightsAndMovement();         
     }
 
     void modify_item_from_unit(CUnit* unit, CUnit* source_unit, const std::string& codename, long new_amount)
@@ -414,6 +473,8 @@ namespace unit_control
         ss << action << " " << abs(new_amount) << " of " << codename << " ";
         ss << direction << " " << source_name;
         unit->impact_description_.push_back(ss.str());
+        modify_item_property(unit, codename);
+        unit->CalcWeightsAndMovement();     
     }
 
     void modify_man_from_unit(CUnit* unit, CUnit* source_unit, const std::string& codename, long new_amount)
@@ -460,6 +521,8 @@ namespace unit_control
         ss << action << " " << abs(new_amount) << " of " << codename << " ";
         ss << direction << " " << source_name;
         unit->impact_description_.push_back(ss.str());
+        modify_item_property(unit, codename);
+        unit->CalcWeightsAndMovement();     
     }
 
 
@@ -659,9 +722,9 @@ namespace unit_control
 
     bool init_caravan(CUnit* unit)
     {
-        if (orders::autoorders::is_caravan(unit->orders_))
+        if (orders::autoorders_caravan::is_caravan(unit->orders_))
         {
-            unit->caravan_info_ = orders::autoorders::get_caravan_info(unit->orders_);
+            unit->caravan_info_ = orders::autoorders_caravan::get_caravan_info(unit->orders_);
             return true;
         }
         else
@@ -1339,6 +1402,7 @@ namespace land_control
 
     void get_land_sells(CLand* land, std::vector<Trader>& out, std::vector<unit_control::UnitError>& errors)
     {
+        std::map<std::string, long> requests;//item_name, amount
         perform_on_each_unit(land, [&](CUnit* unit) {
             auto sell_orders = orders::control::retrieve_orders_by_type(orders::Type::O_SELL, unit->orders_);
             for (auto& sell_order : sell_orders)
@@ -1388,15 +1452,20 @@ namespace land_control
                     errors.push_back({"Warning", unit, "sell: " + warning});
                     amount_to_sell = wanted_item.item_.amount_;
                 }
-                if (amount_to_sell < amount_at_unit && amount_to_sell < wanted_item.item_.amount_)
-                {
-                    errors.push_back({"Warning", unit, "sell: trying to sell "+
-                        std::to_string(amount_to_sell)+" but can "+std::to_string(std::min(wanted_item.item_.amount_, amount_at_unit))});
-                }
-                
                 out.push_back({sell_order, item_name, amount_to_sell, wanted_item.price_, unit});
+                requests[item_name] += amount_to_sell;
             }
         });
+        
+        for (auto& request : requests)
+        {
+            CProductMarket wanted_item = land_control::get_wanted(land->current_state_, request.first);
+            if (request.second > wanted_item.item_.amount_)
+            {
+                errors.push_back({"Warning", nullptr, "region accepts: " + std::to_string(wanted_item.item_.amount_) +
+                 ", but sell attempts: " + std::to_string(request.second)});
+            }
+        }
     }
 
     std::unordered_map<long, Student> get_land_students(CLand* land, std::vector<unit_control::UnitError>& errors)

@@ -770,6 +770,7 @@ void TestLandId();
 BOOL IsASkillRelatedProperty(const char * propname);
 void MakeQualifiedPropertyName(const char * prefix, const char * shortname, CStr & FullName);
 void SplitQualifiedPropertyName(const char * fullname, CStr & Prefix, CStr & ShortName);
+bool evaluateLandByFilter(CLand* land, CStr * Property, eCompareOp * CompareOp, CStr * sValue, long * lValue, int count);
 BOOL EvaluateBaseObjectByBoxes(CBaseObject * pObj, CStr * Property, eCompareOp * CompareOp, CStr * Value, long * lValue, int count);
 
 #endif

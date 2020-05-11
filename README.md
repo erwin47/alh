@@ -26,6 +26,17 @@ Also there will be explicitely written if any of students is not studying anymor
 In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `REC_DLG_GROUPS` may be listed groups with which ReceiveDlg will work, as with items. For example, `REC_DLG_GROUPS = trade_items,food` mean, that in ReceiveDlg in drop up list there will be possibility to choose `trade_items` or `food`, and get list of all units having any items belonging to the group. Those entities (trade_items and food) have to be defined in section `UNIT_PROPERTY_GROUPS`.
 
 ## Changelog:
+### May 11 2020
+- internal: added autologic functionality.
+- internal: in ResolveAliasItems fixed upper/lower case issue.
+- internal: item's handling was modified, added handling of Properties inside, not a parallel logic.
+- internal: give order parser & all infrastructure added.
+- orders parsing: added basic checks for order's validity.
+- map land filter: added variant `REG[NAME]` for region name, useful for searching of quests regions.
+- sell order: added warning if attempt to sell more than market has
+- autologic: added `;$COND` and `;$WARN` orders with evaluation logic (see `doc/autologic/README.md`). In case of `COND`, if statement evaluates to TRUE, then order is uncommented. Otherwise commented. In case of `WARN`, warning will be generated if statement evaluates to TRUE.
+- pseudocommand: `;$get X ITEM` works again, artificially adding specified amount of items to unit.
+
 ### Apr 30 2020
 - internal: added state to land: initial and current (a step for ships giving)
 - internal: simplified & upgraded sailing events handling

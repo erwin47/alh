@@ -992,9 +992,9 @@ bool CAhApp::ResolveAliasItems(const std::string& phrase, std::string& codename,
         if (current_name_plural.empty())
             current_name_plural = current_name;
 
-        std::string upper_phrase = phrase;
-        std::transform(upper_phrase.begin(), upper_phrase.end(),upper_phrase.begin(), ::toupper);
-        if (upper_phrase == current_codename || phrase == current_name || phrase == current_name_plural)
+        if (stricmp(phrase.c_str(), current_codename.c_str()) == 0 || 
+            stricmp(phrase.c_str(), current_name.c_str()) == 0 ||
+            stricmp(phrase.c_str(), current_name_plural.c_str()) == 0)
         {
             codename = current_codename;
             name = current_name;

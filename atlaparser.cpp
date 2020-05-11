@@ -43,6 +43,7 @@
 #include "routeplanner.h"
 #include "data_control.h"
 #include "ah_control.h"
+#include "autologic.h"
 
 #define CONTAINS    "contains "
 #define SILVER      "silver"
@@ -5033,7 +5034,15 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                 //initial amount of silver
                 if (unit->IsOurs)
                     pLand->current_state_.economy_.initial_amount_ += unit_control::get_item_amount(unit, PRP_SILVER);
+
+                std::vector<std::shared_ptr<orders::Order>> errors = orders::control::retrieve_orders_by_type(orders::Type::O_ERROR, unit->orders_);
+                for (auto& order : errors)
+                {
+                    OrderError("error", pLand, unit, order->comment_ + ": " + order->original_string_);
+                }
             });
+
+            RunOrder_AOComments(pLand);
         }
 
         if (sequence == TurnSequence::SQ_FORM)
@@ -5421,22 +5430,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                         if (TurnSequence::SQ_CLAIM==sequence)
                         {
                             p        = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-
                             n1       = atol(N1.GetData());
-
-                            if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitmoney, eNormal) )
-                            {
-                                unitmoney = 0;
-                                if (PE_OK!=pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitmoney, eBoth))
-                                    SHOW_WARN_CONTINUE(NOSETUNIT << pUnit->Id << BUG);
-                            }
-                            else if (eLong!=type)
-                                SHOW_WARN_CONTINUE(NOTNUMERIC << pUnit->Id << BUG);
-
                             unit_control::modify_silver(pUnit, n1, "claiming");
-                            unitmoney += n1;
-                            if (PE_OK!=pUnit->SetProperty(PRP_SILVER,   eLong, (const void *)unitmoney, eNormal))
-                                SHOW_WARN_CONTINUE(NOSET << BUG);
                         }
                         break;
 
@@ -5881,7 +5876,6 @@ void CAtlaParser::DistributeSilver(CLand * pLand, int unitFlag, int silver, int 
     CUnit * pUnit;
     long nmen;
 
-    int unitSilver;
     int unitReceives;
     int skill;
 
@@ -5902,17 +5896,10 @@ void CAtlaParser::DistributeSilver(CLand * pLand, int unitFlag, int silver, int 
                         nmen *= skill;
                     }
                 }
-                if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
-                {
-                    unitSilver = 0;
-                    pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eBoth);
-                }
                 unitReceives = (silver * nmen) / menCount;
-                unitSilver += unitReceives;
                 unit_control::modify_silver(pUnit, unitReceives, "distribution");
                 silver -= unitReceives;
                 menCount -= nmen;
-                pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
                 if (menCount == 0)
                     return;
             }
@@ -6000,7 +5987,6 @@ void CAtlaParser::RunOrder_Upkeep(CUnit * pUnit, int turns)
 {
     EValueType          type;
     long nmen;
-    int unitSilver;
     int Maintainance;
     const char * leadership;
 
@@ -6011,14 +5997,8 @@ void CAtlaParser::RunOrder_Upkeep(CUnit * pUnit, int turns)
             Maintainance = nmen * atoi(gpApp->GetConfig(SZ_SECT_COMMON, SZ_UPKEEP_LEADER));
         else
             Maintainance = nmen * atoi(gpApp->GetConfig(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT));
-        if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
-        {
-            unitSilver = 0;
-            pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eBoth);
-        }
-        unitSilver -= Maintainance * turns;
+
         unit_control::modify_silver(pUnit, -Maintainance * turns, "upkeep");
-        pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
     }
 }
 
@@ -6079,15 +6059,14 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
         pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
         if (!pUnit->IsOurs) continue;
         if (shareType == SHARE_BUY || !pUnit->pMovement || pUnit->pMovement->Count() == 0)
-        if ((shareType == SHARE_UPKEEP || pUnit->Flags & UNIT_FLAG_SHARING) && pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
+        if (shareType == SHARE_UPKEEP || pUnit->Flags & UNIT_FLAG_SHARING)
         {
+            unitSilver = unit_control::get_item_amount(pUnit, PRP_SILVER);
             if (unitSilver > 0)
             {
                 shareSilver = std::min(unitSilver, silverNeeded);
                 silverNeeded -= shareSilver;
-                unitSilver -= shareSilver;
                 unit_control::modify_silver(pUnit, -shareSilver, "sharing");
-                pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
                 if (!silverNeeded)
                     break;
             }
@@ -6109,8 +6088,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
                 shareSilver = std::min(-unitSilver, silverAvailable);
                 silverAvailable -= shareSilver;
                 unitSilver += shareSilver;
-                unit_control::modify_silver(pUnit, -shareSilver, "sharing");
-                pUnit->SetProperty(PRP_SILVER, eLong, (const void*)unitSilver, eNormal);
+                unit_control::modify_silver(pUnit, shareSilver, "sharing");
             }
         }
     }
@@ -6284,6 +6262,86 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
                 unit->impact_description_.push_back("steal: " + mess);
                 target_unit->impact_description_.push_back(item + " is going to be stolen by " + std::string(unit->Name.GetData()));
                 return;            
+            }
+        }
+    });
+}
+
+void CAtlaParser::RunOrder_AOComments(CLand* land)
+{
+    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        for (auto& order : unit->orders_.orders_)
+        {
+            orders::autoorders::AO_TYPES type = orders::autoorders::has_autoorders(order);
+            if (type == orders::autoorders::AO_TYPES::AO_GET)
+            {
+                long amount;
+                std::string item;
+                if (!orders::autoorders::parse_get(order, amount, item))
+                {
+                    OrderError("error", land, unit, "autoorders: couldn't parse get: " + order->comment_);
+                    continue;
+                }
+
+                if (amount == 0)
+                    continue;
+
+                unit_control::modify_item_by_reason(unit, item, amount, "by autoorders");
+            }
+            if (type == orders::autoorders::AO_TYPES::AO_CONDITION)
+            {
+                orders::autoorders::LogicAction action;
+                std::string statement;
+                if (!orders::autoorders::parse_logic(order, action, statement))
+                {
+                    OrderError("error", land, unit, "autoorders: couldn't parse condition: " + order->comment_);
+                    continue;
+                }
+
+                bool result(true);
+                size_t pos = 0;
+                size_t or_op = statement.find("||", 0);
+                while(or_op != std::string::npos)
+                {
+                    size_t and_op = statement.find("&&", pos, or_op - pos);
+                    while (and_op != std::string::npos)
+                    {
+                        result = result && autologic::evaluate_statement(land, unit, statement.substr(pos, and_op-pos));
+                        if (!result)//false, no need evaluate other AND
+                            break;
+
+                        pos = and_op+2;
+                        and_op = statement.find("&&", pos, or_op - pos);
+                    }
+                    result = result && autologic::evaluate_statement(land, unit, statement.substr(pos, or_op-pos));
+
+                    //true, no need to evaluate other OR
+                    if (result)
+                        return true;
+
+                    pos = or_op+2;
+                    or_op = statement.find("||", pos);
+                }
+
+                size_t and_op = statement.find("&&", pos, or_op - pos);
+                while (and_op != std::string::npos)
+                {
+                    result = result && autologic::evaluate_statement(land, unit, statement.substr(pos, and_op-pos));
+                    if (!result)//false, no need evaluate other AND
+                        break;
+
+                    pos = and_op+2;
+                    and_op = statement.find("&&", pos, or_op - pos);
+                }
+                result = result && autologic::evaluate_statement(land, unit, statement.substr(pos));
+
+                if (result) {
+                    orders::control::uncomment_order(order, unit);
+                }
+                else 
+                {
+                    orders::control::comment_order_out(order, unit);
+                }
             }
         }
     });
@@ -6715,10 +6773,6 @@ void CAtlaParser::RunOrder_Withdraw(CStr & Line, CStr & ErrorLine, BOOL skiperro
     EValueType          type;
     const void        * value;
 
-//    int               * weights;    // calculate weight change while giving
-//    const char       ** movenames;
-//    int                 movecount;
-
     CStr                Item, N;
     int                 amount;
     char                ch;
@@ -6730,34 +6784,10 @@ void CAtlaParser::RunOrder_Withdraw(CStr & Line, CStr & ErrorLine, BOOL skiperro
         params = Item.GetToken(params, " \t", ch, TRIM_ALL);
         std::string codename, name, name_plural;
         gpApp->ResolveAliasItems(Item.GetData(), codename, name, name_plural);
-        Item = codename.c_str();
 
         amount = atol(N.GetData()); // we allow negative amounts!
 
-//        if ( gpDataHelper->(Item.GetData(), weights, movenames, movecount) )
-//        {
-            if (!pUnit->GetProperty(Item.GetData(), type, value, eNormal) )
-            {
-                type  = eLong;
-                value = (const void*)0L;
-                    // set original value to 0!
-                if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, value, eNormal))
-                    SHOW_WARN_CONTINUE(NOSETUNIT << BUG);
-            }
-            else if (eLong!=type)
-            {
-                SHOW_WARN_CONTINUE(NOTNUMERIC << BUG);
-                break;
-            }
-
-            unit_control::modify_silver(pUnit, amount, "withdrawal");
-            if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value+amount), eNormal))
-                SHOW_WARN_CONTINUE(NOSETUNIT << BUG);
-
-            pUnit->CalcWeightsAndMovement();
-//            pUnit ->AddWeight(amount, weights, movenames, movecount);
-//        }
-
+        unit_control::modify_item_by_reason(pUnit, codename, amount, "from withdrawal");
     } while (FALSE);
 
 }
@@ -6859,8 +6889,6 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
                 unit_control::modify_man_from_unit(unit, target_unit, item_code, -amount);
                 if (target_unit != nullptr)
                     unit_control::modify_man_from_unit(target_unit, unit, item_code, amount);
-                //for compliance with old version
-                //AdjustSkillsAfterGivingMen(unit, target_unit, item_code, amount);
             }
             else
             {
@@ -6868,136 +6896,10 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
                 if (target_unit != nullptr)
                     unit_control::modify_item_from_unit(target_unit, unit, item_code, amount);
             }
-
-            //old properties support
-            if (PE_OK!=unit->SetProperty(item_code.c_str(), 
-                                                eLong, 
-                                                (const void *)unit_control::get_item_amount(unit, item_code, true),
-                                                eOriginal) ||
-                PE_OK!=unit->SetProperty(item_code.c_str(), 
-                                                eLong, 
-                                                (const void *)unit_control::get_item_amount(unit, item_code),
-                                                eNormal))
-                OrderError("Error", land, unit, "give: couldn't SetProperty correctly!");
-            if (target_unit != nullptr)
-            {
-                if (PE_OK!=target_unit->SetProperty(item_code.c_str(), 
-                                                eLong, 
-                                                (const void *)unit_control::get_item_amount(target_unit, item_code, true),
-                                                eOriginal) ||
-                    PE_OK!=target_unit->SetProperty(item_code.c_str(), 
-                                eLong, 
-                                (const void *)unit_control::get_item_amount(target_unit, item_code),
-                                eNormal))
-                    OrderError("Error", land, unit, "give: couldn't SetProperty correctly!");
-            }                
-            unit->CalcWeightsAndMovement();
-            if (target_unit)
-                target_unit->CalcWeightsAndMovement();
         }
     }    
 }
 
-
-void CAtlaParser::RunOrder_Give(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL IgnoreMissingTarget)
-{
-    EValueType          type;
-    long                n1;
-    CBaseObject         Dummy;
-    int                 idx;
-    CUnit             * pUnit2 = NULL;
-    const void        * value;
-    const void        * value2;
-    CStr                Item;
-    int                 amount;
-
-    do
-    {
-        if (!GetTargetUnitId(params, pUnit->FactionId, n1))
-            SHOW_WARN_CONTINUE(" - Invalid unit id");
-        if (n1==pUnit->Id)
-            SHOW_WARN_CONTINUE(" - Giving to yourself");
-        if (0!=n1)
-        {
-            Dummy.Id = n1;
-            if (pLand->Units.Search(&Dummy, idx))
-                pUnit2 = (CUnit*)pLand->Units.At(idx);
-            else
-                SHOW_WARN_CONTINUE(" - Can not locate target unit");
-        }
-
-        if (GetItemAndAmountForGive(Line, ErrorLine, skiperror, pUnit, pLand, params, Item, amount, "give", NULL) )
-        {
-            // NULL==pUnit2 is normal, always check!
-
-            if (0==stricmp("UNIT", Item.GetData()))
-            {
-                if (pUnit2 && pUnit->FactionId==pUnit2->FactionId)
-                    SHOW_WARN_CONTINUE(" - Target unit belongs to the same faction");
-                break;
-            }
-
-            if (n1 == 0)
-            {
-                if (gpDataHelper->IsMan(Item.GetData()))
-                {
-                    unit_control::modify_man_from_unit(pUnit, nullptr, Item.GetData(), -amount);
-                }
-                else
-                {
-                    unit_control::modify_item_from_unit(pUnit, nullptr, Item.GetData(), -amount);
-                } 
-
-                if (!pUnit->GetProperty(Item.GetData(), type, value, eNormal) || (eLong!=type))
-                    SHOW_WARN_CONTINUE(" - Can not give " << Item);
-                if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
-                    SHOW_WARN_CONTINUE(NOSET << BUG);        
-            }
-
-            if (!pUnit->GetProperty(Item.GetData(), type, value, eNormal) || (eLong!=type))
-                SHOW_WARN_CONTINUE(" - Can not give " << Item);
-
-            if (pUnit2)
-            {
-                if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
-                    SHOW_WARN_CONTINUE(NOSET << BUG);
-
-                if (!pUnit2->GetProperty(Item.GetData(), type, value2, eNormal) )
-                {
-                    value2 = (const void*)0L;
-                    // set original value to 0!
-                    if (PE_OK!=pUnit2->SetProperty(Item.GetData(), type, value2, eNormal))
-                        SHOW_WARN_CONTINUE(NOSETUNIT << n1 << BUG);
-                }
-                else if (eLong!=type)
-                    SHOW_WARN_CONTINUE(NOTNUMERIC << n1 << BUG);
-
-                //unit_control::modify_item_amount(pUnit2, giving_unit_name, Item.GetData(), amount);
-                if (gpDataHelper->IsMan(Item.GetData()))
-                {
-                    unit_control::modify_man_from_unit(pUnit, pUnit2, Item.GetData(), -amount);
-                    unit_control::modify_man_from_unit(pUnit2, pUnit, Item.GetData(), amount);                    
-                }
-                else
-                {
-                    unit_control::modify_item_from_unit(pUnit, pUnit2, Item.GetData(), -amount);
-                    unit_control::modify_item_from_unit(pUnit2, pUnit, Item.GetData(), amount);
-                } 
-
-                if (PE_OK!=pUnit2->SetProperty(Item.GetData(), type, (const void*)((long)value2+amount), eNormal))
-                    SHOW_WARN_CONTINUE(NOSET << BUG);
-
-                // check how giving men affects skills
-                AdjustSkillsAfterGivingMen(pUnit, pUnit2, Item, amount);
-            }
-
-            pUnit->CalcWeightsAndMovement();
-            if (pUnit2)
-                pUnit2->CalcWeightsAndMovement();
-        }
-
-    } while (FALSE);
-}
 
 
 
@@ -7193,27 +7095,8 @@ void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                     unit_control::modify_item_from_unit(pUnit2, pUnit, Item.GetData(), -amount);
                     unit_control::modify_item_from_unit(pUnit, pUnit2, Item.GetData(), amount);
                 } 
-                if (PE_OK!=pUnit2->SetProperty(Item.GetData(), type, (const void*)((long)value-amount), eNormal))
-                    SHOW_WARN_CONTINUE(NOSET << BUG);
-
-                if (!pUnit->GetProperty(Item.GetData(), type, value2, eNormal) )
-                {
-                    value2 = (const void*)0L;
-                    // set original value to 0!
-                    if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, value2, eNormal))
-                        SHOW_WARN_CONTINUE(NOSETUNIT << n1 << BUG);
-                }
-                else if (eLong!=type)
-                    SHOW_WARN_CONTINUE(NOTNUMERIC << n1 << BUG);
-
-                if (PE_OK!=pUnit->SetProperty(Item.GetData(), type, (const void*)((long)value2+amount), eNormal))
-                    SHOW_WARN_CONTINUE(NOSET << BUG);
-
                 // check how giving men affects skills
                 AdjustSkillsAfterGivingMen(pUnit2, pUnit, Item, amount);
-
-                pUnit->CalcWeightsAndMovement();
-                pUnit2->CalcWeightsAndMovement();
             }
         }
 
@@ -7475,19 +7358,11 @@ void CAtlaParser::PerformOrder_Buy(CLand * land)
         //properties support:
         CStr                LandProp(32);
         MakeQualifiedPropertyName(PRP_SALE_PRICE_PREFIX, buyer.item_name_.c_str(), LandProp);
-        CProductMarket selled_item = land_control::get_for_sale(land->current_state_, buyer.item_name_);
-        if ( (PE_OK!=buyer.unit_->SetProperty(buyer.item_name_.c_str(), 
-                                        eLong, 
-                                        (const void *)unit_control::get_item_amount(buyer.unit_, buyer.item_name_),
-                                        eNormal)) ||
-                (PE_OK!=buyer.unit_->SetProperty(PRP_SILVER,
-                                           eLong, 
-                                           (const void *)unit_control::get_item_amount(buyer.unit_, PRP_SILVER), 
-                                           eNormal)) ||
-                (PE_OK!=land->SetProperty(LandProp.GetData(), 
-                                           eLong, 
-                                           (const void *)(selled_item.item_.amount_ - buyer.items_amount_),  
-                                           eNormal)))
+        CProductMarket sold_item = land_control::get_for_sale(land->current_state_, buyer.item_name_);
+        if (PE_OK!=land->SetProperty(LandProp.GetData(), 
+                                     eLong, 
+                                     (const void *)(sold_item.item_.amount_ - buyer.items_amount_),  
+                                     eNormal))
         {
             errors.push_back({"Error", buyer.unit_, " - Can not set unit property"});
         }
@@ -7501,136 +7376,12 @@ void CAtlaParser::PerformOrder_Buy(CLand * land)
                 buyer.unit_->Flags |= UNIT_FLAG_PRODUCING;
             }
         }
-
         buyer.unit_->CalcWeightsAndMovement();
     }    
 
     for (auto& error : errors) {
         OrderError(error.type_, land, error.unit_, error.message_);
     }
-
-}
-
-
-void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params)
-{
-    EValueType          type;
-    CStr                S1  (32);
-    CStr                N1  (32);
-    char                ch;
-    long                n1;
-    long                peritem;
-    long                unitmoney;
-    long                unitprop;
-    CStr                LandProp(32);
-    long                landprop; // Shar1 Extrict SELL/BUY check
-    CUnit               DummyGiver;
-
-//    int               * weights;    // calculate weight change while giving
-//    const char       ** movenames;
-//    int                 movecount;
-
-    do
-    {
-        // BUY 33 VIKI
-        //     n1 S1
-        params = SkipSpaces(N1.GetToken(params, " \t", ch, TRIM_ALL));
-        //params = SkipSpaces(S1.GetToken(params, " \t", ch, TRIM_ALL));
-        params = ReadPropertyName(params, S1);
-        n1= atol(N1.GetData());
-        if (S1.IsEmpty() || (n1<=0 && 0!=stricmp(N1.GetData(), "ALL")) )
-            SHOW_WARN_CONTINUE(" - Invalid BUY command");
-
-        // buying peasants requires substituting the alias by the real type of men.
-        if (0==stricmp(S1.GetData(), "peas") || 0==stricmp(S1.GetData(), "peasant")
-            || 0==stricmp(S1.GetData(), "peasants"))
-            if (!pLand->current_state_.peasant_race_.empty())
-                ReadPropertyName(pLand->current_state_.peasant_race_.c_str(), S1);
-
-        // men/man is a category and cannot be aliased
-        if (S1.FindSubStr("HUMANS") != -1) S1 = "MAN";
-        if (S1.FindSubStr("ORCS") != -1) S1 = "ORC";
-
-        MakeQualifiedPropertyName(PRP_SALE_PRICE_PREFIX, S1.GetData(), LandProp);
-        if ( pLand->GetProperty(LandProp.GetData(), type, (const void *&)peritem, eNormal) && (eLong==type))
-        {
-            if (0==stricmp(N1.GetData(), "ALL"))
-            {
-                MakeQualifiedPropertyName(PRP_SALE_AMOUNT_PREFIX, S1.GetData(), LandProp);
-                if ( !pLand->GetProperty(LandProp.GetData(), type, (const void *&)n1, eNormal) || (eLong!=type))
-                    n1=0;
-            }
-
-            if (!pUnit->GetProperty(S1.GetData(), type, (const void *&)unitprop, eNormal) )
-            {
-                unitprop = 0;
-                if (PE_OK!=pUnit->SetProperty(S1.GetData(), type, (const void *)unitprop, eBoth))
-                    SHOW_WARN_CONTINUE(NOSETUNIT << pUnit->Id << BUG);
-            }
-            else if (eLong!=type)
-                SHOW_WARN_CONTINUE(NOTNUMERIC << pUnit->Id << BUG);
-
-            if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitmoney, eNormal) )
-            {
-                unitmoney = 0;
-                type = eLong;
-                if (PE_OK!=pUnit->SetProperty(PRP_SILVER, type, (const void*)unitmoney, eBoth))
-                    SHOW_WARN_CONTINUE(NOSETUNIT << pUnit->Id << BUG);
-            }
-            else if (eLong!=type)
-                SHOW_WARN_CONTINUE(NOTNUMERIC << pUnit->Id << BUG);
-
-            // Shar1 Extrict SELL/BUY check. Start
-
-            // Checking amount
-            MakeQualifiedPropertyName(PRP_SALE_AMOUNT_PREFIX, S1.GetData(), LandProp);
-            if (!pLand->GetProperty(LandProp.GetData(), type, (const void *&) landprop, eNormal) || (eLong!=type))
-                landprop = 0;
-            if (n1 > landprop)
-            {
-                SHOW_WARN_CONTINUE(" - That is too MANY! Buy " << (long) landprop << " at max.");
-                n1 = landprop;
-            }
-            unitmoney -= n1*peritem; // This is the old code
-            unitprop  += n1;         // This is the old code
-            landprop  -= n1;
-
-            std::string phrase(std::string(S1.GetData(), S1.GetLength())), codename, name, plural;
-            gpApp->ResolveAliasItems(phrase, codename, name, plural);     
-            if (gpDataHelper->IsMan(codename.c_str()))
-            {
-                unit_control::modify_man_from_market(pUnit, codename, n1, peritem);
-            }
-            else
-            {
-                unit_control::modify_item_from_market(pUnit, codename, n1, peritem);
-            } 
-
-            if ( (PE_OK!=pUnit->SetProperty(S1.GetData(), type, (const void *)unitprop,  eNormal)) || // This is the old code
-                 (PE_OK!=pUnit->SetProperty(PRP_SILVER,   type, (const void *)unitmoney, eNormal)) || // This is ALMOST the old code
-                 (PE_OK!=pLand->SetProperty(LandProp.GetData(), type, (const void *)landprop,  eNormal)))
-            // Shar1 End
-                SHOW_WARN_CONTINUE(NOSET << BUG);
-
-            if (gpDataHelper->IsTradeItem(S1.GetData()))
-                pUnit->Flags |= UNIT_FLAG_PRODUCING;
-
-            // adjust weight
-//            if (gpDataHelper->GetItemWeights(S1.GetData(), weights, movenames, movecount))
-//                pUnit ->AddWeight(n1, weights, movenames, movecount);
-            pUnit->CalcWeightsAndMovement();
-
-            AdjustSkillsAfterGivingMen(&DummyGiver, pUnit, S1, n1);
-
-            if (gpDataHelper->IsMan(S1.GetData()))
-            {
-                if (S1.FindSubStr("LEAD") >= 0)
-                    SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_LEADER, eNormal);
-            }
-        }
-        else
-            SHOW_WARN_CONTINUE(" - Can not BUY that!");
-    } while (FALSE);
 
 }
 
@@ -7658,18 +7409,10 @@ void CAtlaParser::PerformOrder_Sell(CLand * land)
         CStr LandProp(32);
         MakeQualifiedPropertyName(PRP_WANTED_AMOUNT_PREFIX, seller.item_name_.c_str(), LandProp);
         CProductMarket wanted_item = land_control::get_wanted(land->current_state_, seller.item_name_);
-        if ( (PE_OK!=seller.unit_->SetProperty(seller.item_name_.c_str(), 
-                                               eLong, 
-                                               (const void *)unit_control::get_item_amount(seller.unit_, seller.item_name_),  
-                                               eNormal)) || // This is the old code
-             (PE_OK!=seller.unit_->SetProperty(PRP_SILVER, 
-                                               eLong, 
-                                               (const void *)unit_control::get_item_amount(seller.unit_, PRP_SILVER), 
-                                               eNormal)) || // This is ALMOST the old code
-             (PE_OK!=land->SetProperty(LandProp.GetData(), 
-                                       eLong, 
-                                       (const void *)(wanted_item.item_.amount_ - seller.items_amount_),  
-                                       eNormal)))
+        if (PE_OK!=land->SetProperty(LandProp.GetData(), 
+                                    eLong, 
+                                    (const void *)(wanted_item.item_.amount_ - seller.items_amount_),  
+                                    eNormal))
             OrderError("Error", land, seller.unit_, std::string(NOSET) + BUG);            
         seller.unit_->CalcWeightsAndMovement();  
     }
@@ -7677,101 +7420,6 @@ void CAtlaParser::PerformOrder_Sell(CLand * land)
     for (const auto& error : errors) {
         OrderError(error.type_, land, error.unit_, error.message_);
     }
-}
-
-void CAtlaParser::RunOrder_Sell(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params)
-{
-    EValueType          type;
-    EValueType          type1;
-    CStr                S1  (32);
-    CStr                N1  (32);
-    char                ch;
-    long                n1 = 0;
-    long                peritem = 0;
-    long                unitmoney = 0;
-    long                unitprop = 0;
-    CStr                LandProp(32);
-    long                landprop = 0; // Shar1 Extrict SELL/BUY check
-
-//    int               * weights;    // calculate weight change while giving
-//    const char       ** movenames;
-//    int                 movecount;
-
-    do
-    {
-         // BUY 33 VIKI
-         //     n1 S1
-         params = SkipSpaces(N1.GetToken(params, " \t", ch, TRIM_ALL));
-         //params = SkipSpaces(S1.GetToken(params, " \t", ch, TRIM_ALL));
-         params = ReadPropertyName(params, S1);
-         n1= atol(N1.GetData());
-         if (S1.IsEmpty() || (n1<=0 && 0!=stricmp(N1.GetData(), "ALL")) )
-             SHOW_WARN_CONTINUE(" - Invalid SELL command");
-
-         MakeQualifiedPropertyName(PRP_WANTED_PRICE_PREFIX, S1.GetData(), LandProp);
-         if ( !pLand->GetProperty(LandProp.GetData(), type,  (const void *&)peritem,  eNormal) ||
-              !pUnit->GetProperty(S1.GetData(),       type1, (const void *&)unitprop, eNormal) ||
-              (eLong!=type) || (eLong!=type1)
-              )
-             SHOW_WARN_CONTINUE(" - Can not SELL that!");
-         if (0==stricmp(N1.GetData(), "ALL"))
-             n1=unitprop;
-         if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitmoney, eNormal) )
-         {
-             unitmoney = 0;
-             if (PE_OK!=pUnit->SetProperty(PRP_SILVER, type, (const void*)unitmoney, eBoth))
-                 SHOW_WARN_CONTINUE(NOSETUNIT << pUnit->Id << BUG);
-         }
-         else if (eLong!=type)
-             SHOW_WARN_CONTINUE(NOTNUMERIC << pUnit->Id << BUG);
-
-         // Shar1 Extrict SELL/BUY check. Start
-         // Check amount wanted by market
-         MakeQualifiedPropertyName(PRP_WANTED_AMOUNT_PREFIX, S1.GetData(), LandProp);
-         if (!pLand->GetProperty(LandProp.GetData(), type,  (const void *&) landprop,  eNormal) || (eLong!=type))
-         {
-             SHOW_WARN_CONTINUE(" - Can not SELL that!");
-             landprop = 0;
-             n1 = 0;
-         }
-         if (n1 > landprop)
-         {
-             SHOW_WARN_CONTINUE(" - Selling beyond market's capacity! Sell " << (long) landprop << " at max.");
-             n1 = landprop;
-         }
-         // Check amount owned by unit
-         if (n1 > unitprop)
-         {
-             SHOW_WARN_CONTINUE(" - That is too MANY! Sell " << (long) unitprop << " at max.");
-             n1 = unitprop;
-         }
-         unitmoney += n1*peritem; // This is the old code
-         unitprop  -= n1; // This is the old code
-         landprop  -= n1;
-
-        std::string phrase(std::string(S1.GetData(), S1.GetLength())), codename, name, plural;
-        gpApp->ResolveAliasItems(phrase, codename, name, plural);     
-        if (gpDataHelper->IsMan(codename.c_str()))
-        {
-            unit_control::modify_man_from_market(pUnit, codename, -n1, peritem);
-        }
-        else
-        {
-            unit_control::modify_item_from_market(pUnit, codename, -n1, peritem);
-        }
-
-         if ( (PE_OK!=pUnit->SetProperty(S1.GetData(), type, (const void *)unitprop,  eNormal)) || // This is the old code
-              (PE_OK!=pUnit->SetProperty(PRP_SILVER,   type, (const void *)unitmoney, eNormal)) || // This is ALMOST the old code
-              (PE_OK!=pLand->SetProperty(LandProp.GetData()  ,   type, (const void *)landprop,  eNormal)))
-         // Shar1. End
-             SHOW_WARN_CONTINUE(NOSET << BUG);
-
-         // adjust weight
-//         if (gpDataHelper->GetItemWeights(S1.GetData(), weights, movenames, movecount))
-//             pUnit ->AddWeight(-n1, weights, movenames, movecount);
-         pUnit->CalcWeightsAndMovement();
-    } while (FALSE);
-
 }
 
 //-------------------------------------------------------------
@@ -8369,8 +8017,8 @@ BOOL CAtlaParser::ApplyDefaultOrders(BOOL EmptyOnly)
         //collect all sources of region, including sources from caravans
         std::vector<orders::AutoSource> land_sources, caravan_sources;
         std::vector<orders::AutoRequirement> needs;
-        orders::autoorders_control::get_land_autosources_and_autoneeds(land, land_sources, needs);
-        orders::autoorders_control::get_land_caravan_autosources_and_autoneeds(land, caravan_sources, needs);
+        orders::autoorders_caravan::get_land_autosources_and_autoneeds(land, land_sources, needs);
+        orders::autoorders_caravan::get_land_caravan_autosources_and_autoneeds(land, caravan_sources, needs);
 
         if (needs.size() == 0)
             return;
@@ -8390,12 +8038,12 @@ BOOL CAtlaParser::ApplyDefaultOrders(BOOL EmptyOnly)
         
         if (caravan_sources.size() > 0)//first unload caravans
         {
-            while(orders::autoorders_control::distribute_autoorders(caravan_sources, needs))
+            while(orders::autoorders_caravan::distribute_autoorders(caravan_sources, needs))
             {}
         }
 
         if (land_sources.size() > 0)//now load caravans 
-            orders::autoorders_control::distribute_autoorders(land_sources, needs);
+            orders::autoorders_caravan::distribute_autoorders(land_sources, needs);
         
     });
 

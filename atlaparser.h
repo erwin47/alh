@@ -339,11 +339,8 @@ protected:
     //void         RunOrder_Teach            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL TeachCheckGlb);
     void         RunOrder_Move             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3, long order);
     void         RunOrder_Promote          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-    void         RunOrder_Sell             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         PerformOrder_Sell         (CLand * land);
     void         PerformOrder_Buy          (CLand * land);
-    void         RunOrder_Buy              (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-    void         RunOrder_Give             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL IgnoreMissingTarget);
     void         RunOrder_Take             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL IgnoreMissingTarget);
     void         RunOrder_Send             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Produce          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
@@ -355,6 +352,7 @@ protected:
     void         RunOrder_LandStudyTeach   (CLand* land);
     void         RunOrder_LandAggression   (CLand* land);//steal, assassinate, attack
     void         RunOrder_LandTaxPillage   (CLand* land);
+    void         RunOrder_AOComments       (CLand* land);
     //void         RunOrder_Study            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Name             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_SailAIII         (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3);

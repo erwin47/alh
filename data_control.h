@@ -83,6 +83,8 @@ namespace unit_control
 
     void modify_item_by_produce(CUnit* unit, const std::string& codename, long new_amount);
 
+    void modify_item_by_reason(CUnit* unit, const std::string& codename, long new_amount, const std::string& reason);
+
     void modify_item_from_market(CUnit* unit, const std::string& codename, long new_amount, long price);
     void modify_item_from_unit(CUnit* unit, CUnit* source, const std::string& codename, long new_amount);
 

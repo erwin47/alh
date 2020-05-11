@@ -123,25 +123,6 @@ namespace orders
         UnitOrders parse_lines_to_orders(const std::string& orders);
         std::string compose_string(const UnitOrders& orders);
 
-        namespace give
-        {
-            //!true on success, false on failure.
-            //in case of failure, out_errors contains the description
-            //words -- the order.
-            bool parse_target_unit(CUnit* giving_unit,
-                                  const std::vector<std::string>& words,
-                                  size_t& i, 
-                                  CUnit*& target_unit,
-                                  std::stringstream& out_errors);
-
-            bool parse_amount_and_item(CUnit* unit, 
-                                       const std::vector<std::string>& words, 
-                                       size_t& i,
-                                       size_t& amount,
-                                       std::string& item_code,
-                                       std::stringstream& out_errors);
-
-        }
         namespace specific
         {   //except = 0 give target_id all item
             //except > 0 give target_id all item except except
@@ -207,6 +188,9 @@ namespace orders
         //! removes orders with specified pattern in comments
         void remove_orders_by_comment(CUnit* unit, const std::string& pattern);
 
+        void comment_order_out(std::shared_ptr<Order>& order, CUnit* unit);
+        void uncomment_order(std::shared_ptr<Order>& order, CUnit* unit);
+
         std::shared_ptr<Order> compose_give_order(CUnit* target, long amount, const std::string& item, const std::string& comment, bool repeating = false);
         //order specific functions
         
@@ -236,40 +220,34 @@ namespace orders
 
     namespace autoorders 
     {
+        enum class AO_TYPES {
+            AO_NONE,
+            AO_GET,
+            AO_CONDITION
+        };
+
+        enum class LogicAction {
+            NONE,
+            SWITCH_COMMENT,
+            ERROR
+        };
+
+        AO_TYPES has_autoorders(const std::shared_ptr<Order>& order);
+        bool parse_get(const std::shared_ptr<Order>& order, long& amount, std::string& item);
+        bool parse_logic(const std::shared_ptr<Order>& order, LogicAction& action, std::string& statement);
+
+    }    
+
+    namespace autoorders_caravan
+    {
         //! checks if orders of unit contain caravan info
         bool is_caravan(const UnitOrders& unit_orders);
-
-        bool is_route_same(const std::shared_ptr<CaravanInfo>& caravan_info1, 
-                           const std::shared_ptr<CaravanInfo>& caravan_info2);
 
         //! extract CaravanInfo from orders of unit
         std::shared_ptr<CaravanInfo> get_caravan_info(UnitOrders& unit_orders);
 
-        /*void get_unit_sources_and_needs(const CUnit* unit, 
-                                        std::vector<AutoSource>& sources,
-                                        std::vector<AutoRequirement>& needs);
-        //! parse orders to find out all SOURCE marks of current unit
-        bool get_unit_autosources(const UnitOrders& unit_orders, std::vector<AutoSource>& sources);
-
-        //! checks actual amount of items in unit to define how many of them it actually can share
-        void adjust_unit_sources(CUnit* unit, std::vector<AutoSource>& sources);
-
-        //! parse orders to find out all NEED requests for current unit and for current region
-        bool get_unit_autoneeds(const UnitOrders& unit_orders, std::vector<AutoRequirement>& unit_needs);
-        
-        //! checks actual amount of items in unit to define real request
-        void adjust_unit_needs(CLand* land, CUnit* unit, std::vector<AutoRequirement>& unit_needs);
-*/
         std::unordered_map<std::string, std::vector<long>> create_source_table(const std::vector<AutoSource>& sources);
-    }    
-
-namespace autoorders_control
-    {
-        //bool is_region_in_caravan_list(CaravanInfo& caravan_info, CLand* land);
-
-        //!gets all land sources excluding caravan sources
-        //void get_land_autosources(CLand* land, std::vector<orders::AutoSource>& sources);
-
+        
         void get_land_autosources_and_autoneeds(CLand* land, 
                                                 std::vector<orders::AutoSource>& sources,
                                                 std::vector<orders::AutoRequirement>& needs);
