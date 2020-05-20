@@ -3,6 +3,7 @@
 
 #include "wx/wx.h"
 #include "wx/spinctrl.h"
+#include <wx/textctrl.h>
 #include "data.h"
 #include "data_control.h"
 #include "ah_control.h"
@@ -94,6 +95,7 @@ private:
     wxBoxSizer* FlagsToForm();
 
     void UpdateExpences();
+    void UpdateAutoname();
 
     //Events
     void OnCancel       (wxCommandEvent& event);

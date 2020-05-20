@@ -207,6 +207,7 @@ public:
     BOOL       DiscardJunkItems(CUnit * pUnit, const char * junk);
     BOOL       DetectSpies(CUnit * pUnit, long lonum, long hinum, long amount);
     BOOL       ApplyDefaultOrders(BOOL EmptyOnly);
+    void       ApplyLandDefaultOrders(CLand* land);
     int        ParseCBDataFile(const char * FNameIn);
     void       WriteMagesCSV(const char * FName, BOOL vertical, const char * separator, int format);
 
@@ -339,8 +340,7 @@ protected:
     //void         RunOrder_Teach            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL TeachCheckGlb);
     void         RunOrder_Move             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3, long order);
     void         RunOrder_Promote          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-    void         PerformOrder_Sell         (CLand * land);
-    void         PerformOrder_Buy          (CLand * land);
+
     void         RunOrder_Take             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL IgnoreMissingTarget);
     void         RunOrder_Send             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Produce          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
@@ -348,11 +348,19 @@ protected:
     void         RunOrder_LandFlags        (CLand* land);
 //!calculates give orders up to specified unit (or for all units if NULL)
     void         RunOrder_LandGive         (CLand* land, CUnit* up_to = NULL);
+    void         RunOrder_LandSell         (CLand* land);
+    void         RunOrder_LandBuy          (CLand* land);
     void         RunOrder_LandProduce      (CLand* land);
     void         RunOrder_LandStudyTeach   (CLand* land);
     void         RunOrder_LandAggression   (CLand* land);//steal, assassinate, attack
-    void         RunOrder_LandTaxPillage   (CLand* land);
-    void         RunOrder_AOComments       (CLand* land);
+    void         RunOrder_LandTaxPillage   (CLand* land, bool apply_changes);
+    void         CheckOrder_LandWork       (CLand *land);
+    void         RunOrder_LandWork         (CLand *land, bool apply_changes);
+    void         CheckOrder_LandEntertain  (CLand *land);
+    void         RunOrder_LandEntertain    (CLand *land, bool apply_changes);
+
+    template<orders::Type TYPE> void RunOrder_AOComments(CLand* land);
+    void         RunOrder_AONames          (CLand* land);
     //void         RunOrder_Study            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Name             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_SailAIII         (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3);
@@ -360,9 +368,6 @@ protected:
     BOOL         GetItemAndAmountForGive   (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, CStr & Item, int & amount, const char * command, CUnit * pUnit2);
     void         RunOrder_Withdraw         (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunPseudoComment          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, TurnSequence sequence, wxString &destination);
-    void         RunOrder_TaxPillage       (CLand *);
-    void         RunOrder_Entertain        (CLand *);
-    void         RunOrder_Work             (CLand *);
     void         RunOrder_ShareSilver      (CStr & Line, CStr & ErrorLine, BOOL skiperror, CLand *, SHARE_TYPE, wxString shareName);
     void         RunOrder_Upkeep           (CLand *);
     void         RunOrder_Upkeep           (CUnit *, int turns);

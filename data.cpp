@@ -274,8 +274,6 @@ CLand::CLand() : CBaseObject(), Units(32), UnitsSeq(32)
     guiColor=-1;
     WeatherWillBeGood=FALSE;
     Wages = 0.0;
-    MaxWages = 0;
-    Entertainment = 0;
     init_land_state(initial_state_);
     init_land_state(current_state_);
     for(int i=0; i<=ATT_UNDECLARED; i++) Troops[i]=0;
@@ -298,7 +296,7 @@ void CLand::DebugPrint(CStr & sDest)
 {
     CBaseObject::DebugPrint(sDest);
 
-    sDest << "Taxable   = " << current_state_.tax_amount_ << "\n";
+    sDest << "Taxable   = " << current_state_.tax_.amount_ << "\n";
 }
 
 //-------------------------------------------------------------
@@ -369,6 +367,7 @@ void init_economy(CEconomy& res)
     res.initial_amount_ = 0;
     res.buy_expenses_ = 0;
     res.maintenance_ = 0;
+    res.work_income_ = 0;
     res.moving_in_ = 0;
     res.moving_out_ = 0;
     res.sell_income_ = 0;
@@ -376,12 +375,23 @@ void init_economy(CEconomy& res)
     res.tax_income_ = 0;
 }
 
+void init_land_item_state(land_item_state& listate)
+{
+    listate.amount_ = 0;
+    listate.requested_ = 0;
+    listate.requesters_amount_ = 0;
+}
+
 void init_land_state(LandState& lstate)
 {
-    lstate.tax_amount_ = 0;
+    init_land_item_state(lstate.tax_);
+    init_land_item_state(lstate.work_);
+    init_land_item_state(lstate.entertain_);
     lstate.peasants_amount_ = 0;
     lstate.resources_.clear();
     lstate.produced_items_.clear();
+    lstate.sold_items_.clear();
+    lstate.bought_items_.clear();
     lstate.wanted_.clear();
     lstate.for_sale_.clear();
     lstate.structures_.clear();
@@ -740,6 +750,8 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
     silver_initial_.amount_ = 0;
     silver_initial_.code_name_ = PRP_SILVER;
     struct_id_ = 0;
+    struct_id_initial_ = 0;
+    has_error_  = false;
 
     FlagsLast     = ~Flags;
     reqMovementSpeed = 0;
@@ -867,7 +879,7 @@ void CUnit::ResetNormalProperties()
         pUnit->struct_id_ = pUnit->struct_id_initial_;        
         SetProperty(PRP_SILVER, eLong, (const void*)silver_initial_.amount_, eNormal);
     }*/
-    
+    has_error_ = false;
     Flags     = FlagsOrg;
     FlagsLast = ~Flags;
     reqMovementSpeed = 0;
@@ -1076,7 +1088,13 @@ BOOL CUnit::GetProperty(const char  *  name,
 
         if (Flags & UNIT_FLAG_PILLAGING        )  sValue << "€";
         if (Flags & UNIT_FLAG_TAXING           )  sValue << '$';
-        if (Flags & UNIT_FLAG_PRODUCING        )  sValue << 'p';
+        if (Flags & UNIT_FLAG_PRODUCING        )  sValue << 'P';
+        if (Flags & UNIT_FLAG_ENTERTAINING     )  sValue << 'E';
+        if (Flags & UNIT_FLAG_STUDYING         )  sValue << 'S';
+        if (Flags & UNIT_FLAG_TEACHING         )  sValue << 'T';        
+        if (Flags & UNIT_FLAG_WORKING          )  sValue << 'W';
+        if (pMovement                          )  sValue << 'M';  
+        sValue << '|';
         if (Flags & UNIT_FLAG_GUARDING         )  sValue << 'g';
         if (Flags & UNIT_FLAG_AVOIDING         )  sValue << 'a';
         if (Flags & UNIT_FLAG_BEHIND           )  sValue << 'b';

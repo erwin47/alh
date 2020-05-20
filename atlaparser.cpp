@@ -44,6 +44,7 @@
 #include "data_control.h"
 #include "ah_control.h"
 #include "autologic.h"
+#include "autonaming.h"
 
 #define CONTAINS    "contains "
 #define SILVER      "silver"
@@ -1301,7 +1302,10 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
                     // Entertainment available: $1125.
                     const char * pTmp = strstr(str, "$");
                     if (pTmp)
-                        pLand->Entertainment = atoi(++pTmp);
+                    {
+                        pLand->initial_state_.entertain_.amount_ = atoi(++pTmp);
+                        pLand->current_state_.entertain_.amount_ = pLand->initial_state_.entertain_.amount_;
+                    }
                 }
                 else
                     SectType = eNone;
@@ -1316,7 +1320,7 @@ plain (5,39) in Partry, contains Drimnin [city], 3217 peasants (high
                     {
                         N1.GetInteger(++p, Valid);
                         
-                        pLand->initial_state_.tax_amount_ = atol(N1.GetData());
+                        pLand->initial_state_.tax_.amount_ = atol(N1.GetData());
                     }
                     else
                     {
@@ -1566,7 +1570,8 @@ void CAtlaParser::ParseWages(CLand * pLand, const char * str1, const char * str2
     src = SkipSpaces(N1.GetToken(src, '$'));
     src = N1.GetInteger(src, Valid);
 
-    pLand->MaxWages = atol(N1.GetData());
+    pLand->initial_state_.work_.amount_ = atol(N1.GetData());
+    pLand->current_state_.work_.amount_ = pLand->initial_state_.work_.amount_;
 }
 
 //----------------------------------------------------------------------
@@ -1904,7 +1909,7 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
                 if (0==stricmp(S.GetData(), Directions[i]))
                 {
                     // yes!
-                    pLand->Exits << "  " << S << ": ";
+                    pLand->Exits << "  " << S << " : ";
                     pPlane->ExitsCount++;
                     S = p;
                     S.TrimLeft();
@@ -2262,8 +2267,12 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
             //unit_control::set_structure(pUnit, m_pCurStruct->Id, false);
             pUnit->struct_id_initial_ = m_pCurStruct->Id;//TODO: generalize
             pUnit->struct_id_ = pUnit->struct_id_initial_;            
-        }
-        
+        }        
+    }
+    else 
+    {
+        pUnit->struct_id_initial_ = 0;
+        pUnit->struct_id_ = pUnit->struct_id_initial_;
     }
 
     // ===== Read Faction Name, which may follow!
@@ -2413,10 +2422,10 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
                             pUnit->men_initial_.insert({n1, codename});
 
                             //So, is it a leader?
-                            if (S1.FindSubStr(SZ_LEADER) >=0 )
-                                SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_LEADER, eBoth);
-                            if (S1.FindSubStr(SZ_HERO) >=0 )
-                                SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_HERO, eBoth);
+                            //if (S1.FindSubStr(SZ_LEADER) >=0 )
+                                //SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_LEADER, eBoth);
+                            //if (S1.FindSubStr(SZ_HERO) >=0 )
+                                //SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_HERO, eBoth);
                         } 
                         else if (codename == PRP_SILVER)
                         {
@@ -4345,6 +4354,8 @@ void CAtlaParser::OrderError(const std::string& type, CLand* land, CUnit* unit, 
             unit_name = unit_control::compose_unit_name(unit);
 
         unit->impact_description_.push_back(Msg);
+        unit->Flags |= UNIT_FLAG_HAS_ERROR;
+        unit->has_error_ = true;
     }
     
     S.Format("%s%s %s : %s%s", land_name.c_str(), unit_name.c_str(), type.c_str(), Msg.c_str(), EOL_SCR);
@@ -4599,7 +4610,7 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
 
     EValueType          type;
     const void        * value;
-    if (peasant_can_teach == 0 && !pMainUnit->GetProperty(PRP_LEADER, type, value, eNormal))
+    if (peasant_can_teach == 0 && !unit_control::is_leader(pMainUnit))
         return FALSE;
 
     //recalculate state to previous to TEACH action, so all RunOrders teach & study modification
@@ -4961,6 +4972,9 @@ void CAtlaParser::RunPseudoComment(CStr & Line, CStr & ErrorLine, BOOL skiperror
 }
 
 
+//#include <chrono> 
+//using namespace std::chrono; 
+
 void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequence stop_step)
 {
     CBaseObject         Dummy;
@@ -4995,8 +5009,13 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
     long                order;
 
     // Run Orders
+
+    //auto start = std::chrono::high_resolution_clock::now();
+    //std::map<long, std::chrono::system_clock::time_point> time_points;
+
     for (TurnSequence sequence = beg_step; sequence <= stop_step; ++sequence)
     {
+
         if (sequence == TurnSequence::SQ_FIRST)
         {
             // Reset land and old units and remove new units
@@ -5041,8 +5060,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                     OrderError("error", pLand, unit, order->comment_ + ": " + order->original_string_);
                 }
             });
-
-            RunOrder_AOComments(pLand);
+            RunOrder_AOComments<orders::Type::O_COMMENT>(pLand);
+            CheckOrder_LandWork(pLand);
         }
 
         if (sequence == TurnSequence::SQ_FORM)
@@ -5050,6 +5069,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         }
         if (sequence == TurnSequence::SQ_CLAIM)
         {
+            //RunOrder_AOComments(pLand, );
             RunOrder_LandFlags(pLand);
         }
         if (sequence == TurnSequence::SQ_LEAVE)
@@ -5063,10 +5083,16 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         }
         if (sequence == TurnSequence::SQ_STEAL) //for SQ_ATTACK, SQ_ASSASSINATE
         {
+            RunOrder_AOComments<orders::Type::O_STEAL>(pLand);
+            RunOrder_AOComments<orders::Type::O_ATTACK>(pLand);
+            RunOrder_AOComments<orders::Type::O_ASSASSINATE>(pLand);
             RunOrder_LandAggression(pLand);
         } 
         if (sequence == TurnSequence::SQ_GIVE)
         {
+            
+            RunOrder_AOComments<orders::Type::O_GIVE>(pLand);
+            RunOrder_AOComments<orders::Type::O_TAKE>(pLand);
             RunOrder_LandGive(pLand);
         } 
         if (sequence == TurnSequence::SQ_JOIN) {}
@@ -5075,52 +5101,61 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
         if (sequence == TurnSequence::SQ_TAX)
         {
-            RunOrder_LandTaxPillage(pLand);
-            if (m_EconomyTaxPillage && pLand->current_state_.tax_amount_ > 0)
-            {
-               RunOrder_TaxPillage(pLand);
-            }
-            //continue;
+            RunOrder_AOComments<orders::Type::O_TAX>(pLand);
+            RunOrder_AOComments<orders::Type::O_PILLAGE>(pLand);
+            RunOrder_LandTaxPillage(pLand, m_EconomyTaxPillage);
         }
         if (sequence == TurnSequence::SQ_CAST) {}
 
         if (sequence == TurnSequence::SQ_SELL)
         {//no need to parse sequentially
-            PerformOrder_Sell(pLand);
+            RunOrder_AOComments<orders::Type::O_SELL>(pLand);
+            RunOrder_LandSell(pLand);
         }
 
         if (sequence == TurnSequence::SQ_BUY)
         {//no need to parse sequentially
-            PerformOrder_Buy(pLand);
+            RunOrder_AOComments<orders::Type::O_BUY>(pLand);
+            RunOrder_LandBuy(pLand);
         }
         if (sequence == TurnSequence::SQ_FORGET) {}
         if (sequence == TurnSequence::SQ_WITHDRAW) {}
-        if (sequence == TurnSequence::SQ_SAIL) {}
-        if (sequence == TurnSequence::SQ_MOVE) {}
+        if (sequence == TurnSequence::SQ_SAIL) {
+            RunOrder_AOComments<orders::Type::O_SAIL>(pLand);
+        }
+        if (sequence == TurnSequence::SQ_MOVE) {
+            RunOrder_AOComments<orders::Type::O_MOVE>(pLand);
+            RunOrder_AOComments<orders::Type::O_ADVANCE>(pLand);
+        }
         if (sequence == TurnSequence::SQ_TEACH) {}
 
         if (sequence == TurnSequence::SQ_STUDY)
         {//no need to parse sequentially
+            RunOrder_AOComments<orders::Type::O_STUDY>(pLand);
             RunOrder_LandStudyTeach(pLand);
         }
 
         if (sequence == TurnSequence::SQ_PRODUCE)
         {//no need to parse sequentially
+            RunOrder_AOComments<orders::Type::O_PRODUCE>(pLand);
             pLand->current_state_.produced_items_.clear();
             RunOrder_LandProduce(pLand);
         }
         if (sequence == TurnSequence::SQ_BUILD) {}
-        if (sequence == TurnSequence::SQ_ENTERTAIN) {}
+        if (sequence == TurnSequence::SQ_ENTERTAIN) 
+        {
+            //m_EconomyShareAfterBuy
+            RunOrder_LandEntertain(pLand, m_EconomyWork);
+        }
 
         if (sequence == TurnSequence::SQ_WORK)
         {
-            if (m_EconomyWork)
-            {
-                RunOrder_Entertain(pLand);
-                RunOrder_Work(pLand);
-            }
+            RunOrder_LandWork(pLand, m_EconomyWork);
         }
-        if (sequence == TurnSequence::SQ_MAINTENANCE) {}
+        if (sequence == TurnSequence::SQ_MAINTENANCE) 
+        {
+            RunOrder_AONames(pLand);
+        }
 
         for (mainidx=0; mainidx<pLand->UnitsSeq.Count(); mainidx++)
         {
@@ -5255,12 +5290,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                         SHOW_WARN_CONTINUE(" - ENDXXX without XXX");
                         break;                        // Shar1 Support for TURN/ENDTURN - End
 
-
-                    case O_GIVE:
-                        if (TurnSequence::SQ_GIVE == sequence)
-                            //RunOrder_Give(Line, ErrorLine, skiperror, pUnit, pLand, p, FALSE);
-                        break;
-
                     case O_GIVEIF:
                         if (TurnSequence::SQ_GIVE == sequence)
                             //RunOrder_Give(Line, ErrorLine, skiperror, pUnit, pLand, p, TRUE);
@@ -5290,18 +5319,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                             if (!pLand->Units.Search(&Dummy, idx))
                                 SHOW_WARN_CONTINUE(" - Can not find unit " << N1);
                         }
-                        break;
-
-
-                    case O_BUY:
-                        //if (TurnSequence::SQ_BUY==sequence)
-                            //RunOrder_Buy(Line, ErrorLine, skiperror, pUnit, pLand, p);
-                        break;
-
-
-                    case O_SELL:
-                        //if (TurnSequence::SQ_SELL == sequence)
-                        //    RunOrder_Sell(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
 
                     case O_FORM:
@@ -5381,49 +5398,9 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                         }
                         break;
 
-                    case O_ATTACK:
-                    case O_ASSASSINATE:
-                    case O_STEAL:
-                        /*
-                        if (TurnSequence::SQ_STEAL==sequence)
-                        {
-                            // just check if the target is valid
-                            // and TurnSequence::SQ_CLAIM is good enough, no need to introduce a new phase
-                            while (p && *p)
-                            {
-                                p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-
-                                n1 = atol(N1.GetData());
-                                Dummy.Id = n1;
-                                if (pLand->Units.Search(&Dummy, idx))
-                                {
-                                    pUnit2 = (CUnit*)pLand->Units.At(idx);
-                                    if (pUnit2->IsOurs)
-                                        SHOW_WARN_CONTINUE(" - Unit " << n1 << " is our, can not " << Cmd << "!");
-                                }
-                                else
-                                    SHOW_WARN_CONTINUE(" - Unit " << n1 << " is not here, can not " << Cmd << "!");
-
-                                if (O_ATTACK != order) // only attack can have multiple targets
-                                    break;
-                            }
-                        }*/
-                        break;
-
-
                     case O_NAME:
                         if (TurnSequence::SQ_CLAIM==sequence)
                             RunOrder_Name(Line, ErrorLine, skiperror, pUnit, pLand, p);
-                        break;
-
-                    case O_STUDY:
-                        //if (TurnSequence::SQ_STUDY==sequence)
-                        //    RunOrder_Study(Line, ErrorLine, skiperror, pUnit, pLand, p);
-                        break;
-
-                    case O_TEACH:
-                        //if (TurnSequence::SQ_TEACH==sequence)
-                        //    RunOrder_Teach(Line, ErrorLine, skiperror, pUnit, pLand, p, TeachCheckGlb);
                         break;
 
                     case O_CLAIM:
@@ -5513,200 +5490,24 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                         }
                         break;
 
-                    // autotax flag must be removed in the very first pass, or land flag will be set and never removed
-                    case O_AUTOTAX:
-                        /*if (TurnSequence::SQ_CLAIM==sequence)
-                        {
-                            p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-                            if (0==stricmp(N1.GetData(), "1"))
-                                pUnit->Flags |=  UNIT_FLAG_TAXING;
-                            else if (0==stricmp(N1.GetData(), "0"))
-                                pUnit->Flags &= ~UNIT_FLAG_TAXING;
-                            else
-                                SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }*/
-                        break;
-
-                    case O_GUARD:
-                        /*if (TurnSequence::SQ_CLAIM==sequence)
-                        {
-                            p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-                            if (0==stricmp(N1.GetData(), "1"))
-                            {
-                                // GUARD 1 implies per game rules AVOID 0
-                                pUnit->Flags |=  UNIT_FLAG_GUARDING;
-                                pUnit->Flags &= ~UNIT_FLAG_AVOIDING;
-                            }
-                            else if (0==stricmp(N1.GetData(), "0"))
-                                pUnit->Flags &= ~UNIT_FLAG_GUARDING;
-                            else
-                                SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }*/
-                        break;
-
-                    case O_AVOID:
-                        /*if (TurnSequence::SQ_CLAIM==sequence)
-                        {
-                            p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-                            if (0==stricmp(N1.GetData(), "1"))
-                            {
-                                // AVOID 1 implies per game rules GUARD 0
-                                pUnit->Flags |=  UNIT_FLAG_AVOIDING;
-                                pUnit->Flags &= ~UNIT_FLAG_GUARDING;
-                            }
-                            else if (0==stricmp(N1.GetData(), "0"))
-                                pUnit->Flags &= ~UNIT_FLAG_AVOIDING;
-                            else
-                                SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }*/
-                        break;
-
-                    case O_BEHIND:
-                        /*if (TurnSequence::SQ_CLAIM==sequence)
-                        {
-                            p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-                            if (0==stricmp(N1.GetData(), "1"))
-                                pUnit->Flags |=  UNIT_FLAG_BEHIND;
-                            else if (0==stricmp(N1.GetData(), "0"))
-                                pUnit->Flags &= ~UNIT_FLAG_BEHIND;
-                            else
-                                SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }*/
-                        break;
-
-                    case O_HOLD:
-                       /* if (TurnSequence::SQ_CLAIM==sequence)
-                        {
-                            p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-                            if (0==stricmp(N1.GetData(), "1"))
-                                pUnit->Flags |=  UNIT_FLAG_HOLDING;
-                            else if (0==stricmp(N1.GetData(), "0"))
-                                pUnit->Flags &= ~UNIT_FLAG_HOLDING;
-                            else
-                                SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }*/
-                        break;
-
-                    case O_NOAID:
-                        /*if (TurnSequence::SQ_CLAIM==sequence)
-                        {
-                            p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-                            if (0==stricmp(N1.GetData(), "1"))
-                                pUnit->Flags |=  UNIT_FLAG_RECEIVING_NO_AID;
-                            else if (0==stricmp(N1.GetData(), "0"))
-                                pUnit->Flags &= ~UNIT_FLAG_RECEIVING_NO_AID;
-                            else
-                                SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }*/
-                        break;
-
-                    case O_NOCROSS:
-                        /*if (TurnSequence::SQ_CLAIM==sequence)
-                        {
-                            p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-                            if (0==stricmp(N1.GetData(), "1"))
-                                pUnit->Flags |=  UNIT_FLAG_NO_CROSS_WATER;
-                            else if (0==stricmp(N1.GetData(), "0"))
-                                pUnit->Flags &= ~UNIT_FLAG_NO_CROSS_WATER;
-                            else
-                                SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }*/
-                        break;
-
-                    case O_SPOILS:
-                        /*if (TurnSequence::SQ_CLAIM==sequence)
-                        {
-                            p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-                            if (N1.IsEmpty() || 0==stricmp(N1.GetData(), "ALL"))
-                                pUnit->Flags &= ~UNIT_FLAG_SPOILS;
-                            else
-                                pUnit->Flags |=  UNIT_FLAG_SPOILS;
-                        }*/
-                        break;
-
-                    // MZ - Added for Arcadia
-                    case O_SHARE:
-                        /*if (TurnSequence::SQ_CLAIM==sequence)
-                        {
-                            p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-                            if (0==stricmp(N1.GetData(), "1"))
-                                pUnit->Flags |=  UNIT_FLAG_SHARING;
-                            else if (0==stricmp(N1.GetData(), "0"))
-                                pUnit->Flags &= ~UNIT_FLAG_SHARING;
-                            else
-                                SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }*/
-                        break;
-
-                    case O_REVEAL:
-                        /*if (TurnSequence::SQ_CLAIM==sequence)
-                        {
-
-                            p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-                            if (0==stricmp(N1.GetData(), "UNIT"))
-                            {
-                                pUnit->Flags |=  UNIT_FLAG_REVEALING_UNIT;
-                                pUnit->Flags &= ~UNIT_FLAG_REVEALING_FACTION;
-                            }
-                            else if (0==stricmp(N1.GetData(), "FACTION"))
-                            {
-                                pUnit->Flags |=  UNIT_FLAG_REVEALING_FACTION;
-                                pUnit->Flags &= ~UNIT_FLAG_REVEALING_UNIT;
-                            }
-                            else if (N1.IsEmpty())
-                            {
-                                pUnit->Flags &= ~UNIT_FLAG_REVEALING_FACTION;
-                                pUnit->Flags &= ~UNIT_FLAG_REVEALING_UNIT;
-                            }
-                            else
-                                SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }*/
-                        break;
-
-                    case O_CONSUME:
-                        /*if (TurnSequence::SQ_CLAIM==sequence)
-                        {
-
-                            p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-                            if (0==stricmp(N1.GetData(), "UNIT"))
-                            {
-                                pUnit->Flags |=  UNIT_FLAG_CONSUMING_UNIT;
-                                pUnit->Flags &= ~UNIT_FLAG_CONSUMING_FACTION;
-                            }
-                            else if (0==stricmp(N1.GetData(), "FACTION"))
-                            {
-                                pUnit->Flags |=  UNIT_FLAG_CONSUMING_FACTION;
-                                pUnit->Flags &= ~UNIT_FLAG_CONSUMING_UNIT;
-                            }
-                            else if (N1.IsEmpty())
-                            {
-                                pUnit->Flags &= ~UNIT_FLAG_CONSUMING_FACTION;
-                                pUnit->Flags &= ~UNIT_FLAG_CONSUMING_UNIT;
-                            }
-                            else
-                                SHOW_WARN_CONTINUE(" - Invalid parameter");
-                        }*/
-                        break;
-
-
                     case O_PILLAGE:
-                        if (TurnSequence::SQ_PILLAGE ==sequence )
-                            pUnit->Flags |=  UNIT_FLAG_PILLAGING;
+                        //if (TurnSequence::SQ_PILLAGE ==sequence )
+                            //pUnit->Flags |=  UNIT_FLAG_PILLAGING;
                         break;
 
                     case O_TAX:
-                        if (TurnSequence::SQ_TAX ==sequence )
-                            pUnit->Flags |=  UNIT_FLAG_TAXING;
+                        //if (TurnSequence::SQ_TAX ==sequence )
+                            //pUnit->Flags |=  UNIT_FLAG_TAXING;
                         break;
 
                     case O_ENTERTAIN:
-                        if (TurnSequence::SQ_ENTERTAIN ==sequence )
-                            pUnit->Flags |=  UNIT_FLAG_ENTERTAINING;
+                        //if (TurnSequence::SQ_ENTERTAIN ==sequence )
+                            //pUnit->Flags |=  UNIT_FLAG_ENTERTAINING;
                         break;
 
                     case O_WORK:
-                        if (TurnSequence::SQ_WORK ==sequence)
-                            pUnit->Flags |=  UNIT_FLAG_WORKING;
+                        //if (TurnSequence::SQ_WORK ==sequence)
+                            //pUnit->Flags |=  UNIT_FLAG_WORKING;
                         break;
 
                     case O_BUILD:
@@ -5719,6 +5520,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                         //    RunOrder_Produce(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
 
+                    default:
+                        break;
                 }//switch (order)
 
                 // copy commands to the new unit
@@ -5831,6 +5634,20 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
         }
     }   // phases loop
+/*
+    for (auto& pair : time_points)
+    {
+        std::chrono::microseconds duration;
+        if (pair.first == 0)
+            duration = duration_cast<microseconds>(pair.second - start);
+        else if (pair.first % 10 == 0)
+            duration = duration_cast<microseconds>(pair.second - time_points[pair.first - 10]);
+        else
+            duration = duration_cast<microseconds>(pair.second - time_points[pair.first - 1]);
+
+        std::string message = "TIME ELAPSE PHASE ("+std::to_string(pair.first) + ") -- " + std::to_string(duration.count()) + " ms";
+        OrderError("TIME", pLand, nullptr, message);
+    }*/
 
     land_control::structures::update_struct_weights(pLand);
     pLand->SetFlagsFromUnits();
@@ -5909,13 +5726,15 @@ void CAtlaParser::DistributeSilver(CLand * pLand, int unitFlag, int silver, int 
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunOrder_LandTaxPillage(CLand* land)
+void CAtlaParser::RunOrder_LandTaxPillage(CLand* land, bool apply_changes)
 {
-    land_control::Taxers taxers;
+    land_control::Incomers taxers;
     std::vector<unit_control::UnitError> errors;
-    land_control::get_land_taxers(land, taxers, errors);
+    land_control::get_land_taxers(land, taxers, errors, apply_changes);
 
     land->current_state_.economy_.tax_income_ = taxers.expected_income_;
+    land->current_state_.tax_.requested_ = taxers.expected_income_;
+    land->current_state_.tax_.requesters_amount_ = taxers.man_amount_;
 
     for (const auto& error : errors)
     {
@@ -5923,65 +5742,55 @@ void CAtlaParser::RunOrder_LandTaxPillage(CLand* land)
     }
 }
 
-void CAtlaParser::RunOrder_TaxPillage(CLand * pLand)
+void CAtlaParser::CheckOrder_LandWork(CLand *land)
 {
-    if (pLand->current_state_.tax_amount_ == 0)
-        return;
-
-    long pillagers = CountMenWithFlag(pLand, UNIT_FLAG_PILLAGING);
-    long taxers = CountMenWithFlag(pLand, UNIT_FLAG_TAXING);
-
-    if (pillagers || taxers)
+    std::vector<unit_control::UnitError> errors;
+    land_control::check_land_workers(land, errors);
+    for (const auto& error : errors)
     {
-        const int maxTaxPerTaxer = atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER));
-
-        if (pillagers && (pillagers * maxTaxPerTaxer * 2 >= pLand->current_state_.tax_amount_))
-        {
-            long silver = pLand->current_state_.tax_amount_ * 2;
-            DistributeSilver(pLand, UNIT_FLAG_PILLAGING, silver, pillagers);
-        }
-        else if (taxers)
-        {
-            long silver = std::min(pLand->current_state_.tax_amount_, maxTaxPerTaxer * taxers);
-            DistributeSilver(pLand, UNIT_FLAG_TAXING, silver, taxers);
-        }
+        OrderError(error.type_, land, error.unit_, error.message_);
     }
+}
+
+void CAtlaParser::RunOrder_LandWork(CLand *land, bool apply_changes)
+{
+    land_control::Incomers workers;
+    std::vector<unit_control::UnitError> errors;
+    land_control::get_land_workers(land, workers, errors, apply_changes);
+
+    land->current_state_.work_.requested_ = workers.expected_income_;
+    land->current_state_.work_.requesters_amount_ = workers.man_amount_;
+    land->current_state_.economy_.work_income_ += workers.expected_income_;
+
+    for (const auto& error : errors)
+    {
+        OrderError(error.type_, land, error.unit_, error.message_);
+    }
+}
+
+void CAtlaParser::CheckOrder_LandEntertain(CLand *land)
+{
+
+}
+
+void CAtlaParser::RunOrder_LandEntertain(CLand *land, bool apply_changes)
+{
+    land_control::Incomers entertainers;
+    std::vector<unit_control::UnitError> errors;
+    land_control::get_land_entertainers(land, entertainers, errors, apply_changes);
+
+    land->current_state_.entertain_.requested_ = entertainers.expected_income_;
+    land->current_state_.entertain_.requesters_amount_ = entertainers.man_amount_;
+    land->current_state_.economy_.work_income_ += entertainers.expected_income_;
+
+    for (const auto& error : errors)
+    {
+        OrderError(error.type_, land, error.unit_, error.message_);
+    }    
 }
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunOrder_Entertain(CLand * pLand)
-{
-    if (pLand->Entertainment == 0)
-        return;
-
-    long men = CountMenWithFlag(pLand, UNIT_FLAG_ENTERTAINING);
-
-    if (men)
-    {
-        const int entertainmentPerMan = atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_ENTERTAINMENT_SILVER));
-        long silver = std::min(pLand->Entertainment, entertainmentPerMan * men);
-        DistributeSilver(pLand, UNIT_FLAG_ENTERTAINING, silver, men);
-    }
-}
-
-//-------------------------------------------------------------
-
-void CAtlaParser::RunOrder_Work(CLand * pLand)
-{
-    if (pLand->MaxWages == 0 || pLand->Wages == 0)
-        return;
-
-    long men = CountMenWithFlag(pLand, UNIT_FLAG_WORKING);
-
-    if (men)
-    {
-        long silver = std::min((double)pLand->MaxWages, pLand->Wages * men);
-        DistributeSilver(pLand, UNIT_FLAG_WORKING, silver, men);
-    }
-}
-
-//-------------------------------------------------------------
 
 void CAtlaParser::RunOrder_Upkeep(CUnit * pUnit, int turns)
 {
@@ -5992,11 +5801,10 @@ void CAtlaParser::RunOrder_Upkeep(CUnit * pUnit, int turns)
 
     if (pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal) && (nmen>0))
     {
-        if (pUnit->GetProperty(PRP_LEADER, type, (const void *&)leadership, eNormal) && eCharPtr==type &&
-            (0==strcmp(leadership, SZ_LEADER) || 0==strcmp(leadership, SZ_HERO)))
-            Maintainance = nmen * atoi(gpApp->GetConfig(SZ_SECT_COMMON, SZ_UPKEEP_LEADER));
+        if (unit_control::is_leader(pUnit))
+            Maintainance = nmen * game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_LEADER);
         else
-            Maintainance = nmen * atoi(gpApp->GetConfig(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT));
+            Maintainance = nmen * game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT);
 
         unit_control::modify_silver(pUnit, -Maintainance * turns, "upkeep");
     }
@@ -6151,6 +5959,9 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
         if (orders::control::has_orders_with_type(orders::Type::O_ASSASSINATE, unit->orders_))
         {
             auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_ASSASSINATE, unit->orders_);
+            if (orders.size() == 0)
+                return;
+
             if (orders.size() > 1)
             {
                 OrderError("Error", land, unit, " more than 1 assassinate order");                        
@@ -6222,6 +6033,8 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
         if (orders::control::has_orders_with_type(orders::Type::O_STEAL, unit->orders_))
         {
             auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_STEAL, unit->orders_);
+            if (orders.size() == 0)
+                return;
             if (orders.size() > 1)
             {
                 OrderError("Error", land, unit, "steal: more than 1 stealing order");
@@ -6266,11 +6079,52 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
         }
     });
 }
-
-void CAtlaParser::RunOrder_AOComments(CLand* land)
+template<orders::Type TYPE> void CAtlaParser::RunOrder_AOComments(CLand* land)
 {
+    //std::map<long, std::chrono::microseconds> time_points;
+
     land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-        for (auto& order : unit->orders_.orders_)
+        //auto start = std::chrono::high_resolution_clock::now();
+
+        auto orders_by_type = orders::control::retrieve_orders_by_type(TYPE, unit->orders_);
+
+        //time_points[0] += duration_cast<microseconds>(std::chrono::high_resolution_clock::now() - start);
+        //need to find comments which are commented out actual orders
+        
+        auto order_comments = orders::control::retrieve_orders_by_type(orders::Type::O_COMMENT, unit->orders_);
+        for (auto& order_comment : order_comments)
+        {
+            auto it = order_comment->comment_.begin();
+            while (it < order_comment->comment_.end() && (*it == '@' || *it == ';'))
+                ++it;
+            
+            auto it_end = it;
+            while (it_end < order_comment->comment_.end() && std::isalpha(*it_end))
+                ++it_end;
+            
+            if (orders::types_mapping[std::string(it, it_end)] == TYPE)
+                orders_by_type.push_back(order_comment);
+        }
+
+        /*auto order_comments = orders::control::retrieve_orders_by_type(orders::Type::O_COMMENT, unit->orders_);
+        for (auto& order_comment : order_comments)
+        {
+            auto it = order_comment->comment_.begin();
+            while (it < order_comment->comment_.end() && (*it == '@' || *it == ';'))
+                ++it;
+            
+            auto real_order = orders::parser::parse_line_to_order(std::string(it, order_comment->comment_.end()));
+            if (real_order->type_ == order_type)
+            {
+                orders_by_type.push_back(order_comment);
+            }
+        }*/
+
+        //time_points[1] += duration_cast<microseconds>(std::chrono::high_resolution_clock::now() - start);
+
+        //parse_line_to_order(const std::string& line)
+
+        for (auto& order : orders_by_type)
         {
             orders::autoorders::AO_TYPES type = orders::autoorders::has_autoorders(order);
             if (type == orders::autoorders::AO_TYPES::AO_GET)
@@ -6290,58 +6144,56 @@ void CAtlaParser::RunOrder_AOComments(CLand* land)
             }
             if (type == orders::autoorders::AO_TYPES::AO_CONDITION)
             {
-                orders::autoorders::LogicAction action;
-                std::string statement;
-                if (!orders::autoorders::parse_logic(order, action, statement))
+                bool result;
+                std::vector<unit_control::UnitError> errors;
+                orders::autoorders::LogicAction action = land_control::check_conditional_logic(land, unit, order, errors, result);
+                switch(action)
                 {
-                    OrderError("error", land, unit, "autoorders: couldn't parse condition: " + order->comment_);
-                    continue;
-                }
-
-                bool result(true);
-                size_t pos = 0;
-                size_t or_op = statement.find("||", 0);
-                while(or_op != std::string::npos)
-                {
-                    size_t and_op = statement.find("&&", pos, or_op - pos);
-                    while (and_op != std::string::npos)
-                    {
-                        result = result && autologic::evaluate_statement(land, unit, statement.substr(pos, and_op-pos));
-                        if (!result)//false, no need evaluate other AND
-                            break;
-
-                        pos = and_op+2;
-                        and_op = statement.find("&&", pos, or_op - pos);
-                    }
-                    result = result && autologic::evaluate_statement(land, unit, statement.substr(pos, or_op-pos));
-
-                    //true, no need to evaluate other OR
-                    if (result)
-                        return true;
-
-                    pos = or_op+2;
-                    or_op = statement.find("||", pos);
-                }
-
-                size_t and_op = statement.find("&&", pos, or_op - pos);
-                while (and_op != std::string::npos)
-                {
-                    result = result && autologic::evaluate_statement(land, unit, statement.substr(pos, and_op-pos));
-                    if (!result)//false, no need evaluate other AND
+                    case orders::autoorders::LogicAction::SWITCH_COMMENT: {
+                            if (result)
+                                orders::control::uncomment_order(order, unit);
+                            else
+                                orders::control::comment_order_out(order, unit);
+                        };
                         break;
+                    case orders::autoorders::LogicAction::ERROR: {
+                        if (result)
+                            OrderError("Warning", land, unit, "autoorders: warning condition altered: " + order->comment_);
+                        };
+                        break;
+                    case orders::autoorders::LogicAction::NONE:
+                        break;
+                }
 
-                    pos = and_op+2;
-                    and_op = statement.find("&&", pos, or_op - pos);
-                }
-                result = result && autologic::evaluate_statement(land, unit, statement.substr(pos));
+                for (const auto& error : errors)
+                    OrderError(error.type_, land, error.unit_, error.message_);
+            }
+        }
+        //time_points[2] += duration_cast<microseconds>(std::chrono::high_resolution_clock::now() - start);
+    });
+/*
+    for (auto& pair : time_points)
+    {
+        std::string message = "RunOrder_AOComments ELAPSE PHASE ("+std::to_string(pair.first) + ") -- " + std::to_string(pair.second.count()) + " ms";
+        OrderError("RunOrder_AOComments", land, nullptr, message);
+    }   */ 
+}
 
-                if (result) {
-                    orders::control::uncomment_order(order, unit);
-                }
-                else 
-                {
-                    orders::control::comment_order_out(order, unit);
-                }
+void CAtlaParser::RunOrder_AONames(CLand* land)
+{
+    if (!game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_AUTONAMING))
+        return;
+
+    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        auto comment_orders = orders::control::retrieve_orders_by_type(orders::Type::O_COMMENT_AUTONAME, unit->orders_);
+        for (auto& comment_order : comment_orders)
+        {
+            std::string new_name = "@;;" + autonaming::generate_unit_autoname(land, unit);
+            if (stricmp(&new_name[1], comment_order->comment_.c_str()) != 0)//[1] to ignore @ at comparation
+            {
+                comment_order->comment_.insert(0, "%DEL%");
+                orders::control::remove_orders_by_comment(unit, "%DEL%");
+                orders::control::add_order_to_unit(new_name, unit);
             }
         }
     });
@@ -6538,7 +6390,7 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
         if (skill_lvl < prod_details.skill_level_)
         {//check skill requirements
             std::string mess = "produce: skill '" + prod_details.skill_name_ +
-                "' (" + std::to_string(skill_lvl) + ") is required to produce!";
+                "' (" + std::to_string(prod_details.skill_level_) + ") is required to produce";
             OrderError("Error", land, producer, mess);
             continue;
         }
@@ -6569,6 +6421,7 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
             }
         }
 
+        producer->Flags |= UNIT_FLAG_PRODUCING;
         land_control::set_produced_items(land->current_state_, item, basic_produce_power);
         land_producers_info[item].push_back({producer, basic_produce_power});
     }
@@ -7328,7 +7181,7 @@ void CAtlaParser::AdjustSkillsAfterGivingMen(CUnit * pUnitGive, CUnit * pUnitTak
 
 //-------------------------------------------------------------
 
-void CAtlaParser::PerformOrder_Buy(CLand * land)
+void CAtlaParser::RunOrder_LandBuy(CLand * land)
 {
     std::vector<land_control::Trader> buyers;
     std::vector<unit_control::UnitError> errors;
@@ -7339,15 +7192,18 @@ void CAtlaParser::PerformOrder_Buy(CLand * land)
     {
         //Economy
         if (buyer.unit_->FactionId == player_faction_id)
+        {
+            land->current_state_.bought_items_[buyer.item_name_] += buyer.items_amount_;
             land->current_state_.economy_.buy_expenses_ += buyer.items_amount_ * buyer.market_price_;
+        }            
 
         //Modification of state
         if (gpDataHelper->IsMan(buyer.item_name_.c_str()))
         {
-            if (unit_control::get_item_amount(buyer.unit_, "LEAD") > 0)
-            {
-                SetUnitProperty(buyer.unit_, PRP_LEADER, eCharPtr, SZ_LEADER, eNormal);
-            }
+            //if (unit_control::get_item_amount(buyer.unit_, "LEAD") > 0)
+            //{
+            //    SetUnitProperty(buyer.unit_, PRP_LEADER, eCharPtr, SZ_LEADER, eNormal);
+            //}
             unit_control::modify_man_from_market(buyer.unit_, buyer.item_name_, buyer.items_amount_, buyer.market_price_);
         }
         else
@@ -7387,7 +7243,7 @@ void CAtlaParser::PerformOrder_Buy(CLand * land)
 
 //-------------------------------------------------------------
 
-void CAtlaParser::PerformOrder_Sell(CLand * land)
+void CAtlaParser::RunOrder_LandSell(CLand * land)
 {
     std::vector<land_control::Trader> sellers;
     std::vector<unit_control::UnitError> errors;
@@ -7397,7 +7253,10 @@ void CAtlaParser::PerformOrder_Sell(CLand * land)
     for (const auto& seller : sellers) {
         //Economy
         if (seller.unit_->FactionId == player_faction_id)
+        {
+            land->current_state_.sold_items_[seller.item_name_] += seller.items_amount_;
             land->current_state_.economy_.sell_income_ += seller.items_amount_ * seller.market_price_;
+        }            
 
         //the sell
         if (gpDataHelper->IsMan(seller.item_name_.c_str()))
@@ -8008,47 +7867,50 @@ BOOL CAtlaParser::ApplyDefaultOrders(BOOL EmptyOnly)
     });
 
     //clearing and running all items
-    //RunOrders(NULL, TurnSequence::SQ_FIRST, TurnSequence::SQ_GIVE);
-    RunOrders(NULL);
+    RunOrders(NULL, TurnSequence::SQ_FIRST, TurnSequence::SQ_GIVE);
+    //RunOrders(NULL);
     
     //all source will give items to all needs according to priorities
     perform_on_each_land([&](CLand* land){
-
-        //collect all sources of region, including sources from caravans
-        std::vector<orders::AutoSource> land_sources, caravan_sources;
-        std::vector<orders::AutoRequirement> needs;
-        orders::autoorders_caravan::get_land_autosources_and_autoneeds(land, land_sources, needs);
-        orders::autoorders_caravan::get_land_caravan_autosources_and_autoneeds(land, caravan_sources, needs);
-
-        if (needs.size() == 0)
-            return;
-
-        //sort needs by priority (in case of equal priority, caravans should go last)
-        std::sort(needs.begin(), needs.end(), 
-            [](const orders::AutoRequirement& req1, const orders::AutoRequirement& req2) {
-                if (req1.priority_ == req2.priority_)
-                {
-                    if (req1.unit_->caravan_info_ == nullptr && 
-                        req2.unit_->caravan_info_ != nullptr)
-                        return true;
-                    return false;
-                }
-                return req1.priority_ < req2.priority_;
-        });   
-        
-        if (caravan_sources.size() > 0)//first unload caravans
-        {
-            while(orders::autoorders_caravan::distribute_autoorders(caravan_sources, needs))
-            {}
-        }
-
-        if (land_sources.size() > 0)//now load caravans 
-            orders::autoorders_caravan::distribute_autoorders(land_sources, needs);
-        
+        ApplyLandDefaultOrders(land);
     });
 
     RunOrders(NULL);
     return TRUE;
+}
+
+void CAtlaParser::ApplyLandDefaultOrders(CLand* land)
+{
+    //collect all sources of region, including sources from caravans
+    std::vector<orders::AutoSource> land_sources, caravan_sources;
+    std::vector<orders::AutoRequirement> needs;
+    orders::autoorders_caravan::get_land_autosources_and_autoneeds(land, land_sources, needs);
+    orders::autoorders_caravan::get_land_caravan_autosources_and_autoneeds(land, caravan_sources, needs);
+
+    if (needs.size() == 0)
+        return;
+
+    //sort needs by priority (in case of equal priority, caravans should go last)
+    std::sort(needs.begin(), needs.end(), 
+        [](const orders::AutoRequirement& req1, const orders::AutoRequirement& req2) {
+            if (req1.priority_ == req2.priority_)
+            {
+                if (req1.unit_->caravan_info_ == nullptr && 
+                    req2.unit_->caravan_info_ != nullptr)
+                    return true;
+                return false;
+            }
+            return req1.priority_ < req2.priority_;
+    });   
+    
+    if (caravan_sources.size() > 0)//first unload caravans
+    {
+        while(orders::autoorders_caravan::distribute_autoorders(caravan_sources, needs))
+        {}
+    }
+
+    if (land_sources.size() > 0)//now load caravans 
+        orders::autoorders_caravan::distribute_autoorders(land_sources, needs);    
 }
 
 //-------------------------------------------------------------

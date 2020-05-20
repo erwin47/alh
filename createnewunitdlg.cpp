@@ -1,4 +1,5 @@
 #include "createnewunitdlg.h"
+#include "autonaming.h"
 
 #include <wx/statline.h>
 #include <iostream>
@@ -414,9 +415,9 @@ void CCreateNewUnit::UpdateExpences()
             //actually I'd prefer to not know which section is it, needs to be refactored
             if (name.find(SZ_LEADER) != std::string::npos || 
                 name.find(SZ_HERO) != std::string::npos)                
-                upkeep_amount = spin_buy_units_amount_->GetValue() * atoi(gpApp->GetConfig(SZ_SECT_COMMON, SZ_UPKEEP_LEADER));
+                upkeep_amount = spin_buy_units_amount_->GetValue() * game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_LEADER);
             else
-                upkeep_amount = spin_buy_units_amount_->GetValue() * atoi(gpApp->GetConfig(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT));
+                upkeep_amount = spin_buy_units_amount_->GetValue() * game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT);
         }
         long maintenance_expences = spin_maintenance_turns_->GetValue() * upkeep_amount;
         
@@ -429,6 +430,38 @@ void CCreateNewUnit::UpdateExpences()
     catch(const std::exception& ex)
     {
         std::cerr << ex.what() << std::endl;
+    }
+}
+
+void CCreateNewUnit::UpdateAutoname()
+{
+    if (!game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_AUTONAMING))
+        return;
+
+
+    if (text_loc_description_->IsEmpty() || 
+        text_loc_description_->GetValue().Find(" $c") ||
+        text_loc_description_->GetValue().Find(" !c"))
+    {
+        //std::string descr = "[]" + std::string(combobox_skills_->GetValue().mb_str()) + " $c";
+        //text_loc_description_->SetValue(descr.c_str());
+        std::string study_skill;
+        if (flag_check_study_->IsChecked())
+        {
+            study_skill = combobox_skills_->GetValue().mb_str();
+            Skill skill;
+            skills_control::get_first_skill_if(skill, [&](const Skill& cur_skill) {
+                return cur_skill.long_name_ == study_skill;
+            });
+            study_skill = skill.short_name_;
+        }
+
+        std::string buy_unit_type(combobox_buy_units_type_->GetValue().mb_str());
+        CProductMarket product = sale_products_.at(buy_unit_type);
+     
+        std::string result = autonaming::generate__initial_unit_autoname(product.item_.code_name_, study_skill);
+
+        text_loc_description_->SetValue(result.c_str());
     }
 }
 
@@ -518,10 +551,12 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
 void CCreateNewUnit::onAnySpinUpdate(wxSpinEvent& event)
 {
     UpdateExpences();
+    UpdateAutoname();
 }
 void CCreateNewUnit::onAnyComboBoxUpdate(wxCommandEvent& event)
 {
     UpdateExpences();
+    UpdateAutoname();
 }
 
 void CCreateNewUnit::onGiveAllButton(wxCommandEvent & event)

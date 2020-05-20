@@ -83,7 +83,7 @@ namespace unit_control
 
     void modify_item_by_produce(CUnit* unit, const std::string& codename, long new_amount);
 
-    void modify_item_by_reason(CUnit* unit, const std::string& codename, long new_amount, const std::string& reason);
+    void modify_item_by_reason(CUnit* unit, const std::string& codename, long new_amount, const std::string& reason, bool apply_changes=true);
 
     void modify_item_from_market(CUnit* unit, const std::string& codename, long new_amount, long price);
     void modify_item_from_unit(CUnit* unit, CUnit* source, const std::string& codename, long new_amount);
@@ -128,13 +128,12 @@ namespace land_control
         CUnit* unit_;
     };
 
-    struct Taxers
+    struct Incomers
     {
-        bool is_pillaging_;
         long man_amount_;
-        long land_tax_available_;
+        long land_income_available_;
         long expected_income_;
-        std::vector<CUnit*> units_;
+        std::vector<std::pair<CUnit*, long>> units_;
     };
 
     struct ActionUnit
@@ -232,9 +231,19 @@ namespace land_control
         void economy_calculations(CLand* land, CEconomy& res, std::vector<unit_control::UnitError>& errors);
     }
 
+    orders::autoorders::LogicAction check_conditional_logic(CLand* land, 
+                                                            CUnit* unit, 
+                                                            const std::shared_ptr<orders::Order>& order, 
+                                                            std::vector<unit_control::UnitError>& errors, 
+                                                            bool& result);
+
+    void check_land_workers(CLand* land, std::vector<unit_control::UnitError>& errors);
+
     void apply_land_flags(CLand* land, std::vector<unit_control::UnitError>& errors);
     void get_land_builders(CLand* land, std::vector<ActionUnit>& out, std::vector<unit_control::UnitError>& errors);
-    void get_land_taxers(CLand* land, Taxers& out, std::vector<unit_control::UnitError>& errors);
+    void get_land_entertainers(CLand* land, Incomers& out, std::vector<unit_control::UnitError>& errors, bool apply_changes);
+    void get_land_workers(CLand* land, Incomers& out, std::vector<unit_control::UnitError>& errors, bool apply_changes);
+    void get_land_taxers(CLand* land, Incomers& out, std::vector<unit_control::UnitError>& errors, bool apply_changes);
     void get_land_sells(CLand* land, std::vector<Trader>& out, std::vector<unit_control::UnitError>& errors);
     void get_land_buys(CLand* land, std::vector<Trader>& out, std::vector<unit_control::UnitError>& errors);
     std::unordered_map<long, Student> get_land_students(CLand* land, std::vector<unit_control::UnitError>& errors);

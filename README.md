@@ -1,5 +1,16 @@
 # alh (Atlantis Little Helper)
 
+## How to build
+### Requirements
+It needs to have `wxWidgets` library installed/precompiled && `CMake` tools.
+
+### Instructions
+Linux/Mac (from root source folder):
+Cmd: `rm -rf ./build; mkdir build; cd build; cmake -DCMAKE_BUILD_TYPE=Release ..`
+Cmd: `clear; cd build; make -j 16`
+
+For Windows it needs set up path to wxWidgets & use CMake. It is possible to use commands, similar to those for Linux, but also there is a nice way to use CMake GUI.
+
 ## Main info
 * Autoorders description: ./doc/autoorders/README.md
 * Client names format: `@;;Name`, invisible "internal" name. Will be represented instead of unit's name in the client, but will be inivisible for other players.
@@ -25,7 +36,47 @@ Also there will be explicitely written if any of students is not studying anymor
 * ReceiveDlg.
 In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `REC_DLG_GROUPS` may be listed groups with which ReceiveDlg will work, as with items. For example, `REC_DLG_GROUPS = trade_items,food` mean, that in ReceiveDlg in drop up list there will be possibility to choose `trade_items` or `food`, and get list of all units having any items belonging to the group. Those entities (trade_items and food) have to be defined in section `UNIT_PROPERTY_GROUPS`.
 
+### TODO
+add CheckOrder_LandXXXX() -- for each monthlong order, which would set the flags and to the order checks.
+place those checks to the first phase, so all monthlong orders should be checked at the fist phase & represented in flags.
+That would let keeping flags updated without relaying to specific Phase of calculation.
+And then enable for users to choose a phase of calculations.
+
 ## Changelog:
+
+### May 20 2020
+- autonaming: added entirely new feature. in `alh.cfg` its flag "AUTONAMING", by default it is set to 0. It will automatically generate internal names for unit based on their orders and skills, according to hardcoded logic, which personally I use for many years (since I used this feature of internal names in AtlaClient). Names would look like `[MA] armo3 stea2`, and will be sorted accordingly. More detailed explanation you can find in documentation (see `doc/autonaming/README.md`).
+- config: added `AUTONAMING` flag in `COMMON`.
+- hex description: tax, work, entertain. If there is a unit taxing/working/entertaining in the region, it calculates amount of units need to collect all the region's income, and amount of current people doing it, and represent it in hex description inplace (in sections with tax/work/entertain sequentially).
+- hex description: sell, buy. If there is a unit buying or selling something in the region, it will be represented inplace in sections `Wanted:` and `For Sale:`.
+- hex description: economy: it supports and correctly calculated work & entertain income for Economy section.
+- export hexes: bugfix. Removed whitespace.
+- errors handling: added specific flag for errors, reflecting if unit has error. In unit pane such units will be marked by specific color.
+- config: added specific `UNIT_HAS_ERRORS` color in `COLORS`.
+- autologic: improvement. Now autologic comment executed exactly at phase to which the order belongs. 
+For example, if unit has order `@sell all GRAI ;!COND ITEM[GRAI] >0`, it will check amount of GRAI at the phase of SELL, and will comment it out or uncomment accordingly.
+- autologic: improvement: debug option. If instead of `COND` or `WARN` user writes `COND_D` or `WARN_D`, it gots all the details of logic performing. Should be helpful if condition works not as expected.
+- config: tax. Added specific section `TAX_RULES`. With positions `SKILL_TAX` -- list of skills, allowed to tax by themselves. `NO_SKILL_TAX` -- list of items, which allows to tax without any skill. `SKILLS_LIST` -- list of skills, which have specific items, with which they can tax.
+Current settings (as example) comes with this:
+    [TAX_RULES]
+    NO_SKILL_TAX            = SWOR, MSWO, RUNE, FSWO, LANC, PIKE, BAXE, ASWR, JAVE
+    SKILL_TAX               = COMB
+    SKILLS_LIST             = LBOW,XBOW
+    LBOW                    = DBOW,LBOW
+    XBOW                    = XBOW,MXBO,DBOW
+Tax calculations now use those rules.
+- flags: improvement. Now each monthlong order is represented my specific letter (`P` for production, `W` for work, `S` for studying and etc), and is separated from other flags by `|`. So it's easily seen in unit panel if unit doesn't have monthlong order, or which exactly order does it have.
+- autoorders: improvement. Revert back autoorders to the end of GIVE phase. This means, it ignores sell orders (because sell phase happens after), but doesn't try to redistribute silver which received as a result of phases which happen after GIVE, and can't be handled at GIVE phase.
+- autoorders: added possibility to run it for specific region.
+- map pane: roads: fixed representation of road if there are few roads of one direction, and some of them are not finished, but some are finished.
+- receive dialog: it calculates state up (including) GIVE phase. So it's impossible to see income which may happen after the give phase.
+- internal: monthlong orders flags aligned & handled properly.
+- internal: reworked handling of work & entertain in region.
+- internal: region tracks amount of requests to tax, work & entertain, buy & sell.
+- internal: added fully renewed LandWork & LandEntertain orders handling.
+
+
+
 ### May 11 2020
 - internal: added autologic functionality.
 - internal: in ResolveAliasItems fixed upper/lower case issue.

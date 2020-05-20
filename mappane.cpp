@@ -110,6 +110,7 @@ BEGIN_EVENT_TABLE(CMapPane, wxWindow)
     EVT_MENU             (menu_Popup_Battles      , CMapPane::OnPopupMenuBattles  )
     EVT_MENU             (menu_Popup_WhoMovesHere , CMapPane::OnPopupWhoMovesHere )
     EVT_MENU             (menu_Popup_Financial    , CMapPane::OnPopupFinancial    )
+    EVT_MENU             (menu_Popup_AutoOrders   , CMapPane::OnPopupAutoOrders   )
     EVT_MENU             (menu_Popup_New_Hex      , CMapPane::OnPopupNewHex       )
     EVT_MENU             (menu_Popup_Del_Hex      , CMapPane::OnPopupDeleteHex    )
     EVT_MENU             (menu_Popup_DistanceRing , CMapPane::OnPopupDistanceRing )
@@ -1139,13 +1140,18 @@ void CMapPane::DrawUnitColumn(wxDC * pDC, int x0, int y0, int height)
 //--------------------------------------------------------------------------
 
 #define SET_ROAD_PEN(attr)                                                          \
-    CStruct* s = land_control::find_first_structure_if(pLand, [](CStruct* str) {    \
-        return (str->Attr & attr);                                                  \
+    std::vector<CStruct*> road_collection;                                          \
+    land_control::perform_on_each_struct(pLand, [&](CStruct* str) {                 \
+        if (str->Attr & attr)                                                       \
+            road_collection.push_back(str);                                         \
     });                                                                             \
-    if (s != nullptr && (s->Attr & SA_ROAD_BAD))                                    \
+    bool is_bad(true);                                                              \
+    for (auto& road : road_collection)                                              \
+        is_bad = is_bad && (road->Attr & SA_ROAD_BAD);                              \
+    if (is_bad)                                                                     \
         pDC->SetPen(*m_pPenRoadBad);                                                \
     else                                                                            \
-        pDC->SetPen(*m_pPenRoad);                                                 
+        pDC->SetPen(*m_pPenRoad);
 
 
 void CMapPane::DrawRoads(wxDC * pDC, CLand * pLand, int x0, int y0)
@@ -3539,6 +3545,7 @@ void CMapPane::OnMouseEvent(wxMouseEvent& event)
             if (m_pPopupLand->Flags&LAND_BATTLE)
                 menu.Append(menu_Popup_Battles, wxT("Battles"));
             menu.Append(menu_Popup_Financial   , wxT("Financial details for the hex"));
+            menu.Append(menu_Popup_AutoOrders, wxT("Run autoorders for the hex"));
 
             if (0==strcmp(m_pPopupLand->Name.GetData(), SZ_MANUAL_HEX_PROVINCE))
                 menu.Append(menu_Popup_Del_Hex   , wxT("Remove Hex terrain"));
@@ -3628,8 +3635,8 @@ void CMapPane::MarkFoundHexes(CHexFilterDlg * pFilter)
         for (i=0; i<pPlane->Lands.Count(); i++)
         {
             pLand = (CLand*)pPlane->Lands.At(i);
-            if ( EvaluateBaseObjectByBoxes(pLand, Property, CompareOp, sValue, lValue, HEX_SIMPLE_FLTR_COUNT) ||
-                 evaluateLandByFilter(pLand, Property, CompareOp, sValue, lValue, HEX_SIMPLE_FLTR_COUNT))
+            if (//evaluateLandByFilter(pLand, Property, CompareOp, sValue, lValue, HEX_SIMPLE_FLTR_COUNT) || 
+                EvaluateBaseObjectByBoxes(pLand, Property, CompareOp, sValue, lValue, HEX_SIMPLE_FLTR_COUNT))
             {
                 gpApp->m_pAtlantis->ComposeLandStrCoord(pLand, sCoord);
                 LandList << pLand->TerrainType << " (" << sCoord << ")" << EOL_SCR;
@@ -3767,6 +3774,21 @@ void CMapPane::OnPopupFinancial   (wxCommandEvent & event)
 
     pCurLand  = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
     gpApp->ShowLandFinancial(pCurLand);
+}
+
+void CMapPane::OnPopupAutoOrders(wxCommandEvent & event)
+{
+    CLand  * pCurLand;
+    pCurLand  = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
+    
+    land_control::perform_on_each_unit(pCurLand, [](CUnit* unit) {
+        orders::control::remove_orders_by_comment(unit, ";!AO");
+        orders::control::remove_orders_by_comment(unit, ";!ao");
+    });
+
+    gpApp->m_pAtlantis->RunLandOrders(pCurLand, TurnSequence::SQ_FIRST, TurnSequence::SQ_GIVE);
+
+    gpApp->m_pAtlantis->ApplyLandDefaultOrders(pCurLand);
 }
 
 //--------------------------------------------------------------------------

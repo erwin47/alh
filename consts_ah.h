@@ -108,6 +108,7 @@ enum
     menu_Popup_IssueOrders  ,
     menu_Popup_WhoMovesHere ,
     menu_Popup_Financial    ,
+    menu_Popup_AutoOrders   ,
     menu_Popup_New_Hex      ,
     menu_Popup_Del_Hex      ,
     menu_Popup_DistanceRing ,
@@ -167,6 +168,7 @@ enum
 // config sections
 #define SZ_SECT_COLORS                  "COLORS"
 #define SZ_SECT_COMMON                  "COMMON"
+#define SZ_SECT_TAX_RULES               "TAX_RULES"
 #define SZ_SECT_FONTS                   "FONTS"
 #define SZ_SECT_FONTS_2                 "FONTS_2"
 #define SZ_SECT_UNITLIST_HDR            "UNIT_LIST_HDR"
@@ -302,6 +304,7 @@ enum
 #define SZ_KEY_WATER_TERRAINS            "WATER_TERRAINS"
 #define SZ_KEY_CHECK_OUTPUT_LIST         "CHECK_OUTPUT_LIST"
 #define SZ_KEY_PWD_READ                  "READ_PWD_FROM_REP"
+#define SZ_KEY_AUTONAMING                "AUTONAMING"
 #define SZ_KEY_CHK_PROD_REQ              "IMMEDIATE_PROD_CHECK"
 #define SZ_KEY_VALID_ORDERS              "VALID_ORDERS"
 #define SZ_KEY_DASH_BAD_ROADS            "DASH_BAD_ROADS"
@@ -320,6 +323,7 @@ enum
 #define SZ_UNIT_MOVING_OUT               "UNIT_MOVING_OUT"
 #define SZ_UNIT_GUARDING                 "UNIT_GUARDING"
 #define SZ_UNIT_ARRIVING                 "UNIT_ARRIVING"
+#define SZ_UNIT_HAS_ERRORS               "UNIT_HAS_ERRORS"
 
 #define SZ_KEY_MAP_ROAD_OLD              "MAP_ROADS"
 #define SZ_KEY_MAP_ROAD_BAD_OLD          "MAP_ROADS_BAD"
@@ -407,6 +411,10 @@ enum
 #define SZ_KEY_WAGONS                    "WAGONS"
 #define SZ_KEY_WAGON_PULLERS             "WAGON_PULLERS"
 #define SZ_KEY_WAGON_CAPACITY            "WAGON_CAPACITY"
+
+#define SZ_KEY_SKILL_TAX                 "SKILL_TAX"
+#define SZ_KEY_NO_SKILL_TAX              "NO_SKILL_TAX"
+#define SZ_KEY_TAX_SKILL_LIST            "SKILLS_LIST"
 
 #define SZ_UPKEEP_LEADER                 "UPKEEP_LEADER"
 #define SZ_UPKEEP_PEASANT                "UPKEEP_PEASANT"

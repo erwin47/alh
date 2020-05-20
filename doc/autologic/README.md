@@ -1,11 +1,13 @@
 # alh (Atlantis Little Helper)
 ## AutoLogic:
 Feature was designed to automate some orders handing & filtering the map. 
-Its generally agnostic to whitespaces.
+Its generally agnostic to whitespaces and other non-letter/number symbols, except `[` and `]`.
+Each statement should have evaluation at left side of operator and value at right side of operator.
 
 ### List of actions:
     `;!WARN`/`;$WARN` -- generate warning if statement will be evaluated to TRUE
-    `;!COND`/`;$COMD` -- will comment out order if statement evaluated to FALSE, and uncomment it if TRUE.
+    `;!COND`/`;$COND` -- will comment out order if statement evaluated to FALSE, and uncomment it if TRUE.
+    `;!COND_D`/`;$COND_D` & `;!WARN_D`/`;$WARN_D` for debug mode.
 
 ### List of evaluations:
     ITEM[NAME] -- represent amount of specified by `NAME` items in unit (current or in a region, depends on context)
@@ -36,7 +38,7 @@ For example, we need `unit A` to buy as max as possible GEMs if it has 3000 silv
 @move S ;!COND LOC[24,24]
 @buy all GEM ;!COND LOC[24,24]&& ITEM[SILV] >=3000
 
-@move N ;!LOC[24,26]
+@move N ;!COND LOC[24,26]
 @give `unit B` all GEM except 5 ;!COND LOC[24,26]
 @sell all GEM ;!COND LOC[24,26]
 

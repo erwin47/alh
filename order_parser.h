@@ -84,6 +84,7 @@ namespace orders
         O_ALL,
         O_ENDALL,
         O_COMMENT,
+        O_COMMENT_AUTONAME,
         O_ERROR,//comment would contain description
         NORDERS
     };
@@ -234,7 +235,7 @@ namespace orders
 
         AO_TYPES has_autoorders(const std::shared_ptr<Order>& order);
         bool parse_get(const std::shared_ptr<Order>& order, long& amount, std::string& item);
-        bool parse_logic(const std::shared_ptr<Order>& order, LogicAction& action, std::string& statement);
+        bool parse_logic(const std::shared_ptr<Order>& order, LogicAction& action, std::string& statement, bool& debug);
 
     }    
 

@@ -156,6 +156,7 @@ namespace orders
         {orders::Type::O_ALL, [](const std::vector<std::string>& words) {  return true;  } },
         {orders::Type::O_ENDALL, [](const std::vector<std::string>& words) {  return true;  } },
         {orders::Type::O_COMMENT, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_COMMENT_AUTONAME, [](const std::vector<std::string>& words) {  return true;  } },
         {orders::Type::O_ERROR, [](const std::vector<std::string>& words) {  return true;  } }
 
     };
@@ -244,41 +245,61 @@ namespace orders
             std::vector<std::string> words;
             utils::parse_order_line(line, words);
 
-            for (auto& word : words)
+            //first store the command
+
+            for (size_t i = 0; i < words.size(); ++i)
             {
-                if (word[0] == ';')
+                if (words[i][0] == ';')
                 {
-                    res->comment_ = word;
+                    res->comment_ = words[i];
                     std::for_each(res->comment_.begin(), res->comment_.end(), [](char & c){
                     c = ::toupper(c);
                     });
                     break;
                 }
 
+                if (i == 0)
+                {//for first word no need to resolve aliases
+                    std::for_each(words[i].begin(), words[i].end(), [](char & c){
+                    c = ::toupper(c);
+                    });
+                    res->words_order_.push_back(words[i]);
+                    continue;
+                }
+
                 std::string code_name, name, plural_name;
-                if (gpApp->ResolveAliasItems(word, code_name, name, plural_name))
+                if (gpApp->ResolveAliasItems(words[i], code_name, name, plural_name))
                 {
                     res->words_order_.push_back(code_name);
                     continue;
                 }
 
-                std::string alias_word = word;
+                std::string alias_word = words[i];
                 std::replace(alias_word.begin(), alias_word.end(), ' ', '_'); //magic rule of aliases
-                word = gpApp->ResolveAlias(alias_word.c_str());
+                words[i] = gpApp->ResolveAlias(alias_word.c_str());
                 //need additional message or word for case when there is no alias for the word.
                 //at least check that word fits any of skills/items/number
-                std::for_each(word.begin(), word.end(), [](char & c){
+                std::for_each(words[i].begin(), words[i].end(), [](char & c){
                 c = ::toupper(c);
                 });
-                res->words_order_.push_back(word);
+                res->words_order_.push_back(words[i]);
             }
 
             res->type_ = orders::Type::NORDERS;
             if (res->words_order_.size() == 0 && res->comment_.size() > 0)
-                res->type_ = orders::Type::O_COMMENT;
+            {
+                if (res->comment_.find(";;") != std::string::npos && 
+                    (res->comment_.find(" $C") != std::string::npos ||
+                    res->comment_.find(" !C") != std::string::npos))
+                    res->type_ = orders::Type::O_COMMENT_AUTONAME;
+                else
+                    res->type_ = orders::Type::O_COMMENT;
+            }               
 
             if (res->words_order_.size() > 0 && types_mapping.find(res->words_order_[0]) != types_mapping.end())
+            {
                 res->type_ = types_mapping[res->words_order_[0]];
+            }
 
             if (sanity_checks.find(res->type_) == sanity_checks.end())
             {
@@ -423,7 +444,6 @@ namespace orders
                 it_beg += 1;
                 return true;
             }
-
 
             bool parse_give(const std::shared_ptr<orders::Order>& order, long& target_id,
                 long& target_faction_id, long& amount, std::string& item, long& except)
@@ -911,26 +931,42 @@ namespace orders
             return true;
         }
 
-        bool parse_logic(const std::shared_ptr<Order>& order, LogicAction& action, std::string& statement)
+        bool parse_logic(const std::shared_ptr<Order>& order, LogicAction& action, std::string& statement, bool& debug)
         {
+            debug = false;
             size_t pos = std::min(order->comment_.find("$COND"), order->comment_.find("!COND"));
             if (pos != std::string::npos)
             {
+                if (std::min(order->comment_.find("$COND_D"), order->comment_.find("!COND_D")) != std::string::npos)
+                {
+                    debug = true;
+                    statement = order->comment_.substr(pos+sizeof("$COND_D"));
+                }
+                else
+                {
+                    statement = order->comment_.substr(pos+sizeof("$COND"));
+                }                   
                 action = LogicAction::SWITCH_COMMENT;
-                statement = order->comment_.substr(pos+5);
                 return true;
             }
 
             pos = std::min(order->comment_.find("$WARN"), order->comment_.find("!WARN"));
             if (pos != std::string::npos)
             {
+                if (std::min(order->comment_.find("$WARN_D"), order->comment_.find("!WARN_D")) != std::string::npos)
+                {
+                    debug = true;
+                    statement = order->comment_.substr(pos+sizeof("$COND_D"));
+                }
+                else
+                {
+                    statement = order->comment_.substr(pos+sizeof("$COND"));
+                }   
                 action = LogicAction::ERROR;
-                statement = order->comment_.substr(pos+5);
                 return true;
             }
             return false;
         }
-        
     }
 
     namespace autoorders_caravan

@@ -155,7 +155,10 @@ void CUnitPane::Update(CLand * pLand)
         for (i=0; i<pLand->Units.Count(); i++)
         {
             pUnit = (CUnit*)pLand->Units.At(i);
-            if (pUnit && pUnit->pMovement)
+            if (pUnit->has_error_) {//pUnit->Flags & UNIT_FLAG_HAS_ERROR) {
+                GuiColor = 4;//light red, for units with errors
+            }
+            else if (pUnit && pUnit->pMovement)
                 GuiColor = 1;
             else if (pUnit && (pUnit->Flags & UNIT_FLAG_GUARDING))
                 GuiColor = 3;
@@ -369,7 +372,10 @@ void CUnitPane::OnSelected(wxListEvent& event)
         //    gpApp->EditPaneChanged((CEditPane*)pOrders);
         //}
         gpApp->OnUnitHexSelectionChange(event.m_itemIndex);
+
+        gpApp->m_pAtlantis->RunLandOrders(m_pCurLand);//, TurnSequence::SQ_FIRST, TurnSequence::SQ_BUY);
         Update(m_pCurLand);        
+        //gpApp->m_pAtlantis->RunLandOrders(m_pCurLand, TurnSequence::SQ_FORGET, TurnSequence::SQ_LAST);
     }
 }
 

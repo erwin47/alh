@@ -176,7 +176,11 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define SA_ROAD_BAD 0x0400
 
 // unit flags - standard flags from the top, custom from the bottom
-#define UNIT_FLAG_GIVEN             0x10000000
+
+#define UNIT_FLAG_ENTERTAINING      0x80000000
+#define UNIT_FLAG_WORKING           0x40000000
+#define UNIT_FLAG_TEACHING          0x20000000
+#define UNIT_FLAG_STUDYING          0x10000000
 #define UNIT_FLAG_PILLAGING         0x08000000
 #define UNIT_FLAG_TAXING            0x04000000
 #define UNIT_FLAG_PRODUCING         0x02000000
@@ -198,8 +202,8 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define UNIT_FLAG_SPOILS_SAIL       0x00000200
 #define UNIT_FLAG_SHARING           0x00000100
 #define UNIT_FLAG_TEMP              0x00000080
-#define UNIT_FLAG_ENTERTAINING      0x00000040
-#define UNIT_FLAG_WORKING           0x00000020
+#define UNIT_FLAG_GIVEN             0x00000040
+#define UNIT_FLAG_HAS_ERROR         0x00000020
 
 #define UNIT_CUSTOM_FLAG_COUNT   8
 #define UNIT_CUSTOM_FLAG_MASK    0xFF
@@ -407,6 +411,7 @@ public:
     
     //list of received items, tought and so on, 
     std::vector<std::string> impact_description_;
+    bool                     has_error_;
 
     orders::UnitOrders orders_;
 
@@ -433,6 +438,29 @@ public:
     CLongColl     * pMovement; // Collection of ids of hexes to move through
     CLongColl     * pMoveA3Points; // Collection of Arcadia III locations for movement
     CBaseCollById * pStudents;
+/*    
+    uint32_t        order_work_:1;       //0 of 32
+    uint32_t        order_entertain_:1;  //1 of 32
+    uint32_t        order_tax_:1;        //2 of 32
+    uint32_t        order_pillage_:1;    //3 of 32
+    uint32_t        order_build_:1;      //4 of 32
+    uint32_t        flag_spoils_:3;      //5-7 of 32
+    uint32_t        flag_reveal_:2;      //8-9 of 32
+    uint32_t        flag_consume_:2;     //10-11 of 32
+    uint32_t        flag_guard_:1;       //12 of 32
+    uint32_t        flag_avoid_:1;       //13 of 32
+    uint32_t        flag_behind_:1;      //14 of 32
+    uint32_t        flag_hold_:1;        //15 of 32
+    uint32_t        flag_noaid_:1;       //16 of 32
+    uint32_t        flag_nocross_:1;     //17 of 32
+    uint32_t        flag_share_:1;       //18 of 32
+    uint32_t        reserve_:13;         //19-31 of 32
+*/
+/*
+#define UNIT_FLAG_GIVEN             0x10000000
+#define UNIT_FLAG_TEMP              0x00000080
+*/    
+
     unsigned long   Flags;
     unsigned long   FlagsOrg;
     unsigned long   FlagsLast;
@@ -507,6 +535,7 @@ struct CEconomy
 {
     long initial_amount_;
     long maintenance_;
+    long work_income_;
     long buy_expenses_;
     long study_expenses_;
     long moving_out_;
@@ -519,16 +548,32 @@ void init_economy(CEconomy& res);
 
 //-----------------------------------------------------------------
 
+struct land_item_state
+{
+    long amount_;
+    long requested_;
+    long requesters_amount_;
+};
+
+void init_land_item_state(land_item_state& listate);
+
 struct LandState
 {
-    long            tax_amount_;
+    land_item_state tax_;
+    land_item_state work_;
+    land_item_state entertain_;
+
     long            peasants_amount_;
     std::string     peasant_race_;
 
-    std::vector<CItem>                      resources_;
-    std::map<std::string, long>             produced_items_;
+    std::vector<CItem>                      resources_;    
     std::map<std::string, CProductMarket>   wanted_;
     std::map<std::string, CProductMarket>   for_sale_;
+
+    std::map<std::string, long>             produced_items_;
+    std::map<std::string, long>             sold_items_;
+    std::map<std::string, long>             bought_items_;
+
     std::vector<CStruct*>                   structures_;
 
     CEconomy                                economy_;
@@ -596,8 +641,6 @@ public:
     int           AtlaclientsLastTurnNo;
     BOOL          WeatherWillBeGood;
     double        Wages;
-    long          MaxWages;
-    long          Entertainment;
     long          Troops[ATT_UNDECLARED+1];
 
     long          guiUnit;  // will be used by GUI only

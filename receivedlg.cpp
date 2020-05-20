@@ -109,6 +109,8 @@ void CReceiveDlg::init_item_types_combobox()
     //gpApp->m_pAtlantis->RunLandOrders(land_, TurnSequence::SQ_GIVE_PRE);
     std::set<CItem> items = get_item_types_list(unit_, land_);
 
+    gpApp->m_pAtlantis->RunLandOrders(land_, TurnSequence::SQ_FIRST, TurnSequence::SQ_GIVE);
+
     //Groups
     for (const auto& group : groups_)
     {
@@ -221,7 +223,7 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
     return unit_names;
 }
 
-void CReceiveDlg::OnItemChosen   (wxCommandEvent& event)
+void CReceiveDlg::OnItemChosen(wxCommandEvent& event)
 {
     std::string long_name_item = combobox_item_types_->GetValue().ToStdString();
     std::vector<std::string> unit_names;

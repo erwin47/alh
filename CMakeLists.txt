@@ -41,6 +41,7 @@ set(AH_CPP
     "${PROJECT_SOURCE_DIR}/utildlgs.cpp"
     "${PROJECT_SOURCE_DIR}/order_parser.cpp"
     "${PROJECT_SOURCE_DIR}/autologic.cpp"
+    "${PROJECT_SOURCE_DIR}/autonaming.cpp"
    )
 
 set(AH_HEADERS
@@ -89,6 +90,7 @@ set(AH_HEADERS
     "${PROJECT_SOURCE_DIR}/version.h"
     "${PROJECT_SOURCE_DIR}/order_parser.h"
     "${PROJECT_SOURCE_DIR}/autologic.h"
+    "${PROJECT_SOURCE_DIR}/autonaming.h"
    )
 
 # specify the C++ standard

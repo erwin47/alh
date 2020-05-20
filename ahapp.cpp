@@ -2040,7 +2040,7 @@ void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & Ta
             }
             if (Factions.Insert(pDetail))
             {
-                pDetail->amount = pLand->current_state_.tax_amount_;
+                pDetail->amount = pLand->current_state_.tax_.amount_;
                 pDetail->HexCount++;
             }
             if (pUnit->GetProperty(PRP_MEN, type, (const void *&)men, eNormal) && eLong==type)
@@ -2070,9 +2070,9 @@ void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & Ta
         while (x < 245);
 
         if (pDetail->amount > 0)
-            OneLine << wxT("is undertaxed by ") << pDetail->amount << wxT(" silv (") << 100 * (pLand->current_state_.tax_amount_ - pDetail->amount) / (pLand->current_state_.tax_amount_+1) << wxT("% of $") << pLand->current_state_.tax_amount_ << wxT(").") << wxString::FromUTF8(EOL_SCR);
+            OneLine << wxT("is undertaxed by ") << pDetail->amount << wxT(" silv (") << 100 * (pLand->current_state_.tax_.amount_ - pDetail->amount) / (pLand->current_state_.tax_.amount_+1) << wxT("% of $") << pLand->current_state_.tax_.amount_ << wxT(").") << wxString::FromUTF8(EOL_SCR);
         else if (pDetail->amount<0)
-            OneLine << wxT("is overtaxed  by ") << (-pDetail->amount) << wxT(" silv (") << 100 * (pLand->current_state_.tax_amount_ - pDetail->amount) / (pLand->current_state_.tax_amount_+1) << wxT("% of $") << pLand->current_state_.tax_amount_ << wxT(").") << wxString::FromUTF8(EOL_SCR);
+            OneLine << wxT("is overtaxed  by ") << (-pDetail->amount) << wxT(" silv (") << 100 * (pLand->current_state_.tax_.amount_ - pDetail->amount) / (pLand->current_state_.tax_.amount_+1) << wxT("% of $") << pLand->current_state_.tax_.amount_ << wxT(").") << wxString::FromUTF8(EOL_SCR);
         else
             OneLine << wxString::FromUTF8(EOL_SCR);
 
@@ -2875,11 +2875,6 @@ void CAhApp::EditPaneChanged(CEditPane * pPane) //not actually used at all ??
 
         if (pPane == m_Panes[AH_PANE_UNIT_COMMANDS])
         {
-            // selected unit's orders have been changed
-
-            // TBD: is it needed? m_pCurLand->guiUnit = m_pUnitListPane->GetCurrentUnitId();
-            if (pLand->guiUnit)
-                m_pAtlantis->RunOrders(pLand);
             UpdateHexUnitList(pLand);
             UpdateHexEditPane(pLand);
             SetOrdersChanged(m_OrdersAreChanged); // this hack is needed since EditPanes are modifying the vars directly...
@@ -3400,7 +3395,88 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
     {
         if (pLand)
         {
-            m_HexDescrSrc << pLand->Description;
+            std::string reg_description(pLand->Description.GetData(), pLand->Description.GetLength());
+            if (pLand->current_state_.tax_.requesters_amount_)
+            {
+                size_t ins_pos = reg_description.find("-----------------------------");
+                while(ins_pos != std::string::npos && ins_pos > 0 && reg_description[ins_pos] != '.')
+                    --ins_pos;
+
+                long tax_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER);
+                std::string tax_insertion = " (" + std::to_string(pLand->current_state_.tax_.requesters_amount_) + 
+                            "/" + std::to_string((pLand->current_state_.tax_.amount_-1)/tax_per_man +1) + ")";
+                reg_description.insert(ins_pos, tax_insertion);
+            }
+
+            if (pLand->current_state_.work_.requesters_amount_)
+            {
+                size_t ins_pos = reg_description.find("Wages: ");
+                ins_pos = reg_description.find('.', ins_pos);
+                if (std::isdigit(reg_description[ins_pos+1]))//if next symbol is digit, we are in a float wages
+                    ins_pos = reg_description.find('.', ins_pos+1);
+
+                std::string work_insertion = " " + std::to_string(pLand->current_state_.work_.requesters_amount_) + 
+                            "/" + std::to_string(long((pLand->current_state_.work_.amount_-1)/pLand->Wages)+1);
+                reg_description.insert(ins_pos, work_insertion);
+            }   
+
+            if (pLand->current_state_.entertain_.requesters_amount_)
+            {
+                size_t ins_pos = reg_description.find("Entertainment available: ");
+                if (ins_pos != std::string::npos)
+                {
+                    ins_pos = reg_description.find('.', ins_pos);
+
+                    long ente_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_ENTERTAINMENT_SILVER);
+                    std::string entertain_insertion = " (" + std::to_string(pLand->current_state_.entertain_.requesters_amount_) + 
+                                "/" + std::to_string(long((pLand->current_state_.entertain_.amount_-1)/ente_per_man)+1) + ")";
+                    reg_description.insert(ins_pos, entertain_insertion);
+                }
+            }                       
+
+            if (pLand->current_state_.sold_items_.size() > 0)
+            {
+                size_t beg_pos = reg_description.find("Wanted: ");
+                size_t end_pos = reg_description.find('.', beg_pos);
+                for (const auto& pair : pLand->current_state_.sold_items_)
+                {
+                    auto it = std::search(reg_description.begin()+beg_pos, reg_description.begin()+end_pos, 
+                              pair.first.begin(), pair.first.end());
+                    if (it != reg_description.begin()+beg_pos)
+                    {
+                        size_t ins_pos = it - reg_description.begin();
+                        while (ins_pos > beg_pos && !std::isdigit(reg_description[ins_pos]))
+                            --ins_pos;
+                        ++ins_pos;
+                        
+                        std::string buy_insertion = " (-"+std::to_string(pair.second)+")";
+                        reg_description.insert(ins_pos, buy_insertion);
+                    }
+                }
+            }
+
+            if (pLand->current_state_.bought_items_.size() > 0)
+            {
+                size_t beg_pos = reg_description.find("For Sale: ");
+                size_t end_pos = reg_description.find('.', beg_pos);
+                for (const auto& pair : pLand->current_state_.bought_items_)
+                {
+                    auto it = std::search(reg_description.begin()+beg_pos, reg_description.begin()+end_pos, 
+                              pair.first.begin(), pair.first.end());
+                    if (it != reg_description.begin()+beg_pos)
+                    {
+                        size_t ins_pos = it - reg_description.begin();
+                        while (ins_pos > beg_pos && !std::isdigit(reg_description[ins_pos]))
+                            --ins_pos;
+                        ++ins_pos;
+                        
+                        std::string sell_insertion = " (-"+std::to_string(pair.second)+")";
+                        reg_description.insert(ins_pos, sell_insertion);
+                    }
+                }
+            }            
+
+            m_HexDescrSrc << reg_description.c_str();
 
             m_HexDescrSrc << EOL_SCR;
             std::stringstream ss;
@@ -3437,7 +3513,7 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
             m_HexDescrSrc << "    Moving in:       +" << std::max(pLand->current_state_.economy_.moving_in_, (long)0) << EOL_SCR;
             m_HexDescrSrc << "    Moving out:      -" << std::max(pLand->current_state_.economy_.moving_out_, (long)0) << EOL_SCR;             
             m_HexDescrSrc << "    Study expenses:  -" << pLand->current_state_.economy_.study_expenses_ << EOL_SCR;
-            m_HexDescrSrc << "    Work/enterntain: +unknown" << EOL_SCR;
+            m_HexDescrSrc << "    Work/enterntain: +" << pLand->current_state_.economy_.work_income_ << EOL_SCR;
             m_HexDescrSrc << "    Maintenance:     -" << pLand->current_state_.economy_.maintenance_ << EOL_SCR;
             m_HexDescrSrc << "  Balance End: " << pLand->current_state_.economy_.initial_amount_ +
                                                        pLand->current_state_.economy_.tax_income_ +
@@ -3491,8 +3567,14 @@ void CAhApp::UpdateHexUnitList(CLand * pLand)
 {
     CUnitPane   * pUnitPane = (CUnitPane*)m_Panes[AH_PANE_UNITS_HEX];
 
+    m_pAtlantis->RunOrders(pLand);
+    //m_pAtlantis->RunOrders(pLand, TurnSequence::SQ_FIRST, TurnSequence::SQ_BUY);
+
     if (pUnitPane)
         pUnitPane->Update(pLand);
+
+    //m_pAtlantis->RunOrders(pLand, TurnSequence::SQ_FORGET, TurnSequence::SQ_LAST);
+    
 }
 
 //-------------------------------------------------------------------------
@@ -3509,8 +3591,8 @@ void CAhApp::OnMapSelectionChange()
         m_pAtlantis->RunLandOrders(land);
     }
 
-    UpdateHexEditPane(land);  // NULL is Ok!
     UpdateHexUnitList(land);
+    UpdateHexEditPane(land);  // NULL is Ok!
 
     CUnitPane* pUnitPane = reinterpret_cast<CUnitPane*>(m_Panes[AH_PANE_UNITS_HEX]);
     pUnitPane->DeselectAll();
@@ -4462,8 +4544,7 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
                         WorkTheir +=  (long)(men*pCurLand->Wages);
 
                 if (pUnit->FactionId == CurFaction && (!pUnit->pMovement || pUnit->pMovement->Count()==0))
-                    if (pUnit->GetProperty(PRP_LEADER, type, (const void *&)leadership, eNormal) && eCharPtr==type &&
-                        (0==strcmp(leadership, SZ_LEADER) || 0==strcmp(leadership, SZ_HERO)))
+                    if (unit_control::is_leader(pUnit))
                         Maintain += men*UpkeepLeader;
                     else
                         Maintain += men*UpkeepPeasant;
@@ -4472,12 +4553,12 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
         }
 
         long TotalTax = TaxOur + TaxTheir;
-        if (TotalTax > 0 && TotalTax > pCurLand->current_state_.tax_amount_)
-            TaxOur =  (long)(((double)pCurLand->current_state_.tax_amount_) / TotalTax * TaxOur);
+        if (TotalTax > 0 && TotalTax > pCurLand->current_state_.tax_.amount_)
+            TaxOur =  (long)(((double)pCurLand->current_state_.tax_.amount_) / TotalTax * TaxOur);
 
         long TotalWages = WorkOur + WorkTheir;
-        if (TotalWages > 0 && TotalWages > pCurLand->MaxWages)
-            WorkOur =  (long)(((double)pCurLand->MaxWages) / TotalWages * WorkOur);
+        if (TotalWages > 0 && TotalWages > pCurLand->current_state_.work_.amount_)
+            WorkOur =  (long)(((double)pCurLand->current_state_.work_.amount_) / TotalWages * WorkOur);
 
         if (Maintain>0)
         {
@@ -4493,7 +4574,7 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
             Report.Description << "Expected Balance            "   << (SilvRes + TaxOur + WorkOur - Maintain - MovedOut) << EOL_SCR;
             Report.Description << ""    << EOL_SCR;
             Report.Description << "Workers                     "   << Workers << EOL_SCR;
-            Report.Description << "Max workers                 "   << (long)(((double)pCurLand->MaxWages)/pCurLand->Wages) << EOL_SCR;
+            Report.Description << "Max workers                 "   << (long)(((double)pCurLand->current_state_.work_.amount_)/pCurLand->Wages) << EOL_SCR;
         }
     }
 
@@ -4531,7 +4612,6 @@ void CAhApp::AddTempHex(int X, int Y, int Plane)
     pLand->pPlane       = pPlane;
     pLand->Name         = SZ_MANUAL_HEX_PROVINCE;
     pLand->TerrainType  = sTerrain;
-    pLand->current_state_.tax_amount_      = 0;
     pLand->Description  << sTerrain << " (" << (long)X << "," << (long)Y << ") in " SZ_MANUAL_HEX_PROVINCE; // ", 0 peasants (unknown), $0.";
     pPlane->Lands.Insert ( pLand );
 }
@@ -4559,10 +4639,12 @@ void CAhApp::DelTempHex(int X, int Y, int Plane)
 
 void CAhApp::RerunOrders()
 {
-    m_pAtlantis->RunOrders(NULL);
+    m_pAtlantis->RunOrders(NULL);//, TurnSequence::SQ_FIRST, TurnSequence::SQ_BUY);
     CUnitPane * pUnitPane = (CUnitPane*)gpApp->m_Panes[AH_PANE_UNITS_HEX];
     if (pUnitPane)
         pUnitPane->Update(pUnitPane->m_pCurLand);
+
+    //m_pAtlantis->RunOrders(NULL, TurnSequence::SQ_FORGET, TurnSequence::SQ_LAST);
 }
 
 //--------------------------------------------------------------------------

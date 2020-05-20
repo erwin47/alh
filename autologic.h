@@ -28,7 +28,8 @@ namespace autologic
         NOT_EQUAL
     };
 
-    bool evaluate_statement(CLand* land, CUnit* unit, const std::string& statement);
+    std::string to_string(Operation op);
+    bool evaluate_statement(CLand* land, CUnit* unit, const std::string& statement, std::vector<unit_control::UnitError>& errors);
 }
 
 

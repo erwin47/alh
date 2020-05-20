@@ -1,10 +1,12 @@
 
 #include "consts.h"
 #include "data_control.h"
+#include "autologic.h"
 #include <algorithm>
 #include <sstream>
 #include <cctype> //for std::tolower
 #include "ah_control.h"
+#include "autonaming.h"
 
 namespace item_control
 {
@@ -137,11 +139,13 @@ namespace unit_control
 
     bool is_leader(CUnit* unit)
     {
-        EValueType         type;
-        const char       * leadership;
-        return unit->GetProperty(PRP_LEADER, type, (const void *&)leadership, eNormal) == TRUE && 
-               eCharPtr==type &&
-               (0==strcmp(leadership, SZ_LEADER) || 0==strcmp(leadership, SZ_HERO));        
+        for (auto& item : unit->men_)
+        {
+            if (stricmp(item.code_name_.c_str(), "LEAD") != 0 &&
+                stricmp(item.code_name_.c_str(), "HERO") != 0)
+                return false;
+        }
+        return unit->men_.size() > 0;
     }
 
 
@@ -356,17 +360,24 @@ namespace unit_control
         unit->CalcWeightsAndMovement();        
     }
 
-    void modify_item_by_reason(CUnit* unit, const std::string& codename, long new_amount, const std::string& reason)
+    void modify_item_by_reason(CUnit* unit, const std::string& codename, long new_amount, const std::string& reason, bool apply_changes)
     {
         if (new_amount == 0)
             return;
 
-        if (stricmp(codename.c_str(), PRP_SILVER) == 0)
-            unit->silver_.amount_ += new_amount;
-        else if (gpApp->IsMan(codename.c_str()))
-            item_control::modify_amount(unit->men_, codename, new_amount);
-        else 
-            item_control::modify_amount(unit->items_, codename, new_amount);
+        if (apply_changes)
+        {
+            if (stricmp(codename.c_str(), PRP_SILVER) == 0)
+                unit->silver_.amount_ += new_amount;
+            else if (gpApp->IsMan(codename.c_str()))
+                item_control::modify_amount(unit->men_, codename, new_amount);
+            else 
+                item_control::modify_amount(unit->items_, codename, new_amount);
+
+            //properties support
+            modify_item_property(unit, codename);
+            unit->CalcWeightsAndMovement();                
+        }
 
         //pretty print
         std::string code, name, plural;
@@ -378,15 +389,11 @@ namespace unit_control
 
         std::stringstream ss;
         if (new_amount > 0)
-            ss << "got " << new_amount << " " << (abs(new_amount) == 1 ? name : plural) << " " << reason;
+            ss << "gets " << new_amount << " " << (abs(new_amount) == 1 ? name : plural) << " " << reason;
         else
-            ss << "lost " << abs(new_amount) << " " << (abs(new_amount) == 1 ? name : plural) << " " << reason;
+            ss << "loses " << abs(new_amount) << " " << (abs(new_amount) == 1 ? name : plural) << " " << reason;
 
         unit->impact_description_.push_back(ss.str());
-
-        //properties support
-        modify_item_property(unit, codename);
-        unit->CalcWeightsAndMovement();
     }
 
     void modify_item_from_market(CUnit* unit, const std::string& codename, long new_amount, long price)
@@ -701,9 +708,6 @@ namespace unit_control
         {
             if (gpDataHelper->IsMan(item.code_name_.c_str()))
             {
-                EValueType type;
-                const char* lead;                
-                unit->GetProperty(PRP_LEADER, type, (const void *&)lead, eNormal);
                 if (ret == -1)
                     ret = get_max_skill_lvl_for_race(item.code_name_, skill);
                 else
@@ -959,84 +963,6 @@ namespace land_control
         return ret;
     }
 
-    namespace economy 
-    {
-        void economy_calculations(CLand* land, CEconomy& res, std::vector<unit_control::UnitError>& errors) 
-        {//gpApp->GetUnitsMovingIntoHex(pLand->Id, ArrivingUnits);
-        //            if (pUnit && pUnit->pMovement)
-        //                  GuiColor = 1;
-        //ShowLandFinancial
-            
-
-
-            long leader_upkeep = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_LEADER);
-            long peasant_upkeep = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT);
-            long player_faction_id = game_control::get_game_config_val<long>("ATTITUDES", "PLAYER_FACTION_ID");
-            
-            //study
-            std::unordered_map<long, Student> students = get_land_students(land, errors);
-            for (const auto& student : students)
-            {
-                if (student.second.unit_->FactionId == player_faction_id)
-                    res.study_expenses_ += student.second.skill_price_ * student.second.man_amount_;
-            }
-
-            //sells
-            std::vector<Trader> sellers;
-            get_land_sells(land, sellers, errors);
-            for (const auto& seller : sellers)
-            {
-                if (seller.unit_->FactionId == player_faction_id)
-                    res.sell_income_ += seller.market_price_ * seller.items_amount_;
-            }
-
-            //tax income
-            Taxers taxers;
-            get_land_taxers(land, taxers, errors);
-            res.tax_income_ = taxers.expected_income_;
-
-            //moving in
-            CBaseColl           arriving_units;
-            CUnit*              unit_temp;
-            gpApp->GetUnitsMovingIntoHex(land->Id, arriving_units);
-            for (int i=0; i<arriving_units.Count(); ++i)
-            {
-                unit_temp = (CUnit*)arriving_units.At(i);
-                if (unit_temp != NULL)
-                {
-                    if (unit_control::is_leader(unit_temp)) {
-                        res.maintenance_ += leader_upkeep*unit_control::get_item_amount_by_mask(unit_temp, PRP_MEN);
-                    } else {
-                        res.maintenance_ += peasant_upkeep*unit_control::get_item_amount_by_mask(unit_temp, PRP_MEN);
-                    }
-                    res.moving_in_ += unit_control::get_item_amount(unit_temp, PRP_SILVER);
-                }
-            }
-
-            perform_on_each_unit(land, [&](CUnit* unit) {
-                if (!unit->IsOurs || unit->FactionId != player_faction_id)
-                    return;
-
-                //initial amount
-                long men_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-                res.initial_amount_ += unit_control::get_item_amount(unit, PRP_SILVER);
-                if (men_amount > 0) 
-                {
-                    //moving out
-                    if (unit->pMovement != NULL && unit->pMovement->Count() > 0)
-                        res.moving_out_ += unit_control::get_item_amount(unit, PRP_SILVER);
-                    else 
-                    {//maintenance
-                        if (unit_control::is_leader(unit)) {
-                            res.maintenance_ += leader_upkeep*men_amount;
-                        } else {
-                            res.maintenance_ += peasant_upkeep*men_amount;
-                        }
-                    }
-                }
-            });
-        }
-    }
 
     template<orders::Type TYPE>
     void affect_other_flags(CUnit* unit)  {  return;  }
@@ -1198,6 +1124,99 @@ namespace land_control
         }        
     }    
 
+    void distribute_silver(std::vector<std::pair<CUnit*, long>>& units, long man_amount, long silver_amount, const std::string& reason, bool apply_changes)
+    {
+        for (const auto& pair : units)
+        {
+            long expected_unit_income = double(silver_amount * pair.second) / man_amount;
+            unit_control::modify_item_by_reason(pair.first, "SILV", expected_unit_income, reason, apply_changes);
+        }  
+    }
+
+    orders::autoorders::LogicAction check_conditional_logic(CLand* land, 
+                                                            CUnit* unit, 
+                                                            const std::shared_ptr<orders::Order>& order, 
+                                                            std::vector<unit_control::UnitError>& errors,
+                                                            bool& result)
+    {
+        orders::autoorders::LogicAction action;
+        std::string statement;
+        bool debug = false;
+        if (!orders::autoorders::parse_logic(order, action, statement, debug))
+        {
+            errors.push_back({"Error", unit, "autologic: couldn't parse condition: " + order->comment_});
+            return orders::autoorders::LogicAction::NONE;
+        }
+
+        std::vector<unit_control::UnitError> evaluation_errors;
+
+        result = true;
+        size_t pos = 0;
+        size_t or_op = statement.find("||", 0);
+        while(or_op != std::string::npos)
+        {//parse each statement separated by "||" separately
+            size_t and_op = statement.find("&&", pos, or_op - pos);
+            while (and_op != std::string::npos)
+            {//each statement separated by "&&" should be evaluated
+                result = result && autologic::evaluate_statement(land, unit, statement.substr(pos, and_op-pos), evaluation_errors);
+                if (!result)//false, no need evaluate other AND
+                    break;
+
+                pos = and_op+2;
+                and_op = statement.find("&&", pos, or_op - pos);
+            }
+
+            if (result)//evaluate last/only statement if up to now it's true
+                result = result && autologic::evaluate_statement(land, unit, statement.substr(pos, or_op-pos), evaluation_errors);
+
+            //true, no need to evaluate other OR
+            if (result)
+                return action;
+
+            pos = or_op+2;
+            or_op = statement.find("||", pos);
+            result = true;//need to reset it for other statements separated by `||`
+        }
+
+        size_t and_op = statement.find("&&", pos, or_op - pos);
+        while (and_op != std::string::npos)
+        {
+            result = result && autologic::evaluate_statement(land, unit, statement.substr(pos, and_op-pos), evaluation_errors);
+            if (!result)//false, no need evaluate other AND
+                return action;
+
+            pos = and_op+2;
+            and_op = statement.find("&&", pos, or_op - pos);
+        }
+        result = result && autologic::evaluate_statement(land, unit, statement.substr(pos), evaluation_errors);
+        if (debug == false)
+        {
+            evaluation_errors.erase(std::remove_if(evaluation_errors.begin(), 
+                                                    evaluation_errors.end(),
+                                                [](const unit_control::UnitError& error){
+                                        return error.type_ == "Debug";
+                                }), evaluation_errors.end());
+        }
+        errors.insert(errors.end(), evaluation_errors.begin(), evaluation_errors.end());
+        return action;
+    }
+
+    void check_land_workers(CLand* land, std::vector<unit_control::UnitError>& errors)
+    {
+        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+            if (!orders::control::has_orders_with_type(orders::Type::O_WORK, unit->orders_))
+                return;
+
+            auto work_orders = orders::control::retrieve_orders_by_type(orders::Type::O_WORK, unit->orders_);
+            if (work_orders.size() > 1)
+            {
+                errors.push_back({"Error", unit, " duplicates work orders"});
+                return;
+            }
+            unit->Flags |= UNIT_FLAG_WORKING;
+        });        
+    }
+
     void apply_land_flags(CLand* land, std::vector<unit_control::UnitError>& errors)
     {
         land_control::perform_on_each_unit(land, [&](CUnit* unit) {
@@ -1254,97 +1273,222 @@ namespace land_control
         });        
     }
 
+    void get_land_entertainers(CLand* land, Incomers& out, std::vector<unit_control::UnitError>& errors, bool apply_changes)
+    {
+        out.expected_income_ = 0;
+        out.man_amount_ = 0;
+        out.land_income_available_ = land->current_state_.entertain_.amount_;
 
-    void get_land_taxers(CLand* land, Taxers& out, std::vector<unit_control::UnitError>& errors)
+        long other_factions_men(0);
+
+        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+            if (!orders::control::has_orders_with_type(orders::Type::O_ENTERTAIN, unit->orders_))
+                return;
+
+            auto ente_orders = orders::control::retrieve_orders_by_type(orders::Type::O_ENTERTAIN, unit->orders_);
+            if (ente_orders.size() > 1)
+            {
+                errors.push_back({"Error", unit, " duplicates tax and/or pillage orders"});
+                return;
+            }
+
+            if (unit_control::get_current_skill_days(unit, "ENTE") < 30)
+            {
+                errors.push_back({"Error", unit, " doesn't know skill ENTE to entertain"});
+                return;
+            }
+
+            unit->Flags |= UNIT_FLAG_ENTERTAINING;
+            if (!unit->IsOurs)
+                other_factions_men += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+            else
+            {
+                out.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                out.units_.push_back({unit, unit_control::get_item_amount_by_mask(unit, PRP_MEN)});
+            }
+        });
+
+        if (out.man_amount_ == 0)
+            return;
+
+        long ente_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_ENTERTAINMENT_SILVER);
+        out.expected_income_ = std::min(out.land_income_available_, ente_per_man * (out.man_amount_ + other_factions_men));
+        if (other_factions_men > 0)
+            out.expected_income_ = (out.expected_income_ * out.man_amount_) / (out.man_amount_ + other_factions_men);
+        distribute_silver(out.units_, out.man_amount_, out.expected_income_, "from entertain", apply_changes);
+    }
+
+    void get_land_workers(CLand* land, Incomers& out, std::vector<unit_control::UnitError>& errors, bool apply_changes)
+    {
+        out.expected_income_ = 0;
+        out.man_amount_ = 0;
+        out.land_income_available_ = land->current_state_.work_.amount_;
+        if (out.land_income_available_ == 0)
+            return;
+
+        long other_factions_men(0);
+
+        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+            if (unit->Flags & UNIT_FLAG_WORKING)
+            {
+                if (!unit->IsOurs)
+                    other_factions_men += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                else
+                {
+                    out.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                    out.units_.push_back({unit, unit_control::get_item_amount_by_mask(unit, PRP_MEN)});
+                }            
+            }
+        });
+
+        if (out.man_amount_ == 0)
+            return;
+
+        out.expected_income_ = std::min((double)land->current_state_.work_.amount_, land->Wages * (out.man_amount_ + other_factions_men));
+        if (other_factions_men > 0)
+            out.expected_income_ = (out.expected_income_ * out.man_amount_) / (out.man_amount_ + other_factions_men);
+        distribute_silver(out.units_, out.man_amount_, out.expected_income_, "from work", apply_changes);
+    }
+
+    void get_land_taxers(CLand* land, Incomers& out, std::vector<unit_control::UnitError>& errors, bool apply_changes)
     {
         long tax_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER);
 
-        out.is_pillaging_ = false;
         out.expected_income_ = 0;
         out.man_amount_ = 0;
-        out.land_tax_available_ = land->current_state_.tax_amount_;
+        out.land_income_available_ = land->current_state_.tax_.amount_;
 
-        Taxers tax;
-        tax.is_pillaging_ = false;
+        Incomers tax;
         tax.expected_income_ = 0;
         tax.man_amount_ = 0;
-        tax.land_tax_available_ = land->current_state_.tax_amount_;
-        Taxers pillage;
-        pillage.is_pillaging_ = true;
+        tax.land_income_available_ = land->current_state_.tax_.amount_;
+        
+        Incomers pillage;
         pillage.expected_income_ = 0;
         pillage.man_amount_ = 0;
-        pillage.land_tax_available_ = land->current_state_.tax_amount_;
+        pillage.land_income_available_ = land->current_state_.tax_.amount_;
+        
+        long other_factions_men_tax(0);
+        long other_factions_men_pillage(0);
+
         land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-
-            if (!unit->IsOurs)
-                return;
-
+            auto pillage_orders = orders::control::retrieve_orders_by_type(orders::Type::O_PILLAGE, unit->orders_);
             auto tax_orders = orders::control::retrieve_orders_by_type(orders::Type::O_TAX, unit->orders_);
-            if (tax_orders.size() > 0)
+            if (pillage_orders.size() + tax_orders.size() == 0)
+                return;
+            
+            if (pillage_orders.size() + tax_orders.size() > 1)
             {
-                tax.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-                tax.units_.push_back(unit);
+                errors.push_back({"Error", unit, " duplicates tax and/or pillage orders"});
                 return;
             }
-            auto pillage_orders = orders::control::retrieve_orders_by_type(orders::Type::O_PILLAGE, unit->orders_);
+
+            //find how many people really can tax/pillage
+            long unit_man(0);
+            auto tax_skills = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, SZ_KEY_SKILL_TAX);
+            for (const auto& tax_skill : tax_skills)
+            {
+                if (unit_control::get_current_skill_days(unit, tax_skill) >= 30)
+                {
+                    unit_man = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                    break;
+                }                    
+            }
+            if (unit_man == 0)
+            {//need to check skills, which works with specific items and specific items
+                auto tax_items = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, SZ_KEY_NO_SKILL_TAX);
+                for (const auto& tax_item : tax_items)
+                    unit_man += unit_control::get_item_amount(unit, tax_item);
+
+                auto tax_skills_list = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, SZ_KEY_TAX_SKILL_LIST);
+                for (const auto& cur_skill : tax_skills_list)
+                {
+                    if (unit_control::get_current_skill_days(unit, cur_skill) < 30)
+                        continue;
+
+                    long cur_skill_items_amount(0);
+                    auto cur_skills_items = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, cur_skill.c_str());
+                    for (const auto& cur_skills_item : cur_skills_items)
+                        cur_skill_items_amount += unit_control::get_item_amount(unit, cur_skills_item);
+
+                    unit_man = std::max(unit_man, cur_skill_items_amount);
+                }
+            }
+
             if (pillage_orders.size() > 0)
             {
-                pillage.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-                pillage.units_.push_back(unit);
-                return;
-            }
-            auto autotax_orders = orders::control::retrieve_orders_by_type(orders::Type::O_AUTOTAX, unit->orders_);
-            if (autotax_orders.size() > 0)
-            {
-                long flag = atol(autotax_orders[autotax_orders.size() - 1]->words_order_[1].c_str());//TODO: specific order
-                if (flag == 1)
+                unit->Flags |= UNIT_FLAG_PILLAGING;
+                land->Flags |= LAND_TAX_NEXT;
+                if (!unit->IsOurs)
+                    other_factions_men_pillage += unit_man;
+                else if (unit_man == 0)
                 {
-                    tax.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-                    tax.units_.push_back(unit);
+                    errors.push_back({"Error", unit, " can't tax or pillage, see TAX_RULES settings"});
                 }
-                return;//in case that flag is set to 0, we don't want to check actual AUTOTAX flag.
+                else
+                {
+                    pillage.man_amount_ += unit_man;
+                    pillage.units_.push_back({unit, unit_man});
+                }
             }
-            if (unit->Flags & UNIT_FLAG_TAXING)
+            else if (tax_orders.size() > 0 || unit->Flags & UNIT_FLAG_TAXING)
             {
-                tax.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-                tax.units_.push_back(unit);
-                return;
+                unit->Flags |= UNIT_FLAG_TAXING;
+                land->Flags |= LAND_TAX_NEXT;
+
+                if (!unit->IsOurs)
+                    other_factions_men_tax += unit_man;
+                else if (unit_man == 0)
+                {
+                    errors.push_back({"Error", unit, " can't tax or pillage, see TAX_RULES settings"});
+                }
+                else
+                {
+                    tax.man_amount_ += unit_man;
+                    tax.units_.push_back({unit, unit_man});
+                }
             }
         });
+
+        //perform variant with pillagers
         if (pillage.man_amount_ > 0)
         {
-            long required_pillagers = (pillage.land_tax_available_-1)/(2*tax_per_man) + 1;
-            if (required_pillagers <= pillage.man_amount_) 
+            long required_pillagers = (pillage.land_income_available_-1)/(2*tax_per_man) + 1;
+            if (required_pillagers <= pillage.man_amount_ + other_factions_men_pillage) 
             {
-                pillage.expected_income_ = 2*pillage.land_tax_available_;
+                pillage.expected_income_ = 2*pillage.land_income_available_;
+                if (other_factions_men_pillage > 0)
+                    pillage.expected_income_ = (pillage.expected_income_ * pillage.man_amount_) / (pillage.man_amount_ + other_factions_men_pillage);
                 out = pillage;
+                distribute_silver(pillage.units_, pillage.man_amount_, pillage.expected_income_, "from pillage", apply_changes);
             }                
             else
             {
-                for (auto& unit : pillage.units_)
-                    errors.push_back({"Warning", unit, " - Not enough pillagers, needs: "+
-                        std::to_string(required_pillagers)+", but have: "+std::to_string(pillage.man_amount_)});
+                for (auto& pillager : pillage.units_)
+                {
+                    errors.push_back({"Error", pillager.first, " pillage, but not enough pillagers, needs: "+
+                            std::to_string(required_pillagers)+", but has: "+std::to_string(pillage.man_amount_ + other_factions_men_pillage)});
+                }
                 pillage.expected_income_ = 0;
             }                    
         }  
-        //if we have tax orders and pillage failed
+
+        //if we have tax orders
         if (tax.man_amount_ > 0)
         {
             if (pillage.expected_income_ > 0) 
             {//pillage already succeed
                 for (auto& unit : tax.units_)
-                    errors.push_back({"Error", unit, " - is trying to tax, while region is pillaged!"});
+                    errors.push_back({"Error", unit.first, " - is trying to tax, while region is pillaged!"});
             }
-            else if (tax.land_tax_available_ < tax_per_man*tax.man_amount_)
-            {
-                tax.expected_income_ = tax.land_tax_available_;
-                out = tax;
-            }                
             else
             {
-                tax.expected_income_ = tax_per_man*tax.man_amount_;
+                tax.expected_income_ = std::min(tax.land_income_available_, tax_per_man * (tax.man_amount_ + other_factions_men_tax));
+                if (other_factions_men_tax > 0)
+                    tax.expected_income_ = (tax.expected_income_ * tax.man_amount_) / (tax.man_amount_ + other_factions_men_tax);
                 out = tax;
-            }                
+                distribute_silver(tax.units_, tax.man_amount_, tax.expected_income_, "from tax", apply_changes);
+            }
         }
     }
 
@@ -1483,6 +1627,8 @@ namespace land_control
                     return;
                 }
 
+                unit->Flags |= UNIT_FLAG_STUDYING;
+
                 long price = gpApp->GetStudyCost(studying_skill.c_str());
                 if (price <= 0)
                 {
@@ -1551,6 +1697,7 @@ namespace land_control
             if (studs.size() == 0)
                 return;
 
+            unit->Flags |= UNIT_FLAG_TEACHING;
             long teachers_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
             if (teachers_amount <= 0)
             {

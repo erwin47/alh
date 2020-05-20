@@ -255,6 +255,9 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
                     case 3:
                         StrToColor(&backgroundColor, gpApp->GetConfig(SZ_SECT_COLORS, SZ_UNIT_GUARDING));
                     break;
+                    case 4:
+                        StrToColor(&backgroundColor, gpApp->GetConfig(SZ_SECT_COLORS, SZ_UNIT_HAS_ERRORS));
+                    break;
                     default:
                         backgroundColor = wxColor("#FFFFFF");
                 }
