@@ -111,6 +111,7 @@ DefaultConfigRec DefaultConfig[] =
     {SZ_SECT_COLORS            ,     SZ_UNIT_GUARDING      ,     "255, 208, 176"     },
     {SZ_SECT_COLORS            ,     SZ_UNIT_ARRIVING      ,     "255, 255, 144"     },
     {SZ_SECT_COLORS            ,     SZ_UNIT_HAS_ERRORS    ,     "243, 146, 146"     },
+    {SZ_SECT_COLORS            ,     SZ_UNIT_OWNS_BUILDING ,     "224, 224, 224"     },
 
     {SZ_SECT_COLORS            ,     "MAP_Beach"       ,     "255, 255, 0"     },
     {SZ_SECT_COLORS            ,     "MAP_Harbour"     ,     "0, 255, 255"     },

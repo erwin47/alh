@@ -414,7 +414,7 @@ namespace unit_control
 
         modify_item_property(unit, PRP_SILVER);
         modify_item_property(unit, codename);
-        unit->CalcWeightsAndMovement();        
+        unit->CalcWeightsAndMovement();
     }
 
     void modify_man_from_market(CUnit* unit, const std::string& codename, long new_amount, long price)
@@ -423,6 +423,8 @@ namespace unit_control
             return;
 
         unit->silver_.amount_ += -new_amount*price;
+        long current_man_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);//before modification
+
         item_control::modify_amount(unit->men_, codename, new_amount);
 
         std::stringstream ss;
@@ -432,7 +434,6 @@ namespace unit_control
         }
         else //new_amount > 0
         {
-            long current_man_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
             //for (const auto& nation : unit->men_)
             //    current_man_amount += nation.amount_;
 
@@ -1282,29 +1283,32 @@ namespace land_control
         long other_factions_men(0);
 
         land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-            if (!orders::control::has_orders_with_type(orders::Type::O_ENTERTAIN, unit->orders_))
+            auto ente_orders = orders::control::retrieve_orders_by_type(orders::Type::O_ENTERTAIN, unit->orders_);
+            if (ente_orders.size() == 0)
                 return;
 
-            auto ente_orders = orders::control::retrieve_orders_by_type(orders::Type::O_ENTERTAIN, unit->orders_);
             if (ente_orders.size() > 1)
             {
                 errors.push_back({"Error", unit, " duplicates tax and/or pillage orders"});
                 return;
             }
 
-            if (unit_control::get_current_skill_days(unit, "ENTE") < 30)
+            long skill_lvl = skills_control::get_skill_lvl_from_days(unit_control::get_current_skill_days(unit, "ENTE"));
+            if (skill_lvl == 0)
             {
                 errors.push_back({"Error", unit, " doesn't know skill ENTE to entertain"});
                 return;
             }
 
+            
+
             unit->Flags |= UNIT_FLAG_ENTERTAINING;
             if (!unit->IsOurs)
-                other_factions_men += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                other_factions_men += unit_control::get_item_amount_by_mask(unit, PRP_MEN) * skill_lvl;
             else
             {
-                out.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-                out.units_.push_back({unit, unit_control::get_item_amount_by_mask(unit, PRP_MEN)});
+                out.man_amount_ += unit_control::get_item_amount_by_mask(unit, PRP_MEN) * skill_lvl;
+                out.units_.push_back({unit, unit_control::get_item_amount_by_mask(unit, PRP_MEN) * skill_lvl});
             }
         });
 

@@ -44,6 +44,12 @@ And then enable for users to choose a phase of calculations.
 
 ## Changelog:
 
+### May 21 2020
+- config: added `UNIT_OWNS_BUILDING` color.
+- unit pane: added specific color for buildings owners (it's not the frequent characteristic to keep the column for it from one side, but from another it's very important to know who is owner of the fleet).
+- bug: fixed skill calculation when buying new men into existing unit with existing skills.
+- bug: fixed entertain calculation, taking into account the skill level
+
 ### May 20 2020
 - autonaming: added entirely new feature. in `alh.cfg` its flag "AUTONAMING", by default it is set to 0. It will automatically generate internal names for unit based on their orders and skills, according to hardcoded logic, which personally I use for many years (since I used this feature of internal names in AtlaClient). Names would look like `[MA] armo3 stea2`, and will be sorted accordingly. More detailed explanation you can find in documentation (see `doc/autonaming/README.md`).
 - config: added `AUTONAMING` flag in `COMMON`.

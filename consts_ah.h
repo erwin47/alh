@@ -324,6 +324,7 @@ enum
 #define SZ_UNIT_GUARDING                 "UNIT_GUARDING"
 #define SZ_UNIT_ARRIVING                 "UNIT_ARRIVING"
 #define SZ_UNIT_HAS_ERRORS               "UNIT_HAS_ERRORS"
+#define SZ_UNIT_OWNS_BUILDING            "UNIT_OWNS_BUILDING"
 
 #define SZ_KEY_MAP_ROAD_OLD              "MAP_ROADS"
 #define SZ_KEY_MAP_ROAD_BAD_OLD          "MAP_ROADS_BAD"

@@ -162,6 +162,8 @@ void CUnitPane::Update(CLand * pLand)
                 GuiColor = 1;
             else if (pUnit && (pUnit->Flags & UNIT_FLAG_GUARDING))
                 GuiColor = 3;
+            else if (unit_control::is_struct_owner(pUnit))
+                GuiColor = 5;//color of owning building
             else
                 GuiColor = 0;
             pUnit->SetProperty(PRP_GUI_COLOR, eLong, (void*)GuiColor, eBoth);

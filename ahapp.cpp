@@ -3501,7 +3501,7 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
             });
             
             m_HexDescrSrc << EOL_SCR << "Economy:" << EOL_SCR;
-            m_HexDescrSrc << "    Initial amount:   " << pLand->current_state_.economy_.initial_amount_ << EOL_SCR;
+            m_HexDescrSrc << "    Initial amount:  " << pLand->current_state_.economy_.initial_amount_ << EOL_SCR;
             m_HexDescrSrc << "    Claim:           +unknown" << EOL_SCR;
             m_HexDescrSrc << "    Tax/pillage:     +" << pLand->current_state_.economy_.tax_income_ << EOL_SCR;
             m_HexDescrSrc << "    Sell income:     +" << pLand->current_state_.economy_.sell_income_ << EOL_SCR;

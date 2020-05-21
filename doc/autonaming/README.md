@@ -27,11 +27,11 @@ Usually tag is generated from two letters: category & first letter of the main s
 
 If unit is leader, `E` is added in front of the tag, first letter of skill will be omitted. `[EM]` leader with any skill from category M.
 
-If unit is inside a building, it's number & few first letters of the name is also added to the tag.
+If unit is inside a ship (building with number 100+), it's number & first letter of the type is also added to the tag.
 
 After the tag it lists skills & their lvl, according to internally set priority.
 Skills from category `W` will be omitted. Skills from category `X` will not use full name, but just first letter of the skill.
 For example, `[PF] farm3 S2 R2` -- is producing peasant farmer with skills farm3, stea2 and ridi2.
-Another example: `[Fl355 EM] armo4` -- leader with skill armo4 inside fleet with number 355.
-Another example: `[Fl355 C500] sail2` -- sailors are exception, instead of tag, they have capacity of the building.
-Another example: `[Fl355 C500 EA] comb3` -- leader with skill comb3, which is owner of the building. Owners of the building always have capacity, if it's not 0.
+Another example: `[F355 EM] armo4` -- leader with skill armo4 inside fleet with number 355.
+Another example: `[F355 500S] sail2` -- sailors are exception, instead of tag, they have capacity of the building.
+Another example: `[F355 500 EA] comb3` -- leader with skill comb3, which is owner of the building. Owners of the building always have capacity, if it's not 0.
