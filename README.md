@@ -44,9 +44,17 @@ And then enable for users to choose a phase of calculations.
 
 ## Changelog:
 
+### May 23 2020
+- internal: performance tuning
+- bug: ships capacity calculation, works correctly now.
+- error: added the check for overweight during sailing to order parsing part.
+- autonaming: more consistant name generation, added capacity for ship owners.
+- receive dialog: name of item owners is better.
+
 ### May 21 2020
 - config: added `UNIT_OWNS_BUILDING` color.
 - unit pane: added specific color for buildings owners (it's not the frequent characteristic to keep the column for it from one side, but from another it's very important to know who is owner of the fleet).
+- autonaming: ship owners has `weight/capacity` description in their names
 - bug: fixed skill calculation when buying new men into existing unit with existing skills.
 - bug: fixed entertain calculation, taking into account the skill level
 

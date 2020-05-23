@@ -212,10 +212,11 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
         if (ppu.first > 0)
         {
             std::stringstream unit_name;
-            unit_name << "(" << std::to_string(ppu.second->Id) << ") ";
-            unit_name << std::string(ppu.second->Name.GetData(), ppu.second->Name.GetLength());
-            unit_name << " (:" << unit_control::get_item_amount(ppu.second, item_type, true) << "(";
-            unit_name << std::to_string(ppu.first) << ") " << item_type << ")";
+            unit_name << "(" << std::to_string(ppu.second->Id) << ") ";//number of unit
+            unit_name << unit_control::get_item_amount_by_mask(ppu.second, PRP_MEN) << " ";//amount of men there
+            unit_name << std::string(ppu.second->Name.GetData(), ppu.second->Name.GetLength());//name of unit
+            unit_name << " (:" << unit_control::get_item_amount(ppu.second, item_type, true) << "(";//initial amount of items
+            unit_name << ppu.first << ") " << item_type << ")";//current amount of items
             unit_names.push_back(unit_name.str());
             unit_name_to_unit_[unit_name.str()] = {ppu.first, item_type, ppu.second};
         }

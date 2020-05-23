@@ -1093,7 +1093,7 @@ BOOL CUnit::GetProperty(const char  *  name,
         if (Flags & UNIT_FLAG_STUDYING         )  sValue << 'S';
         if (Flags & UNIT_FLAG_TEACHING         )  sValue << 'T';        
         if (Flags & UNIT_FLAG_WORKING          )  sValue << 'W';
-        if (pMovement                          )  sValue << 'M';  
+        if (pMovement != nullptr               )  sValue << 'M';  
         sValue << '|';
         if (Flags & UNIT_FLAG_GUARDING         )  sValue << 'g';
         if (Flags & UNIT_FLAG_AVOIDING         )  sValue << 'a';

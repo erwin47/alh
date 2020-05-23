@@ -358,6 +358,7 @@ protected:
     void         RunOrder_LandWork         (CLand *land, bool apply_changes);
     void         CheckOrder_LandEntertain  (CLand *land);
     void         RunOrder_LandEntertain    (CLand *land, bool apply_changes);
+    void         RunOrder_LandMove         (CLand* land);
 
     template<orders::Type TYPE> void RunOrder_AOComments(CLand* land);
     void         RunOrder_AONames          (CLand* land);

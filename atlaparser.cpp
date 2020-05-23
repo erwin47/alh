@@ -5015,6 +5015,12 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
     for (TurnSequence sequence = beg_step; sequence <= stop_step; ++sequence)
     {
+        //pMovement != nullptr 720897
+        //auto* structure = land_control::get_struct(pLand, 578);
+        //CUnit* utemp = land_control::find_first_unit_if(pLand, [](CUnit* unit) {  return unit->Id == 720897; });
+        //if (utemp != nullptr)
+        //    OrderError("DEBUG", pLand, nullptr, "Phase: "+std::to_string(int(sequence))+ " - is moving: " + std::to_string(utemp->pMovement == nullptr ? 0 : 1));
+
 
         if (sequence == TurnSequence::SQ_FIRST)
         {
@@ -5121,6 +5127,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         if (sequence == TurnSequence::SQ_FORGET) {}
         if (sequence == TurnSequence::SQ_WITHDRAW) {}
         if (sequence == TurnSequence::SQ_SAIL) {
+            land_control::structures::update_struct_weights(pLand);            
             RunOrder_AOComments<orders::Type::O_SAIL>(pLand);
         }
         if (sequence == TurnSequence::SQ_MOVE) {
@@ -5486,6 +5493,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                             else
                             {
                                 RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, p, X, Y, LocA3, order);
+                                pUnit->CalcWeightsAndMovement();
                             }
                         }
                         break;
@@ -5558,6 +5566,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
                     route.Replace("_ ", "", true);
                     RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, (const char *)route.ToUTF8(), X, Y, LocA3, O_MOVE);
+                    pUnit->CalcWeightsAndMovement();
                     route = wxString::Format("MOVE%s", route);
 
                     pUnit->Orders.TrimRight(TRIM_ALL);
@@ -5648,8 +5657,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         std::string message = "TIME ELAPSE PHASE ("+std::to_string(pair.first) + ") -- " + std::to_string(duration.count()) + " ms";
         OrderError("TIME", pLand, nullptr, message);
     }*/
-
-    land_control::structures::update_struct_weights(pLand);
     pLand->SetFlagsFromUnits();
     OrderErrFinalize();
 }
@@ -7378,6 +7385,62 @@ void CAtlaParser::GetMovementMode(CUnit * pUnit, int & movementMode, bool & noCr
 }
 
 //-------------------------------------------------------------
+void CAtlaParser::RunOrder_LandMove(CLand* land)
+{
+    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        auto move_orders = orders::control::retrieve_orders_by_type(orders::Type::O_MOVE, unit->orders_);
+        auto advance_orders = orders::control::retrieve_orders_by_type(orders::Type::O_ADVANCE, unit->orders_);
+        auto sail_orders = orders::control::retrieve_orders_by_type(orders::Type::O_SAIL, unit->orders_);
+        if (move_orders.size() + advance_orders.size() + sail_orders.size() == 0)
+            return;
+
+        if (move_orders.size() + advance_orders.size() + sail_orders.size() > 1)
+        {
+            OrderError("Error", land, unit, "multiple move/advance/sail orders");
+            return;
+        }
+
+        std::shared_ptr<orders::Order> order;
+        if (move_orders.size() > 0)
+            order = move_orders[0];
+        else if (advance_orders.size() > 0)
+            order = advance_orders[0];
+        else 
+            order = sail_orders[0];
+
+        long hex_id = land->Id;
+        long next_hex_id(0);
+        CLand* cur_land = land;
+        CLand* next_land = nullptr;
+
+        for (size_t ord_index = 1; ord_index < order->words_order_.size(); ++ord_index)
+        {
+            for (size_t i=0; i<(int)sizeof(Directions)/(int)sizeof(const char*); i++)
+            {
+                if (stricmp(order->words_order_[ord_index].c_str(), Directions[i]) == 0)
+                {
+                    //get next region
+                    int x,y,z;
+                    LandIdToCoord(hex_id, x, y, z);
+                    ExtrapolateLandCoord(x, y, z, i%6);
+                    next_hex_id = LandCoordToId(x, y, z);
+                    next_land = GetLand(next_hex_id);
+
+                    //
+
+                    //next region becomes current region for next cycle
+                    hex_id = next_hex_id;
+                    next_hex_id = 0;
+                    cur_land = next_land;
+                    next_land = nullptr;
+                    break;
+                }
+            }
+        }
+
+    });
+}
+
 
 void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3, long order)
 {
@@ -7605,6 +7668,10 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
             }                
             else
             {
+                if (pStruct->occupied_capacity_ > pStruct->capacity_)
+                {
+                    OrderError("Error", pLand, pUnit, "attempt to sail with overloaded ship");
+                }
                 pStruct->SailingPower += (nmen*skill);
             }                
         }

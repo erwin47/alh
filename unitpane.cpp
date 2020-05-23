@@ -155,14 +155,14 @@ void CUnitPane::Update(CLand * pLand)
         for (i=0; i<pLand->Units.Count(); i++)
         {
             pUnit = (CUnit*)pLand->Units.At(i);
-            if (pUnit->has_error_) {//pUnit->Flags & UNIT_FLAG_HAS_ERROR) {
+            if (pUnit && pUnit->has_error_) {//pUnit->Flags & UNIT_FLAG_HAS_ERROR) {
                 GuiColor = 4;//light red, for units with errors
             }
             else if (pUnit && pUnit->pMovement)
                 GuiColor = 1;
             else if (pUnit && (pUnit->Flags & UNIT_FLAG_GUARDING))
                 GuiColor = 3;
-            else if (unit_control::is_struct_owner(pUnit))
+            else if (pUnit && unit_control::is_struct_owner(pUnit))
                 GuiColor = 5;//color of owning building
             else
                 GuiColor = 0;

@@ -3567,7 +3567,8 @@ void CAhApp::UpdateHexUnitList(CLand * pLand)
 {
     CUnitPane   * pUnitPane = (CUnitPane*)m_Panes[AH_PANE_UNITS_HEX];
 
-    m_pAtlantis->RunOrders(pLand);
+    if (pLand != nullptr)
+        m_pAtlantis->RunLandOrders(pLand);
     //m_pAtlantis->RunOrders(pLand, TurnSequence::SQ_FIRST, TurnSequence::SQ_BUY);
 
     if (pUnitPane)
@@ -3587,9 +3588,9 @@ void CAhApp::OnMapSelectionChange()
     if (pMapPane)
         land   = m_pAtlantis->GetLand(pMapPane->m_SelHexX, pMapPane->m_SelHexY, pMapPane->m_SelPlane, TRUE);
 
-    if (land != NULL) {
-        m_pAtlantis->RunLandOrders(land);
-    }
+    //if (land != NULL) {
+    //    m_pAtlantis->RunLandOrders(land);
+    //}
 
     UpdateHexUnitList(land);
     UpdateHexEditPane(land);  // NULL is Ok!
