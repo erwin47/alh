@@ -411,11 +411,8 @@ void CLand::ResetUnitsAndStructs()
     {
         pUnit = (CUnit*)Units.At(i);
         pUnit->ResetNormalProperties();
-        if (pUnit->pMovement)
-        {
-            delete pUnit->pMovement;
-            pUnit->pMovement = NULL;
-        }
+        pUnit->movements_.clear();
+        pUnit->movement_stop_ = 0;
         if (pUnit->pMoveA3Points)
         {
             delete pUnit->pMoveA3Points;
@@ -742,7 +739,6 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
     FactionId     = 0;
     pFaction      = NULL;
     LandId        = 0;
-    pMovement     = NULL;
     pMoveA3Points = NULL;
     pStudents     = NULL;
     Flags         = 0;
@@ -752,6 +748,7 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
     struct_id_ = 0;
     struct_id_initial_ = 0;
     has_error_  = false;
+    movement_stop_ = 0;
 
     FlagsLast     = ~Flags;
     reqMovementSpeed = 0;
@@ -762,8 +759,6 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
 
 CUnit::~CUnit()
 {
-    if (pMovement)
-        delete pMovement;
     if (pMoveA3Points)
         delete pMoveA3Points;
     if (pStudents)
@@ -801,6 +796,8 @@ CUnit * CUnit::AllocSimpleCopy()
     pUnit->impact_description_ = impact_description_;
     pUnit->struct_id_ = struct_id_;
     pUnit->struct_id_initial_ = struct_id_initial_;
+    pUnit->movement_stop_ = movement_stop_;
+    pUnit->movements_ = movements_;
     pUnit->Orders                 = Orders               ;
     pUnit->Errors                 = Errors               ;
     pUnit->Events                 = Events               ;
@@ -1093,7 +1090,7 @@ BOOL CUnit::GetProperty(const char  *  name,
         if (Flags & UNIT_FLAG_STUDYING         )  sValue << 'S';
         if (Flags & UNIT_FLAG_TEACHING         )  sValue << 'T';        
         if (Flags & UNIT_FLAG_WORKING          )  sValue << 'W';
-        if (pMovement != nullptr               )  sValue << 'M';  
+        if (Flags & UNIT_FLAG_MOVING           )  sValue << 'M';  
         sValue << '|';
         if (Flags & UNIT_FLAG_GUARDING         )  sValue << 'g';
         if (Flags & UNIT_FLAG_AVOIDING         )  sValue << 'a';
@@ -1324,6 +1321,7 @@ void CStruct::ResetNormalProperties()
 {
     TPropertyHolder::ResetNormalProperties();
     occupied_capacity_  = 0;
+    max_speed_ = 4;//basic
     SailingPower = 0;
 }
 

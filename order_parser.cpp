@@ -445,6 +445,39 @@ namespace orders
                 return true;
             }
 
+            bool parse_teaching(const std::shared_ptr<orders::Order>& order, long faction_id, std::vector<long>& students)
+            {
+                std::vector<std::string>::iterator it_beg = order->words_order_.begin();
+                if (it_beg == order->words_order_.end() || 
+                        stricmp((*it_beg).c_str(), "TEACH") != 0)
+                    return false;
+
+                long target_id;
+                long target_faction_id;
+                it_beg +=1;
+                while(it_beg != order->words_order_.end())
+                {
+                    if (!parse_unit_id(it_beg, order->words_order_.end(), target_id, target_faction_id))
+                        return false;
+
+                    if (target_id == 0)//no student with such number
+                        return false;
+
+                    if (target_id < 0)//new unit
+                    {
+                        if (target_faction_id == 0)
+                            target_faction_id = faction_id;
+
+                        students.push_back(NEW_UNIT_ID(abs(target_id), target_faction_id));
+                    } 
+                    else
+                    {
+                        students.push_back(target_id);
+                    }
+                }
+                return true;
+            }
+
             bool parse_give(const std::shared_ptr<orders::Order>& order, long& target_id,
                 long& target_faction_id, long& amount, std::string& item, long& except)
             {
@@ -846,39 +879,6 @@ namespace orders
             else
                 res->comment_ = ";auto";
             return res;
-        }
-
-        std::vector<long> get_students(CUnit* unit)
-        {
-            std::vector<long> ret;
-            std::vector<std::shared_ptr<Order>> teaching_orders = retrieve_orders_by_type(orders::Type::O_TEACH, unit->orders_);
-            for (const std::shared_ptr<Order>& ord : teaching_orders)
-            {
-                size_t i(1);
-                while (i < ord->words_order_.size())
-                {
-                    if ((ord->words_order_[i] == "NEW" || ord->words_order_[i] == "new") &&
-                        (i+1 < ord->words_order_.size()))
-                    {
-                        ret.push_back(NEW_UNIT_ID(atol(ord->words_order_[i+1].c_str()), unit->FactionId));
-                        i += 2;
-                    }
-                    else if ((ord->words_order_[i] == "FACTION" || ord->words_order_[i] == "faction") &&
-                             (i+3 < ord->words_order_.size()))
-                    {
-                        long faction_id = atol(ord->words_order_[i+1].c_str());
-                        long unit_new_id = atol(ord->words_order_[i+3].c_str());
-                        ret.push_back(NEW_UNIT_ID(unit_new_id, faction_id));
-                        i += 4;
-                    }
-                    else
-                    {
-                        ret.push_back(atol(ord->words_order_[i].c_str()));
-                        i += 1;
-                    }                    
-                }
-            }
-            return ret;
         }
 
         std::shared_ptr<Order> get_studying_order(const UnitOrders& unit_orders)

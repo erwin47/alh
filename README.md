@@ -43,6 +43,19 @@ That would let keeping flags updated without relaying to specific Phase of calcu
 And then enable for users to choose a phase of calculations.
 
 ## Changelog:
+### May 26 2020
+- moving: unit's moving prediction now predicts two positions: where unit is expected to stay in the end of the turn, and where unit's order leads. All predictions now based on actual expected position of the unit in the end of turn.
+- moving: moving now calculates automatically cases with overload, moving over ocean, flags (i.e. nocross) & etc.
+- sailing: it checks weight, ships has types (flying or sailing -> ah.cfg change), it checks territories according to types, capacity & it also extends prediction for future position to all units in the fleet, not just to sailors.
+- moving/sailing/config: added specific colour `SZ_UNIT_END_MOVEMENT_ORDER` for position in the tail of moving entire order.
+- config: moving cost of ocean and lake reduced to 1, as it actually is. Internal logic is using flag & information about speed for correct prediction.
+- ships moving: now prediction of ship's position is based on speed of the ship, written in the report.
+- errors handling: multiple monthlong orders now is a usual check.
+- bug: fixed empty skills issue invented in last commit.
+- bug: fixed wrong taxers calculation invented in last commit.
+- internal: all move & sail handling completely rewritten
+- internal: all monthlong orders have their own flags
+- internal: LAND_TAX_NEXT & LAND_TRADE_NEXT, and all monthlong unit's flags are finally in order.
 
 ### May 23 2020
 - internal: performance tuning

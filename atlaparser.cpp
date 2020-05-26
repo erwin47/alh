@@ -21,6 +21,7 @@
 #include <cmath>
 #include <map>
 #include <sstream>
+#include <numeric>
 
 #include <math.h>
 #include <stdlib.h>
@@ -1939,7 +1940,7 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
                 pStruct->original_description_ = std::string(CurLine.GetData(), CurLine.GetLength());
                 pStruct->type_        = STRUCT_GATE;
                 if (!game_control::get_struct_attributes(pStruct->type_, 
-                        pStruct->capacity_, pStruct->MinSailingPower, pStruct->Attr))
+                        pStruct->capacity_, pStruct->MinSailingPower, pStruct->Attr, pStruct->travel_))
                     OrderError("Error", pLand, nullptr, "Couldn't parse Gate data");
 
                 land_control::structures::add_structure(pLand, pLand->initial_state_, pStruct);
@@ -2556,21 +2557,21 @@ int CAtlaParser::ParseStructure(CStr & FirstLine)
     pStruct->original_description_ = std::string(FirstLine.GetData(), FirstLine.GetLength());
 
     struct_control::parse_struct(pStruct->original_description_,
-                                 pStruct->Id, pStruct->name_, pStruct->type_, pStruct->fleet_ships_);
+                                 pStruct->Id, pStruct->name_, pStruct->type_, pStruct->fleet_ships_, pStruct->max_speed_);
 
     //pStruct->Name = pStruct->name_.c_str();
     for (const auto& subship : pStruct->fleet_ships_)
     {
         long load(0), spower(0);
         std::string code, name, longname;
-        game_control::get_struct_attributes(subship.first, load, spower, pStruct->Attr);
+        game_control::get_struct_attributes(subship.first, load, spower, pStruct->Attr, pStruct->travel_);
         pStruct->capacity_ += load * subship.second;
         pStruct->MinSailingPower += spower * subship.second;
     }
 
     if (pStruct->fleet_ships_.size() == 0)
     {//for non-mobile it needs to load flags
-        game_control::get_struct_attributes(pStruct->type_, pStruct->capacity_, pStruct->MinSailingPower, pStruct->Attr);
+        game_control::get_struct_attributes(pStruct->type_, pStruct->capacity_, pStruct->MinSailingPower, pStruct->Attr, pStruct->travel_);
     }
 
     if (pStruct->Attr & (SA_ROAD_N | SA_ROAD_NE | SA_ROAD_SE | SA_ROAD_S | SA_ROAD_SW | SA_ROAD_NW ))
@@ -5067,7 +5068,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                 }
             });
             RunOrder_AOComments<orders::Type::O_COMMENT>(pLand);
-            CheckOrder_LandWork(pLand);
+            
+            CheckOrder_LandMonthlong(pLand);
         }
 
         if (sequence == TurnSequence::SQ_FORM)
@@ -5127,12 +5129,14 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         if (sequence == TurnSequence::SQ_FORGET) {}
         if (sequence == TurnSequence::SQ_WITHDRAW) {}
         if (sequence == TurnSequence::SQ_SAIL) {
-            land_control::structures::update_struct_weights(pLand);            
+            land_control::structures::update_struct_weights(pLand);
             RunOrder_AOComments<orders::Type::O_SAIL>(pLand);
+            RunOrder_LandSail(pLand);
         }
         if (sequence == TurnSequence::SQ_MOVE) {
             RunOrder_AOComments<orders::Type::O_MOVE>(pLand);
             RunOrder_AOComments<orders::Type::O_ADVANCE>(pLand);
+            RunOrder_LandMove(pLand);
         }
         if (sequence == TurnSequence::SQ_TEACH) {}
 
@@ -5484,18 +5488,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                     case O_MOVE:
                     case O_SAIL:
                     case O_ADVANCE:
-                        if (TurnSequence::SQ_MOVE==sequence)
-                        {
-                            if (isSimCmd)
-                            {//I have no idea what is the Sim.
-                                destination_land = GetLandFlexible(wxString::FromUTF8(p));
-                            }
-                            else
-                            {
-                                RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, p, X, Y, LocA3, order);
-                                pUnit->CalcWeightsAndMovement();
-                            }
-                        }
                         break;
 
                     case O_PILLAGE:
@@ -5519,8 +5511,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                         break;
 
                     case O_BUILD:
-                        if (TurnSequence::SQ_BUILD==sequence)
-                            pUnit->Flags |= UNIT_FLAG_PRODUCING;
+                        //if (TurnSequence::SQ_BUILD==sequence)
+                        //    pUnit->Flags |= UNIT_FLAG_PRODUCING;
                         break;
 
                     case O_PRODUCE:
@@ -5545,8 +5537,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             //}
                 
 
-            if (TurnSequence::SQ_MOVE==sequence && !pUnit->pMovement && destination_land != nullptr)
+            if (TurnSequence::SQ_MOVE==sequence)
             {
+                if (unit_control::flags::is_moving(pUnit) || destination_land == nullptr)
+                    continue;
+
                 int movementMode;
                 bool noCross;
                 wxString Log;
@@ -5554,6 +5549,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                 wxString route = RoutePlanner::GetRoute(pLand, destination_land, movementMode, RoutePlanner::ROUTE_MARKUP_TURN, noCross, Log);
                 if (Log.size() > 0)
                 {
+                    m_sOrderErrors << "For UNIT: " << pUnit->Id;
                     m_sOrderErrors << Log.c_str();
                 }
                 if (!route.IsEmpty())
@@ -5565,14 +5561,16 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                     }
 
                     route.Replace("_ ", "", true);
-                    RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, (const char *)route.ToUTF8(), X, Y, LocA3, O_MOVE);
-                    pUnit->CalcWeightsAndMovement();
+                    //RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, (const char *)route.ToUTF8(), X, Y, LocA3, O_MOVE);
+                    //pUnit->CalcWeightsAndMovement();
                     route = wxString::Format("MOVE%s", route);
+                    //auto order = orders::parser::parse_line_to_order((const char *)route.ToUTF8());
+                    orders::control::add_order_to_unit((const char *)route.ToUTF8(), pUnit);
 
-                    pUnit->Orders.TrimRight(TRIM_ALL);
-                    pUnit->Orders << EOL_SCR;
-                    pUnit->Orders << (const char *)route.ToUTF8();
-                    Line = (const char *)route.ToUTF8();
+                    //pUnit->Orders.TrimRight(TRIM_ALL);
+                    //pUnit->Orders << EOL_SCR;
+                    //pUnit->Orders << (const char *)route.ToUTF8();
+                    //Line = (const char *)route.ToUTF8();
                 }
             }
             //if (TurnSequence::SQ_MAX-1==sequence)
@@ -5612,15 +5610,17 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
             //calculate silver for incoming units
             CBaseColl           arriving_units;
+
+            std::vector<CUnit*> stopping;
+            std::vector<CUnit*> ending_moving_orders;
             CUnit*              unit_temp;
-            gpApp->GetUnitsMovingIntoHex(pLand->Id, arriving_units);
-            for (int i=0; i<arriving_units.Count(); ++i)
+            gpApp->GetUnitsMovingIntoHex(pLand->Id, stopping, ending_moving_orders);
+            for (CUnit* unit : stopping)
             {
-                unit_temp = (CUnit*)arriving_units.At(i);
-                if (unit_temp != NULL)
+                if (unit != NULL)
                 {
-                    pLand->current_state_.economy_.maintenance_ += unit_control::get_upkeep(unit_temp);
-                    pLand->current_state_.economy_.moving_in_ += unit_control::get_item_amount(unit_temp, PRP_SILVER);
+                    pLand->current_state_.economy_.maintenance_ += unit_control::get_upkeep(unit);
+                    pLand->current_state_.economy_.moving_in_ += unit_control::get_item_amount(unit, PRP_SILVER);
                 }
             }
 
@@ -5632,7 +5632,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                 if (men_amount > 0) 
                 {
                     //moving out
-                    if (unit->pMovement != NULL && unit->pMovement->Count() > 0)
+                    if (unit->movements_.size() > 0)
                         pLand->current_state_.economy_.moving_out_ += unit_control::get_item_amount(unit, PRP_SILVER);
                     else 
                     {//maintenance
@@ -5749,10 +5749,77 @@ void CAtlaParser::RunOrder_LandTaxPillage(CLand* land, bool apply_changes)
     }
 }
 
-void CAtlaParser::CheckOrder_LandWork(CLand *land)
+void CAtlaParser::CheckOrder_LandMonthlong(CLand *land)
 {
     std::vector<unit_control::UnitError> errors;
-    land_control::check_land_workers(land, errors);
+    std::vector<std::vector<std::shared_ptr<orders::Order>>> monthlong_collection;
+    monthlong_collection.reserve(16);
+
+    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        monthlong_collection.clear();
+        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_WORK, unit->orders_));
+        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_ENTERTAIN, unit->orders_));
+        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_PILLAGE, unit->orders_));
+        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_TAX, unit->orders_));
+        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_BUILD, unit->orders_));
+        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_PRODUCE, unit->orders_));
+        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_TEACH, unit->orders_));
+        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_STUDY, unit->orders_));
+        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_MOVE, unit->orders_));
+        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_SAIL, unit->orders_));
+        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_ADVANCE, unit->orders_));
+
+        size_t monthlong_orders_amount = std::accumulate(monthlong_collection.begin(), monthlong_collection.end(), (size_t)0, 
+                                        [](size_t acc, std::vector<std::shared_ptr<orders::Order>>& orders) {
+                                            if (orders.size() > 0 && orders[0]->type_ == orders::Type::O_TEACH)
+                                                return acc + 1;//teach is allowed to be multiplied
+                                            return acc + orders.size();
+                                        });
+        if (monthlong_orders_amount == 0)
+            return;
+
+        if (monthlong_orders_amount > 1)
+            errors.push_back({"Error", unit, " duplicates monthlong orders"});
+
+        for (const auto& monthlong_orders : monthlong_collection)
+        {
+            if (monthlong_orders.size() > 0)
+            {
+                if (monthlong_orders[0]->type_ == orders::Type::O_WORK)
+                    unit->Flags |= UNIT_FLAG_WORKING;
+                else if (monthlong_orders[0]->type_ == orders::Type::O_ENTERTAIN)
+                    unit->Flags |= UNIT_FLAG_ENTERTAINING;
+                else if (monthlong_orders[0]->type_ == orders::Type::O_PILLAGE) {
+                    unit->Flags |= UNIT_FLAG_PILLAGING;
+                    land->Flags |= LAND_TAX_NEXT;
+                }
+                else if (monthlong_orders[0]->type_ == orders::Type::O_TAX) {
+                    unit->Flags |= UNIT_FLAG_TAXING;
+                    land->Flags |= LAND_TAX_NEXT;
+                }                    
+                else if (monthlong_orders[0]->type_ == orders::Type::O_BUILD) {
+                    unit->Flags |= UNIT_FLAG_PRODUCING;
+                    land->Flags |= LAND_TRADE_NEXT;
+                }                  
+                else if (monthlong_orders[0]->type_ == orders::Type::O_PRODUCE) {
+                    unit->Flags |= UNIT_FLAG_PRODUCING;
+                    land->Flags |= LAND_TRADE_NEXT;
+                }                    
+                else if (monthlong_orders[0]->type_ == orders::Type::O_TEACH)
+                    unit->Flags |= UNIT_FLAG_TEACHING;
+                else if (monthlong_orders[0]->type_ == orders::Type::O_STUDY)
+                    unit->Flags |= UNIT_FLAG_STUDYING;
+                else if (monthlong_orders[0]->type_ == orders::Type::O_MOVE)
+                    unit->Flags |= UNIT_FLAG_MOVING;
+                else if (monthlong_orders[0]->type_ == orders::Type::O_ADVANCE)
+                    unit->Flags |= UNIT_FLAG_MOVING;
+                else if (monthlong_orders[0]->type_ == orders::Type::O_SAIL)
+                    unit->Flags |= UNIT_FLAG_MOVING;
+            }
+
+        }
+    });        
+
     for (const auto& error : errors)
     {
         OrderError(error.type_, land, error.unit_, error.message_);
@@ -5773,11 +5840,6 @@ void CAtlaParser::RunOrder_LandWork(CLand *land, bool apply_changes)
     {
         OrderError(error.type_, land, error.unit_, error.message_);
     }
-}
-
-void CAtlaParser::CheckOrder_LandEntertain(CLand *land)
-{
-
 }
 
 void CAtlaParser::RunOrder_LandEntertain(CLand *land, bool apply_changes)
@@ -5856,7 +5918,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
         {
             displayUnit = pUnit;
         }
-        if (shareType == SHARE_BUY || !pUnit->pMovement || pUnit->pMovement->Count() == 0)
+        if (shareType == SHARE_BUY || pUnit->movements_.size() == 0)
         if (pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
         {
             if (unitSilver < 0)
@@ -5873,7 +5935,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
     {
         pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
         if (!pUnit->IsOurs) continue;
-        if (shareType == SHARE_BUY || !pUnit->pMovement || pUnit->pMovement->Count() == 0)
+        if (shareType == SHARE_BUY || pUnit->movements_.size() == 0)
         if (shareType == SHARE_UPKEEP || pUnit->Flags & UNIT_FLAG_SHARING)
         {
             unitSilver = unit_control::get_item_amount(pUnit, PRP_SILVER);
@@ -5895,7 +5957,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
     {
         pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
         if (!pUnit->IsOurs) continue;
-        if (shareType == SHARE_BUY || !pUnit->pMovement || pUnit->pMovement->Count() == 0)
+        if (shareType == SHARE_BUY || pUnit->movements_.size() == 0)
         if (pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
         {
             if (unitSilver < 0)
@@ -6428,7 +6490,6 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
             }
         }
 
-        producer->Flags |= UNIT_FLAG_PRODUCING;
         land_control::set_produced_items(land->current_state_, item, basic_produce_power);
         land_producers_info[item].push_back({producer, basic_produce_power});
     }
@@ -6499,50 +6560,6 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
         }
     }
 }
-
-void CAtlaParser::RunOrder_Produce(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params)
-{
-    /*
-    TProdDetails        details;
-    const void        * value;
-    EValueType          type;
-    long                nlvl  = 0;
-    long                nmen  = 0;
-    CStr                S(32), Product(32), Error;
-
-    do
-    {
-        params  = ReadPropertyName(params, Product);
-        pUnit->Flags        |= UNIT_FLAG_PRODUCING;
-        pUnit->ProducingItem = gpDataHelper->ResolveAlias(Product.GetData());
-        Product = pUnit->ProducingItem;
-        gpDataHelper->GetProdDetails (Product.GetData(), details);
-
-        if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal)  || (nmen<=0))
-            SHOW_WARN_CONTINUE(" - There are no men in the unit!");
-
-        if (details.skillname.IsEmpty() || details.months<=0)
-            SHOW_WARN_CONTINUE(" - Production requirements for item '" << Product << "' are not configured! ");
-
-        // check skill level
-        S << details.skillname << PRP_SKILL_POSTFIX;
-        if (pUnit->GetProperty(S.GetData(), type, value, eNormal) && (eLong==type) )
-        {
-            nlvl = (long)value;
-            if (nlvl < details.skilllevel)
-                SHOW_WARN_CONTINUE(" - Skill " << details.skillname << " level " << details.skilllevel << " is required for production");
-        }
-        else
-            SHOW_WARN_CONTINUE(" - Skill " << details.skillname << " is required for production");
-
-        // check required resources
-        if (gpDataHelper->ImmediateProdCheck())
-            if (!CheckResourcesForProduction(pUnit, pLand, Error))
-                SHOW_WARN_CONTINUE(Error.GetData());
-
-    } while (FALSE);*/
-}
-
 
 //-------------------------------------------------------------
 
@@ -7236,7 +7253,7 @@ void CAtlaParser::RunOrder_LandBuy(CLand * land)
             if (gpDataHelper->IsTradeItem(buyer.item_name_.c_str()))
             {
                 land_control::set_produced_items(land->current_state_, buyer.item_name_, buyer.items_amount_);
-                buyer.unit_->Flags |= UNIT_FLAG_PRODUCING;
+                land->Flags |= LAND_TRADE_NEXT;
             }
         }
         buyer.unit_->CalcWeightsAndMovement();
@@ -7384,30 +7401,123 @@ void CAtlaParser::GetMovementMode(CUnit * pUnit, int & movementMode, bool & noCr
     }
 }
 
-//-------------------------------------------------------------
-void CAtlaParser::RunOrder_LandMove(CLand* land)
+namespace moving
 {
-    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+
+    std::shared_ptr<orders::Order> get_moving_order(CUnit* unit, std::vector<unit_control::UnitError>& errors)
+    {
         auto move_orders = orders::control::retrieve_orders_by_type(orders::Type::O_MOVE, unit->orders_);
         auto advance_orders = orders::control::retrieve_orders_by_type(orders::Type::O_ADVANCE, unit->orders_);
         auto sail_orders = orders::control::retrieve_orders_by_type(orders::Type::O_SAIL, unit->orders_);
-        if (move_orders.size() + advance_orders.size() + sail_orders.size() == 0)
-            return;
+        if (move_orders.size() + advance_orders.size() == 0)
+            return nullptr;
 
         if (move_orders.size() + advance_orders.size() + sail_orders.size() > 1)
         {
-            OrderError("Error", land, unit, "multiple move/advance/sail orders");
+            errors.push_back({"Error", unit, "multiple move/advance/sail orders"});
+            return nullptr;
+        }
+
+        if (move_orders.size() > 0)
+            return move_orders[0];
+        else if (advance_orders.size() > 0)
+            return advance_orders[0];
+        return nullptr;
+    }
+
+    eDirection get_direction(const std::string& word)
+    {
+        for (size_t i=0; i<(int)sizeof(Directions)/(int)sizeof(const char*); i++)
+        {
+            if (stricmp(word.c_str(), Directions[i]) == 0)
+                return (eDirection)(i%6);
+        }
+        return Center;
+    }
+
+    eDirection reverse_direction(eDirection dir)
+    {
+        switch (dir)
+        {
+            case North     : return South;
+            case Northeast : return Southwest;
+            case Southeast : return Northwest;
+            case South     : return North;
+            case Southwest : return Northeast;
+            case Northwest : return Southeast;
+        }
+        return dir;
+    }
+
+    int normalize_x_coordinate(CPlane* plane, int x)
+    {
+        if (plane && plane->Width>0)
+        {
+            while (x < plane->WestEdge)
+                x += plane->Width;
+            while (x > plane->EastEdge)
+                x -= plane->Width;
+        }
+        return x;
+    }
+
+    long get_next_hex_id(CPlane* plane, long hex_id, eDirection dir)
+    {
+        int x,y,z;
+        LandIdToCoord(hex_id, x, y, z);  
+        // Try to go in a direction on the map by assuming a simple grid.
+        switch (dir)
+        {
+            case North     : y -= 2;     break;
+            case Northeast : y--; x++;   break;
+            case Southeast : y++; x++;   break;
+            case South     : y += 2;     break;
+            case Southwest : y++; x--;   break;
+            case Northwest : y--; x--;   break;
+        }
+        x = normalize_x_coordinate(plane, x);
+        return LandCoordToId(x, y, z);      
+    }
+
+    bool is_exit_closed(CLand* land, eDirection dir)
+    {
+        if (!land) return false;
+        if (land->xExit[dir] == EXIT_CLOSED)
+            return true;
+        return false;      
+    }
+}
+
+//-------------------------------------------------------------
+void CAtlaParser::RunOrder_LandMove(CLand* land)
+{
+    const int startMonth = (m_YearMon % 100) - 1;
+    std::vector<unit_control::UnitError> errors;
+    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        std::shared_ptr<orders::Order> order = moving::get_moving_order(unit, errors);
+        if (order == nullptr)
+            return;
+
+        if (unit->Id == 4069)
+        {
+            int i = 5;
+        }
+        if (unit_control::get_item_amount_by_mask(unit, PRP_MEN) == 0)
+        {
+            errors.push_back({"Error", unit, "move: unit has no men"});
             return;
         }
 
-        std::shared_ptr<orders::Order> order;
-        if (move_orders.size() > 0)
-            order = move_orders[0];
-        else if (advance_orders.size() > 0)
-            order = advance_orders[0];
-        else 
-            order = sail_orders[0];
+        bool lost_information = false;
+        unit_control::MoveMode movemode = unit_control::get_move_state(unit);
+        if (movemode.speed_ == 0)
+        {
+            errors.push_back({"Error", unit, "move: unit can't move, probably the overweight"});
+            return;
+        }
 
+        long movepoints = movemode.speed_;
+        long current_struct_id = unit_control::structure_id(unit);
         long hex_id = land->Id;
         long next_hex_id(0);
         CLand* cur_land = land;
@@ -7415,394 +7525,288 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
 
         for (size_t ord_index = 1; ord_index < order->words_order_.size(); ++ord_index)
         {
-            for (size_t i=0; i<(int)sizeof(Directions)/(int)sizeof(const char*); i++)
-            {
-                if (stricmp(order->words_order_[ord_index].c_str(), Directions[i]) == 0)
+            eDirection dir = moving::get_direction(order->words_order_[ord_index]);
+            if (dir != Center)//not found
+            {//parsing any direction order
+                next_hex_id = moving::get_next_hex_id(cur_land->pPlane, hex_id, dir);
+                next_land = GetLand(next_hex_id);
+                
+                //exits check
+                if (moving::is_exit_closed(cur_land, dir) || 
+                    moving::is_exit_closed(next_land, moving::reverse_direction(dir)))
+                    errors.push_back({"Warning", unit, "move: probably is going through the wall"});
+
+                if (next_land == nullptr)
+                    lost_information = true;
+
+                //water check
+                if (next_land && land_control::is_water(next_land))
                 {
-                    //get next region
-                    int x,y,z;
-                    LandIdToCoord(hex_id, x, y, z);
-                    ExtrapolateLandCoord(x, y, z, i%6);
-                    next_hex_id = LandCoordToId(x, y, z);
-                    next_land = GetLand(next_hex_id);
-
-                    //
-
-                    //next region becomes current region for next cycle
-                    hex_id = next_hex_id;
-                    next_hex_id = 0;
-                    cur_land = next_land;
-                    next_land = nullptr;
-                    break;
-                }
-            }
-        }
-
-    });
-}
-
-
-void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3, long order)
-{
-    int                 i, idx=0;
-    CStr                S1;
-    char                ch;
-    EValueType          type;
-    long                n1;
-    CStruct           * pStruct;
-    CStr                sErr(32), S;
-    CBaseObject         Dummy;
-    long                skill, nmen, structid;
-    const void        * value;
-
-    CLand             * pLandExit = NULL;
-    CLand             * pLandCurrent = pLand;
-    long                hexId = 0;
-    long                newHexId = 0;
-    long                currentStruct = 0;
-    int                 totalMovementCost = 0;
-    bool                pathCanBeTraced = true;
-    int                 movementMode = 0;
-    const int           startMonth = (m_YearMon % 100) - 1;
-    bool                noCross = true;
-    bool                throughWall = false;
-
-    GetMovementMode(pUnit, movementMode, noCross, order);
-
-    do
-    {
-        // should we do Arcadia III handling?
-        if (O_SAIL == order &&
-            unit_control::structure_id(pUnit) > 0)
-        {
-            pStruct  = land_control::get_struct(pLand, unit_control::structure_id(pUnit));
-        }
-
-        // Determine whether the unit is currently in a structure
-        currentStruct = unit_control::structure_id(pUnit);
-
-        while (params)
-        {
-            params        = SkipSpaces(S1.GetToken(params, " \t", ch, TRIM_ALL));
-            for (i=0; i<(int)sizeof(Directions)/(int)sizeof(const char*); i++)
-            {
-                if (0==stricmp(S1.GetData(), Directions[i]))
-                {
-                    // In this loop pLandCurrent is set, or hexId is set.
-                    if (pLandCurrent)
+                    if (unit_control::flags::is_nocross(unit))
                     {
-                        hexId = pLandCurrent->Id;
-                    }
-                    if (pLandCurrent)
-                    {
-                        pLandExit = GetLandExit(pLandCurrent, i%6);
-                        if (pLandExit)
-                        {
-                            newHexId = pLandExit->Id;
-                        }
-                        else if (IsLandExitClosed(pLandCurrent, i%6))
-                        {
-                            throughWall = true;
-                        }
-                    }
-                    if (!pLandExit)
-                    {
-                        // Going into unknown terrain.
-                        int x,y,z;
-                        LandIdToCoord(hexId, x, y, z);
-                        ExtrapolateLandCoord(x, y, z, i%6);
-                        newHexId = LandCoordToId(x, y, z);
-                    }
-                    if (newHexId)
-                    {
-                        if (!pUnit->pMovement)
-                            pUnit->pMovement = new CLongColl;
-
-                        pUnit->pMovement->Insert((void*)newHexId);
-                        currentStruct = 0;
-                        pLandExit = GetLand(newHexId);
-                    }
-                    if (pLandExit && IsLandExitClosed(pLandExit, (i+3)%6) && (pLandExit->FindExit(hexId) < 0))
-                    {
-                        throughWall = true;
-                    }
-                    if (pLandExit && pLandCurrent && pathCanBeTraced)
-                    {
-                        int terrainCost = GetTerrainMovementCost(wxString::FromUTF8(pLandExit->TerrainType.GetData()));
-                        if (noCross && terrainCost == 999)
-                        {
-                            pathCanBeTraced = false;
-                            SHOW_WARN(" - Trying to move into the ocean!");
-                        }
-                        else
-                        {
-                            bool weather = IsBadWeatherHex(pLandExit, startMonth);
-                            bool road = IsRoadConnected(pLandCurrent, pLandExit, i%6);
-                            int cost = GetMovementCost(terrainCost, weather, road, movementMode, noCross);
-                            totalMovementCost += cost;
-                        }
-                    }
-                    else totalMovementCost += 1;
-
-                    pLandCurrent = pLandExit;
-                    hexId = newHexId;
-                    newHexId = 0;
-                    pLandExit = NULL;
-                    if (throughWall)
-                        SHOW_WARN_CONTINUE(" - Hexes are not connected - going through a wall perhaps!");
-
-                    break;
-                }
-            }
-            if (0==stricmp(S1.GetData(), "IN"))
-            {
-                // Find structure, and validate that it is a shaft.
-                // Determine where it leads to.
-                if (0 == currentStruct)
-                {
-                    SHOW_WARN_CONTINUE(" - Going IN without being in a structure!");
-                }
-                else  if (pLandCurrent && pathCanBeTraced)
-                {
-                    if (0==(pLandCurrent->Flags&LAND_VISITED))
-                    {
-                        SHOW_WARN_CONTINUE(" - Going through shaft in unvisited hex!");
-                    }
-                    else if (pLandCurrent->current_state_.structures_.size() < currentStruct)
-                    {
-                        SHOW_WARN_CONTINUE(" - No such structure!");
-                    }
-                    else
-                    {
-                        CStruct * pStruct = land_control::get_struct(pLandCurrent, currentStruct);
-                        if (pStruct->Attr & SA_SHAFT)
-                        {
-                            if (pStruct->original_description_.find("links to (") != std::string::npos)
-                            {
-                                pLandExit = GetLandFlexible(wxString::FromUTF8(pStruct->original_description_.c_str()));
-                                if (pLandExit)
-                                {
-                                    if (!pUnit->pMovement)
-                                        pUnit->pMovement = new CLongColl;
-                                    pUnit->pMovement->Insert((void*)pLandExit->Id);
-                                    currentStruct = 0;
-                                    if (pathCanBeTraced && pLandExit && pLandCurrent)
-                                    {
-                                        int terrainCost = GetTerrainMovementCost(wxString::FromUTF8(pLandExit->TerrainType.GetData()));
-                                        bool weather = IsBadWeatherHex(pLandExit, startMonth);
-                                        bool road = false;
-                                        int cost = GetMovementCost(terrainCost, weather, road, movementMode, noCross);
-                                        totalMovementCost += cost;
-                                    }
-                                    int z;
-                                    LandIdToCoord(pLandExit->Id, X, Y, z);
-                                    pLandCurrent = pLandExit;
-                                }
-                                else
-                                {
-                                    totalMovementCost += 1;
-                                    pathCanBeTraced = false;
-                                    SHOW_WARN_CONTINUE(" - Cannot find hex at other side of shaft, description broken!");
-                                }
-                            }
-                            else
-                            {
-                                totalMovementCost += 1;
-                                pathCanBeTraced = false;
-                                if (!pUnit->pMovement)
-                                    pUnit->pMovement = new CLongColl;
-                                pUnit->pMovement->Insert((void*)pLandCurrent->Id);
-                                // SHOW_WARN_CONTINUE(" - Proceeding through unknown shaft!");
-                            }
-                        }
-                        else
-                        {
-                            totalMovementCost += 1;
-                            pathCanBeTraced = false;
-                            SHOW_WARN_CONTINUE(" - Structure is not a shaft!");
-                        }
-                    }
-                }
-                else totalMovementCost += 1;
-            }
-            else
-            {
-                // Try to parse a structure number.
-                int structNumber = atoi(S1.GetData());
-                if (structNumber > 0 && structNumber < 10000)
-                    currentStruct = structNumber;
-            }
-        }
-
-    SomeChecks:
-        if (pUnit->reqMovementSpeed > 0)
-        {
-            if (movementMode < pUnit->reqMovementSpeed)
-            {
-                wxString msg = wxString::Format(wxT(" - Unit is moving at slower speed than specified! [%d/%d]"), movementMode, pUnit->reqMovementSpeed);
-                SHOW_WARN_CONTINUE(msg.ToUTF8());
-            }
-        }
-        else if (totalMovementCost > movementMode && gpDataHelper->ShowMoveWarnings())
-        {
-            wxString msg = wxString::Format(wxT(" - Unit is moving further than it can! [%d/%d]"), totalMovementCost, movementMode);
-            SHOW_WARN_CONTINUE(msg.ToUTF8());
-        }
-        if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal) || (eLong!=type) || (nmen<=0))
-            SHOW_WARN_CONTINUE(" - There are no men in the unit!");
-
-        if (O_SAIL == order)
-        {
-            // ship's sailing power
-            if (unit_control::structure_id(pUnit) == 0)
-                SHOW_WARN_CONTINUE(" - Must be in a ship to issue SAIL order!");
-
-            S = "SAIL"; S << PRP_SKILL_POSTFIX;
-            if (!pUnit->GetProperty(S.GetData(), type, (const void *&)skill, eNormal) || (eLong!=type) || (skill<=0))
-                SHOW_WARN_CONTINUE(" - Needs SAIL skill!");
-
-            pStruct  = land_control::get_struct(pLand, unit_control::structure_id(pUnit));
-            if (pStruct == nullptr)
-            {
-                SHOW_WARN_CONTINUE(" - Invalid Struct Id " << BUG);
-            }                
-            else
-            {
-                if (pStruct->occupied_capacity_ > pStruct->capacity_)
-                {
-                    OrderError("Error", pLand, pUnit, "attempt to sail with overloaded ship");
-                }
-                pStruct->SailingPower += (nmen*skill);
-            }                
-        }
-        else
-        {
-            if (gpDataHelper->ShowMoveWarnings())
-            {
-                pUnit->CheckWeight(sErr);
-                if (!sErr.IsEmpty())
-                    SHOW_WARN_CONTINUE(sErr);
-            }
-        }
-    } while (FALSE);
-}
-
-//-------------------------------------------------------------
-
-
-    static struct
-    {
-        eDirection   Location;
-        eDirection   Direction;
-        int          dX;
-        int          dY;
-        eDirection   TargetLoc;
-    } NextLandLoc[] =
-    {
-        { North    , North     ,  0, -2, South     },
-        { North    , Northeast ,  1, -1, Northwest },
-        { North    , Southeast ,  0,  0, Northeast },
-        { North    , Southwest ,  0,  0, Northwest },
-        { North    , Northwest , -1, -1, Northeast },
-
-        { Northeast, North     ,  0, -2, Southeast },
-        { Northeast, Northeast ,  1, -1, Southwest },
-        { Northeast, Southeast ,  1,  1, North     },
-        { Northeast, South     ,  0,  0, Southeast },
-        { Northeast, Northwest ,  0,  0, North     },
-
-        { Southeast, North     ,  0,  0, Northeast },
-        { Southeast, Northeast ,  1, -1, South     },
-        { Southeast, Southeast ,  1,  1, Northwest },
-        { Southeast, South     ,  0,  2, Northeast },
-        { Southeast, Southwest ,  0,  0, South     },
-
-        { South    , Northeast ,  0,  0, Southeast },
-        { South    , Southeast ,  1,  1, Southwest },
-        { South    , South     ,  0,  2, North     },
-        { South    , Southwest , -1,  1, Southeast },
-        { South    , Northwest ,  0,  0, Southwest },
-
-        { Southwest, North     ,  0,  0, Northwest },
-        { Southwest, Southeast ,  0,  0, South     },
-        { Southwest, South     ,  0,  2, Northwest },
-        { Southwest, Southwest , -1,  1, Northeast },
-        { Southwest, Northwest , -1, -1, South     },
-
-        { Northwest, North     ,  0, -2, Southwest },
-        { Northwest, Northeast ,  0,  0, North     },
-        { Northwest, South     ,  0,  0, Southwest },
-        { Northwest, Southwest , -1,  1, North     },
-        { Northwest, Northwest , -1, -1, Southeast },
-
-        { Center   , North     ,  0, -2, South     },
-        { Center   , Northeast ,  1, -1, Southwest },
-        { Center   , Southeast ,  1,  1, Northwest },
-        { Center   , South     ,  0,  2, North     },
-        { Center   , Southwest , -1,  1, Northeast },
-        { Center   , Northwest , -1, -1, Southeast }
-    };
-
-
-// Special SAILing for Arcadia III.
-
-void CAtlaParser::RunOrder_SailAIII(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3)
-{
-    int                 ID;
-    int                 i, j;
-    CStr                S1;
-    char                ch;
-    eDirection          Dir;
-    BOOL                GoodSail;
-    CStr                SailPassed;
-    CLand             * pNewLand;
-
-
-    while (params && *params)
-    {
-        GoodSail = FALSE;
-
-        params        = SkipSpaces(S1.GetToken(params, " \t", ch, TRIM_ALL));
-        for (i=0; i<(int)sizeof(Directions)/(int)sizeof(const char*); i++)
-            if (0==stricmp(S1.GetData(), Directions[i]))
-            {
-                Dir = (eDirection)(i%6);
-
-                for (j=0; j<(int)sizeof(NextLandLoc)/(int)sizeof(*NextLandLoc); j++)
-                    if ( NextLandLoc[j].Location == LocA3 && NextLandLoc[j].Direction == Dir )
-                    {
-                        X += NextLandLoc[j].dX;
-                        Y += NextLandLoc[j].dY;
-                        LocA3 = NextLandLoc[j].TargetLoc;
-                        GoodSail = TRUE;
+                        errors.push_back({"Error", unit, "move: is going to step into ocean with `nocross 1`"});
                         break;
                     }
+                    if (movemode.swim_ == 0 && movemode.fly_ == 0)
+                    {
+                        errors.push_back({"Error", unit, "move: is going to step into ocean being not swimming & not flying"});
+                        break;
+                    }
+                }
 
-                if (!GoodSail)
+                //calculate move points to verify stopping hex if order longer than unit can move
+                if (!lost_information && movepoints > 0)//no reason to calculate movepoints if there was lost information
+                {
+                    int terrainCost = gpApp->m_pAtlantis->GetTerrainMovementCost(next_land->TerrainType.GetData());
+                    long move_cost = unit_control::move_cost(terrainCost, 
+                                                            land_control::is_bad_weather(next_land, startMonth), 
+                                                            land_control::is_road_connected(cur_land, next_land, dir),
+                                                            movemode);
+                    if (movepoints >= move_cost)
+                        unit->movement_stop_ = next_hex_id;
+
+                    movepoints -= move_cost;
+                }
+
+                //logically perform the move
+                unit->movements_.push_back(next_hex_id);
+                current_struct_id = 0;
+            }
+            else if (stricmp(order->words_order_[ord_index].c_str(), "IN") == 0)
+            {//parsing IN order
+                if (cur_land == nullptr)
+                {
+                    lost_information = true;
                     break;
+                }
+                if (current_struct_id == 0)
+                {
+                    errors.push_back({"Error", unit, "move: going IN without being in a structure"});
+                    break;
+                }
+                CStruct* shaft = land_control::get_struct(cur_land, current_struct_id);
+                if (shaft == nullptr)
+                {
+                    errors.push_back({"Error", unit, "move: didn't find specified shaft, can't predict further"});
+                    break;
+                }
+                if (!struct_control::flags::is_shaft(shaft))
+                {
+                    errors.push_back({"Error", unit, "move: specified structure is not a shaft, can't predict further"});
+                    break;
+                }
+                if (!struct_control::has_link(shaft))
+                {
+                    errors.push_back({"Error", unit, "move: specified structure has no link, can't predict further"});
+                    break;
+                }
 
-                X = NormalizeHexX(X, pLand->pPlane);
-                ID = LandCoordToId(X,Y, pLand->pPlane->Id);
+                next_land = GetLandFlexible(wxString::FromUTF8(shaft->original_description_.c_str()));
+                if (next_land == nullptr)
+                {
+                    errors.push_back({"Error", unit, "move: couldn't deduct next region from shaft description, can't predict further"});
+                    break;
+                }
 
-                pNewLand = GetLand(ID);
-                if (!pNewLand || (pNewLand && 0 == stricmp("Ocean", pNewLand->TerrainType.GetData()) ||
-             0 == stricmp("Lake", pNewLand->TerrainType.GetData()) ) )
-                    LocA3 = Center;
+                next_hex_id = next_land->Id;
 
-                if (!pUnit->pMovement)
-                    pUnit->pMovement = new CLongColl;
-                pUnit->pMovement->Insert((void*)ID);
+                //calculate move points to verify stopping hex if order longer than unit can move
+                if (!lost_information && movepoints > 0)//no reason to calculate movepoints if there was lost information
+                {
+                    int terrainCost = gpApp->m_pAtlantis->GetTerrainMovementCost(next_land->TerrainType.GetData());
+                    long move_cost = unit_control::move_cost(terrainCost, 
+                                                            land_control::is_bad_weather(next_land, startMonth), 
+                                                            false,
+                                                            movemode);
+                    if (movepoints >= move_cost)
+                        unit->movement_stop_ = next_hex_id;
 
-                if (!pUnit->pMoveA3Points)
-                    pUnit->pMoveA3Points = new CLongColl;
-                pUnit->pMoveA3Points->Insert((void*)LocA3);
+                    movepoints -= move_cost;
+                }
+                unit->movements_.push_back(next_hex_id);
+                current_struct_id = 0;
+            }
+            else
+            {//parsing number
+                if (order->words_order_[ord_index].empty() || 
+                    std::find_if(order->words_order_[ord_index].begin(), 
+                                 order->words_order_[ord_index].end(), 
+                                 [](unsigned char c) { 
+                              return !std::isdigit(c); 
+                            }) != order->words_order_[ord_index].end())
+                {
+                    errors.push_back({"Error", unit, "move: unknown moving order: "+order->words_order_[ord_index]});
+                    break;
+                }
+                current_struct_id = atol(order->words_order_[ord_index].c_str());
+                continue;//hex_id's and lands shouldn't be reset
+            }
 
+            //next region becomes current region for next cycle
+            hex_id = next_hex_id;
+            next_hex_id = 0;
+            cur_land = next_land;
+            next_land = nullptr;
+        }
+
+        //in case we didn't spend all movement points, we stay where the last order finished
+        if (lost_information || unit->movement_stop_ == 0)
+            unit->movement_stop_ = hex_id;
+
+    });
+
+    for (auto& error : errors) {
+        OrderError(error.type_, land, error.unit_, error.message_);
+    }
+}
+
+void CAtlaParser::RunOrder_LandSail(CLand* land)
+{
+    const int startMonth = (m_YearMon % 100) - 1;
+    std::vector<unit_control::UnitError> errors;
+    std::map<long, CUnit*> ships_and_owners;
+
+    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_SAIL, unit->orders_);
+        if (orders.size() == 0)
+            return;
+
+        if (orders.size() > 1)
+        {
+            errors.push_back({"Error", unit, "sail: multiple orders"});
+            return;
+        }
+
+        std::shared_ptr<orders::Order> order = orders[0];
+
+        long men_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+        if (men_amount == 0)
+        {
+            errors.push_back({"Error", unit, "sail: unit has no men"});
+            return;
+        }
+
+        if (unit_control::structure_id(unit) == 0)
+        {
+            errors.push_back({"Error", unit, "sail: must be in a ship to issue SAIL order"});
+            return;          
+        }
+
+        long sailing_lvl = skills_control::get_skill_lvl_from_days(unit_control::get_current_skill_days(unit, "SAIL"));
+        if (sailing_lvl == 0)
+        {
+            errors.push_back({"Error", unit, "sail: need to know SAIL skill to sail"});
+            return;
+        }
+
+        CStruct* ship  = land_control::get_struct(land, unit_control::structure_id(unit));
+        if (ship == nullptr)
+        {
+            errors.push_back({"Error", unit, "sail: couldn't find ship's object"});
+            return;
+        }
+
+        if (!unit_control::is_struct_owner(unit) && order->words_order_.size() > 1)
+        {
+            errors.push_back({"Error", unit, "sail: order direction being non-owner"});
+            return;
+        }
+
+        ship->SailingPower += (men_amount*sailing_lvl);
+
+        //continue just struct owners
+        if (ship->travel_ == SHIP_TRAVEL::NONE ||
+            ship->MinSailingPower == 0 ||
+            ship->capacity_ == 0)
+        {
+            errors.push_back({"Error", unit, "sail: ship was not set up properly, please set up CAPACITY/SAILING_POWER/TRAVEL parameters"});
+            return;
+        }
+        
+        if (ship->occupied_capacity_ > ship->capacity_)
+        {
+            errors.push_back({"Error", unit, "sail: can't sail due to overweight"});
+            return;
+        }
+        
+        long movepoints = ship->max_speed_;
+        bool lost_information = false;
+        long hex_id = land->Id;
+        long next_hex_id(0);
+        CLand* cur_land = land;
+        CLand* next_land = nullptr;
+
+        for (size_t ord_index = 1; ord_index < order->words_order_.size(); ++ord_index)
+        {
+            eDirection dir = moving::get_direction(order->words_order_[ord_index]);
+            if (dir != Center)//not found
+            {//parsing any direction order
+                next_hex_id = moving::get_next_hex_id(cur_land->pPlane, hex_id, dir);
+                next_land = GetLand(next_hex_id);
+                
+                //exits check
+                if (moving::is_exit_closed(cur_land, dir) || 
+                    moving::is_exit_closed(next_land, moving::reverse_direction(dir)))
+                    errors.push_back({"Warning", unit, "sail: probably is going through the wall"});
+
+                if (next_land == nullptr)
+                    lost_information = true;
+
+                //land check
+                if (ship->travel_ == SHIP_TRAVEL::SAIL && 
+                    cur_land && next_land && 
+                    !land_control::is_water(cur_land) && 
+                    !land_control::is_water(next_land))
+                {
+                    errors.push_back({"Error", unit, "sail: is going to sail from land to land"});
+                    break;
+                }
+
+                //calculate move points to verify stopping hex if order longer than unit can move
+                if (!lost_information && movepoints > 0)//no reason to calculate movepoints if there was lost information
+                {
+                    long move_cost = land_control::is_bad_weather(next_land, startMonth) ? 2 : 1;
+                    if (movepoints >= move_cost)
+                        unit->movement_stop_ = next_hex_id;
+
+                    movepoints -= move_cost;
+                }
+
+                //logically perform the move
+                unit->movements_.push_back(next_hex_id);
+            }
+            else
+            {
+                errors.push_back({"Error", unit, "sail: unknown sailing order: "+order->words_order_[ord_index]});
                 break;
             }
 
-        if (!GoodSail)
-            SHOW_WARN_CONTINUE(" - Can not sail " << SailPassed << S1);
-        SailPassed << S1 << ' ';
+            //next region becomes current region for next cycle
+            hex_id = next_hex_id;
+            next_hex_id = 0;
+            cur_land = next_land;
+            next_land = nullptr;
+        }
+
+        if (unit_control::is_struct_owner(unit))
+        {
+            ships_and_owners[unit_control::structure_id(unit)] = unit;
+        }
+    });
+
+    //update passangers
+    long cur_unit_struct_id;
+    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        cur_unit_struct_id = unit_control::structure_id(unit);
+        if (ships_and_owners.find(cur_unit_struct_id) != ships_and_owners.end())
+        {
+            unit->movement_stop_ = ships_and_owners[cur_unit_struct_id]->movement_stop_;
+            unit->movements_ = ships_and_owners[cur_unit_struct_id]->movements_;
+        }
+    });
+
+    for (auto& error : errors) {
+        OrderError(error.type_, land, error.unit_, error.message_);
     }
 }
 

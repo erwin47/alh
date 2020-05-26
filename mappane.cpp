@@ -2899,7 +2899,7 @@ void CMapPane::RedrawTracksForUnit(CPlane * pPlane, CUnit * pUnit, wxDC * pDC, B
     pDC->SetPen(*m_pPenSel);
 
     // draw new tracks and remember hexes
-    if (pUnit && pUnit->pMovement)
+    if (pUnit && pUnit->movements_.size() > 0)
     {
         LandIdToCoord(pUnit->LandId, X, Y, Z);
         if (Z == pPlane->Id)
@@ -2944,7 +2944,7 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
     long           n1;
     int            LocA3;
 
-    if (pUnit->pMovement && pUnit->pMoveA3Points && pUnit->pMoveA3Points->Count() == pUnit->pMovement->Count())
+    if (pUnit->movements_.size() > 0 && pUnit->pMoveA3Points && pUnit->pMoveA3Points->Count() == pUnit->movements_.size())
         Arcadia3Sail = TRUE;
 
     if (Arcadia3Sail && pUnit->GetProperty(PRP_STRUCT_ID, type, (const void *&)n1) && eLong==type)
@@ -2961,10 +2961,10 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
         }
     }
 
-    if (!pUnit->pMovement)
+    if (pUnit->movements_.size() == 0)
         return;
 
-    for (i=0; i<pUnit->pMovement->Count(); i++)
+    for (long i = 0; i < pUnit->movements_.size(); ++i)
     {
         wx0 = wx;
         wy0 = wy;
@@ -2972,7 +2972,7 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
         wx0_a = wx_a;
         wy0_a = wy_a;
 
-        HexId = (long)pUnit->pMovement->At(i);
+        HexId = pUnit->movements_[i];
         LandIdToCoord(HexId, X1, Y1, Z1);
 
         // Prevent painting on a different level.
@@ -3016,13 +3016,13 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
             if (Arcadia3Sail)
             {
                 pDC->DrawLine(wx0_a, wy0_a, wx_a, wy_a);
-                if (i == pUnit->pMovement->Count()-1)
+                if (i == pUnit->movements_.size()-1)
                     DrawTrackArrow(pDC, wx0_a, wy0_a, wx_a, wy_a);
             }
             else
             {
                 pDC->DrawLine(wx0, wy0, wx, wy);
-                if (i == pUnit->pMovement->Count()-1)
+                if (i == pUnit->movements_.size()-1)
                     DrawTrackArrow(pDC, wx0, wy0, wx, wy);
             }
         }

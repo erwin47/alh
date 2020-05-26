@@ -36,7 +36,6 @@ extern const char * EOL_FILE ;
 
 #define DEFAULT_PLANE "Overworld"
 
-typedef enum { North=0, Northeast,   Southeast,   South,   Southwest,   Northwest, Center }   eDirection;
 extern int   ExitFlags [];
 extern int   EntryFlags[];
 
@@ -231,6 +230,7 @@ public:
     CUnit *    SplitUnit(CUnit * pOrigUnit, long newId);
     wxString   getFullStrLandCoord(CLand *);
     BOOL       CheckResourcesForProduction(CUnit * pUnit, CLand * pLand, CStr & Error);
+
     void       ExtrapolateLandCoord(int &x, int &y, int z, int direction) const;
 
     // Movement
@@ -338,7 +338,6 @@ protected:
 
     // Order handlers and helpers
     //void         RunOrder_Teach            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL TeachCheckGlb);
-    void         RunOrder_Move             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3, long order);
     void         RunOrder_Promote          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
 
     void         RunOrder_Take             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL IgnoreMissingTarget);
@@ -354,17 +353,17 @@ protected:
     void         RunOrder_LandStudyTeach   (CLand* land);
     void         RunOrder_LandAggression   (CLand* land);//steal, assassinate, attack
     void         RunOrder_LandTaxPillage   (CLand* land, bool apply_changes);
-    void         CheckOrder_LandWork       (CLand *land);
+    void         CheckOrder_LandMonthlong  (CLand *land);
     void         RunOrder_LandWork         (CLand *land, bool apply_changes);
     void         CheckOrder_LandEntertain  (CLand *land);
     void         RunOrder_LandEntertain    (CLand *land, bool apply_changes);
+    void         RunOrder_LandSail         (CLand* land);
     void         RunOrder_LandMove         (CLand* land);
 
     template<orders::Type TYPE> void RunOrder_AOComments(CLand* land);
     void         RunOrder_AONames          (CLand* land);
     //void         RunOrder_Study            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Name             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-    void         RunOrder_SailAIII         (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3);
     BOOL         FindTargetsForSend        (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char *& params, CUnit *& pUnit2, CLand *& pLand2);
     BOOL         GetItemAndAmountForGive   (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, CStr & Item, int & amount, const char * command, CUnit * pUnit2);
     void         RunOrder_Withdraw         (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);

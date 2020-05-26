@@ -323,6 +323,7 @@ enum
 #define SZ_UNIT_MOVING_OUT               "UNIT_MOVING_OUT"
 #define SZ_UNIT_GUARDING                 "UNIT_GUARDING"
 #define SZ_UNIT_ARRIVING                 "UNIT_ARRIVING"
+#define SZ_UNIT_END_MOVEMENT_ORDER       "UNIT_END_MOVEMENT_ORDER"
 #define SZ_UNIT_HAS_ERRORS               "UNIT_HAS_ERRORS"
 #define SZ_UNIT_OWNS_BUILDING            "UNIT_OWNS_BUILDING"
 
@@ -435,6 +436,7 @@ enum
 #define SZ_ATTR_STRUCT_ROAD_NW           "ROAD_NW"
 #define SZ_ATTR_STRUCT_MAX_LOAD          "MAX_LOAD"
 #define SZ_ATTR_STRUCT_MIN_SAIL          "MIN_POWER"
+#define SZ_ATTR_STRUCT_TRAVEL            "TRAVEL"
 
 #define SZ_LEADER                        "leader"
 #define SZ_HERO                          "hero"

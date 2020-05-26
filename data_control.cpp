@@ -135,6 +135,15 @@ namespace unit_control
                 return unit->Flags & UNIT_FLAG_CONSUMING_FACTION;
             return false;
         }
+        long is_working(CUnit* unit) {  return unit->Flags & UNIT_FLAG_WORKING;  }
+        long is_entertaining(CUnit* unit) {  return unit->Flags & UNIT_FLAG_ENTERTAINING;  }
+        long is_teaching(CUnit* unit) {  return unit->Flags & UNIT_FLAG_TEACHING;  }
+        long is_studying(CUnit* unit) {  return unit->Flags & UNIT_FLAG_STUDYING;  }
+        long is_pillaging(CUnit* unit) {  return unit->Flags & UNIT_FLAG_PILLAGING;  }
+        long is_taxing(CUnit* unit) {  return unit->Flags & UNIT_FLAG_TAXING;  }
+        long is_producing(CUnit* unit) {  return unit->Flags & UNIT_FLAG_PRODUCING;  }
+        long is_moving(CUnit* unit) {  return unit->Flags & UNIT_FLAG_MOVING;  }
+
     }
 
     bool is_leader(CUnit* unit)
@@ -208,6 +217,48 @@ namespace unit_control
         //hors gives +70, weight -50, wagon weight -50, which was already calculated. 
         //But together for moving they give 200. So for each pair we add 230.
         weights[1] += std::min(wagons_amount, pullers_amount) * wagon_capacity;
+    }
+
+    MoveMode get_move_state(CUnit* unit)
+    {
+        MoveMode ret;
+        long weights[5];
+        get_weights(unit, weights);
+        if (weights[1] - weights[0] >= 0)
+        {
+            ret.walk_ = 1;
+            ret.speed_ = 2;
+        }            
+        if (weights[2] - weights[0] >= 0)
+        {
+            ret.ride_ = 1;
+            ret.speed_ = 4;
+        }
+        if (weights[3] - weights[0] >= 0)
+        {
+            ret.fly_ = 1;
+            ret.speed_ = 6;
+        }
+        if (weights[4] - weights[0] >= 0)
+        {
+            ret.swim_ = 1;
+            ret.speed_ = (ret.speed_ < 2 ? 2 : ret.speed_); 
+        }
+        return ret;
+    }
+
+    long move_cost(long terr_cost, bool bad_weather, bool connected_road, MoveMode move)
+    {
+        if (move.fly_ == 1)
+            terr_cost = 1;
+        
+        if (bad_weather)
+            terr_cost *= 2;
+
+        if (connected_road && move.fly_ == 0)
+            terr_cost = (terr_cost + 1) / 2;
+
+        return terr_cost;
     }
 
     std::set<CItem> get_all_items(CUnit* unit)
@@ -789,6 +840,80 @@ namespace land_control
         state.resources_.emplace_back(item);
     }
 
+    bool is_water(CLand* land)
+    {
+        return (stricmp(land->TerrainType.GetData(), "ocean") == 0 ||
+                stricmp(land->TerrainType.GetData(), "lake") == 0);      
+    }
+
+    bool is_bad_weather(CLand* land, int month)
+    {
+        int x, y, z;
+        LandIdToCoord(land->Id, x, y, z);
+
+        CPlane* plane = land->pPlane;
+        if (plane && plane->TropicZoneMin < plane->TropicZoneMax)
+        {
+            // Weather is known
+            if (y < plane->TropicZoneMin)
+            {
+                // Northern Hemisphere
+                switch (month)
+                {
+                    case 0: case 9: case 10: case 11:
+                        return true;
+                }
+            }
+            else if (y > plane->TropicZoneMax)
+            {
+                // Southern Hemisphere
+                switch (month)
+                {
+                    case 3: case 4: case 5: case 6:
+                        return true;
+                }
+            }
+            else
+            {
+                // Tropic Zone
+                switch (month)
+                {
+                    case 4: case 5: case 10: case 11:
+                        return true;
+                }
+            }
+        }
+        return false;      
+    }
+
+    bool is_road_connected(CLand* land1, CLand* land2, eDirection dir)
+    {
+        // Result only valid if land0 is connected to land1 in direction
+        int road0 = SA_ROAD_N;
+        int road1 = SA_ROAD_N;
+        switch (dir)
+        {
+            case North     : road0 = SA_ROAD_N;  road1 = SA_ROAD_S;     break;
+            case Northeast : road0 = SA_ROAD_NE; road1 = SA_ROAD_SW;    break;
+            case Southeast : road0 = SA_ROAD_SE; road1 = SA_ROAD_NW;    break;
+            case South     : road0 = SA_ROAD_S;  road1 = SA_ROAD_N;     break;
+            case Southwest : road0 = SA_ROAD_SW; road1 = SA_ROAD_NE;    break;
+            case Northwest : road0 = SA_ROAD_NW; road1 = SA_ROAD_SE;    break;
+        }
+
+        CStruct* road_structure = land_control::find_first_structure_if(land1, [&](CStruct* structure) {
+            return (structure->Attr & road0) && !(structure->Attr & SA_ROAD_BAD);
+        });
+        if (road_structure == nullptr)
+            return false;
+
+        road_structure = land_control::find_first_structure_if(land2, [&](CStruct* structure) {
+            return (structure->Attr & road1) && !(structure->Attr & SA_ROAD_BAD);
+        });
+
+        return road_structure != nullptr;        
+    }
+
     CProductMarket get_wanted(LandState& state, const std::string& item_code)
     {
         if (state.wanted_.find(item_code) != state.wanted_.end())
@@ -1202,22 +1327,6 @@ namespace land_control
         return action;
     }
 
-    void check_land_workers(CLand* land, std::vector<unit_control::UnitError>& errors)
-    {
-        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-            if (!orders::control::has_orders_with_type(orders::Type::O_WORK, unit->orders_))
-                return;
-
-            auto work_orders = orders::control::retrieve_orders_by_type(orders::Type::O_WORK, unit->orders_);
-            if (work_orders.size() > 1)
-            {
-                errors.push_back({"Error", unit, " duplicates work orders"});
-                return;
-            }
-            unit->Flags |= UNIT_FLAG_WORKING;
-        });        
-    }
-
     void apply_land_flags(CLand* land, std::vector<unit_control::UnitError>& errors)
     {
         land_control::perform_on_each_unit(land, [&](CUnit* unit) {
@@ -1283,15 +1392,8 @@ namespace land_control
         long other_factions_men(0);
 
         land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-            auto ente_orders = orders::control::retrieve_orders_by_type(orders::Type::O_ENTERTAIN, unit->orders_);
-            if (ente_orders.size() == 0)
+            if (!unit_control::flags::is_entertaining(unit))
                 return;
-
-            if (ente_orders.size() > 1)
-            {
-                errors.push_back({"Error", unit, " duplicates tax and/or pillage orders"});
-                return;
-            }
 
             long skill_lvl = skills_control::get_skill_lvl_from_days(unit_control::get_current_skill_days(unit, "ENTE"));
             if (skill_lvl == 0)
@@ -1299,10 +1401,6 @@ namespace land_control
                 errors.push_back({"Error", unit, " doesn't know skill ENTE to entertain"});
                 return;
             }
-
-            
-
-            unit->Flags |= UNIT_FLAG_ENTERTAINING;
             if (!unit->IsOurs)
                 other_factions_men += unit_control::get_item_amount_by_mask(unit, PRP_MEN) * skill_lvl;
             else
@@ -1333,7 +1431,7 @@ namespace land_control
         long other_factions_men(0);
 
         land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-            if (unit->Flags & UNIT_FLAG_WORKING)
+            if (unit_control::flags::is_working(unit))
             {
                 if (!unit->IsOurs)
                     other_factions_men += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
@@ -1356,6 +1454,9 @@ namespace land_control
 
     void get_land_taxers(CLand* land, Incomers& out, std::vector<unit_control::UnitError>& errors, bool apply_changes)
     {
+        if (land->Flags & LAND_TAX_NEXT == 0)
+            return;
+
         long tax_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER);
 
         out.expected_income_ = 0;
@@ -1376,80 +1477,77 @@ namespace land_control
         long other_factions_men_pillage(0);
 
         land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-            auto pillage_orders = orders::control::retrieve_orders_by_type(orders::Type::O_PILLAGE, unit->orders_);
-            auto tax_orders = orders::control::retrieve_orders_by_type(orders::Type::O_TAX, unit->orders_);
-            if (pillage_orders.size() + tax_orders.size() == 0)
+            if (!unit_control::flags::is_taxing(unit) && !unit_control::flags::is_pillaging(unit))
                 return;
-            
-            if (pillage_orders.size() + tax_orders.size() > 1)
+
+            long man_in_unit = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+            if (man_in_unit == 0)
             {
-                errors.push_back({"Error", unit, " duplicates tax and/or pillage orders"});
+                errors.push_back({"Error", unit, "tax: no man to tax"});
                 return;
             }
 
             //find how many people really can tax/pillage
-            long unit_man(0);
+            long taxing_man(0);
             auto tax_skills = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, SZ_KEY_SKILL_TAX);
             for (const auto& tax_skill : tax_skills)
             {
                 if (unit_control::get_current_skill_days(unit, tax_skill) >= 30)
                 {
-                    unit_man = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                    taxing_man = man_in_unit;
                     break;
                 }                    
             }
-            if (unit_man == 0)
-            {//need to check skills, which works with specific items and specific items
+            if (taxing_man == 0)
+            {//need to check items allowing to tax by themselves or with a specific skill
                 auto tax_items = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, SZ_KEY_NO_SKILL_TAX);
+                long items_allowing_tax_wothout_skill(0);
                 for (const auto& tax_item : tax_items)
-                    unit_man += unit_control::get_item_amount(unit, tax_item);
+                    items_allowing_tax_wothout_skill += unit_control::get_item_amount(unit, tax_item);
+                
+                //add all items which allow taxing ability to a peasant by themselves
+                //taxing_man += std::min(man_in_unit, items_allowing_tax_wothout_skill);
 
                 auto tax_skills_list = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, SZ_KEY_TAX_SKILL_LIST);
+                long items_allowing_tax_with_presented_skills(0);
                 for (const auto& cur_skill : tax_skills_list)
                 {
                     if (unit_control::get_current_skill_days(unit, cur_skill) < 30)
                         continue;
 
-                    long cur_skill_items_amount(0);
                     auto cur_skills_items = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, cur_skill.c_str());
                     for (const auto& cur_skills_item : cur_skills_items)
-                        cur_skill_items_amount += unit_control::get_item_amount(unit, cur_skills_item);
-
-                    unit_man = std::max(unit_man, cur_skill_items_amount);
+                        items_allowing_tax_with_presented_skills += unit_control::get_item_amount(unit, cur_skills_item);
                 }
+                taxing_man = std::min(man_in_unit, items_allowing_tax_wothout_skill + items_allowing_tax_with_presented_skills);
             }
 
-            if (pillage_orders.size() > 0)
+            if (unit_control::flags::is_pillaging(unit))
             {
-                unit->Flags |= UNIT_FLAG_PILLAGING;
-                land->Flags |= LAND_TAX_NEXT;
                 if (!unit->IsOurs)
-                    other_factions_men_pillage += unit_man;
-                else if (unit_man == 0)
+                    other_factions_men_pillage += taxing_man;
+                else if (taxing_man == 0)
                 {
                     errors.push_back({"Error", unit, " can't tax or pillage, see TAX_RULES settings"});
                 }
                 else
                 {
-                    pillage.man_amount_ += unit_man;
-                    pillage.units_.push_back({unit, unit_man});
+                    pillage.man_amount_ += taxing_man;
+                    pillage.units_.push_back({unit, taxing_man});
                 }
             }
-            else if (tax_orders.size() > 0 || unit->Flags & UNIT_FLAG_TAXING)
+            else if (unit_control::flags::is_taxing(unit))
             {
-                unit->Flags |= UNIT_FLAG_TAXING;
-                land->Flags |= LAND_TAX_NEXT;
-
                 if (!unit->IsOurs)
-                    other_factions_men_tax += unit_man;
-                else if (unit_man == 0)
+                    other_factions_men_tax += taxing_man;
+                else if (taxing_man == 0)
                 {
                     errors.push_back({"Error", unit, " can't tax or pillage, see TAX_RULES settings"});
                 }
                 else
                 {
-                    tax.man_amount_ += unit_man;
-                    tax.units_.push_back({unit, unit_man});
+                    tax.man_amount_ += taxing_man;
+                    tax.units_.push_back({unit, taxing_man});
                 }
             }
         });
@@ -1631,8 +1729,6 @@ namespace land_control
                     return;
                 }
 
-                unit->Flags |= UNIT_FLAG_STUDYING;
-
                 long price = gpApp->GetStudyCost(studying_skill.c_str());
                 if (price <= 0)
                 {
@@ -1696,12 +1792,19 @@ namespace land_control
                                           std::unordered_map<long, Student>& students, 
                                           std::vector<unit_control::UnitError>& errors)
     {
+        std::vector<long> studs;
         perform_on_each_unit(land, [&](CUnit* unit) {
-            std::vector<long> studs = orders::control::get_students(unit);
+            studs.clear();
+            auto teaching_orders = orders::control::retrieve_orders_by_type(orders::Type::O_TEACH, unit->orders_);
+            for (const auto& ord : teaching_orders)
+            {
+                if (!orders::parser::specific::parse_teaching(ord, unit->FactionId, studs))
+                    errors.push_back({"Error", unit, "teach: couldn't parse order: "+ord->original_string_});
+            }
+
             if (studs.size() == 0)
                 return;
 
-            unit->Flags |= UNIT_FLAG_TEACHING;
             long teachers_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
             if (teachers_amount <= 0)
             {
@@ -1803,7 +1906,7 @@ namespace game_control
         return gpApp->GetConfig(section, key);
     }
 
-    bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag)
+    bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag, SHIP_TRAVEL& travel)
     {
         std::string codename, name, plural_name;
         if (!gpApp->ResolveAliasItems(struct_type, codename, name, plural_name))
@@ -1840,13 +1943,18 @@ namespace game_control
                 }
 
                 std::string key = param.substr(0, separator);
-                long        val = atol(param.substr(separator+1).c_str());
                 if (key == SZ_ATTR_STRUCT_MAX_LOAD)
-                    capacity += val;
-                else if (key == SZ_ATTR_STRUCT_MIN_SAIL)
-                    sailPower += val;
+                    capacity += atol(param.substr(separator+1).c_str());
+                if (key == SZ_ATTR_STRUCT_MIN_SAIL)
+                    sailPower += atol(param.substr(separator+1).c_str());
+                if (key == SZ_ATTR_STRUCT_TRAVEL) {
+                    std::string traveling = param.substr(separator+1);
+                    if (stricmp(traveling.c_str(), "FLY") == 0 && travel != SHIP_TRAVEL::SAIL)
+                        travel = SHIP_TRAVEL::FLY;
+                    else
+                        travel = SHIP_TRAVEL::SAIL;
+                }
             }
-
         }
 
         if (0 == stricmp(name.c_str(), STRUCT_GATE))
@@ -1877,7 +1985,7 @@ namespace struct_control
     }
 
     void parse_struct(const std::string& line, long& id, std::string& name, 
-                      std::string& type, std::vector<std::pair<std::string, long>>& substructures)
+                      std::string& type, std::vector<std::pair<std::string, long>>& substructures, long& max_speed)
     {
         std::vector<std::string> chunks;
         std::vector<std::string> pieces;
@@ -1927,11 +2035,20 @@ namespace struct_control
             else 
             {
                 long capacity, sailPower, structFlag;
-                game_control::get_struct_attributes(type, capacity, sailPower, structFlag);
+                SHIP_TRAVEL travel;
+                game_control::get_struct_attributes(type, capacity, sailPower, structFlag, travel);
                 if (structFlag & SA_MOBILE)
                 {//its still the ship, so we will handle it as Fleet
                     substructures.push_back({type, 1});
                     type = "Fleet";
+                }
+            }
+
+            for (size_t i = 2; i < pieces.size(); i+=2)
+            {
+                if (pieces[i].find("MaxSpeed") != std::string::npos && i+1 < pieces.size())
+                {
+                    max_speed = atol(pieces[i+1].c_str());
                 }
             }
         }
@@ -1955,6 +2072,8 @@ namespace struct_control
         toStruct->LandId                = fromStruct->LandId     ;
         toStruct->OwnerUnitId           = fromStruct->OwnerUnitId;
         toStruct->occupied_capacity_    = fromStruct->occupied_capacity_       ;
+        toStruct->travel_               = fromStruct->travel_;
+        toStruct->max_speed_            = fromStruct->max_speed_;
         toStruct->Attr                  = fromStruct->Attr       ;
         toStruct->type_                 = fromStruct->type_      ;
         toStruct->capacity_             = fromStruct->capacity_      ;

@@ -42,6 +42,17 @@ namespace item_control
 
 namespace unit_control
 {
+    struct MoveMode
+    {
+        MoveMode() : speed_(0), walk_(0), ride_(0), fly_(0), swim_(0) {}
+        unsigned char  speed_:4;
+        unsigned char  walk_:1;
+        unsigned char  ride_:1;
+        unsigned char  fly_:1;
+        unsigned char  swim_:1;
+    };
+
+
     struct UnitError
     {
         std::string type_;
@@ -60,6 +71,14 @@ namespace unit_control
         bool is_reveal(CUnit* unit, std::string flag);
         bool is_spoils(CUnit* unit, std::string flag);
         bool is_consume(CUnit* unit, std::string flag);
+        long is_working(CUnit* unit);
+        long is_entertaining(CUnit* unit);
+        long is_teaching(CUnit* unit);
+        long is_studying(CUnit* unit);
+        long is_pillaging(CUnit* unit);
+        long is_taxing(CUnit* unit);
+        long is_producing(CUnit* unit);
+        long is_moving(CUnit* unit);
     }
 
     bool is_leader(CUnit* unit);
@@ -70,6 +89,8 @@ namespace unit_control
     long get_upkeep(CUnit* unit);
 
     void get_weights(CUnit* unit, long weights[5]);
+    MoveMode get_move_state(CUnit* unit);
+    long move_cost(long terr_cost, bool bad_weather, bool connected_road, MoveMode move);
     
     std::set<CItem> get_all_items(CUnit* unit);
 
@@ -142,6 +163,10 @@ namespace land_control
         std::string description_;
         CUnit* unit_;
     };
+
+    bool is_water(CLand* land);
+    bool is_bad_weather(CLand* land, int month);
+    bool is_road_connected(CLand* land1, CLand* land2, eDirection dir);
 
     CProductMarket get_wanted(LandState& state, const std::string& item_code);
     CProductMarket get_for_sale(LandState& state, const std::string& item_code);
@@ -237,8 +262,6 @@ namespace land_control
                                                             std::vector<unit_control::UnitError>& errors, 
                                                             bool& result);
 
-    void check_land_workers(CLand* land, std::vector<unit_control::UnitError>& errors);
-
     void apply_land_flags(CLand* land, std::vector<unit_control::UnitError>& errors);
     void get_land_builders(CLand* land, std::vector<ActionUnit>& out, std::vector<unit_control::UnitError>& errors);
     void get_land_entertainers(CLand* land, Incomers& out, std::vector<unit_control::UnitError>& errors, bool apply_changes);
@@ -297,14 +320,14 @@ namespace game_control
         return convert_to<T>(get_gpapp_config(section, key));
     }
 
-    bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag);
+    bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag, SHIP_TRAVEL& travel);
 
 }
 
 namespace struct_control
 {
     void parse_struct(const std::string& line, long& id, std::string& name, 
-                      std::string& type, std::vector<std::pair<std::string, long>>& substructures);
+                      std::string& type, std::vector<std::pair<std::string, long>>& substructures, long& max_speed);
 
     namespace flags {
         inline bool is_shaft(CStruct* structure) {  return structure->Attr & SA_SHAFT;  }

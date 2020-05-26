@@ -109,7 +109,8 @@ DefaultConfigRec DefaultConfig[] =
     {SZ_SECT_COLORS            ,     SZ_KEY_MAP_FLAG_3     ,     "0,     0, 128"     },
     {SZ_SECT_COLORS            ,     SZ_UNIT_MOVING_OUT    ,     "160, 192, 255"     },
     {SZ_SECT_COLORS            ,     SZ_UNIT_GUARDING      ,     "255, 208, 176"     },
-    {SZ_SECT_COLORS            ,     SZ_UNIT_ARRIVING      ,     "255, 255, 144"     },
+    {SZ_SECT_COLORS            ,     SZ_UNIT_ARRIVING      ,     "255, 255, 142"     },
+    {SZ_SECT_COLORS            ,     SZ_UNIT_END_MOVEMENT_ORDER, "255, 255, 214"     },
     {SZ_SECT_COLORS            ,     SZ_UNIT_HAS_ERRORS    ,     "243, 146, 146"     },
     {SZ_SECT_COLORS            ,     SZ_UNIT_OWNS_BUILDING ,     "224, 224, 224"     },
 
@@ -120,8 +121,8 @@ DefaultConfigRec DefaultConfig[] =
     {SZ_SECT_COLORS            ,     "MAP_ROAD"        ,     "112, 128, 144"   },
     {SZ_SECT_COLORS            ,     "MAP_Rocks"       ,     "255, 0, 0"       },
 
-    {SZ_SECT_TERRAIN_COST      ,     "ocean"         ,   "999"     },
-    {SZ_SECT_TERRAIN_COST      ,     "lake"          ,   "999"     },
+    {SZ_SECT_TERRAIN_COST      ,     "ocean"         ,     "1"     },
+    {SZ_SECT_TERRAIN_COST      ,     "lake"          ,     "1"     },
     {SZ_SECT_TERRAIN_COST      ,     "plain"         ,     "1"     },
     {SZ_SECT_TERRAIN_COST      ,     "desert"        ,     "1"     },
     {SZ_SECT_TERRAIN_COST      ,     "swamp"         ,     "2"     },

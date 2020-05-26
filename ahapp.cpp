@@ -4377,7 +4377,7 @@ void CAhApp::CheckMonthLongOrders()
 
 //--------------------------------------------------------------------------
 
-void CAhApp::GetUnitsMovingIntoHex(long HexId, CBaseColl &FoundUnits) const
+void CAhApp::GetUnitsMovingIntoHex(long HexId, std::vector<CUnit*>& stopped, std::vector<CUnit*>& ended_moveorder) const
 {
     CLand          * pLand;
     CUnit          * pUnit;
@@ -4392,16 +4392,16 @@ void CAhApp::GetUnitsMovingIntoHex(long HexId, CBaseColl &FoundUnits) const
             for (nl=0; nl<pPlane->Lands.Count(); nl++)
             {
                 pLand = (CLand*)pPlane->Lands.At(nl);
-                for (nu=0; nu<pLand->Units.Count(); nu++)
-                {
-                    pUnit = (CUnit*)pLand->Units.At(nu);
-                    if (pUnit->pMovement && pUnit->pMovement->Count()>0)
+                land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {
+                    if (unit->movements_.size() > 0)
                     {
-                        unitHexId = (long)pUnit->pMovement->At(pUnit->pMovement->Count()-1);
-                        if (HexId==unitHexId)
-                            FoundUnits.Insert(pUnit);
+                        long last_hex_movements = unit->movements_[unit->movements_.size()-1];
+                        if (unit->movement_stop_ == HexId)
+                            stopped.push_back(unit);
+                        else if (last_hex_movements == HexId)
+                            ended_moveorder.push_back(unit);//should be filled just if its not `stopped`
                     }
-                }
+                });
             }
         }
     }
@@ -4413,11 +4413,12 @@ void CAhApp::ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane)
     int              i;
     CUnitPaneFltr  * pUnitPaneF = NULL;
     CStr             UnitText(128), S(16);
-    CBaseColl        FoundUnits;
 
-    GetUnitsMovingIntoHex(CurHexId, FoundUnits);
+    std::vector<CUnit*> stopping;
+    std::vector<CUnit*> ending_moving_orders;
+    GetUnitsMovingIntoHex(CurHexId, stopping, ending_moving_orders);
 
-    if (FoundUnits.Count() > 0)
+    if (stopping.size() > 0)
     {
         if (1==atol(SkipSpaces(GetConfig(SZ_SECT_COMMON, SZ_KEY_CHECK_OUTPUT_LIST))))
         {
@@ -4427,15 +4428,13 @@ void CAhApp::ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane)
             pUnitPaneF->InsertUnitInit();
         }
 
-
-        for (i=0; i<FoundUnits.Count(); i++)
+        for (auto& unit : stopping)
         {
-            pUnit = (CUnit*)FoundUnits.At(i);
             if (pUnitPaneF)
-                pUnitPaneF->InsertUnit(pUnit);
+                pUnitPaneF->InsertUnit(unit);
             else
             {
-                S.Format("Unit % 5d", pUnit->Id);
+                S.Format("Unit % 5d", unit->Id);
                 UnitText << S << EOL_SCR;
             }
         }
@@ -4447,9 +4446,6 @@ void CAhApp::ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane)
     }
     else
         wxMessageBox(wxT("Found no units moving into the current hex."), wxT("Units moving"), wxOK | wxCENTRE, m_Frames[AH_FRAME_MAP]);
-
-
-    FoundUnits.DeleteAll();
 }
 
 //--------------------------------------------------------------------------
@@ -4522,7 +4518,7 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
                 {
                     SilvRes += (long)value;
 
-                    if (pUnit->pMovement && pUnit->pMovement->Count()>0 && ((long)value > 0))
+                    if (pUnit->movements_.size() > 0 && ((long)value > 0))
                         MovedOut += (long)value;
                 }
             }
@@ -4535,7 +4531,7 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
                     else
                         TaxTheir += men*TaxPerTaxer;
 
-                if (pUnit->Flags & UNIT_FLAG_WORKING)
+                if (unit_control::flags::is_working(pUnit))
                     if (pUnit->FactionId == CurFaction)
                     {
                         Workers += men;
@@ -4544,7 +4540,7 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
                     else
                         WorkTheir +=  (long)(men*pCurLand->Wages);
 
-                if (pUnit->FactionId == CurFaction && (!pUnit->pMovement || pUnit->pMovement->Count()==0))
+                if (pUnit->FactionId == CurFaction && pUnit->movements_.size() == 0)
                     if (unit_control::is_leader(pUnit))
                         Maintain += men*UpkeepLeader;
                     else

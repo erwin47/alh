@@ -175,9 +175,7 @@ bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const
     int currentMonth = (startMonth + oldTurn - 1) % 12;
 
     int terrainCost = gpApp->m_pAtlantis->GetTerrainMovementCost(pLandExit->TerrainType.GetData());
-    if (nocross && 
-        (stricmp(pLandExit->TerrainType.GetData(), "ocean") == 0 ||
-         stricmp(pLandExit->TerrainType.GetData(), "lake") == 0))//TODO: have not to be hardcoded
+    if (nocross && land_control::is_water(pLandExit))
     {
         terrainCost = 999;
     }

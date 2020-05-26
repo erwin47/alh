@@ -283,7 +283,7 @@ public:
     void                 ShowShaftConnectGUI();
     void                 SetAllLandUnitFlags();
 
-    void                 GetUnitsMovingIntoHex(long HexId, CBaseColl &FoundUnits) const;
+    void                 GetUnitsMovingIntoHex(long HexId, std::vector<CUnit*>& stopped, std::vector<CUnit*>& ended_moveorder) const;
     void                 ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane);
     void                 ShowLandFinancial(CLand * pCurLand);
     void                 AddTempHex(int X, int Y, int Plane);

@@ -158,7 +158,7 @@ void CUnitPane::Update(CLand * pLand)
             if (pUnit && pUnit->has_error_) {//pUnit->Flags & UNIT_FLAG_HAS_ERROR) {
                 GuiColor = 4;//light red, for units with errors
             }
-            else if (pUnit && pUnit->pMovement)
+            else if (pUnit && pUnit->movements_.size() > 0)
                 GuiColor = 1;
             else if (pUnit && (pUnit->Flags & UNIT_FLAG_GUARDING))
                 GuiColor = 3;
@@ -171,16 +171,20 @@ void CUnitPane::Update(CLand * pLand)
         }
         m_pUnits->SetSortMode(m_SortKey, NUM_SORTS);
 
-        gpApp->GetUnitsMovingIntoHex(pLand->Id, ArrivingUnits);
-        for (i=0; i<ArrivingUnits.Count(); ++i)
+        std::vector<CUnit*> stopping;
+        std::vector<CUnit*> ending_moving_orders;
+        gpApp->GetUnitsMovingIntoHex(pLand->Id, stopping, ending_moving_orders);
+        for (CUnit* unit : stopping)
         {
-            pUnit = (CUnit*)ArrivingUnits.At(i);
-            if (pUnit->LandId != pLand->Id)
-            {
-                GuiColor = 2;
-                pUnit->SetProperty(PRP_GUI_COLOR, eLong, (void*)GuiColor, eBoth);
-                m_pUnits->AtInsert(m_pUnits->Count(), pUnit);
-            }
+            GuiColor = 2;
+            unit->SetProperty(PRP_GUI_COLOR, eLong, (void*)GuiColor, eBoth);
+            m_pUnits->AtInsert(m_pUnits->Count(), unit);
+        }
+        for (CUnit* unit : ending_moving_orders)
+        {
+            GuiColor = 6;
+            unit->SetProperty(PRP_GUI_COLOR, eLong, (void*)GuiColor, eBoth);
+            m_pUnits->AtInsert(m_pUnits->Count(), unit);
         }
 
         if (pLand->guiUnit)

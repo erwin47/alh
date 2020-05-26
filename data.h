@@ -204,9 +204,10 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define UNIT_FLAG_TEMP              0x00000080
 #define UNIT_FLAG_GIVEN             0x00000040
 #define UNIT_FLAG_HAS_ERROR         0x00000020
+#define UNIT_FLAG_MOVING            0x00000010
 
-#define UNIT_CUSTOM_FLAG_COUNT   8
-#define UNIT_CUSTOM_FLAG_MASK    0xFF
+#define UNIT_CUSTOM_FLAG_COUNT   4
+#define UNIT_CUSTOM_FLAG_MASK    0xF
 
 #define NO_LOCATION         (-1)
 
@@ -243,7 +244,7 @@ enum {
 #define IS_NEW_UNIT_ID(_Id)   ((_Id & 0xFFFF0000) != 0)
 #define IS_NEW_UNIT(_pUnit)   IS_NEW_UNIT_ID(_pUnit->Id)
 
-
+typedef enum { North=0, Northeast,   Southeast,   South,   Southwest,   Northwest, Center }   eDirection;
 
 
 class CPlane;
@@ -423,6 +424,11 @@ public:
     long struct_id_;//!<struct to which it belongs (0 if none)
     long struct_id_initial_;//!<struct to which it belongs (0 if none)
 
+    //hex id where unit should stop (if movements_.size()>0 it must be positive):
+    //it may be calculated stop position, or it will be the last hex id of movements_
+    long              movement_stop_;
+    std::vector<long> movements_;
+
     bool            IsOurs;
     long            FactionId;
     CFaction      * pFaction;
@@ -435,31 +441,9 @@ public:
     CStr            Errors;
     CStr            Events;
     CStr            ProducingItem;
-    CLongColl     * pMovement; // Collection of ids of hexes to move through
+    //CLongColl     * pMovement; // Collection of ids of hexes to move through
     CLongColl     * pMoveA3Points; // Collection of Arcadia III locations for movement
     CBaseCollById * pStudents;
-/*    
-    uint32_t        order_work_:1;       //0 of 32
-    uint32_t        order_entertain_:1;  //1 of 32
-    uint32_t        order_tax_:1;        //2 of 32
-    uint32_t        order_pillage_:1;    //3 of 32
-    uint32_t        order_build_:1;      //4 of 32
-    uint32_t        flag_spoils_:3;      //5-7 of 32
-    uint32_t        flag_reveal_:2;      //8-9 of 32
-    uint32_t        flag_consume_:2;     //10-11 of 32
-    uint32_t        flag_guard_:1;       //12 of 32
-    uint32_t        flag_avoid_:1;       //13 of 32
-    uint32_t        flag_behind_:1;      //14 of 32
-    uint32_t        flag_hold_:1;        //15 of 32
-    uint32_t        flag_noaid_:1;       //16 of 32
-    uint32_t        flag_nocross_:1;     //17 of 32
-    uint32_t        flag_share_:1;       //18 of 32
-    uint32_t        reserve_:13;         //19-31 of 32
-*/
-/*
-#define UNIT_FLAG_GIVEN             0x10000000
-#define UNIT_FLAG_TEMP              0x00000080
-*/    
 
     unsigned long   Flags;
     unsigned long   FlagsOrg;
@@ -480,7 +464,11 @@ protected:
 
 
 //-----------------------------------------------------------------
-
+enum class SHIP_TRAVEL {
+  NONE = 0,
+  SAIL,
+  FLY
+};
 class CStruct : public CBaseObject
 {
 public:
@@ -499,6 +487,8 @@ public:
     long occupied_capacity_;
     long capacity_;//for MOBILE
     std::string type_;
+    SHIP_TRAVEL travel_;
+    long max_speed_;
     std::string name_;
     std::string original_description_;
     std::vector<std::pair<std::string, long> > fleet_ships_;//for fleets
