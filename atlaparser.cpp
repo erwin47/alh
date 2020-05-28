@@ -7626,6 +7626,12 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
                 unit->movements_.push_back(next_hex_id);
                 current_struct_id = 0;
             }
+            else if (stricmp(order->words_order_[ord_index].c_str(), "P") == 0)
+            {
+                //calculate move points to verify stopping hex if order longer than unit can move
+                movepoints -= 1;//even if we lost information, it's still valid
+                continue;
+            }                
             else
             {//parsing number
                 if (order->words_order_[ord_index].empty() || 
@@ -7648,6 +7654,8 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
             cur_land = next_land;
             next_land = nullptr;
         }
+
+        unit->impact_description_.push_back("moves; left movepoints: "+ std::to_string(movepoints));
 
         //in case we didn't spend all movement points, we stay where the last order finished
         if (lost_information || unit->movement_stop_ == 0)
@@ -7775,6 +7783,12 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
                 //logically perform the move
                 unit->movements_.push_back(next_hex_id);
             }
+            else if (stricmp(order->words_order_[ord_index].c_str(), "P") == 0)
+            {
+                //calculate move points to verify stopping hex if order longer than unit can move
+                movepoints -= 1;//even if we lost information, it's still valid
+                continue;
+            }     
             else
             {
                 errors.push_back({"Error", unit, "sail: unknown sailing order: "+order->words_order_[ord_index]});
@@ -7788,10 +7802,12 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
             next_land = nullptr;
         }
 
+        unit->impact_description_.push_back("sails; increased sailing power for: +" + std::to_string((men_amount*sailing_lvl)));
         if (unit_control::is_struct_owner(unit))
         {
+            unit->impact_description_.push_back("sails; left movepoints: "+ std::to_string(movepoints));
             ships_and_owners[unit_control::structure_id(unit)] = unit;
-        }
+        } 
     });
 
     //update passangers
