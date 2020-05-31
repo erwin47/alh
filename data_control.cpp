@@ -144,6 +144,28 @@ namespace unit_control
         long is_producing(CUnit* unit) {  return unit->Flags & UNIT_FLAG_PRODUCING;  }
         long is_moving(CUnit* unit) {  return unit->Flags & UNIT_FLAG_MOVING;  }
 
+        std::string compose_flag_info(CUnit* unit)
+        {
+            if (is_working(unit))
+                return "M";
+            else if (is_entertaining(unit))
+                return "E";            
+            else if (is_teaching(unit))
+                return "T";            
+            else if (is_studying(unit))
+                return "S";
+            else if (is_pillaging(unit))
+                return "€";
+            else if (is_taxing(unit))
+                return "$";            
+            else if (is_producing(unit))
+                return "P";            
+            else if (is_moving(unit))
+                return "M";            
+            else
+                return "";
+        }
+
     }
 
     bool is_leader(CUnit* unit)
@@ -901,16 +923,24 @@ namespace land_control
             case Northwest : road0 = SA_ROAD_NW; road1 = SA_ROAD_SE;    break;
         }
 
-        CStruct* road_structure = land_control::find_first_structure_if(land1, [&](CStruct* structure) {
-            return (structure->Attr & road0) && !(structure->Attr & SA_ROAD_BAD);
-        });
+        
+        CStruct* road_structure = nullptr;        
+        if (land1 != nullptr)
+        {
+            road_structure = land_control::find_first_structure_if(land1, [&](CStruct* structure) {
+                return (structure->Attr & road0) && !(structure->Attr & SA_ROAD_BAD);
+            });
+        }
         if (road_structure == nullptr)
             return false;
 
-        road_structure = land_control::find_first_structure_if(land2, [&](CStruct* structure) {
-            return (structure->Attr & road1) && !(structure->Attr & SA_ROAD_BAD);
-        });
-
+        road_structure = nullptr;
+        if (land2 != nullptr)
+        {        
+            road_structure = land_control::find_first_structure_if(land2, [&](CStruct* structure) {
+                return (structure->Attr & road1) && !(structure->Attr & SA_ROAD_BAD);
+            });
+        }
         return road_structure != nullptr;        
     }
 

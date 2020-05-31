@@ -42,7 +42,22 @@ place those checks to the first phase, so all monthlong orders should be checked
 That would let keeping flags updated without relaying to specific Phase of calculation.
 And then enable for users to choose a phase of calculations.
 
+fix issue with speed of turtles in the ocean
+
 ## Changelog:
+### May 31 2020
+- check tax & drade: added more statistic info.
+- economy bug: work income is counted during all the income calculation.
+- moving/sailing: crush bug fixed.
+- join: added join to list of known commands (still without parsing or checks).
+- moving/sailing: unknown land counts as movepoint 1 cost.
+- sailing: added `$owner` comment for cases when order to sail is given to unit, which is not owner, but is expected to be. For example, by entering the ship, or other faction is going to promote it.
+- receive dlg: added monthlong action letter to names of giving units (to make it simple to differ different units with similar names)
+
+### May 29 2020
+- sailing/moving: calculates movepoints for the whole path (not just until it's not negative, as it was), print it out in events.
+- bug: fixed bug with calculation of actual ship's speed.
+
 ### May 26 2020
 - moving: unit's moving prediction now predicts two positions: where unit is expected to stay in the end of the turn, and where unit's order leads. All predictions now based on actual expected position of the unit in the end of turn.
 - moving: moving now calculates automatically cases with overload, moving over ocean, flags (i.e. nocross) & etc.

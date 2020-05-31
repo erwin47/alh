@@ -5816,7 +5816,6 @@ void CAtlaParser::CheckOrder_LandMonthlong(CLand *land)
                 else if (monthlong_orders[0]->type_ == orders::Type::O_SAIL)
                     unit->Flags |= UNIT_FLAG_MOVING;
             }
-
         }
     });        
 
@@ -7498,17 +7497,12 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
         if (order == nullptr)
             return;
 
-        if (unit->Id == 4069)
-        {
-            int i = 5;
-        }
         if (unit_control::get_item_amount_by_mask(unit, PRP_MEN) == 0)
         {
             errors.push_back({"Error", unit, "move: unit has no men"});
             return;
         }
 
-        bool lost_information = false;
         unit_control::MoveMode movemode = unit_control::get_move_state(unit);
         if (movemode.speed_ == 0)
         {
@@ -7528,16 +7522,13 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
             eDirection dir = moving::get_direction(order->words_order_[ord_index]);
             if (dir != Center)//not found
             {//parsing any direction order
-                next_hex_id = moving::get_next_hex_id(cur_land->pPlane, hex_id, dir);
+                next_hex_id = moving::get_next_hex_id((cur_land ? cur_land->pPlane : nullptr), hex_id, dir);
                 next_land = GetLand(next_hex_id);
                 
                 //exits check
                 if (moving::is_exit_closed(cur_land, dir) || 
                     moving::is_exit_closed(next_land, moving::reverse_direction(dir)))
                     errors.push_back({"Warning", unit, "move: probably is going through the wall"});
-
-                if (next_land == nullptr)
-                    lost_information = true;
 
                 //water check
                 if (next_land && land_control::is_water(next_land))
@@ -7555,7 +7546,7 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
                 }
 
                 //calculate move points to verify stopping hex if order longer than unit can move
-                if (!lost_information && movepoints > 0)//no reason to calculate movepoints if there was lost information
+                if (next_land != nullptr)//no reason to calculate movepoints if there was lost information
                 {
                     int terrainCost = gpApp->m_pAtlantis->GetTerrainMovementCost(next_land->TerrainType.GetData());
                     long move_cost = unit_control::move_cost(terrainCost, 
@@ -7567,6 +7558,11 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
 
                     movepoints -= move_cost;
                 }
+                else 
+                {
+                    movepoints -= 1;
+                    unit->impact_description_.push_back("move: through unknown territory, prediction of movepoints may be wrong");
+                }
 
                 //logically perform the move
                 unit->movements_.push_back(next_hex_id);
@@ -7574,11 +7570,11 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
             }
             else if (stricmp(order->words_order_[ord_index].c_str(), "IN") == 0)
             {//parsing IN order
-                if (cur_land == nullptr)
-                {
-                    lost_information = true;
+                if (cur_land == nullptr) {//specific check, because we are trying to change plane from unknown position
+                    errors.push_back({"Error", unit, "move: going IN from unknown region"});
                     break;
                 }
+
                 if (current_struct_id == 0)
                 {
                     errors.push_back({"Error", unit, "move: going IN without being in a structure"});
@@ -7587,7 +7583,7 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
                 CStruct* shaft = land_control::get_struct(cur_land, current_struct_id);
                 if (shaft == nullptr)
                 {
-                    errors.push_back({"Error", unit, "move: didn't find specified shaft, can't predict further"});
+                    errors.push_back({"Error", unit, "move: didn't find specified structure, can't predict further"});
                     break;
                 }
                 if (!struct_control::flags::is_shaft(shaft))
@@ -7611,18 +7607,15 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
                 next_hex_id = next_land->Id;
 
                 //calculate move points to verify stopping hex if order longer than unit can move
-                if (!lost_information && movepoints > 0)//no reason to calculate movepoints if there was lost information
-                {
-                    int terrainCost = gpApp->m_pAtlantis->GetTerrainMovementCost(next_land->TerrainType.GetData());
-                    long move_cost = unit_control::move_cost(terrainCost, 
-                                                            land_control::is_bad_weather(next_land, startMonth), 
-                                                            false,
-                                                            movemode);
-                    if (movepoints >= move_cost)
-                        unit->movement_stop_ = next_hex_id;
+                int terrainCost = gpApp->m_pAtlantis->GetTerrainMovementCost(next_land->TerrainType.GetData());
+                long move_cost = unit_control::move_cost(terrainCost, 
+                                                        land_control::is_bad_weather(next_land, startMonth), 
+                                                        false,
+                                                        movemode);
+                if (movepoints >= move_cost)
+                    unit->movement_stop_ = next_hex_id;
+                movepoints -= move_cost;
 
-                    movepoints -= move_cost;
-                }
                 unit->movements_.push_back(next_hex_id);
                 current_struct_id = 0;
             }
@@ -7656,11 +7649,6 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
         }
 
         unit->impact_description_.push_back("moves; left movepoints: "+ std::to_string(movepoints));
-
-        //in case we didn't spend all movement points, we stay where the last order finished
-        if (lost_information || unit->movement_stop_ == 0)
-            unit->movement_stop_ = hex_id;
-
     });
 
     for (auto& error : errors) {
@@ -7714,7 +7702,9 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
             return;
         }
 
-        if (!unit_control::is_struct_owner(unit) && order->words_order_.size() > 1)
+        bool is_owner = unit_control::is_struct_owner(unit) || 
+                        orders::autoorders::has_autoorders(order) == orders::autoorders::AO_TYPES::AO_OWNER;
+        if (!is_owner && order->words_order_.size() > 1)
         {
             errors.push_back({"Error", unit, "sail: order direction being non-owner"});
             return;
@@ -7738,7 +7728,6 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
         }
         
         long movepoints = ship->max_speed_;
-        bool lost_information = false;
         long hex_id = land->Id;
         long next_hex_id(0);
         CLand* cur_land = land;
@@ -7746,19 +7735,17 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
 
         for (size_t ord_index = 1; ord_index < order->words_order_.size(); ++ord_index)
         {
+            //have to be agnostic to cur_land & next_land pointers
             eDirection dir = moving::get_direction(order->words_order_[ord_index]);
             if (dir != Center)//not found
             {//parsing any direction order
-                next_hex_id = moving::get_next_hex_id(cur_land->pPlane, hex_id, dir);
+                next_hex_id = moving::get_next_hex_id((cur_land ? cur_land->pPlane : nullptr), hex_id, dir);
                 next_land = GetLand(next_hex_id);
                 
                 //exits check
                 if (moving::is_exit_closed(cur_land, dir) || 
                     moving::is_exit_closed(next_land, moving::reverse_direction(dir)))
                     errors.push_back({"Warning", unit, "sail: probably is going through the wall"});
-
-                if (next_land == nullptr)
-                    lost_information = true;
 
                 //land check
                 if (ship->travel_ == SHIP_TRAVEL::SAIL && 
@@ -7771,14 +7758,20 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
                 }
 
                 //calculate move points to verify stopping hex if order longer than unit can move
-                if (!lost_information && movepoints > 0)//no reason to calculate movepoints if there was lost information
+                if (next_land)
                 {
                     long move_cost = land_control::is_bad_weather(next_land, startMonth) ? 2 : 1;
                     if (movepoints >= move_cost)
                         unit->movement_stop_ = next_hex_id;
 
                     movepoints -= move_cost;
+                } 
+                else 
+                {
+                    movepoints -= 1;
+                    unit->impact_description_.push_back("sails: through unknown terrotiry, movepoints count may be wrong");
                 }
+                  
 
                 //logically perform the move
                 unit->movements_.push_back(next_hex_id);

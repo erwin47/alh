@@ -217,6 +217,7 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
             unit_name << std::string(ppu.second->Name.GetData(), ppu.second->Name.GetLength());//name of unit
             unit_name << " (:" << unit_control::get_item_amount(ppu.second, item_type, true) << "(";//initial amount of items
             unit_name << ppu.first << ") " << item_type << ")";//current amount of items
+            unit_name << " " << unit_control::flags::compose_flag_info(ppu.second);//current fullmoth action sign (to help determine what is the unit)
             unit_names.push_back(unit_name.str());
             unit_name_to_unit_[unit_name.str()] = {ppu.first, item_type, ppu.second};
         }

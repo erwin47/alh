@@ -53,6 +53,7 @@ namespace orders
         O_NOAID,
         O_NOCROSS,
         O_SPOILS,
+        O_JOIN,
         O_OPTION,
         O_PASSWORD,
         O_PILLAGE,
@@ -224,7 +225,8 @@ namespace orders
         enum class AO_TYPES {
             AO_NONE,
             AO_GET,
-            AO_CONDITION
+            AO_CONDITION,
+            AO_OWNER
         };
 
         enum class LogicAction {

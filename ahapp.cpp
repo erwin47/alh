@@ -2308,11 +2308,10 @@ void CAhApp::CheckTaxTrade()
         long tax_regions_amount_;
         long claim_requested_amount_;
         std::string full_report_;
+        std::map<std::string, long> full_income_;
     };
     std::map<long, FactionStats> output_stats;
-
-
-    std::stringstream trade_out;
+    std::stringstream tax_description;
 
     for (n=0; n<m_pAtlantis->m_Planes.Count(); n++)
     {
@@ -2328,33 +2327,10 @@ void CAhApp::CheckTaxTrade()
                 if (scoreboard.find(unit->FactionId) != scoreboard.end())
                     return;
 
-                auto tax_orders = orders::control::retrieve_orders_by_type(orders::Type::O_TAX, unit->orders_);
-                if (tax_orders.size() > 0)
+                if (unit_control::flags::is_taxing(unit) || unit_control::flags::is_pillaging(unit))
                 {
-                    output_stats[unit->FactionId].tax_regions_amount_++;
-                    scoreboard.insert(unit->FactionId);
-                    return;
-                }
-                auto pillage_orders = orders::control::retrieve_orders_by_type(orders::Type::O_PILLAGE, unit->orders_);
-                if (pillage_orders.size() > 0)
-                {
-                    output_stats[unit->FactionId].tax_regions_amount_++;
-                    scoreboard.insert(unit->FactionId);
-                    return;
-                }
-                auto autotax_orders = orders::control::retrieve_orders_by_type(orders::Type::O_AUTOTAX, unit->orders_);
-                if (autotax_orders.size() > 0)
-                {
-                    long flag = atol(autotax_orders[autotax_orders.size() - 1]->words_order_[1].c_str());
-                    if (flag == 1)
-                    {
-                        output_stats[unit->FactionId].tax_regions_amount_++;
-                        scoreboard.insert(unit->FactionId);
-                    }
-                    return;//in case that flag is set to 0, we don't want to check actual AUTOTAX flag.
-                }
-                if (unit->Flags & UNIT_FLAG_TAXING)
-                {
+                    output_stats[unit->FactionId].full_income_["SILV"] += std::min(pLand->current_state_.tax_.requested_, pLand->current_state_.tax_.amount_);
+                    output_stats[unit->FactionId].full_income_["Taxing men"] += pLand->current_state_.tax_.requesters_amount_;
                     output_stats[unit->FactionId].tax_regions_amount_++;
                     scoreboard.insert(unit->FactionId);
                     return;
@@ -2368,13 +2344,9 @@ void CAhApp::CheckTaxTrade()
                 for (const auto& ord : claim_orders)
                 {                    
                     if (orders::parser::specific::parse_claim(ord, amount))
-                    {
                         output_stats[unit->FactionId].claim_requested_amount_ += amount;
-                    }
                     else
-                    {
-                        //TODO: add warning
-                    }                    
+                        m_pAtlantis->OrderError("Error", pLand, unit, "claim: couldn't unparse");
                 }
             });
 
@@ -2417,6 +2389,12 @@ void CAhApp::CheckTaxTrade()
         ShowError(header.c_str(), header.size(), TRUE);
         ShowError(claim_amount.c_str(), claim_amount.size(), TRUE);
         ShowError(tax_amount.c_str(), tax_amount.size(), TRUE);
+        //ShowError("Income"+EOL_SCR, sizeof("Income")-1+sizeof(EOL_SCR), TRUE);
+        for (auto& stat : faction_stat.second.full_income_)
+        {
+            std::string temp = "    " + stat.first + " " + std::to_string(stat.second) + EOL_SCR;
+            ShowError(temp.c_str(), temp.size(), TRUE);
+        }
         ShowError(trade_amount.c_str(), trade_amount.size(), TRUE);
         ShowError(trade_detailed.c_str(), trade_detailed.size(), TRUE);
 
@@ -3518,6 +3496,7 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
             m_HexDescrSrc << "  Balance End: " << pLand->current_state_.economy_.initial_amount_ +
                                                        pLand->current_state_.economy_.tax_income_ +
                                                        pLand->current_state_.economy_.sell_income_ + 
+                                                       pLand->current_state_.economy_.work_income_ +
                                                        std::max(pLand->current_state_.economy_.moving_in_, (long)0) -
                                                        pLand->current_state_.economy_.buy_expenses_ -
                                                        pLand->current_state_.economy_.maintenance_ -

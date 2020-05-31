@@ -48,6 +48,7 @@ namespace orders
         {"NOAID", orders::Type::O_NOAID},
         {"NOCROSS", orders::Type::O_NOCROSS},
         {"SPOILS", orders::Type::O_SPOILS},
+        {"JOIN", orders::Type::O_JOIN},
         {"OPTION", orders::Type::O_OPTION},
         {"PASSWORD", orders::Type::O_PASSWORD},
         {"PILLAGE", orders::Type::O_PILLAGE},
@@ -124,6 +125,7 @@ namespace orders
         {orders::Type::O_NOAID, [](const std::vector<std::string>&) {  return true;  } },
         {orders::Type::O_NOCROSS, [](const std::vector<std::string>&) {  return true;  } },
         {orders::Type::O_SPOILS, [](const std::vector<std::string>&) {  return true;  } },
+        {orders::Type::O_JOIN, [](const std::vector<std::string>&) {  return true;  } },
         {orders::Type::O_OPTION, [](const std::vector<std::string>&) {  return true;  } },
         {orders::Type::O_PASSWORD, [](const std::vector<std::string>&) {  return true;  } },
         {orders::Type::O_PILLAGE, [](const std::vector<std::string>&) {  return true;  } },
@@ -906,6 +908,10 @@ namespace orders
                 order->comment_.find(";$WARN") != std::string::npos ||
                 order->comment_.find(";!WARN") != std::string::npos)
                 return AO_TYPES::AO_CONDITION;
+
+            if (order->comment_.find(";$OWNER") != std::string::npos ||
+                order->comment_.find(";!OWNER") != std::string::npos)
+                return AO_TYPES::AO_OWNER;                
             return AO_TYPES::AO_NONE;
         }
 

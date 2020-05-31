@@ -1321,7 +1321,6 @@ void CStruct::ResetNormalProperties()
 {
     TPropertyHolder::ResetNormalProperties();
     occupied_capacity_  = 0;
-    max_speed_ = 4;//basic
     SailingPower = 0;
 }
 

@@ -79,6 +79,8 @@ namespace unit_control
         long is_taxing(CUnit* unit);
         long is_producing(CUnit* unit);
         long is_moving(CUnit* unit);
+
+        std::string compose_flag_info(CUnit* unit);
     }
 
     bool is_leader(CUnit* unit);
