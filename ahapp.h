@@ -60,6 +60,7 @@ enum
     AH_LAYOUT_3_WIN           ,
     AH_LAYOUT_1_WIN           ,
     AH_LAYOUT_1_WIN_WIDE      ,
+    AH_LAYOUT_1_WIN_ONE_DESCR ,
 
     AH_LAYOUT_COUNT
 };
@@ -198,7 +199,10 @@ public:
     void                 ShowError (const char * msg, int msglen, BOOL ignore_disabled);
     long                 GetStudyCost   (const char * skill);
     const char         * ResolveAlias   (const char * alias);
-    long                 GetStructAttr  (const char * kind, long & MaxLoad, long & MinSailingPower);
+    //internal logic should work just with codename. Long name and plural -- for visual representation
+    //returns true on success
+    bool                 ResolveAliasItems(const std::string& phrase, std::string& codename, std::string& long_name, std::string& long_name_plural);
+    void                 SetAliasItems(const std::string& codename, const std::string& long_name, const std::string& long_name_plural);
     BOOL                 GetItemWeights (const char * item, int *& weights, const char **& movenames, int & movecount );
     void                 GetMoveNames(const char **& movenames);
 
@@ -208,11 +212,11 @@ public:
     BOOL                 IsMagicSkill   (const char * skill);
     const char *         GetWeatherLine (BOOL IsCurrent, BOOL IsGood, int Zone);
     void                 GetProdDetails (const char * item, TProdDetails & details);
-    long                 GetMaxRaceSkillLevel(const char * race, const char * skill, const char * leadership, BOOL IsArcadiaSkillSystem);
     BOOL                 CanSeeAdvResources(const char * skillname, const char * terrain, CLongColl & Levels, CBufColl & Resources);
     int                  GetAttitudeForFaction(int id);
     void                 SetAttitudeForFaction(int id, int attitude);
-
+    int                  getLayout() const; // it's not good to move it out, but UnitPane update actually controls other object
+    // which it shouldn't control, and this control have to be aligned with layout.
 
 
     int                  LoadReport(BOOL Join);
@@ -260,6 +264,7 @@ public:
     void                 CheckSailing();
     void                 CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & TaxDetails);
     void                 CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & TradeDetails);
+    bool                 GetTradeActivityDescription(CLand* land, std::map<int, std::vector<std::string>>& report);
     void                 CheckTaxTrade();
     void                 ExportHexes();
     void                 FindTradeRoutes();
@@ -278,12 +283,14 @@ public:
     void                 ShowShaftConnectGUI();
     void                 SetAllLandUnitFlags();
 
-    void                 GetUnitsMovingIntoHex(long HexId, CBaseColl &FoundUnits) const;
+    void                 GetUnitsMovingIntoHex(long HexId, std::vector<CUnit*>& stopped, std::vector<CUnit*>& ended_moveorder) const;
     void                 ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane);
     void                 ShowLandFinancial(CLand * pCurLand);
     void                 AddTempHex(int X, int Y, int Plane);
     void                 DelTempHex(int X, int Y, int Plane);
 
+    void                 CreateNewUnit(wxCommandEvent& event);
+    void                 UnitReceiveOrder(wxCommandEvent& event);
     void                 SelectNextUnit();
     void                 SelectPrevUnit();
     void                 SelectUnitsPane();

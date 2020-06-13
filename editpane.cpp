@@ -31,6 +31,8 @@
 #include "ahapp.h"
 #include "editpane.h"
 
+#include "data_control.h"
+
 //--------------------------------------------------------------------
 
 
@@ -196,8 +198,8 @@ void CEditPane::SetReadOnly(BOOL ReadOnly)
 
 void CEditPane::OnKillFocus()
 {
-    if (SaveModifications())
-        gpApp->EditPaneChanged(this);
+//    if (SaveModifications())
+//        gpApp->EditPaneChanged(this);
 }
 
 //--------------------------------------------------------------------
@@ -219,3 +221,56 @@ void CEditPane::OnMouseDClick()
 {
     gpApp->EditPaneDClicked(this);
 }
+
+//===========================================
+
+CUnitOrderEditPane::CUnitOrderEditPane(wxWindow *parent, const wxString &header, BOOL editable, int WhichFont)
+          :CEditPane(parent, header, editable, WhichFont )
+{
+    unit_ = NULL;
+#ifdef __APPLE__
+    m_pEditor->OSXDisableAllSmartSubstitutions();
+#endif
+    m_pEditor->Bind(wxEVT_TEXT, &CUnitOrderEditPane::OnOrderModified, this);
+}
+
+void CUnitOrderEditPane::OnOrderModified(wxCommandEvent& event)
+{
+    if (unit_ != NULL && m_pEditor->IsModified())
+    {
+        unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
+        unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));
+        m_pEditor->DiscardEdits();
+
+        //need to rerun orders for at least current land and land where it goes:
+        //CLand* land = land_control::get_land(unit_->LandId);
+        //gpApp->m_pAtlantis->RunLandOrders(land);
+    }
+}
+
+CUnitOrderEditPane::~CUnitOrderEditPane()
+{    
+}
+
+CUnit* CUnitOrderEditPane::change_representing_unit(CUnit* unit)
+{
+    //compose new unit orders label
+    int land_x, land_y, land_z;
+    LandIdToCoord(unit->LandId, land_x, land_y, land_z);
+    std::string label = unit_control::compose_unit_name(unit) + " in (" + std::to_string(land_x);
+    label += "," + std::to_string(land_y) + "," + std::to_string(land_z) + ")";
+    this->m_pHeader->SetLabel(label);
+    CUnit* prev_unit = unit_;
+    //if (m_pEditor->IsModified() && unit_ != NULL)
+    //if (unit_ != NULL)
+    //{
+    //    unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
+    //    unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));
+    //    m_pEditor->DiscardEdits();
+    //}
+    unit_ = unit;
+    m_pEditor->ChangeValue(unit_ ? wxString::FromUTF8(unit_->Orders.GetData()) : wxT(""));
+    return prev_unit;
+}
+
+

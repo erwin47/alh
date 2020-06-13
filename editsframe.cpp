@@ -92,7 +92,7 @@ void CEditsFrame::Init(int layout, const char * szConfigSection)
 
         p1 = new CEditPane(m_Splitter1, wxT("Hex description")        , FALSE, FONT_EDIT_DESCR);
         p2 = new CEditPane(m_Splitter2, wxT("Unit description")       , FALSE, FONT_EDIT_DESCR);
-        p3 = new CEditPane(m_Splitter3, wxT("Orders")                 , FALSE, FONT_EDIT_ORDER);
+        p3 = new CUnitOrderEditPane(m_Splitter3, wxT("Orders")                 , FALSE, FONT_EDIT_ORDER);
         p4 = new CEditPane(m_Splitter3, wxT("Comments/Default orders"), TRUE , FONT_EDIT_ORDER);
 
         SetPane(AH_PANE_MAP_DESCR    , p1);

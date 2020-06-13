@@ -219,6 +219,8 @@ void CHexFilterDlg::Init()
         m_cbProperty[count]->Append(wxT(""));
         m_cbCompare [count]->Append(wxT(""));
 
+        m_cbProperty[count]->Append(wxT("REG[NAME]"));
+
         for (i=0; i<gpApp->m_pAtlantis->m_LandPropertyNames.Count(); i++)
         {
             item = (const char *) gpApp->m_pAtlantis->m_LandPropertyNames.At(i);

@@ -188,6 +188,7 @@ protected:
     void      OnPopupMenuBattles (wxCommandEvent & event);
     void      OnPopupWhoMovesHere(wxCommandEvent & event);
     void      OnPopupFinancial   (wxCommandEvent & event);
+    void      OnPopupAutoOrders  (wxCommandEvent & event);
     void      OnPopupNewHex      (wxCommandEvent & event);
     void      OnPopupDeleteHex   (wxCommandEvent & event);
     void      OnPopupDistanceRing(wxCommandEvent & event);

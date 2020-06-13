@@ -90,6 +90,8 @@ enum
     menu_Popup_ShareSilv    ,
     menu_Popup_Teach        ,
     menu_Popup_Split        ,
+    menu_Popup_Create_New   ,
+    menu_Popup_ReceiveItems ,    
     menu_Popup_DiscardJunk  ,
     menu_Popup_DetectSpies  ,
     menu_Popup_Filter       ,
@@ -106,6 +108,7 @@ enum
     menu_Popup_IssueOrders  ,
     menu_Popup_WhoMovesHere ,
     menu_Popup_Financial    ,
+    menu_Popup_AutoOrders   ,
     menu_Popup_New_Hex      ,
     menu_Popup_Del_Hex      ,
     menu_Popup_DistanceRing ,
@@ -115,6 +118,8 @@ enum
     accel_PrevUnit          ,
     accel_UnitList          ,
     accel_Orders            ,
+    accel_CreateNewUnit     ,
+    accel_ReceiveOrder      ,
 
     // toolbar. order corresponds to one used in CMapFrame::MakeToolBar()
 
@@ -163,6 +168,7 @@ enum
 // config sections
 #define SZ_SECT_COLORS                  "COLORS"
 #define SZ_SECT_COMMON                  "COMMON"
+#define SZ_SECT_TAX_RULES               "TAX_RULES"
 #define SZ_SECT_FONTS                   "FONTS"
 #define SZ_SECT_FONTS_2                 "FONTS_2"
 #define SZ_SECT_UNITLIST_HDR            "UNIT_LIST_HDR"
@@ -170,6 +176,7 @@ enum
 #define SZ_SECT_UNITPROP_GROUPS         "UNIT_PROPERTY_GROUPS"
 #define SZ_SECT_STUDY_COST              "STUDYING_COST"
 #define SZ_SECT_ALIAS                   "ALIASES"
+#define SZ_SECT_ALIAS_ITEMS             "ALIASES_ITEMS"
 #define SZ_SECT_STRUCTS                 "STRUCTURES"
 #define SZ_SECT_PROD_SKILL              "PRODUCTION_SKILL"
 #define SZ_SECT_PROD_RESOURCE           "PRODUCTION_RESOURCE"
@@ -297,6 +304,7 @@ enum
 #define SZ_KEY_WATER_TERRAINS            "WATER_TERRAINS"
 #define SZ_KEY_CHECK_OUTPUT_LIST         "CHECK_OUTPUT_LIST"
 #define SZ_KEY_PWD_READ                  "READ_PWD_FROM_REP"
+#define SZ_KEY_AUTONAMING                "AUTONAMING"
 #define SZ_KEY_CHK_PROD_REQ              "IMMEDIATE_PROD_CHECK"
 #define SZ_KEY_VALID_ORDERS              "VALID_ORDERS"
 #define SZ_KEY_DASH_BAD_ROADS            "DASH_BAD_ROADS"
@@ -315,6 +323,9 @@ enum
 #define SZ_UNIT_MOVING_OUT               "UNIT_MOVING_OUT"
 #define SZ_UNIT_GUARDING                 "UNIT_GUARDING"
 #define SZ_UNIT_ARRIVING                 "UNIT_ARRIVING"
+#define SZ_UNIT_END_MOVEMENT_ORDER       "UNIT_END_MOVEMENT_ORDER"
+#define SZ_UNIT_HAS_ERRORS               "UNIT_HAS_ERRORS"
+#define SZ_UNIT_OWNS_BUILDING            "UNIT_OWNS_BUILDING"
 
 #define SZ_KEY_MAP_ROAD_OLD              "MAP_ROADS"
 #define SZ_KEY_MAP_ROAD_BAD_OLD          "MAP_ROADS_BAD"
@@ -403,6 +414,10 @@ enum
 #define SZ_KEY_WAGON_PULLERS             "WAGON_PULLERS"
 #define SZ_KEY_WAGON_CAPACITY            "WAGON_CAPACITY"
 
+#define SZ_KEY_SKILL_TAX                 "SKILL_TAX"
+#define SZ_KEY_NO_SKILL_TAX              "NO_SKILL_TAX"
+#define SZ_KEY_TAX_SKILL_LIST            "SKILLS_LIST"
+
 #define SZ_UPKEEP_LEADER                 "UPKEEP_LEADER"
 #define SZ_UPKEEP_PEASANT                "UPKEEP_PEASANT"
 
@@ -421,6 +436,7 @@ enum
 #define SZ_ATTR_STRUCT_ROAD_NW           "ROAD_NW"
 #define SZ_ATTR_STRUCT_MAX_LOAD          "MAX_LOAD"
 #define SZ_ATTR_STRUCT_MIN_SAIL          "MIN_POWER"
+#define SZ_ATTR_STRUCT_TRAVEL            "TRAVEL"
 
 #define SZ_LEADER                        "leader"
 #define SZ_HERO                          "hero"

@@ -46,6 +46,7 @@
 #include "atlaparser.h"
 #include "flagsdlg.h"
 #include "hexfilterdlg.h"
+#include "data_control.h"
 
 #include <math.h>
 
@@ -109,6 +110,7 @@ BEGIN_EVENT_TABLE(CMapPane, wxWindow)
     EVT_MENU             (menu_Popup_Battles      , CMapPane::OnPopupMenuBattles  )
     EVT_MENU             (menu_Popup_WhoMovesHere , CMapPane::OnPopupWhoMovesHere )
     EVT_MENU             (menu_Popup_Financial    , CMapPane::OnPopupFinancial    )
+    EVT_MENU             (menu_Popup_AutoOrders   , CMapPane::OnPopupAutoOrders   )
     EVT_MENU             (menu_Popup_New_Hex      , CMapPane::OnPopupNewHex       )
     EVT_MENU             (menu_Popup_Del_Hex      , CMapPane::OnPopupDeleteHex    )
     EVT_MENU             (menu_Popup_DistanceRing , CMapPane::OnPopupDistanceRing )
@@ -876,7 +878,7 @@ void CMapPane::DrawEdgeStructures(wxDC * pDC, CLand * pLand, wxPoint * point, in
             int xa2=0, ya2=0, xb2=0, yb2=0;
 
             CStruct               * pEdge = (CStruct*)pLand->EdgeStructs.At(i);
-            CEdgeStructProperties * pProps = GetEdgeProps(pEdge->Kind.GetData());
+            CEdgeStructProperties * pProps = GetEdgeProps(pEdge->type_.c_str());
 
             wxPen * pPen = pProps->pen;
             int offset = 1;
@@ -897,6 +899,7 @@ void CMapPane::DrawEdgeStructures(wxDC * pDC, CLand * pLand, wxPoint * point, in
             case EDGE_SHAPE_BORDER:
                 // parallel
                 if(pLand->Flags&LAND_IS_WATER) break;
+                
                 switch (pEdge->Location)
                 {
                 case North:
@@ -1136,21 +1139,20 @@ void CMapPane::DrawUnitColumn(wxDC * pDC, int x0, int y0, int height)
 
 //--------------------------------------------------------------------------
 
-#define SET_ROAD_PEN(attr)                                              \
-    BadRoad = FALSE;                                                    \
-    for (i=0; i<pLand->Structs.Count(); i++)                            \
-    {                                                                   \
-        pStruct = (CStruct*)pLand->Structs.At(i);                       \
-        if (pStruct->Attr & attr)                                       \
-        {                                                               \
-            BadRoad = ((pStruct->Attr & SA_ROAD_BAD) > 0);              \
-            break;                                                      \
-        }                                                               \
-    }                                                                   \
-    if (BadRoad)                                                        \
-        pDC->SetPen(*m_pPenRoadBad);                                    \
-    else                                                                \
-        pDC->SetPen(*m_pPenRoad);                                       \
+#define SET_ROAD_PEN(attr)                                                          \
+    std::vector<CStruct*> road_collection;                                          \
+    land_control::perform_on_each_struct(pLand, [&](CStruct* str) {                 \
+        if (str->Attr & attr)                                                       \
+            road_collection.push_back(str);                                         \
+    });                                                                             \
+    bool is_bad(true);                                                              \
+    for (auto& road : road_collection)                                              \
+        is_bad = is_bad && (road->Attr & SA_ROAD_BAD);                              \
+    if (is_bad)                                                                     \
+        pDC->SetPen(*m_pPenRoadBad);                                                \
+    else                                                                            \
+        pDC->SetPen(*m_pPenRoad);
+
 
 void CMapPane::DrawRoads(wxDC * pDC, CLand * pLand, int x0, int y0)
 {
@@ -2897,7 +2899,7 @@ void CMapPane::RedrawTracksForUnit(CPlane * pPlane, CUnit * pUnit, wxDC * pDC, B
     pDC->SetPen(*m_pPenSel);
 
     // draw new tracks and remember hexes
-    if (pUnit && pUnit->pMovement)
+    if (pUnit && pUnit->movements_.size() > 0)
     {
         LandIdToCoord(pUnit->LandId, X, Y, Z);
         if (Z == pPlane->Id)
@@ -2942,7 +2944,7 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
     long           n1;
     int            LocA3;
 
-    if (pUnit->pMovement && pUnit->pMoveA3Points && pUnit->pMoveA3Points->Count() == pUnit->pMovement->Count())
+    if (pUnit->movements_.size() > 0 && pUnit->pMoveA3Points && pUnit->pMoveA3Points->Count() == pUnit->movements_.size())
         Arcadia3Sail = TRUE;
 
     if (Arcadia3Sail && pUnit->GetProperty(PRP_STRUCT_ID, type, (const void *&)n1) && eLong==type)
@@ -2950,7 +2952,7 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
         pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
         if (pLand)
         {
-            pStruct  = pLand->GetStructById(n1);
+            pStruct  = land_control::get_struct(pLand, n1);
             if (pStruct && NO_LOCATION != pStruct->Location)
             {
                 wx_a = wx; wy_a = wy;
@@ -2959,10 +2961,10 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
         }
     }
 
-    if (!pUnit->pMovement)
+    if (pUnit->movements_.size() == 0)
         return;
 
-    for (i=0; i<pUnit->pMovement->Count(); i++)
+    for (long i = 0; i < pUnit->movements_.size(); ++i)
     {
         wx0 = wx;
         wy0 = wy;
@@ -2970,7 +2972,7 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
         wx0_a = wx_a;
         wy0_a = wy_a;
 
-        HexId = (long)pUnit->pMovement->At(i);
+        HexId = pUnit->movements_[i];
         LandIdToCoord(HexId, X1, Y1, Z1);
 
         // Prevent painting on a different level.
@@ -3014,13 +3016,13 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
             if (Arcadia3Sail)
             {
                 pDC->DrawLine(wx0_a, wy0_a, wx_a, wy_a);
-                if (i == pUnit->pMovement->Count()-1)
+                if (i == pUnit->movements_.size()-1)
                     DrawTrackArrow(pDC, wx0_a, wy0_a, wx_a, wy_a);
             }
             else
             {
                 pDC->DrawLine(wx0, wy0, wx, wy);
-                if (i == pUnit->pMovement->Count()-1)
+                if (i == pUnit->movements_.size()-1)
                     DrawTrackArrow(pDC, wx0, wy0, wx, wy);
             }
         }
@@ -3496,7 +3498,10 @@ void CMapPane::OnMouseEvent(wxMouseEvent& event)
         StartRectangle(xpos, ypos);
         GetHexNo(nx, ny, xpos, ypos);
         nx = gpApp->m_pAtlantis->NormalizeHexX(nx, pPlane);
-        SetSelection(nx, ny, gpApp->GetSelectedUnit(), pPlane, FALSE);
+        if (gpApp->getLayout() == AH_LAYOUT_1_WIN_ONE_DESCR)
+            SetSelection(nx, ny, gpApp->GetSelectedUnit(), pPlane, TRUE);
+        else
+            SetSelection(nx, ny, gpApp->GetSelectedUnit(), pPlane, FALSE);
     }
 
     else if (event.LeftUp())
@@ -3540,6 +3545,7 @@ void CMapPane::OnMouseEvent(wxMouseEvent& event)
             if (m_pPopupLand->Flags&LAND_BATTLE)
                 menu.Append(menu_Popup_Battles, wxT("Battles"));
             menu.Append(menu_Popup_Financial   , wxT("Financial details for the hex"));
+            menu.Append(menu_Popup_AutoOrders, wxT("Run autoorders for the hex"));
 
             if (0==strcmp(m_pPopupLand->Name.GetData(), SZ_MANUAL_HEX_PROVINCE))
                 menu.Append(menu_Popup_Del_Hex   , wxT("Remove Hex terrain"));
@@ -3629,7 +3635,8 @@ void CMapPane::MarkFoundHexes(CHexFilterDlg * pFilter)
         for (i=0; i<pPlane->Lands.Count(); i++)
         {
             pLand = (CLand*)pPlane->Lands.At(i);
-            if ( EvaluateBaseObjectByBoxes(pLand, Property, CompareOp, sValue, lValue, HEX_SIMPLE_FLTR_COUNT))
+            if (//evaluateLandByFilter(pLand, Property, CompareOp, sValue, lValue, HEX_SIMPLE_FLTR_COUNT) || 
+                EvaluateBaseObjectByBoxes(pLand, Property, CompareOp, sValue, lValue, HEX_SIMPLE_FLTR_COUNT))
             {
                 gpApp->m_pAtlantis->ComposeLandStrCoord(pLand, sCoord);
                 LandList << pLand->TerrainType << " (" << sCoord << ")" << EOL_SCR;
@@ -3767,6 +3774,21 @@ void CMapPane::OnPopupFinancial   (wxCommandEvent & event)
 
     pCurLand  = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
     gpApp->ShowLandFinancial(pCurLand);
+}
+
+void CMapPane::OnPopupAutoOrders(wxCommandEvent & event)
+{
+    CLand  * pCurLand;
+    pCurLand  = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
+    
+    land_control::perform_on_each_unit(pCurLand, [](CUnit* unit) {
+        orders::control::remove_orders_by_comment(unit, ";!AO");
+        orders::control::remove_orders_by_comment(unit, ";!ao");
+    });
+
+    gpApp->m_pAtlantis->RunLandOrders(pCurLand, TurnSequence::SQ_FIRST, TurnSequence::SQ_GIVE);
+
+    gpApp->m_pAtlantis->ApplyLandDefaultOrders(pCurLand);
 }
 
 //--------------------------------------------------------------------------

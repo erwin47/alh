@@ -13,8 +13,9 @@
 #include "hash.h"
 #include "objs.h"
 #include "stdhdr.h"
+#include "data_control.h"
 
-wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, ROUTE_MARKUP markup)
+wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, ROUTE_MARKUP markup, bool nocross, wxString& Log)
 {
     extern const char * Directions[]; // Definition is in atlaparser.cpp
 
@@ -25,7 +26,7 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, RO
     CLand * pLandExit;
     std::list<CLand *>::iterator HexOld;
     bool EraseLandFromList;
-    wxString Log;
+    //wxString Log;
 
     int x, y, x0, y0, z, i;
 
@@ -77,7 +78,7 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, RO
                             const bool hasRoad = gpApp->m_pAtlantis->IsRoadConnected(pLandCurrent, pLandExit, i);
                             Log << "    Found Exit to Land (" << x << " " << y << ")" << "\n";
 
-                            if (tryUpdateRoute(pLandCurrent, pLandExit, movementMode, startMonth, Directions[i + 6], hasRoad, markup))
+                            if (tryUpdateRoute(pLandCurrent, pLandExit, movementMode, startMonth, Directions[i + 6], hasRoad, markup, nocross))
                             {
                                 ListHex.push_back(pLandExit);
                                 if (pLandExit->Id == end->Id && bestSolution > pLandExit->TotalMovementCost)
@@ -91,20 +92,18 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, RO
                     }
                 }
                 // Try the shafts
-                CStruct    * pStruct;
-                for (int j=0; j<pLandCurrent->Structs.Count(); j++)
-                {
-                    pStruct = (CStruct*)pLandCurrent->Structs.At(j);
-                    if (pStruct->Attr & SA_SHAFT  )
+
+                land_control::perform_on_each_struct(pLandCurrent, [&](CStruct* structure) {
+                    if (struct_control::flags::is_shaft(structure))
                     {
                         Log << "      Found Shaft\n";
-                        if (pStruct->Description.FindSubStr("links to (") >= 0)
+                        if (struct_control::has_link(structure))
                         {
-                            pLandExit = gpApp->m_pAtlantis->GetLandFlexible(pStruct->Description.GetData());
+                            pLandExit = gpApp->m_pAtlantis->GetLandFlexible(structure->original_description_.c_str());
                             if (pLandExit)
                             {
                                 Log << "      Found connection to landExit\n";
-                                if (tryUpdateRoute(pLandCurrent, pLandExit, movementMode, startMonth, wxString::Format("%ld IN", pStruct->Id), false, markup))
+                                if (tryUpdateRoute(pLandCurrent, pLandExit, movementMode, startMonth, wxString::Format("%ld IN", structure->Id), false, markup, nocross))
                                 {
                                     ListHex.push_back(pLandExit);
                                     LandIdToCoord(pLandExit->Id, x, y, z);
@@ -115,11 +114,10 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, RO
                                     }
                                     Log << "      Adding Route through shaft to Land (" << x << "," << y << "," << z << ") with MP " << pLandExit->TotalMovementCost << "\n";
                                 }
-                            }
+                            }                            
                         }
-                        break;
                     }
-                }
+                });
             }
             HexOld = hexi;
             ++hexi;
@@ -166,7 +164,9 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, RO
 }
 
 
-bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const int movementMode, const int startMonth, const wxString moveCommand, const bool hasRoad, ROUTE_MARKUP markup)
+bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const int movementMode, 
+                                  const int startMonth, const wxString moveCommand, const bool hasRoad, 
+                                  ROUTE_MARKUP markup, bool nocross)
 {
     wxString route_markers;
     // Land Found, now determine whether this route is faster than the old route.
@@ -174,7 +174,11 @@ bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const
     if (oldTurn == 0) oldTurn = 1;
     int currentMonth = (startMonth + oldTurn - 1) % 12;
 
-    const int terrainCost = gpApp->m_pAtlantis->GetTerrainMovementCost(pLandExit->TerrainType.GetData());
+    int terrainCost = gpApp->m_pAtlantis->GetTerrainMovementCost(pLandExit->TerrainType.GetData());
+    if (nocross && land_control::is_water(pLandExit))
+    {
+        terrainCost = 999;
+    }
 
     int isBadWeather = gpApp->m_pAtlantis->IsBadWeatherHex(pLandExit, currentMonth);
 

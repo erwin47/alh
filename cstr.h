@@ -46,7 +46,7 @@ public:
     void         AddDouble(double dNum, int width, int precision);
     void         AddBuf(const void * szData, int iDataLen);
     void         InsBuf(const void * szData, int nPos, int iDataLen);
-    const char * GetData();
+    const char * GetData() const;
     void         Empty();
     const char * ToUpper();
     const char * ToLower();
@@ -69,7 +69,7 @@ public:
     BOOL         IsInteger();
 
     inline BOOL  IsEmpty()                           { return 0==m_nStrLen; }
-    inline int   GetLength()                         { return m_nStrLen;  }
+    inline int   GetLength() const                   { return m_nStrLen;  }
 
     inline CStr& operator<<(const char *  psz)       { AddStr(psz);  return *this;  }
     inline CStr& operator<<(char ch)                 { AddCh(ch);  return *this;  }

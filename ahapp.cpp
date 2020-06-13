@@ -21,6 +21,8 @@
 
 #include "wx/splitter.h"
 #include "wx/listctrl.h"
+#include <sstream>
+#include <algorithm>
 //#include "wx/resource.h"
 
 #include "files.h"
@@ -47,6 +49,7 @@
 #include "listcoledit.h"
 #include "optionsdlg.h"
 #include "flagsdlg.h"
+#include "data_control.h"
 
 #ifdef __WXMAC_OSX__
 #include <unistd.h>
@@ -104,6 +107,11 @@ CAhApp::~CAhApp()
 }
 
 //-------------------------------------------------------------------------
+int CAhApp::getLayout() const
+{
+    return m_layout;
+}
+
 
 bool CAhApp::OnInit()
 {
@@ -441,14 +449,15 @@ int CAhApp::OnExit()
 
 void CAhApp::CreateAccelerator()
 {
-    static wxAcceleratorEntry entries[5];
+    static wxAcceleratorEntry entries[7];
     entries[0].Set(wxACCEL_CTRL,  (int)'S',     menu_SaveOrders);
     entries[1].Set(wxACCEL_CTRL,  (int)'N',     accel_NextUnit );
     entries[2].Set(wxACCEL_CTRL,  (int)'P',     accel_PrevUnit );
     entries[3].Set(wxACCEL_CTRL,  (int)'U',     accel_UnitList );
     entries[4].Set(wxACCEL_CTRL,  (int)'O',     accel_Orders   );
-
-    m_pAccel = new wxAcceleratorTable(5, entries);
+    entries[5].Set(wxACCEL_CTRL,  (int)'F',     accel_CreateNewUnit );
+    entries[6].Set(wxACCEL_CTRL,  (int)'R',     accel_ReceiveOrder );
+    m_pAccel = new wxAcceleratorTable(7, entries);
 }
 
 //-------------------------------------------------------------------------
@@ -473,7 +482,7 @@ void CAhApp::ApplyFonts()
     if (m_Panes[AH_PANE_UNITS_HEX    ]) ((CUnitPane*)m_Panes[AH_PANE_UNITS_HEX    ])->ApplyFonts();
     if (m_Panes[AH_PANE_UNITS_FILTER ]) ((CUnitPane*)m_Panes[AH_PANE_UNITS_FILTER ])->ApplyFonts();
     if (m_Panes[AH_PANE_UNIT_DESCR   ]) ((CEditPane*)m_Panes[AH_PANE_UNIT_DESCR   ])->ApplyFonts();
-    if (m_Panes[AH_PANE_UNIT_COMMANDS]) ((CEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS])->ApplyFonts();
+    if (m_Panes[AH_PANE_UNIT_COMMANDS]) ((CUnitOrderEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS])->ApplyFonts();
     if (m_Panes[AH_PANE_UNIT_COMMENTS]) ((CEditPane*)m_Panes[AH_PANE_UNIT_COMMENTS])->ApplyFonts();
     if (m_Panes[AH_PANE_MSG          ]) ((CEditPane*)m_Panes[AH_PANE_MSG          ])->ApplyFonts();
 
@@ -945,70 +954,62 @@ void CAhApp::ShowError(const char * msg, int msglen, BOOL ignore_disabled)
 
 //-------------------------------------------------------------------------
 
-long CAhApp::GetStructAttr(const char * kind, long & MaxLoad, long & MinSailingPower)
-{
-    const char * attrlist;
-    const char * p;
-    CStr         S, Name;
-    long         attr = 0;
-
-    MaxLoad         = 0;
-    MinSailingPower = 0;
-
-    attrlist = GetConfig(SZ_SECT_STRUCTS, ResolveAlias(kind));
-    while (attrlist && *attrlist)
-    {
-        attrlist = S.GetToken(attrlist, ',', TRIM_ALL);
-        if (S.IsEmpty())
-            break;
-
-        if      (0==stricmp(SZ_ATTR_STRUCT_MOBILE , S.GetData()))      attr |= SA_MOBILE ;
-        else if (0==stricmp(SZ_ATTR_STRUCT_HIDDEN , S.GetData()))      attr |= SA_HIDDEN ;
-        else if (0==stricmp(SZ_ATTR_STRUCT_SHAFT  , S.GetData()))      attr |= SA_SHAFT  ;
-        else if (0==stricmp(SZ_ATTR_STRUCT_GATE   , S.GetData()))      attr |= SA_GATE   ;
-        else if (0==stricmp(SZ_ATTR_STRUCT_ROAD_N , S.GetData()))      attr |= SA_ROAD_N ;
-        else if (0==stricmp(SZ_ATTR_STRUCT_ROAD_NE, S.GetData()))      attr |= SA_ROAD_NE;
-        else if (0==stricmp(SZ_ATTR_STRUCT_ROAD_SE, S.GetData()))      attr |= SA_ROAD_SE;
-        else if (0==stricmp(SZ_ATTR_STRUCT_ROAD_S , S.GetData()))      attr |= SA_ROAD_S ;
-        else if (0==stricmp(SZ_ATTR_STRUCT_ROAD_SW, S.GetData()))      attr |= SA_ROAD_SW;
-        else if (0==stricmp(SZ_ATTR_STRUCT_ROAD_NW, S.GetData()))      attr |= SA_ROAD_NW;
-        else
-        {
-            // Two-token attributes, MaxLoad & MinSailingPower.
-            p = SkipSpaces(Name.GetToken(S.GetData(), ' ', TRIM_ALL));
-            if      (0==stricmp(SZ_ATTR_STRUCT_MAX_LOAD, Name.GetData()))   MaxLoad         = atol(p);
-            else if (0==stricmp(SZ_ATTR_STRUCT_MIN_SAIL, Name.GetData()))   MinSailingPower = atol(p);
-        }
-
-    }
-    if (0 == stricmp(kind, STRUCT_GATE))
-        attr |= SA_GATE; // to compensate for legacy missing gate flag in the config
-    return attr;
-}
-
-//-------------------------------------------------------------------------
-
 const char * CAhApp::ResolveAlias(const char * alias)
 {
-    const char * p;
-    const char * p1;
-    int          cnt = 0;
+    const char * p = SkipSpaces(GetConfig(SZ_SECT_ALIAS, alias));
+    if (p && *p)
+        return p;
+    return alias;
+}
 
-    p1 = alias;
-    do
+bool CAhApp::ResolveAliasItems(const std::string& phrase, std::string& codename, std::string& name, std::string& name_plural)
+{
+    const char* pkey;
+    const char* pvalue;
+    std::string current_codename, current_name, current_name_plural, value;
+    int sectidx = gpApp->GetSectionFirst(SZ_SECT_ALIAS_ITEMS, pkey, pvalue);
+    while (sectidx >= 0)
     {
-        p = SkipSpaces(GetConfig(SZ_SECT_ALIAS, p1));
-        if (p && *p)
-            p1 = p;
-        if (cnt++ > 20)  // don't play with recursy, man!
+        if (pkey == NULL || pvalue == NULL)
         {
-            p1 = alias;
-            break;
+            sectidx = gpApp->GetSectionNext(sectidx, SZ_SECT_ALIAS_ITEMS, pkey, pvalue);
+            continue;
         }
+        current_codename = pkey;
+        value = pvalue;
 
-    } while (p && *p);
+        size_t pos = value.find(",");
+        if (pos == std::string::npos)
+        {
+            sectidx = gpApp->GetSectionNext(sectidx, SZ_SECT_ALIAS_ITEMS, pkey, pvalue);
+            continue;
+        }
+        current_name = value.substr(0, pos);
+        current_name_plural = value.substr(pos+1);
 
-    return p1;
+        if (current_name.empty())
+            current_name = current_name_plural;
+        if (current_name_plural.empty())
+            current_name_plural = current_name;
+
+        if (stricmp(phrase.c_str(), current_codename.c_str()) == 0 || 
+            stricmp(phrase.c_str(), current_name.c_str()) == 0 ||
+            stricmp(phrase.c_str(), current_name_plural.c_str()) == 0)
+        {
+            codename = current_codename;
+            name = current_name;
+            name_plural = current_name_plural;
+            return true;
+        }
+        sectidx = gpApp->GetSectionNext(sectidx, SZ_SECT_ALIAS_ITEMS, pkey, pvalue);
+    }
+    return false;
+}
+
+void CAhApp::SetAliasItems(const std::string& codename, const std::string& long_name, const std::string& long_name_plural)
+{
+    std::string compose = long_name + "," + long_name_plural;
+    gpApp->SetConfig(SZ_SECT_ALIAS_ITEMS, codename.c_str(), compose.c_str());
 }
 
 //-------------------------------------------------------------------------
@@ -1201,136 +1202,24 @@ const char * CAhApp::GetWeatherLine(BOOL IsCurrent, BOOL IsGood, int Zone)
 
 //-------------------------------------------------------------------------
 
-long CAhApp::GetMaxRaceSkillLevel(const char * race, const char * skill, const char * leadership, BOOL IsArcadiaSkillSystem)
+void CAhApp::GetProdDetails(const char* item, TProdDetails& details)
 {
-    // we will cache it a bit...
-    long  level    = 0;
-    long  maxlevel = 0;
-    CStr  sKey;
-    CStr  sVal, S;
-    const char * p;
+    details.clear();
+    game_control::NameAndAmount skill_val = game_control::get_game_config_val<game_control::NameAndAmount>(SZ_SECT_PROD_SKILL, item);
+    details.skill_name_ = skill_val.name_;
+    details.skill_level_ = skill_val.amount_;
 
-    if (!leadership)
-        leadership = "";
-    sKey << race << ":" << leadership << ":" << skill;
+    std::vector<game_control::NameAndAmount> resources = game_control::get_game_config<game_control::NameAndAmount>(SZ_SECT_PROD_RESOURCE, item);
+    details.req_resources_.resize(resources.size());
+    std::transform(resources.begin(), resources.end(), details.req_resources_.begin(), 
+        [](const game_control::NameAndAmount& name_and_amount) {
+            return std::pair<std::string, double>(name_and_amount.name_, name_and_amount.amount_);
+    });
 
-    if (!m_MaxSkillHash.Locate(sKey.GetData(), (const void *&)level))
-    {
-        sVal = GetConfig(SZ_SECT_MAX_SKILL_LVL, race);
-        p = sVal.GetData();
-
-        p = S.GetToken(p, ',', TRIM_ALL);
-        maxlevel = atol(S.GetData());
-
-        p = S.GetToken(p, ',', TRIM_ALL);
-        level = atol(S.GetData());
-
-        while (p && *p)
-        {
-            p = S.GetToken(p, ',', TRIM_ALL);
-            if (0==stricmp(skill, S.GetData()))
-            {
-                level = maxlevel;
-                break;
-            }
-        }
-
-        if (IsArcadiaSkillSystem && *leadership)
-        {
-            if ( IsMagicSkill(skill))
-            {
-                if ( 0==stricmp(leadership, SZ_HERO))
-                {
-                    // reread magic skill
-                    sVal = GetConfig(SZ_SECT_MAX_MAG_SKILL_LVL, race);
-                    p = sVal.GetData();
-
-                    p = S.GetToken(p, ',', TRIM_ALL);
-                    maxlevel = atol(S.GetData());
-
-                    p = S.GetToken(p, ',', TRIM_ALL);
-                    level = atol(S.GetData());
-
-                    while (p && *p)
-                    {
-                        p = S.GetToken(p, ',', TRIM_ALL);
-                        if (0==stricmp(skill, S.GetData()))
-                        {
-                            level = maxlevel;
-                            break;
-                        }
-                    }
-                }
-                else
-                    level = 0;
-            }
-            else
-            {
-                // adjust for leadership
-                int leader_bonus, hero_bonus, bonus=0;
-
-                sVal = GetConfig(SZ_SECT_COMMON, SZ_KEY_LEAD_SKILL_BONUS);
-                p = sVal.GetData();
-
-                p = S.GetToken(p, ',', TRIM_ALL);
-                leader_bonus = atol(S.GetData());
-
-                p = S.GetToken(p, ',', TRIM_ALL);
-                hero_bonus = atol(S.GetData());
-
-                if (0==stricmp(leadership, SZ_LEADER))
-                    bonus = leader_bonus;
-                else
-                    if (0==stricmp(leadership, SZ_HERO))
-                        bonus = hero_bonus;
-                level += bonus;
-            }
-        }
-
-        m_MaxSkillHash.Insert(sKey.GetData(), (void*)level);
-    }
-
-    return level;
-}
-
-//-------------------------------------------------------------------------
-
-void CAhApp::GetProdDetails (const char * item, TProdDetails & details)
-{
-    CStr sVal, S;
-    const char * p;
-    int x;
-
-    details.Empty();
-    sVal = GetConfig(SZ_SECT_PROD_SKILL, item);
-    if (!sVal.IsEmpty())
-    {
-        S = details.skillname.GetToken(sVal.GetData(), ' ', TRIM_ALL);
-        details.skilllevel = atol(S.GetData());
-    }
-
-    sVal = GetConfig(SZ_SECT_PROD_RESOURCE, item);
-    x = 0;
-    p = sVal.GetData();
-    while (p && *p && x<MAX_RES_NUM)
-    {
-        p = details.resname[x].GetToken(SkipSpaces(p), ' ', TRIM_ALL);
-        p = S.GetToken(p, ',', TRIM_ALL);
-        details.resamt[x] = atol(S.GetData());
-        x++;
-    }
-
-    sVal = GetConfig(SZ_SECT_PROD_MONTHS, item);
-    if (!sVal.IsEmpty())
-        details.months = atol(sVal.GetData());
-
-    sVal = GetConfig(SZ_SECT_PROD_TOOL, item);
-    if (!sVal.IsEmpty())
-    {
-        S = details.toolname.GetToken(sVal.GetData(), ' ', TRIM_ALL);
-        details.toolhelp = atol(S.GetData());
-    }
-
+    details.per_month_ = game_control::get_game_config_val<double>(SZ_SECT_PROD_MONTHS, item);
+    game_control::NameAndAmount tool_val = game_control::get_game_config_val<game_control::NameAndAmount>(SZ_SECT_PROD_TOOL, item);
+    details.tool_name_ = tool_val.name_;
+    details.tool_plus_ = tool_val.amount_;
 }
 
 //-------------------------------------------------------------------------
@@ -2077,7 +1966,8 @@ void CAhApp::UpdateEdgeStructs()
                             for(k=pLand->EdgeStructs.Count()-1; k>=0; k--)
                             {
                                 pEdge = (CStruct*) pLand->EdgeStructs.At(k);
-                                if((pEdge != NULL) && (pEdge->Location == d))                          adj_land->AddNewEdgeStruct(pEdge->Kind.GetData(), adj_dir);
+                                if((pEdge != NULL) && (pEdge->Location == d))                          
+                                    adj_land->AddNewEdgeStruct(pEdge->type_.c_str(), adj_dir);
                             }
                         }
                         // set CoastBits
@@ -2125,7 +2015,6 @@ void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & Ta
 {
     int               x;
     CUnit           * pUnit;
-//    long              tax = pLand->Taxable;
     EValueType        type;
     long              men;
     CStr              sCoord;
@@ -2151,7 +2040,7 @@ void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & Ta
             }
             if (Factions.Insert(pDetail))
             {
-                pDetail->amount = pLand->Taxable;
+                pDetail->amount = pLand->current_state_.tax_.amount_;
                 pDetail->HexCount++;
             }
             if (pUnit->GetProperty(PRP_MEN, type, (const void *&)men, eNormal) && eLong==type)
@@ -2181,9 +2070,9 @@ void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & Ta
         while (x < 245);
 
         if (pDetail->amount > 0)
-            OneLine << wxT("is undertaxed by ") << pDetail->amount << wxT(" silv (") << 100 * (pLand->Taxable - pDetail->amount) / (pLand->Taxable+1) << wxT("% of $") << pLand->Taxable << wxT(").") << wxString::FromUTF8(EOL_SCR);
+            OneLine << wxT("is undertaxed by ") << pDetail->amount << wxT(" silv (") << 100 * (pLand->current_state_.tax_.amount_ - pDetail->amount) / (pLand->current_state_.tax_.amount_+1) << wxT("% of $") << pLand->current_state_.tax_.amount_ << wxT(").") << wxString::FromUTF8(EOL_SCR);
         else if (pDetail->amount<0)
-            OneLine << wxT("is overtaxed  by ") << (-pDetail->amount) << wxT(" silv (") << 100 * (pLand->Taxable - pDetail->amount) / (pLand->Taxable+1) << wxT("% of $") << pLand->Taxable << wxT(").") << wxString::FromUTF8(EOL_SCR);
+            OneLine << wxT("is overtaxed  by ") << (-pDetail->amount) << wxT(" silv (") << 100 * (pLand->current_state_.tax_.amount_ - pDetail->amount) / (pLand->current_state_.tax_.amount_+1) << wxT("% of $") << pLand->current_state_.tax_.amount_ << wxT(").") << wxString::FromUTF8(EOL_SCR);
         else
             OneLine << wxString::FromUTF8(EOL_SCR);
 
@@ -2194,6 +2083,92 @@ void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & Ta
 }
 
 //-------------------------------------------------------------------------
+bool CAhApp::GetTradeActivityDescription(CLand* land, std::map<int, std::vector<std::string>>& report)
+{
+    bool ret_val(false);
+    //resources
+    if (land->current_state_.produced_items_.size() > 0)
+    {
+        std::sort(land->current_state_.resources_.begin(), 
+                  land->current_state_.resources_.end(), 
+                  [](const CItem& it1, const CItem& it2){
+            return it2.amount_ < it1.amount_;
+        });
+
+        std::set<long> involved_factions;
+        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+            auto ret = orders::control::retrieve_orders_by_type(orders::Type::O_PRODUCE, unit->orders_);
+            if (ret.size() == 1)
+            {
+                std::string item;
+                long amount;
+                if (orders::parser::specific::parse_produce(ret[0], item, amount))
+                    involved_factions.insert(unit->FactionId);
+            }
+        });
+
+        for (const auto& resource : land->current_state_.resources_)
+        {
+            std::string reg_line = "    " + resource.code_name_ + " " + std::to_string(resource.amount_);
+
+            auto produce_it = std::find_if(land->current_state_.produced_items_.begin(), 
+                                           land->current_state_.produced_items_.end(), 
+                                            [&](const std::pair<std::string, long>& item) {
+                                        return resource.code_name_ == item.first;
+                            });
+
+            for (auto& factionId : involved_factions)
+            {
+                if (produce_it != land->current_state_.produced_items_.end())
+                {
+                    report[factionId].push_back(reg_line + " (requested: " + std::to_string(produce_it->second) + ")");
+                }
+                else 
+                {
+                    report[factionId].push_back(reg_line);
+                }
+            }
+        }
+
+        //products
+        for (const auto& product : land->current_state_.produced_items_)
+        {
+            auto resource_it = std::find_if(land->current_state_.resources_.begin(), 
+                                            land->current_state_.resources_.end(), 
+                                            [&](const CItem& item) {
+                                        return item.code_name_ == product.first;
+                            });
+
+            for (auto& factionId : involved_factions)
+            {
+                if (resource_it == land->current_state_.resources_.end())
+                {
+                    report[factionId].push_back("    produce: " + product.first + " " + std::to_string(product.second));
+                }
+            }
+        }
+        ret_val = true;
+    }
+
+    // compose building statistics
+    std::vector<unit_control::UnitError> errors;
+    std::vector<land_control::ActionUnit> build_orders;
+    land_control::get_land_builders(land, build_orders, errors);
+    for (auto& action : build_orders)
+    {
+        std::string temp = unit_control::compose_unit_name(action.unit_);
+        report[action.unit_->FactionId].push_back("    " + temp + " " + action.description_);
+        ret_val = true;
+    }
+    for (auto& error : errors)
+    {
+        std::string temp = unit_control::compose_unit_name(error.unit_);
+        report[error.unit_->FactionId].push_back("    " + temp + " " + error.type_ + ": " + error.message_);
+    }
+    //trade items
+    //TODO
+    return ret_val;
+}
 
 void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & TradeDetails)
 {
@@ -2202,7 +2177,7 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
     EValueType      type;
     long            men, lvl, tool, canproduce;
     CStr            sCoord, Skill;
-    CProduct      * pProd;
+    CItem      * pProd;
     TProdDetails    details;
     CTaxProdDetails * pFactionInfo = NULL;
     CTaxProdDetails   Dummy;
@@ -2213,12 +2188,12 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
 
     for (k=0; k<pLand->Products.Count(); k++)
     {
-        pProd = (CProduct*)pLand->Products.At(k);
-        if (0==pProd->Amount)
+        pProd = (CItem*)pLand->Products.At(k);
+        if (0==pProd->amount_)
             continue;
-        GetProdDetails(pProd->ShortName.GetData(), details);
+        GetProdDetails(pProd->code_name_.c_str(), details);
         Skill.Empty();
-        Skill << details.skillname << PRP_SKILL_POSTFIX;
+        Skill << details.skill_name_.c_str() << PRP_SKILL_POSTFIX;
 
         for (x=0; x<pLand->Units.Count(); x++)
         {
@@ -2235,11 +2210,11 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
                     TradeDetails.Insert(pFactionInfo);
                 }
                 if (Factions.Insert(pFactionInfo))
-                    pFactionInfo->amount = pProd->Amount;
+                    pFactionInfo->amount = pProd->amount_;
                 if (AllFactions.Insert(pFactionInfo) )
                     pFactionInfo->HexCount++;
 
-                if ( 0==stricmp(pUnit->ProducingItem.GetData(), pProd->ShortName.GetData()))
+                if ( 0==stricmp(pUnit->ProducingItem.GetData(), pProd->code_name_.c_str()))
                 {
                     if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)men, eNormal) || eLong!=type)
                         continue;
@@ -2248,13 +2223,13 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
                     if (!pUnit->GetProperty(Skill.GetData(), type, (const void *&)lvl, eNormal) || (eLong!=type) )
                         continue;
 
-                    if (!details.toolname.IsEmpty())
-                        if (!pUnit->GetProperty(details.toolname.GetData(), type, (const void *&)tool, eNormal) || eLong!=type )
+                    if (!details.tool_name_.empty())
+                        if (!pUnit->GetProperty(details.tool_name_.c_str(), type, (const void *&)tool, eNormal) || eLong!=type )
                             tool = 0;
                     if (tool > men)
                         tool = men;
 
-                    canproduce = (long)((((double)men)*lvl + tool*details.toolhelp) / details.months);
+                    canproduce = (long)((((double)men)*lvl + tool*details.tool_plus_) / details.per_month_);
                     pFactionInfo->amount -= canproduce;
                 }
             }
@@ -2287,7 +2262,7 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
             }
             while (x < 245 - prodBalanceWidth);
 
-            OneLine << prodBalance << " " << wxString::FromUTF8(pProd->ShortName.GetData());
+            OneLine << prodBalance << " " << wxString::FromUTF8(pProd->code_name_.c_str());
 
             do
             {
@@ -2296,10 +2271,10 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
             }
             while (x < 295);
 
-            const int percentage = 100 * (pProd->Amount - pFactionInfo->amount) / (pProd->Amount);
-            const int myProductionCapacity = pProd->Amount - pFactionInfo->amount;
+            const int percentage = 100 * (pProd->amount_ - pFactionInfo->amount) / (pProd->amount_);
+            const int myProductionCapacity = pProd->amount_ - pFactionInfo->amount;
 
-            OneLine << " (" << percentage << "%), " << myProductionCapacity << wxT("/") << pProd->Amount << wxT(".") << wxString::FromUTF8(EOL_SCR);
+            OneLine << " (" << percentage << "%), " << myProductionCapacity << wxT("/") << pProd->amount_ << wxT(".") << wxString::FromUTF8(EOL_SCR);
             pFactionInfo->Details << OneLine.ToUTF8();
         }
         Factions.DeleteAll();
@@ -2324,8 +2299,19 @@ void CAhApp::CheckTaxTrade()
     CLand             * pLand;
     CPlane            * pPlane;
     CTaxProdDetailsCollByFaction  Taxes;
-    CTaxProdDetailsCollByFaction  Trades;
+    //CTaxProdDetailsCollByFaction  Trades;
     CTaxProdDetails              *pDetails;
+
+    struct FactionStats 
+    {
+        long trade_regions_amount_;
+        long tax_regions_amount_;
+        long claim_requested_amount_;
+        std::string full_report_;
+        std::map<std::string, long> full_income_;
+    };
+    std::map<long, FactionStats> output_stats;
+    std::stringstream tax_description;
 
     for (n=0; n<m_pAtlantis->m_Planes.Count(); n++)
     {
@@ -2334,11 +2320,52 @@ void CAhApp::CheckTaxTrade()
         {
             pLand = (CLand*)pPlane->Lands.At(i);
 
+            //get tax amount
+            std::set<long> scoreboard;//<factionId>, one for region
+            land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {
+
+                if (scoreboard.find(unit->FactionId) != scoreboard.end())
+                    return;
+
+                if (unit_control::flags::is_taxing(unit) || unit_control::flags::is_pillaging(unit))
+                {
+                    output_stats[unit->FactionId].full_income_["SILV"] += std::min(pLand->current_state_.tax_.requested_, pLand->current_state_.tax_.amount_);
+                    output_stats[unit->FactionId].full_income_["Taxing men"] += pLand->current_state_.tax_.requesters_amount_;
+                    output_stats[unit->FactionId].tax_regions_amount_++;
+                    scoreboard.insert(unit->FactionId);
+                    return;
+                }
+            });
+
+            //get claim amount
+            land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {
+                long amount;
+                auto claim_orders = orders::control::retrieve_orders_by_type(orders::Type::O_CLAIM, unit->orders_);
+                for (const auto& ord : claim_orders)
+                {                    
+                    if (orders::parser::specific::parse_claim(ord, amount))
+                        output_stats[unit->FactionId].claim_requested_amount_ += amount;
+                    else
+                        m_pAtlantis->OrderError("Error", pLand, unit, "claim: couldn't unparse");
+                }
+            });
+
             if (pLand->Flags & LAND_TAX_NEXT)
                 CheckTaxDetails(pLand, Taxes);
 
-            if (pLand->Flags & LAND_TRADE_NEXT)
-                CheckTradeDetails(pLand, Trades);
+            std::map<int, std::vector<std::string>> reg_report;
+            if (GetTradeActivityDescription(pLand, reg_report))
+            {
+                for (auto& fact_rep : reg_report)
+                {
+                    ++output_stats[fact_rep.first].trade_regions_amount_;
+                    output_stats[fact_rep.first].full_report_.append(land_control::land_full_name(pLand) + EOL_SCR);
+                    for (auto& line : fact_rep.second)
+                    {
+                        output_stats[fact_rep.first].full_report_.append(line + std::string(EOL_SCR));
+                    }
+                }
+            }
         }
     }
     Report.Empty();
@@ -2348,17 +2375,31 @@ void CAhApp::CheckTaxTrade()
         Report << "Faction " << pDetails->FactionId << " : " << pDetails->HexCount << " TAX regions"   << EOL_SCR
                << pDetails->Details << EOL_SCR  << EOL_SCR;
     }
-    for (i=0; i<Trades.Count(); i++)
-    {
-        pDetails = (CTaxProdDetails*)Trades.At(i);
-        Report << "Faction " << pDetails->FactionId << " : " << pDetails->HexCount << " TRADE regions"   << EOL_SCR
-               << pDetails->Details << EOL_SCR  << EOL_SCR;
-    }
 
     Taxes.FreeAll();
-    Trades.FreeAll();
 
-    ShowError(Report.GetData()      , Report.GetLength()      , TRUE);
+    for (auto& faction_stat : output_stats)
+    {
+        std::string header = "Faction: " + std::to_string(faction_stat.first) + EOL_SCR;
+        std::string claim_amount = "Requested unclaim: " + std::to_string(faction_stat.second.claim_requested_amount_) + EOL_SCR;
+        std::string tax_amount = "Amount of tax regions: " + std::to_string(faction_stat.second.tax_regions_amount_) + EOL_SCR;
+        std::string trade_amount = "Amount of trade regions: " + std::to_string(faction_stat.second.trade_regions_amount_)+ std::string(EOL_SCR);
+        std::string trade_detailed = faction_stat.second.full_report_ + EOL_SCR;
+
+        ShowError(header.c_str(), header.size(), TRUE);
+        ShowError(claim_amount.c_str(), claim_amount.size(), TRUE);
+        ShowError(tax_amount.c_str(), tax_amount.size(), TRUE);
+        //ShowError("Income"+EOL_SCR, sizeof("Income")-1+sizeof(EOL_SCR), TRUE);
+        for (auto& stat : faction_stat.second.full_income_)
+        {
+            std::string temp = "    " + stat.first + " " + std::to_string(stat.second) + EOL_SCR;
+            ShowError(temp.c_str(), temp.size(), TRUE);
+        }
+        ShowError(trade_amount.c_str(), trade_amount.size(), TRUE);
+        ShowError(trade_detailed.c_str(), trade_detailed.size(), TRUE);
+
+
+    }
 }
 
 //-------------------------------------------------------------------------
@@ -2400,30 +2441,26 @@ void CAhApp::CheckProduction()
 
 void CAhApp::CheckSailing()
 {
-    int    n, i, x;
-    CLand  * pLand;
-    CPlane * pPlane;
-    CStruct* pStruct;
     CStr     Error(64), S(32), sCoord(32);
 
-    for (n=0; n<m_pAtlantis->m_Planes.Count(); n++)
+    for (int n=0; n<m_pAtlantis->m_Planes.Count(); n++)
     {
-        pPlane = (CPlane*)m_pAtlantis->m_Planes.At(n);
-        for (i=0; i<pPlane->Lands.Count(); i++)
+        CPlane* pPlane = (CPlane*)m_pAtlantis->m_Planes.At(n);
+        for (int i=0; i<pPlane->Lands.Count(); i++)
         {
-            pLand = (CLand*)pPlane->Lands.At(i);
-            m_pAtlantis->ComposeLandStrCoord(pLand, sCoord);
-            for (x=0; x<pLand->Structs.Count(); x++)
-            {
-                pStruct = (CStruct*)pLand->Structs.At(x);
-                if ((pStruct->Attr & SA_MOBILE) && pStruct->SailingPower > 0)
+            CLand* land = (CLand*)pPlane->Lands.At(i);
+            m_pAtlantis->ComposeLandStrCoord(land, sCoord);
+
+            land_control::perform_on_each_struct(land, [&](CStruct* structure) {
+                if (struct_control::flags::is_ship(structure) && 
+                    structure->SailingPower > 0)
                 {
-                    if (pStruct->Load > pStruct->MaxLoad)
-                        Error << pLand->TerrainType << " (" << sCoord << ") - Ship " << pStruct->Id << " is overloaded by " << (pStruct->Load - pStruct->MaxLoad) << "." << EOL_SCR;
-                    if (pStruct->SailingPower < pStruct->MinSailingPower)
-                        Error << pLand->TerrainType << " (" << sCoord << ") - Ship " << pStruct->Id << " is underpowered by " << (pStruct->MinSailingPower - pStruct->SailingPower) << "." << EOL_SCR;
+                    if (structure->occupied_capacity_ > structure->capacity_)
+                        Error << land->TerrainType << " (" << sCoord << ") - Ship " << structure->Id << " is overloaded by " << (structure->occupied_capacity_ - structure->capacity_) << "." << EOL_SCR;
+                    if (structure->SailingPower < structure->MinSailingPower)
+                        Error << land->TerrainType << " (" << sCoord << ") - Ship " << structure->Id << " is underpowered by " << (structure->MinSailingPower - structure->SailingPower) << "." << EOL_SCR;                    
                 }
-            }
+            });
         }
     }
 
@@ -2578,8 +2615,9 @@ void CAhApp::PostLoadReport()
             pPlane = (CPlane*)m_pAtlantis->m_Planes.At(n);
             for (i=0; i<pPlane->Lands.Count(); i++)
             {
-                ((CLand*)pPlane->Lands.At(i))->CalcStructsLoad();
-                ((CLand*)pPlane->Lands.At(i))->SetFlagsFromUnits(); // maybe not needed here...
+                CLand* land = (CLand*)pPlane->Lands.At(i);
+                land_control::structures::update_struct_weights(land);
+                land->SetFlagsFromUnits(); // maybe not needed here...
             }
         }
     }
@@ -2802,7 +2840,7 @@ int  CAhApp::LoadReport(BOOL Join)
 
 //-------------------------------------------------------------------------
 
-void CAhApp::EditPaneChanged(CEditPane * pPane)
+void CAhApp::EditPaneChanged(CEditPane * pPane) //not actually used at all ??
 {
     CMapPane  * pMapPane  = (CMapPane* )m_Panes[AH_PANE_MAP];
     CLand     * pLand;
@@ -2815,11 +2853,6 @@ void CAhApp::EditPaneChanged(CEditPane * pPane)
 
         if (pPane == m_Panes[AH_PANE_UNIT_COMMANDS])
         {
-            // selected unit's orders have been changed
-
-            // TBD: is it needed? m_pCurLand->guiUnit = m_pUnitListPane->GetCurrentUnitId();
-            if (pLand->guiUnit)
-            m_pAtlantis->RunOrders(pLand);
             UpdateHexUnitList(pLand);
             UpdateHexEditPane(pLand);
             SetOrdersChanged(m_OrdersAreChanged); // this hack is needed since EditPanes are modifying the vars directly...
@@ -2842,7 +2875,7 @@ void CAhApp::EditPaneChanged(CEditPane * pPane)
 void CAhApp::SelectTempUnit(CUnit * pUnit)
 {
     CEditPane   * pDescription = (CEditPane*)m_Panes[AH_PANE_UNIT_DESCR   ];
-    CEditPane   * pOrders      = (CEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS];
+    CUnitOrderEditPane   * pOrders      = (CUnitOrderEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS];
     CEditPane   * pComments    = (CEditPane*)m_Panes[AH_PANE_UNIT_COMMENTS];
 
     OnUnitHexSelectionChange(-1); // unselect
@@ -2855,8 +2888,8 @@ void CAhApp::SelectTempUnit(CUnit * pUnit)
         pDescription->SetSource(&m_UnitDescrSrc, NULL);
     if (pOrders)
     {
-        pOrders->SetSource(NULL, NULL);
-        pOrders->SetReadOnly ( TRUE );
+        pOrders->change_representing_unit(NULL);
+        pOrders->SetReadOnly(TRUE);
         pOrders->ApplyFonts();
     }
     if (pComments)
@@ -2926,9 +2959,9 @@ void CAhApp::SelectLand(CLand * pLand)
         if (refresh)
             pMapPane->Refresh(FALSE);
 
-
-        if (!pUnitPane || pLand != pUnitPane->m_pCurLand)
-            pMapPane->SetSelection(nx, ny, NULL, pPlane, TRUE);
+	if ((m_layout == AH_LAYOUT_1_WIN_ONE_DESCR) ||
+            (!pUnitPane || pLand != pUnitPane->m_pCurLand))
+        pMapPane->SetSelection(nx, ny, NULL, pPlane, TRUE);
     }
 }
 
@@ -3340,25 +3373,136 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
     {
         if (pLand)
         {
-            m_HexDescrSrc << pLand->Description;
+            std::string reg_description(pLand->Description.GetData(), pLand->Description.GetLength());
+            if (pLand->current_state_.tax_.requesters_amount_)
+            {
+                size_t ins_pos = reg_description.find("-----------------------------");
+                while(ins_pos != std::string::npos && ins_pos > 0 && reg_description[ins_pos] != '.')
+                    --ins_pos;
+
+                long tax_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER);
+                std::string tax_insertion = " (" + std::to_string(pLand->current_state_.tax_.requesters_amount_) + 
+                            "/" + std::to_string((pLand->current_state_.tax_.amount_-1)/tax_per_man +1) + ")";
+                reg_description.insert(ins_pos, tax_insertion);
+            }
+
+            if (pLand->current_state_.work_.requesters_amount_)
+            {
+                size_t ins_pos = reg_description.find("Wages: ");
+                ins_pos = reg_description.find('.', ins_pos);
+                if (std::isdigit(reg_description[ins_pos+1]))//if next symbol is digit, we are in a float wages
+                    ins_pos = reg_description.find('.', ins_pos+1);
+
+                std::string work_insertion = " " + std::to_string(pLand->current_state_.work_.requesters_amount_) + 
+                            "/" + std::to_string(long((pLand->current_state_.work_.amount_-1)/pLand->Wages)+1);
+                reg_description.insert(ins_pos, work_insertion);
+            }   
+
+            if (pLand->current_state_.entertain_.requesters_amount_)
+            {
+                size_t ins_pos = reg_description.find("Entertainment available: ");
+                if (ins_pos != std::string::npos)
+                {
+                    ins_pos = reg_description.find('.', ins_pos);
+
+                    long ente_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_ENTERTAINMENT_SILVER);
+                    std::string entertain_insertion = " (" + std::to_string(pLand->current_state_.entertain_.requesters_amount_) + 
+                                "/" + std::to_string(long((pLand->current_state_.entertain_.amount_-1)/ente_per_man)+1) + ")";
+                    reg_description.insert(ins_pos, entertain_insertion);
+                }
+            }                       
+
+            if (pLand->current_state_.sold_items_.size() > 0)
+            {
+                size_t beg_pos = reg_description.find("Wanted: ");
+                size_t end_pos = reg_description.find('.', beg_pos);
+                for (const auto& pair : pLand->current_state_.sold_items_)
+                {
+                    auto it = std::search(reg_description.begin()+beg_pos, reg_description.begin()+end_pos, 
+                              pair.first.begin(), pair.first.end());
+                    if (it != reg_description.begin()+beg_pos)
+                    {
+                        size_t ins_pos = it - reg_description.begin();
+                        while (ins_pos > beg_pos && !std::isdigit(reg_description[ins_pos]))
+                            --ins_pos;
+                        ++ins_pos;
+                        
+                        std::string buy_insertion = " (-"+std::to_string(pair.second)+")";
+                        reg_description.insert(ins_pos, buy_insertion);
+                    }
+                }
+            }
+
+            if (pLand->current_state_.bought_items_.size() > 0)
+            {
+                size_t beg_pos = reg_description.find("For Sale: ");
+                size_t end_pos = reg_description.find('.', beg_pos);
+                for (const auto& pair : pLand->current_state_.bought_items_)
+                {
+                    auto it = std::search(reg_description.begin()+beg_pos, reg_description.begin()+end_pos, 
+                              pair.first.begin(), pair.first.end());
+                    if (it != reg_description.begin()+beg_pos)
+                    {
+                        size_t ins_pos = it - reg_description.begin();
+                        while (ins_pos > beg_pos && !std::isdigit(reg_description[ins_pos]))
+                            --ins_pos;
+                        ++ins_pos;
+                        
+                        std::string sell_insertion = " (-"+std::to_string(pair.second)+")";
+                        reg_description.insert(ins_pos, sell_insertion);
+                    }
+                }
+            }            
+
+            m_HexDescrSrc << reg_description.c_str();
 
             m_HexDescrSrc << EOL_SCR;
-            m_pAtlantis->ComposeProductsLine(pLand, EOL_SCR, m_HexDescrSrc);
+            std::stringstream ss;
+            m_pAtlantis->compose_products_detailed(pLand, ss);
+            m_HexDescrSrc << ss.str().c_str();
 
-            if (pLand->Structs.Count()>0)
+            if (pLand->current_state_.structures_.size()>0)
             {
                 m_HexDescrSrc.TrimRight(TRIM_ALL);
                 m_HexDescrSrc << EOL_SCR << "-----------" << EOL_SCR;
-                for (i=0; i<pLand->Structs.Count(); i++)
-                {
-                    pStruct = (CStruct*)pLand->Structs.At(i);
-                    m_HexDescrSrc << pStruct->Description;
-                    m_HexDescrSrc.TrimRight(TRIM_ALL);
-                    if (pStruct->Attr & SA_MOBILE)
-                        m_HexDescrSrc << " Load: " << pStruct->Load << ", Power: " << pStruct->SailingPower << ".";
-                    m_HexDescrSrc << EOL_SCR;
-                }
             }
+
+            land_control::perform_on_each_struct(pLand, [&](CStruct* structure) {
+                m_HexDescrSrc << structure->original_description_.c_str();
+                m_HexDescrSrc.TrimRight(TRIM_ALL); 
+                if (struct_control::flags::is_ship(structure)) {
+                    m_HexDescrSrc << " Forecast: Load[" << structure->occupied_capacity_ << 
+                    "/" << structure->capacity_ << "], Power[" << structure->SailingPower << 
+                    "/" << structure->MinSailingPower << "].";                        
+                }
+                m_HexDescrSrc << EOL_SCR;
+            });
+            
+            m_HexDescrSrc << EOL_SCR << "Economy:" << EOL_SCR;
+            m_HexDescrSrc << "    Initial amount:  " << pLand->current_state_.economy_.initial_amount_ << EOL_SCR;
+            m_HexDescrSrc << "    Claim:           +unknown" << EOL_SCR;
+            m_HexDescrSrc << "    Tax/pillage:     +" << pLand->current_state_.economy_.tax_income_ << EOL_SCR;
+            m_HexDescrSrc << "    Sell income:     +" << pLand->current_state_.economy_.sell_income_ << EOL_SCR;
+            m_HexDescrSrc << "    Buy expenses:    -" << pLand->current_state_.economy_.buy_expenses_ << EOL_SCR;
+            m_HexDescrSrc << "  Balance:     " << pLand->current_state_.economy_.initial_amount_ +
+                                                   pLand->current_state_.economy_.tax_income_ +
+                                                   pLand->current_state_.economy_.sell_income_ - 
+                                                   pLand->current_state_.economy_.buy_expenses_ << EOL_SCR;
+            m_HexDescrSrc << "    Moving in:       +" << std::max(pLand->current_state_.economy_.moving_in_, (long)0) << EOL_SCR;
+            m_HexDescrSrc << "    Moving out:      -" << std::max(pLand->current_state_.economy_.moving_out_, (long)0) << EOL_SCR;             
+            m_HexDescrSrc << "    Study expenses:  -" << pLand->current_state_.economy_.study_expenses_ << EOL_SCR;
+            m_HexDescrSrc << "    Work/enterntain: +" << pLand->current_state_.economy_.work_income_ << EOL_SCR;
+            m_HexDescrSrc << "    Maintenance:     -" << pLand->current_state_.economy_.maintenance_ << EOL_SCR;
+            m_HexDescrSrc << "  Balance End: " << pLand->current_state_.economy_.initial_amount_ +
+                                                       pLand->current_state_.economy_.tax_income_ +
+                                                       pLand->current_state_.economy_.sell_income_ + 
+                                                       pLand->current_state_.economy_.work_income_ +
+                                                       std::max(pLand->current_state_.economy_.moving_in_, (long)0) -
+                                                       pLand->current_state_.economy_.buy_expenses_ -
+                                                       pLand->current_state_.economy_.maintenance_ -
+                                                       std::max(pLand->current_state_.economy_.moving_out_, (long)0) - 
+                                                       pLand->current_state_.economy_.study_expenses_ << EOL_SCR;
+            
 
             for (i=0; i<LAND_FLAG_COUNT; i++)
                 if (!pLand->FlagText[i].IsEmpty())
@@ -3366,7 +3510,6 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
                     FlagsEmpty = FALSE;
                     break;
                 }
-
 
             if (!FlagsEmpty)
             {
@@ -3378,11 +3521,20 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
                         m_HexDescrSrc << EOL_SCR << pLand->FlagText[i];
             }
 
+            //events/exits
             if (!pLand->Events.IsEmpty() &&
                  0 != stricmp(SkipSpaces(pLand->Events.GetData()), "none")
                )
                 m_HexDescrSrc << EOL_SCR << "Events:" << EOL_SCR << pLand->Events << EOL_SCR;
             m_HexDescrSrc << EOL_SCR << "Exits:"  << EOL_SCR << pLand->Exits;
+
+            //errors
+            if (pLand->current_state_.run_orders_errors_.size() > 0)
+                m_HexDescrSrc << EOL_SCR << "Errors:" << EOL_SCR;
+            for (const auto& error : pLand->current_state_.run_orders_errors_)
+            {
+                m_HexDescrSrc << "    " << unit_control::compose_unit_name(error.unit_).c_str() << error.message_.c_str() << EOL_SCR;
+            }
         }
         pEditPane->SetSource(&m_HexDescrSrc, NULL);
     }
@@ -3394,22 +3546,37 @@ void CAhApp::UpdateHexUnitList(CLand * pLand)
 {
     CUnitPane   * pUnitPane = (CUnitPane*)m_Panes[AH_PANE_UNITS_HEX];
 
+    if (pLand != nullptr)
+        m_pAtlantis->RunLandOrders(pLand);
+    //m_pAtlantis->RunOrders(pLand, TurnSequence::SQ_FIRST, TurnSequence::SQ_BUY);
+
     if (pUnitPane)
         pUnitPane->Update(pLand);
+
+    //m_pAtlantis->RunOrders(pLand, TurnSequence::SQ_FORGET, TurnSequence::SQ_LAST);
+    
 }
 
 //-------------------------------------------------------------------------
 
 void CAhApp::OnMapSelectionChange()
 {
-    CLand       * pLand    = NULL;
-    CMapPane    * pMapPane = (CMapPane* )m_Panes[AH_PANE_MAP];
+    CLand* land    = NULL;
+    CMapPane* pMapPane = (CMapPane* )m_Panes[AH_PANE_MAP];
 
     if (pMapPane)
-        pLand   = m_pAtlantis->GetLand(pMapPane->m_SelHexX, pMapPane->m_SelHexY, pMapPane->m_SelPlane, TRUE);
+        land   = m_pAtlantis->GetLand(pMapPane->m_SelHexX, pMapPane->m_SelHexY, pMapPane->m_SelPlane, TRUE);
 
-    UpdateHexEditPane(pLand);  // NULL is Ok!
-    UpdateHexUnitList(pLand);
+    //if (land != NULL) {
+    //    m_pAtlantis->RunLandOrders(land);
+    //}
+
+    UpdateHexUnitList(land);
+    UpdateHexEditPane(land);  // NULL is Ok!
+
+    CUnitPane* pUnitPane = reinterpret_cast<CUnitPane*>(m_Panes[AH_PANE_UNITS_HEX]);
+    pUnitPane->DeselectAll();
+    pMapPane->SetFocus();
     SetMapFrameTitle();
 }
 
@@ -3424,7 +3591,7 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
 
     BOOL          ReadOnly = TRUE;
     CEditPane   * pDescription;
-    CEditPane   * pOrders;
+    CUnitOrderEditPane   * pOrders;
     CEditPane   * pComments;
     CUnit       * pUnit;
 
@@ -3432,19 +3599,28 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
     pUnit        = GetSelectedUnit(); // depends on m_SelUnitIdx
 
     pDescription = (CEditPane*)m_Panes[AH_PANE_UNIT_DESCR   ];
-    pOrders      = (CEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS];
+    pOrders      = (CUnitOrderEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS];
     pComments    = (CEditPane*)m_Panes[AH_PANE_UNIT_COMMENTS];
 
     m_UnitDescrSrc.Empty();
 
     if (pUnit)
     {
-        m_UnitDescrSrc = pUnit->Description;
-        if (!pUnit->Errors.IsEmpty())
-            m_UnitDescrSrc << " ***** Errors:\r\n" << pUnit->Errors;
-        if (!pUnit->Events.IsEmpty())
-            m_UnitDescrSrc << " ----- Events:\r\n" << pUnit->Events;
+        m_UnitDescrSrc << unit_control::get_initial_description(pUnit).c_str() << EOL_SCR;
 
+        for (const std::string& impact_descr : pUnit->impact_description_)
+            m_UnitDescrSrc << ";" << impact_descr.c_str() << "." << EOL_SCR;
+        m_UnitDescrSrc << EOL_SCR;
+
+        m_UnitDescrSrc << unit_control::get_actual_description(pUnit).c_str() << EOL_SCR;
+
+        if (!IS_NEW_UNIT(pUnit)) 
+        {
+            if (!pUnit->Errors.IsEmpty())
+                m_UnitDescrSrc << " ***** Errors:" << EOL_SCR << pUnit->Errors;
+            if (!pUnit->Events.IsEmpty())
+                m_UnitDescrSrc << " ----- Events:" << EOL_SCR << pUnit->Events;
+        }
         ReadOnly = (!pUnit->IsOurs || pUnit->Id<=0) ;
     }
 
@@ -3455,13 +3631,8 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
         pDescription->SetSource(&m_UnitDescrSrc, NULL);
     if (pOrders)
     {
-        if (pOrders->m_pEditor->IsModified())
-        {
-            pOrders->OnKillFocus();
-        }
-
-        pOrders->SetSource(pUnit?&pUnit->Orders:NULL,      &m_OrdersAreChanged);
-        pOrders->SetReadOnly ( ReadOnly );
+        pOrders->change_representing_unit(pUnit);
+        pOrders->SetReadOnly(ReadOnly);
         pOrders->ApplyFonts();
     }
     if (pComments)
@@ -3469,11 +3640,10 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
         if (pComments->m_pEditor->IsModified())
         {
             // OnKillFocus event for the editor did not fire up
-            pComments->OnKillFocus();
+            pComments->SaveModifications();
         }
         pComments->SetSource(pUnit?&pUnit->DefOrders:NULL, &m_CommentsChanged);
     }
-
     RedrawTracks();
 }
 
@@ -4186,7 +4356,7 @@ void CAhApp::CheckMonthLongOrders()
 
 //--------------------------------------------------------------------------
 
-void CAhApp::GetUnitsMovingIntoHex(long HexId, CBaseColl &FoundUnits) const
+void CAhApp::GetUnitsMovingIntoHex(long HexId, std::vector<CUnit*>& stopped, std::vector<CUnit*>& ended_moveorder) const
 {
     CLand          * pLand;
     CUnit          * pUnit;
@@ -4201,16 +4371,16 @@ void CAhApp::GetUnitsMovingIntoHex(long HexId, CBaseColl &FoundUnits) const
             for (nl=0; nl<pPlane->Lands.Count(); nl++)
             {
                 pLand = (CLand*)pPlane->Lands.At(nl);
-                for (nu=0; nu<pLand->Units.Count(); nu++)
-                {
-                    pUnit = (CUnit*)pLand->Units.At(nu);
-                    if (pUnit->pMovement && pUnit->pMovement->Count()>0)
+                land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {
+                    if (unit->movements_.size() > 0)
                     {
-                        unitHexId = (long)pUnit->pMovement->At(pUnit->pMovement->Count()-1);
-                        if (HexId==unitHexId)
-                            FoundUnits.Insert(pUnit);
+                        long last_hex_movements = unit->movements_[unit->movements_.size()-1];
+                        if (unit->movement_stop_ == HexId)
+                            stopped.push_back(unit);
+                        else if (last_hex_movements == HexId)
+                            ended_moveorder.push_back(unit);//should be filled just if its not `stopped`
                     }
-                }
+                });
             }
         }
     }
@@ -4222,11 +4392,12 @@ void CAhApp::ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane)
     int              i;
     CUnitPaneFltr  * pUnitPaneF = NULL;
     CStr             UnitText(128), S(16);
-    CBaseColl        FoundUnits;
 
-    GetUnitsMovingIntoHex(CurHexId, FoundUnits);
+    std::vector<CUnit*> stopping;
+    std::vector<CUnit*> ending_moving_orders;
+    GetUnitsMovingIntoHex(CurHexId, stopping, ending_moving_orders);
 
-    if (FoundUnits.Count() > 0)
+    if (stopping.size() > 0)
     {
         if (1==atol(SkipSpaces(GetConfig(SZ_SECT_COMMON, SZ_KEY_CHECK_OUTPUT_LIST))))
         {
@@ -4236,15 +4407,13 @@ void CAhApp::ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane)
             pUnitPaneF->InsertUnitInit();
         }
 
-
-        for (i=0; i<FoundUnits.Count(); i++)
+        for (auto& unit : stopping)
         {
-            pUnit = (CUnit*)FoundUnits.At(i);
             if (pUnitPaneF)
-                pUnitPaneF->InsertUnit(pUnit);
+                pUnitPaneF->InsertUnit(unit);
             else
             {
-                S.Format("Unit % 5d", pUnit->Id);
+                S.Format("Unit % 5d", unit->Id);
                 UnitText << S << EOL_SCR;
             }
         }
@@ -4256,9 +4425,6 @@ void CAhApp::ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane)
     }
     else
         wxMessageBox(wxT("Found no units moving into the current hex."), wxT("Units moving"), wxOK | wxCENTRE, m_Frames[AH_FRAME_MAP]);
-
-
-    FoundUnits.DeleteAll();
 }
 
 //--------------------------------------------------------------------------
@@ -4331,7 +4497,7 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
                 {
                     SilvRes += (long)value;
 
-                    if (pUnit->pMovement && pUnit->pMovement->Count()>0 && ((long)value > 0))
+                    if (pUnit->movements_.size() > 0 && ((long)value > 0))
                         MovedOut += (long)value;
                 }
             }
@@ -4344,7 +4510,7 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
                     else
                         TaxTheir += men*TaxPerTaxer;
 
-                if (pUnit->Flags & UNIT_FLAG_WORKING)
+                if (unit_control::flags::is_working(pUnit))
                     if (pUnit->FactionId == CurFaction)
                     {
                         Workers += men;
@@ -4353,9 +4519,8 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
                     else
                         WorkTheir +=  (long)(men*pCurLand->Wages);
 
-                if (pUnit->FactionId == CurFaction && (!pUnit->pMovement || pUnit->pMovement->Count()==0))
-                    if (pUnit->GetProperty(PRP_LEADER, type, (const void *&)leadership, eNormal) && eCharPtr==type &&
-                        (0==strcmp(leadership, SZ_LEADER) || 0==strcmp(leadership, SZ_HERO)))
+                if (pUnit->FactionId == CurFaction && pUnit->movements_.size() == 0)
+                    if (unit_control::is_leader(pUnit))
                         Maintain += men*UpkeepLeader;
                     else
                         Maintain += men*UpkeepPeasant;
@@ -4364,12 +4529,12 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
         }
 
         long TotalTax = TaxOur + TaxTheir;
-        if (TotalTax > 0 && TotalTax > pCurLand->Taxable)
-            TaxOur =  (long)(((double)pCurLand->Taxable) / TotalTax * TaxOur);
+        if (TotalTax > 0 && TotalTax > pCurLand->current_state_.tax_.amount_)
+            TaxOur =  (long)(((double)pCurLand->current_state_.tax_.amount_) / TotalTax * TaxOur);
 
         long TotalWages = WorkOur + WorkTheir;
-        if (TotalWages > 0 && TotalWages > pCurLand->MaxWages)
-            WorkOur =  (long)(((double)pCurLand->MaxWages) / TotalWages * WorkOur);
+        if (TotalWages > 0 && TotalWages > pCurLand->current_state_.work_.amount_)
+            WorkOur =  (long)(((double)pCurLand->current_state_.work_.amount_) / TotalWages * WorkOur);
 
         if (Maintain>0)
         {
@@ -4385,7 +4550,7 @@ void CAhApp::ShowLandFinancial(CLand * pCurLand)
             Report.Description << "Expected Balance            "   << (SilvRes + TaxOur + WorkOur - Maintain - MovedOut) << EOL_SCR;
             Report.Description << ""    << EOL_SCR;
             Report.Description << "Workers                     "   << Workers << EOL_SCR;
-            Report.Description << "Max workers                 "   << (long)(((double)pCurLand->MaxWages)/pCurLand->Wages) << EOL_SCR;
+            Report.Description << "Max workers                 "   << (long)(((double)pCurLand->current_state_.work_.amount_)/pCurLand->Wages) << EOL_SCR;
         }
     }
 
@@ -4423,7 +4588,6 @@ void CAhApp::AddTempHex(int X, int Y, int Plane)
     pLand->pPlane       = pPlane;
     pLand->Name         = SZ_MANUAL_HEX_PROVINCE;
     pLand->TerrainType  = sTerrain;
-    pLand->Taxable      = 0;
     pLand->Description  << sTerrain << " (" << (long)X << "," << (long)Y << ") in " SZ_MANUAL_HEX_PROVINCE; // ", 0 peasants (unknown), $0.";
     pPlane->Lands.Insert ( pLand );
 }
@@ -4451,10 +4615,12 @@ void CAhApp::DelTempHex(int X, int Y, int Plane)
 
 void CAhApp::RerunOrders()
 {
-    m_pAtlantis->RunOrders(NULL);
+    m_pAtlantis->RunOrders(NULL);//, TurnSequence::SQ_FIRST, TurnSequence::SQ_BUY);
     CUnitPane * pUnitPane = (CUnitPane*)gpApp->m_Panes[AH_PANE_UNITS_HEX];
     if (pUnitPane)
         pUnitPane->Update(pUnitPane->m_pCurLand);
+
+    //m_pAtlantis->RunOrders(NULL, TurnSequence::SQ_FORGET, TurnSequence::SQ_LAST);
 }
 
 //--------------------------------------------------------------------------
@@ -4914,6 +5080,18 @@ void CAhApp::InitMoveModes()
 
 //--------------------------------------------------------------------------
 
+void CAhApp::CreateNewUnit(wxCommandEvent& event)
+{
+    if (m_Panes[AH_PANE_UNITS_HEX])
+        ((CUnitPane*)m_Panes[AH_PANE_UNITS_HEX])->OnPopupMenuCreateNew(event);
+}
+
+void CAhApp::UnitReceiveOrder(wxCommandEvent& event)
+{
+    if (m_Panes[AH_PANE_UNITS_HEX])
+        ((CUnitPane*)m_Panes[AH_PANE_UNITS_HEX])->OnPopupMenuReceiveItems(event);
+}
+
 void CAhApp::SelectNextUnit()
 {
     if (m_Panes[AH_PANE_UNITS_HEX])
@@ -4941,7 +5119,7 @@ void CAhApp::SelectUnitsPane()
 void CAhApp::SelectOrdersPane()
 {
     if (m_Panes[AH_PANE_UNIT_COMMANDS])
-        ((CUnitPane*)m_Panes[AH_PANE_UNIT_COMMANDS])->SetFocus();
+        ((CUnitOrderEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS])->SetFocus();
 }
 
 //--------------------------------------------------------------------------
@@ -4962,14 +5140,14 @@ long  CGameDataHelper::GetStudyCost(const char * skill)
     return gpApp->GetStudyCost(skill);
 };
 
-long  CGameDataHelper::GetStructAttr(const char * kind, long & MaxLoad, long & MinSailingPower)
-{
-    return gpApp->GetStructAttr(kind, MaxLoad, MinSailingPower);
-}
-
 const char *  CGameDataHelper::ResolveAlias(const char * alias)
 {
     return gpApp->ResolveAlias(alias);
+}
+
+bool CGameDataHelper::ResolveAliasItems (const std::string& phrase, std::string& codename, std::string& long_name, std::string& long_name_plural)
+{
+    return gpApp->ResolveAliasItems(phrase, codename, long_name, long_name_plural);
 }
 
 BOOL CGameDataHelper::GetItemWeights(const char * item, int *& weights, const char **& movenames, int & movecount )
@@ -5042,11 +5220,6 @@ const char * CGameDataHelper::GetPlaneSize (const char * plane)
 void CGameDataHelper::GetProdDetails (const char * item, TProdDetails & details)
 {
     gpApp->GetProdDetails (item, details);
-}
-
-long CGameDataHelper::MaxSkillLevel  (const char * race, const char * skill, const char * leadership, BOOL IsArcadiaSkillSystem)
-{
-    return gpApp->GetMaxRaceSkillLevel(race, skill, leadership, IsArcadiaSkillSystem);
 }
 
 BOOL CGameDataHelper::ImmediateProdCheck()

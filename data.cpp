@@ -267,7 +267,6 @@ CLand::CLand() : CBaseObject(), Units(32), UnitsSeq(32)
 {
     Flags=0;
     AlarmFlags=0;
-    EventFlags=0;
     guiUnit=0;
     pPlane=NULL;
     CoastBits=0;
@@ -275,8 +274,8 @@ CLand::CLand() : CBaseObject(), Units(32), UnitsSeq(32)
     guiColor=-1;
     WeatherWillBeGood=FALSE;
     Wages = 0.0;
-    MaxWages = 0;
-    Entertainment = 0;
+    init_land_state(initial_state_);
+    init_land_state(current_state_);
     for(int i=0; i<=ATT_UNDECLARED; i++) Troops[i]=0;
     ResetAllExits();
 }
@@ -286,7 +285,7 @@ CLand::CLand() : CBaseObject(), Units(32), UnitsSeq(32)
 CLand::~CLand()
 {
     ResetUnitsAndStructs();
-    Structs.FreeAll();
+    //Structs.FreeAll();
     EdgeStructs.FreeAll();
     Units.DeleteAll();
     UnitsSeq.DeleteAll();
@@ -297,7 +296,7 @@ void CLand::DebugPrint(CStr & sDest)
 {
     CBaseObject::DebugPrint(sDest);
 
-    sDest << "Taxable   = " << Taxable << "\n";
+    sDest << "Taxable   = " << current_state_.tax_.amount_ << "\n";
 }
 
 //-------------------------------------------------------------
@@ -363,22 +362,57 @@ void CLand::DeleteAllNewUnits(int factionId)
     }
 }
 
+void init_economy(CEconomy& res)
+{
+    res.initial_amount_ = 0;
+    res.buy_expenses_ = 0;
+    res.maintenance_ = 0;
+    res.work_income_ = 0;
+    res.moving_in_ = 0;
+    res.moving_out_ = 0;
+    res.sell_income_ = 0;
+    res.study_expenses_ = 0;
+    res.tax_income_ = 0;
+}
+
+void init_land_item_state(land_item_state& listate)
+{
+    listate.amount_ = 0;
+    listate.requested_ = 0;
+    listate.requesters_amount_ = 0;
+}
+
+void init_land_state(LandState& lstate)
+{
+    init_land_item_state(lstate.tax_);
+    init_land_item_state(lstate.work_);
+    init_land_item_state(lstate.entertain_);
+    lstate.peasants_amount_ = 0;
+    lstate.resources_.clear();
+    lstate.produced_items_.clear();
+    lstate.sold_items_.clear();
+    lstate.bought_items_.clear();
+    lstate.wanted_.clear();
+    lstate.for_sale_.clear();
+    lstate.structures_.clear();
+    init_economy(lstate.economy_);
+    lstate.run_orders_errors_.clear();
+}
 
 void CLand::ResetUnitsAndStructs()
 {
-    int       i, k;
+    int       i;
     CUnit   * pUnit;
     CStruct * pStruct;
+
+    current_state_ = initial_state_;
 
     for (i=Units.Count()-1; i>=0; i--)
     {
         pUnit = (CUnit*)Units.At(i);
         pUnit->ResetNormalProperties();
-        if (pUnit->pMovement)
-        {
-            delete pUnit->pMovement;
-            pUnit->pMovement = NULL;
-        }
+        pUnit->movements_.clear();
+        pUnit->movement_stop_ = 0;
         if (pUnit->pMoveA3Points)
         {
             delete pUnit->pMoveA3Points;
@@ -388,9 +422,9 @@ void CLand::ResetUnitsAndStructs()
             pUnit->pStudents->DeleteAll(); // probably deleting it would not be very usefull
     }
 
-    for (k=0; k<Structs.Count(); k++)
+    for (size_t k=0; k<initial_state_.structures_.size(); k++)
     {
-        pStruct = (CStruct*)Structs.At(k);
+        pStruct = initial_state_.structures_[k];
         pStruct->ResetNormalProperties();
     }
 }
@@ -418,22 +452,7 @@ int CLand::GetNextNewUnitNo()
 }
 
 //-------------------------------------------------------------
-
-CStruct * CLand::GetStructById(long id)
-{
-    CStruct     * pStruct = NULL;
-    CBaseObject   Dummy;
-    int       i;
-
-    Dummy.Id = id;
-    if (Structs.Search(&Dummy, i))
-        pStruct = (CStruct*)Structs.At(i);
-
-    return pStruct;
-}
-
-//-------------------------------------------------------------
-
+/*
 CStruct * CLand::AddNewStruct(CStruct * pNewStruct)
 {
     int       idx;
@@ -442,38 +461,40 @@ CStruct * CLand::AddNewStruct(CStruct * pNewStruct)
     if (Structs.Search(pNewStruct, idx))
     {
         pStruct = (CStruct*)Structs.At(idx);
-
 //        if (0==stricmp(pStruct->Kind.GetData(), "Shaft") )
         if (pStruct->Attr & SA_SHAFT  )
         {
-            // process links for shafts
-
+            // preserve links to shafts
             int  x1, x2, x3;
             BOOL Link;
 
-            x1   = pNewStruct->Description.FindSubStr(";");
-            x2   = pNewStruct->Description.FindSubStr("links");
-            x3   = pNewStruct->Description.FindSubStr("to");
-            Link = ( x1>=0 && x1<x2 && x2<x3 );
+            x1   = pNewStruct->original_description_.find(";");
+            x2   = pNewStruct->original_description_.find("links");
+            x3   = pNewStruct->original_description_.find("to");
+            Link = ( x1 != std::string::npos && x1<x2 && x2<x3 );
 
-            if (Link || pNewStruct->Description.GetLength() > pStruct->Description.GetLength())
-                pStruct->Description= pNewStruct->Description;
+            if (Link || pNewStruct->original_description_.size() > pStruct->original_description_.size())
+                pStruct->original_description_= pNewStruct->original_description_;
         }
         else
-            pStruct->Description= pNewStruct->Description;
-        pStruct->Name           = pNewStruct->Name       ;
+            pStruct->original_description_= pNewStruct->original_description_;
+        //pStruct->Name           = pNewStruct->Name       ;
         pStruct->LandId         = pNewStruct->LandId     ;
         pStruct->OwnerUnitId    = pNewStruct->OwnerUnitId;
-        pStruct->Load           = pNewStruct->Load       ;
+        pStruct->occupied_capacity_           = pNewStruct->occupied_capacity_       ;
         pStruct->Attr           = pNewStruct->Attr       ;
-        pStruct->Kind           = pNewStruct->Kind       ;
-        pStruct->Location       = pNewStruct->Location   ;
-
+        pStruct->type_          = pNewStruct->type_      ;
+        pStruct->capacity_      = pNewStruct->capacity_      ;
+        pStruct->name_          = pNewStruct->name_      ;
+	    pStruct->Location       = pNewStruct->Location   ;
+        pStruct->fleet_ships_   = pNewStruct->fleet_ships_   ;
         delete pNewStruct;
     }
     else
     {
         Structs.Insert(pNewStruct);
+
+        //flags manipulation
         if (0 == pNewStruct->Attr)                 Flags |= LAND_STR_GENERIC;
         else
         {
@@ -494,7 +515,7 @@ CStruct * CLand::AddNewStruct(CStruct * pNewStruct)
     }
 
     return pStruct;
-}
+}*/
 
 //-------------------------------------------------------------
 
@@ -674,32 +695,6 @@ int CLand::FindExit(long hexId) const
 
 //-------------------------------------------------------------
 
-void CLand::CalcStructsLoad()
-{
-    int                 i, k;
-    CUnit             * pUnit;
-    CBaseObject         Dummy;
-    CStruct           * pStruct;
-    EValueType          type;
-    const void        * value;
-
-    for (i=Units.Count()-1; i>=0; i--)
-    {
-        pUnit = (CUnit*)UnitsSeq.At(i);
-        if (pUnit->GetProperty(PRP_STRUCT_ID, type, value, eNormal) && (eLong==type) && ((long)value > 0))
-        {
-            Dummy.Id = (long)value;
-            if (Structs.Search(&Dummy, k))
-            {
-                pStruct = (CStruct*)Structs.At(k);
-                pStruct->Load += pUnit->Weight[0];
-            }
-        }
-    }
-}
-
-//-------------------------------------------------------------
-
 void CLand::RemoveEdgeStructs(int direction)
 {
     CStruct * pEdge;
@@ -718,7 +713,7 @@ void CLand::AddNewEdgeStruct(const char * name, int direction)
 {
     CStruct * pEdge = new CStruct;
 
-    pEdge->Kind     = name;
+    pEdge->type_    = name;
     pEdge->Location = direction % 6;
     EdgeStructs.Insert(pEdge);
 }
@@ -744,13 +739,17 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
     FactionId     = 0;
     pFaction      = NULL;
     LandId        = 0;
-    Teaching      = 0.0;
-    pMovement     = NULL;
     pMoveA3Points = NULL;
     pStudents     = NULL;
-    SilvRcvd      = 0;
     Flags         = 0;
     FlagsOrg      = 0;
+    silver_initial_.amount_ = 0;
+    silver_initial_.code_name_ = PRP_SILVER;
+    struct_id_ = 0;
+    struct_id_initial_ = 0;
+    has_error_  = false;
+    movement_stop_ = 0;
+
     FlagsLast     = ~Flags;
     reqMovementSpeed = 0;
     memset(Weight, 0, sizeof(Weight));
@@ -760,8 +759,6 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
 
 CUnit::~CUnit()
 {
-    if (pMovement)
-        delete pMovement;
     if (pMoveA3Points)
         delete pMoveA3Points;
     if (pStudents)
@@ -786,14 +783,24 @@ CUnit * CUnit::AllocSimpleCopy()
     pUnit->FactionId              = FactionId            ;
     pUnit->pFaction               = pFaction             ;
     pUnit->LandId                 = LandId               ;
-    pUnit->SilvRcvd               = SilvRcvd             ;
-    pUnit->Teaching               = Teaching             ;
     pUnit->Comments               = Comments             ;
     pUnit->DefOrders              = DefOrders            ;
+    pUnit->orders_                = orders_              ;
+    pUnit->skills_                = skills_              ;
+    pUnit->items_                 = items_              ;
+    pUnit->items_initial_         = items_initial_;
+    pUnit->silver_ = silver_;
+    pUnit->silver_initial_ = silver_initial_;
+    pUnit->men_ = men_;
+    pUnit->men_initial_ = men_initial_;
+    pUnit->impact_description_ = impact_description_;
+    pUnit->struct_id_ = struct_id_;
+    pUnit->struct_id_initial_ = struct_id_initial_;
+    pUnit->movement_stop_ = movement_stop_;
+    pUnit->movements_ = movements_;
     pUnit->Orders                 = Orders               ;
     pUnit->Errors                 = Errors               ;
     pUnit->Events                 = Events               ;
-    pUnit->StudyingSkill          = StudyingSkill        ;
     pUnit->Flags                  = Flags                ;
     pUnit->FlagsOrg               = FlagsOrg             ;
     pUnit->FlagsLast              = FlagsLast            ;
@@ -843,14 +850,33 @@ void CUnit::ExtractCommentsFromDefOrders()
 
 void CUnit::ResetNormalProperties()
 {
-
-
     CBaseObject::ResetNormalProperties();
-    Teaching = 0;
-    StudyingSkill.Empty();
+    DelProperty(PRP_TEACHING);
+    if (silver_initial_.amount_ != 0)
+    {
+        SetProperty(PRP_SILVER, eLong, (const void*)silver_initial_.amount_, eNormal);
+    } 
+    else 
+    {
+        DelProperty(PRP_SILVER);
+    }
     ProducingItem.Empty();
-    SilvRcvd = 0;
-
+    men_ = men_initial_;
+    silver_ = silver_initial_;
+    items_ = items_initial_;
+    skills_ = skills_initial_;
+    orders_ = orders::parser::parse_lines_to_orders(std::string(Orders.GetData(), Orders.GetLength()));
+    impact_description_.clear();
+    caravan_info_ = nullptr;
+    struct_id_ = struct_id_initial_;
+    
+    /*if (struct_id_initial_ != 0)
+    {
+        pUnit->struct_id_initial_ = m_pCurStruct->Id | 0x00010000;//TODO: generalize
+        pUnit->struct_id_ = pUnit->struct_id_initial_;        
+        SetProperty(PRP_SILVER, eLong, (const void*)silver_initial_.amount_, eNormal);
+    }*/
+    has_error_ = false;
     Flags     = FlagsOrg;
     FlagsLast = ~Flags;
     reqMovementSpeed = 0;
@@ -1060,17 +1086,29 @@ BOOL CUnit::GetProperty(const char  *  name,
         if (Flags & UNIT_FLAG_PILLAGING        )  sValue << "€";
         if (Flags & UNIT_FLAG_TAXING           )  sValue << '$';
         if (Flags & UNIT_FLAG_PRODUCING        )  sValue << 'P';
+        if (Flags & UNIT_FLAG_ENTERTAINING     )  sValue << 'E';
+        if (Flags & UNIT_FLAG_STUDYING         )  sValue << 'S';
+        if (Flags & UNIT_FLAG_TEACHING         )  sValue << 'T';        
+        if (Flags & UNIT_FLAG_WORKING          )  sValue << 'W';
+        if (Flags & UNIT_FLAG_MOVING           )  sValue << 'M';  
+        sValue << '|';
         if (Flags & UNIT_FLAG_GUARDING         )  sValue << 'g';
         if (Flags & UNIT_FLAG_AVOIDING         )  sValue << 'a';
         if (Flags & UNIT_FLAG_BEHIND           )  sValue << 'b';
-        if (Flags & UNIT_FLAG_REVEALING_UNIT   )  sValue << 'r';
-        else if (Flags & UNIT_FLAG_REVEALING_FACTION)  sValue << 'r';
+        if (Flags & UNIT_FLAG_REVEALING_UNIT   )  sValue << "rU";
+        else if (Flags & UNIT_FLAG_REVEALING_FACTION)  sValue << "rF";
         if (Flags & UNIT_FLAG_HOLDING          )  sValue << 'h';
         if (Flags & UNIT_FLAG_RECEIVING_NO_AID )  sValue << 'i';
-        if (Flags & UNIT_FLAG_CONSUMING_UNIT   )  sValue << 'c';
-        else if (Flags & UNIT_FLAG_CONSUMING_FACTION)  sValue << 'c';
+        if (Flags & UNIT_FLAG_CONSUMING_UNIT   )  sValue << "cU";
+        else if (Flags & UNIT_FLAG_CONSUMING_FACTION)  sValue << "cF";
         if (Flags & UNIT_FLAG_NO_CROSS_WATER   )  sValue << 'x';
-        if (Flags & UNIT_FLAG_SPOILS           )  sValue << 's';
+        if (Flags & UNIT_FLAG_SPOILS_NONE)  sValue << "sN"; 
+        if (Flags & UNIT_FLAG_SPOILS_WALK)  sValue << "sW";
+        if (Flags & UNIT_FLAG_SPOILS_RIDE)  sValue << "sR";
+        if (Flags & UNIT_FLAG_SPOILS_FLY)  sValue << "sF";
+        if (Flags & UNIT_FLAG_SPOILS_SWIM)  sValue << "sS";
+        if (Flags & UNIT_FLAG_SPOILS_SAIL)  sValue << "sL";
+
         // MZ - Added for Arcadia
         if (Flags & UNIT_FLAG_SHARING          )  sValue << 'z';
 
@@ -1136,12 +1174,6 @@ BOOL CUnit::GetProperty(const char  *  name,
 
             type  = eCharPtr;
             value = OrdersDecorated.GetData();
-
-
-            /*
-            type  = eCharPtr;
-            value = Orders.GetData();
-            */
         }
         else if (0==stricmp(name, PRP_FACTION_ID))
         {
@@ -1224,21 +1256,6 @@ BOOL CUnit::GetProperty(const char  *  name,
             type = eLong;
             value = (void*)days;
         }
-        else if (0==stricmp(name, PRP_TEACHING ))
-        {
-            type  = eLong;
-            if (StudyingSkill.IsEmpty())
-                value = (void*)(long)ceil(Teaching);
-            else
-                value = (void*)(long)floor(Teaching);
-
-            if (Teaching <= 0)
-                Ok = FALSE;
-        }
-
-
-
-
         else
             Ok = FALSE;
     }
@@ -1303,7 +1320,7 @@ void CUnit::DebugPrint(CStr & sDest)
 void CStruct::ResetNormalProperties()
 {
     TPropertyHolder::ResetNormalProperties();
-    Load         = 0;
+    occupied_capacity_  = 0;
     SailingPower = 0;
 }
 
@@ -1385,20 +1402,14 @@ int  CBaseCollByName::Compare(void * pItem1, void * pItem2) const
 
 //-------------------------------------------------------------
 
-void TProdDetails::Empty()
+void TProdDetails::clear()
 {
-    int i;
-
-    skillname.Empty();
-    skilllevel=0;
-    months=0;
-    toolname.Empty();
-    toolhelp=0;
-    for (i=0; i<MAX_RES_NUM; i++)
-    {
-        resname[i].Empty();
-        resamt[i]=0;
-    }
+    skill_name_.clear();
+    skill_level_=0;
+    per_month_=0;
+    req_resources_.clear();
+    tool_name_.clear();
+    tool_plus_=0;
 }
 
 //=============================================================
@@ -1434,6 +1445,34 @@ void SplitQualifiedPropertyName(const char * fullname, CStr & Prefix, CStr & Sho
 }
 
 //--------------------------------------------------------------------------
+
+bool evaluateLandByFilter(CLand* land, CStr * Property, eCompareOp * CompareOp, CStr * sValue, long * lValue, int count)
+{
+    bool ok = false;
+    for (int i=0; i < count; ++i)
+    {
+        if (strnicmp(Property[i].GetData(), "REG[NAME]", sizeof("REG[NAME]")-1) == 0)
+        {
+            switch (CompareOp[i])
+            {
+            case GT: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) >  0); break;
+            case GE: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) >= 0); break;
+            case EQ: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) == 0); break;
+            case LE: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) <= 0); break;
+            case LT: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) <  0); break;
+            case NE: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) != 0); break;
+            default: break;
+            }
+        }
+    }
+    return ok;
+;
+}
+
+
+
+
+
 
 BOOL EvaluateBaseObjectByBoxes(CBaseObject * pObj, CStr * Property, eCompareOp * CompareOp, CStr * sValue, long * lValue, int count)
 {
@@ -1593,5 +1632,7 @@ void TestLandId()
     x = 0;
     x = 1;
 };
+
+
 
 //-------------------------------------------------------------

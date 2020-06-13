@@ -23,6 +23,7 @@
 #include <map>
 
 #include "data.h"
+//#include "data_control.h"
 #include "files.h"
 #include "hash.h"
 
@@ -35,7 +36,6 @@ extern const char * EOL_FILE ;
 
 #define DEFAULT_PLANE "Overworld"
 
-typedef enum { North=0, Northeast,   Southeast,   South,   Southwest,   Northwest, Center }   eDirection;
 extern int   ExitFlags [];
 extern int   EntryFlags[];
 
@@ -83,7 +83,7 @@ enum {
     O_NAME,
     O_NOAID,
     O_NOCROSS,
-    O_NOSPOILS,
+    O_SPOILS,
     O_OPTION,
     O_PASSWORD,
     O_PILLAGE,
@@ -97,7 +97,6 @@ enum {
     O_SELL,
     O_SHARE,
     O_SHOW,
-    O_SPOILS,
     O_STEAL,
     O_STUDY,
     O_TAX,
@@ -106,11 +105,8 @@ enum {
     O_WITHDRAW,
     O_WORK,
     O_RECRUIT,
-
-
     O_TYPE,
     O_LABEL,
-
     // must be in this sequence! O_ENDXXX == O_XXX+1
     O_TURN,
     O_ENDTURN,
@@ -118,8 +114,6 @@ enum {
     O_ENDTEMPLATE,
     O_ALL,
     O_ENDALL,
-
-
     NORDERS
 };
 
@@ -139,8 +133,60 @@ typedef struct SAVE_HEX_OPTIONS_STRUCT
 } SAVE_HEX_OPTIONS;
 
 
+enum class TurnSequence
+{
+       SQ_FIRST,
+       SQ_FORM   ,
+       SQ_CLAIM  ,
+       SQ_LEAVE  ,
+       SQ_ENTER  ,
+       SQ_PROMOTE,
+       SQ_ATTACK ,
+       SQ_STEAL  ,
+       SQ_GIVE_PRE,
+       SQ_GIVE   ,
+       SQ_JOIN   ,
+       SQ_EXCHANGE ,
+       SQ_PILLAGE,
+       SQ_TAX,
+       SQ_CAST   ,
+       SQ_SELL   , // Shar1 Extrict SELL/BUY check. Sell is executed before buy
+       SQ_BUY    ,
+       SQ_FORGET ,
+       SQ_WITHDRAW,
+       SQ_SAIL   ,
+       SQ_MOVE   ,
+       SQ_TEACH  ,
+       SQ_STUDY  ,
+       SQ_PRODUCE , //_MANUFACTURING, in future should split PRODUCE
+       SQ_BUILD  ,
+       //SQ_PRODUCE_HARVESTING,
+       SQ_ENTERTAIN,
+       SQ_WORK   ,
+       SQ_MAINTENANCE   ,//maybe we need a past-end step
+       SQ_LAST
+};
 
-//======================================================================
+inline TurnSequence operator++(TurnSequence& x) {
+    return x = (TurnSequence)(std::underlying_type<TurnSequence>::type(x) + 1); 
+}
+
+inline TurnSequence operator--(TurnSequence& x) {
+    return x = (TurnSequence)(std::underlying_type<TurnSequence>::type(x) - 1); 
+}
+
+inline TurnSequence operator*(TurnSequence c) {
+    return c;
+}
+
+inline TurnSequence begin(TurnSequence r) {
+    return TurnSequence::SQ_FIRST;
+}
+
+inline TurnSequence end(TurnSequence r) {
+    TurnSequence l=TurnSequence::SQ_LAST;
+    return ++l;
+}
 
 class CAtlaParser
 {
@@ -152,13 +198,15 @@ public:
     int        ParseRep(const char * FNameIn, BOOL Join, BOOL IsHistory);     // History is a rep!
     int        SaveOrders  (const char * FNameOut, const char * password, BOOL decorate, int factid);
     int        LoadOrders  (const char * FNameIn, int & FactionId);  // return an id of the order's faction
-    void       RunOrders(CLand * pLand, const char * sCheckTeach = NULL);
+    void       RunOrders(CLand * pLand, TurnSequence start_step = TurnSequence::SQ_FIRST, TurnSequence stop_step = TurnSequence::SQ_LAST);
+    void       RunLandOrders(CLand * pLand, TurnSequence beg_step = TurnSequence::SQ_FIRST, TurnSequence stop_step = TurnSequence::SQ_LAST);
     BOOL       ShareSilver(CUnit * pMainUnit);
     BOOL       GenOrdersTeach(CUnit * pMainUnit);
     BOOL       GenGiveEverything(CUnit * pFrom, const char * To);
     BOOL       DiscardJunkItems(CUnit * pUnit, const char * junk);
     BOOL       DetectSpies(CUnit * pUnit, long lonum, long hinum, long amount);
     BOOL       ApplyDefaultOrders(BOOL EmptyOnly);
+    void       ApplyLandDefaultOrders(CLand* land);
     int        ParseCBDataFile(const char * FNameIn);
     void       WriteMagesCSV(const char * FName, BOOL vertical, const char * separator, int format);
 
@@ -172,6 +220,7 @@ public:
     void       GetUnitList(CCollection * pResultColl, int x, int y, int z);
     void       CountMenForTheFaction(int FactionId);
     void       ComposeProductsLine(CLand * pLand, const char * eol, CStr & S);
+    void       compose_products_detailed(CLand* land, std::stringstream& out);
     BOOL       LandStrCoordToId(const char * landcoords, long & id) const;
     int        NormalizeHexX(int NoX, CPlane *) const;
     void       ComposeLandStrCoord(CLand * pLand, CStr & LandStr);
@@ -179,9 +228,9 @@ public:
     BOOL       SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane, SAVE_HEX_OPTIONS * pOptions);
     long       SkillDaysToLevel(long days);
     CUnit *    SplitUnit(CUnit * pOrigUnit, long newId);
-    bool       LinkShaft(CLand * pLand, CLand * pLandDest, int structIdx);
     wxString   getFullStrLandCoord(CLand *);
     BOOL       CheckResourcesForProduction(CUnit * pUnit, CLand * pLand, CStr & Error);
+
     void       ExtrapolateLandCoord(int &x, int &y, int z, int direction) const;
 
     // Movement
@@ -230,6 +279,8 @@ public:
     bool              m_EconomyShareMaintainance;
 
     const char * ReadPropertyName(const char * src, CStr & Name);
+
+    void         OrderError(const std::string& type, CLand* land, CUnit* unit, const std::string& Msg);
 
 protected:
     int          ParseFactionInfo(BOOL GetNo, BOOL Join);
@@ -281,31 +332,42 @@ protected:
     void         PutLineBack (CStr & s);
 
     void         GenericErr(int Severity, const char * Msg);
-    void         OrderErr(int Severity, int UnitId, const char * Msg, const char * UnitName = NULL, CUnit * = NULL);
+    
     void         OrderErrFinalize();
-    void         RunLandOrders(CLand * pLand, const char * sCheckTeach = NULL);
     void         OrderProcess_Teach(BOOL skiperror, CUnit * pUnit);
 
     // Order handlers and helpers
-    void         RunOrder_Teach            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL TeachCheckGlb);
-    void         RunOrder_Move             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3, long order);
+    //void         RunOrder_Teach            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL TeachCheckGlb);
     void         RunOrder_Promote          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-    void         RunOrder_Sell             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-    void         RunOrder_Buy              (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-    void         RunOrder_Give             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL IgnoreMissingTarget);
+
     void         RunOrder_Take             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL IgnoreMissingTarget);
     void         RunOrder_Send             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Produce          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-    void         RunOrder_Study            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
+    
+    void         RunOrder_LandFlags        (CLand* land);
+//!calculates give orders up to specified unit (or for all units if NULL)
+    void         RunOrder_LandGive         (CLand* land, CUnit* up_to = NULL);
+    void         RunOrder_LandSell         (CLand* land);
+    void         RunOrder_LandBuy          (CLand* land);
+    void         RunOrder_LandProduce      (CLand* land);
+    void         RunOrder_LandStudyTeach   (CLand* land);
+    void         RunOrder_LandAggression   (CLand* land);//steal, assassinate, attack
+    void         RunOrder_LandTaxPillage   (CLand* land, bool apply_changes);
+    void         CheckOrder_LandMonthlong  (CLand *land);
+    void         RunOrder_LandWork         (CLand *land, bool apply_changes);
+    void         CheckOrder_LandEntertain  (CLand *land);
+    void         RunOrder_LandEntertain    (CLand *land, bool apply_changes);
+    void         RunOrder_LandSail         (CLand* land);
+    void         RunOrder_LandMove         (CLand* land);
+
+    template<orders::Type TYPE> void RunOrder_AOComments(CLand* land);
+    void         RunOrder_AONames          (CLand* land);
+    //void         RunOrder_Study            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Name             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-    void         RunOrder_SailAIII         (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int & X, int & Y, int & LocA3);
     BOOL         FindTargetsForSend        (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char *& params, CUnit *& pUnit2, CLand *& pLand2);
     BOOL         GetItemAndAmountForGive   (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, CStr & Item, int & amount, const char * command, CUnit * pUnit2);
     void         RunOrder_Withdraw         (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-    void         RunPseudoComment          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, int sequence, wxString &destination);
-    void         RunOrder_TaxPillage       (CLand *);
-    void         RunOrder_Entertain        (CLand *);
-    void         RunOrder_Work             (CLand *);
+    void         RunPseudoComment          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, TurnSequence sequence, wxString &destination);
     void         RunOrder_ShareSilver      (CStr & Line, CStr & ErrorLine, BOOL skiperror, CLand *, SHARE_TYPE, wxString shareName);
     void         RunOrder_Upkeep           (CLand *);
     void         RunOrder_Upkeep           (CUnit *, int turns);
@@ -318,6 +380,21 @@ protected:
     int          ParseCBHex   (const char * FirstLine);
     int          ParseCBStruct(const char * FirstLine);
 
+    template<typename T>
+    void perform_on_each_land(T func)
+    {
+        for (int n=0; n<m_Planes.Count(); n++)
+        {
+            CPlane* pPlane = (CPlane*)m_Planes.At(n);
+            for (int i=0; i<pPlane->Lands.Count(); i++)
+            {
+                CLand* pLand = (CLand*)pPlane->Lands.At(i);
+                if (pLand)
+                    func(pLand);
+            }
+        }
+    }    
+
     CFileReader    * m_pSource;
 
     CStringSortColl  m_TaxLandStrs;
@@ -327,7 +404,7 @@ protected:
     CBaseCollByName  m_PlanesNamed;
     CBaseColl        m_LandsToBeLinked;
     CHashStrToLong   m_UnitFlagsHash;
-    CBaseColl        m_TempSailingEvents;
+    std::map<long, std::string> sailing_events_;//struct_id, collection of events
 
     CLand          * m_pCurLand   ;
     CStruct        * m_pCurStruct ;

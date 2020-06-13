@@ -359,11 +359,12 @@ void CStr::InsStr(const char * szS, int nPos, int iSLen)
 
 //--------------------------------------------------------------------------
 
-const char * CStr::GetData()
+const char * CStr::GetData() const
 {
-    AddCh(0);
-    m_nStrLen--;
-
+    //weird, but what we can do?
+    CStr* ptr =  const_cast<CStr*> (this);
+    ptr->AddCh(0);
+    ptr->m_nStrLen--;
     return m_pData;
 }
 

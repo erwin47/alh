@@ -24,10 +24,11 @@
 
 #include "ahapp.h"
 #include "objs.h"
-#include "data.h"
+//#include "data.h"
 #include "consts_ah.h"
 
 #include "listpane.h"
+#include "data_control.h"
 
 //------------------------------------------------------------------------
 
@@ -201,7 +202,41 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
                 info.m_text.Empty();
                 info.m_col= col;
 
-                if (dataitem->GetProperty(layoutitem->m_Name, valuetype, value ))
+                CUnit* unit = dynamic_cast<CUnit*>(dataitem);
+                if (unit != nullptr && 
+                    stricmp(layoutitem->m_Name, PRP_FLAGS_STANDARD) == 0)
+                {
+                    
+                    CStr sValue;
+                    if (unit->Flags & UNIT_FLAG_PILLAGING        )  sValue << "€";
+                    if (unit->Flags & UNIT_FLAG_TAXING           )  sValue << '$';
+                    if (unit->Flags & UNIT_FLAG_PRODUCING        )  sValue << 'P';
+                    if (unit_control::flags::is_entertaining(unit)) sValue << 'E';
+                    if (unit->Flags & UNIT_FLAG_STUDYING         )  sValue << 'S';
+                    if (unit_control::flags::is_teaching(unit)   )  sValue << 'T';        
+                    if (unit_control::flags::is_working(unit)    )  sValue << 'W';
+                    if (unit->Flags & UNIT_FLAG_MOVING           )  sValue << 'M';  
+                    sValue << '|';
+                    if (unit->Flags & UNIT_FLAG_GUARDING         )  sValue << 'g';
+                    if (unit->Flags & UNIT_FLAG_AVOIDING         )  sValue << 'a';
+                    if (unit->Flags & UNIT_FLAG_BEHIND           )  sValue << 'b';
+                    if (unit->Flags & UNIT_FLAG_REVEALING_UNIT   )  sValue << "rU";
+                    else if (unit->Flags & UNIT_FLAG_REVEALING_FACTION)  sValue << "rF";
+                    if (unit->Flags & UNIT_FLAG_HOLDING          )  sValue << 'h';
+                    if (unit->Flags & UNIT_FLAG_RECEIVING_NO_AID )  sValue << 'i';
+                    if (unit->Flags & UNIT_FLAG_CONSUMING_UNIT   )  sValue << "cU";
+                    else if (unit->Flags & UNIT_FLAG_CONSUMING_FACTION)  sValue << "cF";
+                    if (unit->Flags & UNIT_FLAG_NO_CROSS_WATER   )  sValue << 'x';
+                    if (unit->Flags & UNIT_FLAG_SPOILS_NONE)  sValue << "sN"; 
+                    if (unit->Flags & UNIT_FLAG_SPOILS_WALK)  sValue << "sW";
+                    if (unit->Flags & UNIT_FLAG_SPOILS_RIDE)  sValue << "sR";
+                    if (unit->Flags & UNIT_FLAG_SPOILS_FLY)  sValue << "sF";
+                    if (unit->Flags & UNIT_FLAG_SPOILS_SWIM)  sValue << "sS";
+                    if (unit->Flags & UNIT_FLAG_SPOILS_SAIL)  sValue << "sL";
+                    if (unit->Flags & UNIT_FLAG_SHARING          )  sValue << 'z';
+                    info.m_text = wxString::FromUTF8(sValue.GetData());
+                }
+                else if (dataitem->GetProperty(layoutitem->m_Name, valuetype, value ))
                 {
                     switch (valuetype)
                     {
@@ -254,6 +289,15 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
                     break;
                     case 3:
                         StrToColor(&backgroundColor, gpApp->GetConfig(SZ_SECT_COLORS, SZ_UNIT_GUARDING));
+                    break;
+                    case 4:
+                        StrToColor(&backgroundColor, gpApp->GetConfig(SZ_SECT_COLORS, SZ_UNIT_HAS_ERRORS));
+                    break;
+                    case 5:
+                        StrToColor(&backgroundColor, gpApp->GetConfig(SZ_SECT_COLORS, SZ_UNIT_OWNS_BUILDING));
+                    break;
+                    case 6:
+                        StrToColor(&backgroundColor, gpApp->GetConfig(SZ_SECT_COLORS, SZ_UNIT_END_MOVEMENT_ORDER));
                     break;
                     default:
                         backgroundColor = wxColor("#FFFFFF");

@@ -22,11 +22,17 @@
 
 #include "wx/string.h"
 
+#include "order_parser.h"
 #include "cstr.h"
 #include "collection.h"
 #include "objs.h"
 #include <string.h>
 #include "compat.h"
+#include <vector>
+#include <map>
+#include <set>
+#include <unordered_map>
+#include <string>
 
 typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 
@@ -57,7 +63,7 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define PRP_BEST_SKILL                  "best_skill"
 #define PRP_BEST_SKILL_DAYS             "best_skill_days"
 #define PRP_MOVEMENT                    "movement"
-#define PRP_SILVER                      "silv"
+#define PRP_SILVER                      "SILV"
 #define PRP_LEADER                      "leadership"
 
 #define PRP_FLAGS_STANDARD              "flags_standard"
@@ -170,7 +176,11 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define SA_ROAD_BAD 0x0400
 
 // unit flags - standard flags from the top, custom from the bottom
-#define UNIT_FLAG_GIVEN             0x10000000
+
+#define UNIT_FLAG_ENTERTAINING      0x80000000
+#define UNIT_FLAG_WORKING           0x40000000
+#define UNIT_FLAG_TEACHING          0x20000000
+#define UNIT_FLAG_STUDYING          0x10000000
 #define UNIT_FLAG_PILLAGING         0x08000000
 #define UNIT_FLAG_TAXING            0x04000000
 #define UNIT_FLAG_PRODUCING         0x02000000
@@ -184,15 +194,20 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define UNIT_FLAG_CONSUMING_UNIT    0x00020000
 #define UNIT_FLAG_CONSUMING_FACTION 0x00010000
 #define UNIT_FLAG_NO_CROSS_WATER    0x00008000
-#define UNIT_FLAG_SPOILS            0x00004000
-#define UNIT_FLAG_SHARING           0x00002000
-#define UNIT_FLAG_TEMP              0x00001000
-#define UNIT_FLAG_ENTERTAINING      0x00000800
-#define UNIT_FLAG_WORKING           0x00000400
+#define UNIT_FLAG_SPOILS_NONE       0x00004000
+#define UNIT_FLAG_SPOILS_WALK       0x00002000
+#define UNIT_FLAG_SPOILS_RIDE       0x00001000
+#define UNIT_FLAG_SPOILS_FLY        0x00000800
+#define UNIT_FLAG_SPOILS_SWIM       0x00000400
+#define UNIT_FLAG_SPOILS_SAIL       0x00000200
+#define UNIT_FLAG_SHARING           0x00000100
+#define UNIT_FLAG_TEMP              0x00000080
+#define UNIT_FLAG_GIVEN             0x00000040
+#define UNIT_FLAG_HAS_ERROR         0x00000020
+#define UNIT_FLAG_MOVING            0x00000010
 
-
-#define UNIT_CUSTOM_FLAG_COUNT   8
-#define UNIT_CUSTOM_FLAG_MASK    0xFF
+#define UNIT_CUSTOM_FLAG_COUNT   4
+#define UNIT_CUSTOM_FLAG_MASK    0xF
 
 #define NO_LOCATION         (-1)
 
@@ -229,7 +244,7 @@ enum {
 #define IS_NEW_UNIT_ID(_Id)   ((_Id & 0xFFFF0000) != 0)
 #define IS_NEW_UNIT(_pUnit)   IS_NEW_UNIT_ID(_pUnit->Id)
 
-
+typedef enum { North=0, Northeast,   Southeast,   South,   Southwest,   Northwest, Center }   eDirection;
 
 
 class CPlane;
@@ -290,12 +305,34 @@ protected:
 
 //-----------------------------------------------------------------
 
-class CProduct
+class CItem
 {
 public:
-    long  Amount;
-    CStr  ShortName;
-    CStr  LongName;
+    long amount_;
+    std::string code_name_;
+
+    bool operator<(const CItem& item) const {
+        return code_name_ < item.code_name_;
+    }
+    bool operator==(const CItem& item) const {
+        return code_name_ == item.code_name_;
+    }    
+};
+
+class CProductMarket
+{
+public:
+    long        price_;
+    CItem       item_;
+};
+
+struct Skill
+{
+    long study_price_;
+    std::string short_name_;
+    std::string long_name_;
+
+    bool operator<(const Skill& sk) const { return long_name_ < sk.long_name_; }
 };
 
 //-----------------------------------------------------------------
@@ -306,10 +343,10 @@ public:
     CProductColl()            : CSortedCollection()      {};
     CProductColl(int nDelta)  : CSortedCollection(nDelta){};
 protected:
-    virtual void FreeItem(void * pItem) {delete (CProduct*)pItem;};
+    virtual void FreeItem(void * pItem) {delete (CItem*)pItem;};
     virtual int Compare(void * pItem1, void * pItem2) const
-    {return(SafeCmp( ((CProduct*)pItem1)->ShortName.GetData(),
-                     ((CProduct*)pItem2)->ShortName.GetData() ));};
+    {return(SafeCmp( ((CItem*)pItem1)->code_name_.c_str(),
+                     ((CItem*)pItem2)->code_name_.c_str() ));};
 };
 
 //-----------------------------------------------------------------
@@ -360,24 +397,54 @@ public:
     static void         ResetCustomFlagNames();
     static const char * GetCustomFlagName(int no);
 
+    //when we load map in the beginning, we should preserve CUnit initial state.
+    //and then should have possibility to reset CUnit by preserved initial state.
+    //until we don't have that, we have to duplicate members (or have any other similar 
+    //mechanisms) to have possibility restore state of CUnit. THat's for *_initial_.
+    std::set<CItem> men_;
+    std::set<CItem> men_initial_;
+
+    CItem           silver_;
+    CItem           silver_initial_;
+
+    std::set<CItem> items_;
+    std::set<CItem> items_initial_;
+    
+    //list of received items, tought and so on, 
+    std::vector<std::string> impact_description_;
+    bool                     has_error_;
+
+    orders::UnitOrders orders_;
+
+    std::map<std::string, long> skills_;
+    std::map<std::string, long> skills_initial_;
+
+    std::shared_ptr<orders::CaravanInfo> caravan_info_;
+
+    long struct_id_;//!<struct to which it belongs (0 if none)
+    long struct_id_initial_;//!<struct to which it belongs (0 if none)
+
+    //hex id where unit should stop (if movements_.size()>0 it must be positive):
+    //it may be calculated stop position, or it will be the last hex id of movements_
+    long              movement_stop_;
+    std::vector<long> movements_;
+
     bool            IsOurs;
     long            FactionId;
     CFaction      * pFaction;
     long            LandId;
     long            Weight[MOVE_MODE_MAX];
-    long            SilvRcvd;
-    double          Teaching; // number of students per teacher / number of days per student
     CStr            Comments;
     CStr            DefOrders;
     CStr            Orders;
     CStr            OrdersDecorated;
     CStr            Errors;
     CStr            Events;
-    CStr            StudyingSkill;
     CStr            ProducingItem;
-    CLongColl     * pMovement; // Collection of ids of hexes to move through
+    //CLongColl     * pMovement; // Collection of ids of hexes to move through
     CLongColl     * pMoveA3Points; // Collection of Arcadia III locations for movement
     CBaseCollById * pStudents;
+
     unsigned long   Flags;
     unsigned long   FlagsOrg;
     unsigned long   FlagsLast;
@@ -394,23 +461,37 @@ protected:
 
 };
 
-//-----------------------------------------------------------------
 
+
+//-----------------------------------------------------------------
+enum class SHIP_TRAVEL {
+  NONE = 0,
+  SAIL,
+  FLY
+};
 class CStruct : public CBaseObject
 {
 public:
-    CStruct() : CBaseObject() {LandId=0; OwnerUnitId=0; Attr=0; Location=NO_LOCATION;
-                               Load=0; SailingPower=0; MaxLoad=0; MinSailingPower=0;};
+    CStruct() : CBaseObject(), LandId(0), OwnerUnitId(0), Attr(0), occupied_capacity_(0),
+                                SailingPower(0), capacity_(0), MinSailingPower(0)
+    {}
     virtual void ResetNormalProperties();
     long LandId;
     long OwnerUnitId;
     long Attr;
-    CStr Kind;
-    int  Location;
-    long Load;
     long SailingPower;
-    long MaxLoad;
     long MinSailingPower;
+    int  Location;
+    
+    long dest_land_id_;//for shafts
+    long occupied_capacity_;
+    long capacity_;//for MOBILE
+    std::string type_;
+    SHIP_TRAVEL travel_;
+    long max_speed_;
+    std::string name_;
+    std::string original_description_;
+    std::vector<std::pair<std::string, long> > fleet_ships_;//for fleets
 };
 
 //-----------------------------------------------------------------
@@ -423,8 +504,73 @@ public:
     int   Direction;
 };
 */
+struct CStructure
+{
+    std::string                 name_;
+    long                        capacity_;
+    long                        flags_;
+    std::vector<std::string>    substructures_;
+    CLand*                      land_;
+    std::vector<CUnit*>         units_;    
+};
+
+struct CError
+{
+    std::string type_;//"Error", "Warning"
+    CUnit* unit_;
+    std::string message_;
+};
+
+struct CEconomy
+{
+    long initial_amount_;
+    long maintenance_;
+    long work_income_;
+    long buy_expenses_;
+    long study_expenses_;
+    long moving_out_;
+    long moving_in_;
+    long tax_income_;
+    long sell_income_;
+};
+
+void init_economy(CEconomy& res);
 
 //-----------------------------------------------------------------
+
+struct land_item_state
+{
+    long amount_;
+    long requested_;
+    long requesters_amount_;
+};
+
+void init_land_item_state(land_item_state& listate);
+
+struct LandState
+{
+    land_item_state tax_;
+    land_item_state work_;
+    land_item_state entertain_;
+
+    long            peasants_amount_;
+    std::string     peasant_race_;
+
+    std::vector<CItem>                      resources_;    
+    std::map<std::string, CProductMarket>   wanted_;
+    std::map<std::string, CProductMarket>   for_sale_;
+
+    std::map<std::string, long>             produced_items_;
+    std::map<std::string, long>             sold_items_;
+    std::map<std::string, long>             bought_items_;
+
+    std::vector<CStruct*>                   structures_;
+
+    CEconomy                                economy_;
+    std::vector<CError>                     run_orders_errors_;
+};
+
+void init_land_state(LandState& lstate);
 
 class CLand : public CBaseObject
 {
@@ -436,10 +582,8 @@ public:
     void      RemoveUnit(CUnit * pUnit);
     void      DeleteAllNewUnits(int factionId);
     void      ResetUnitsAndStructs();
-    CStruct * GetStructById(long id);
-    void      CalcStructsLoad();
     void      SetFlagsFromUnits();
-    CStruct * AddNewStruct(CStruct * pNewStruct);
+    //CStruct * AddNewStruct(CStruct * pNewStruct);
     void      RemoveEdgeStructs(int direction);
     void      AddNewEdgeStruct(const char * name, int direction);
     int       GetNextNewUnitNo();
@@ -450,23 +594,36 @@ public:
 
     virtual void DebugPrint(CStr & sDest);
 
-    long          Taxable;
-    long          Peasants;
-    CStr          PeasantRace;
+    //long          Taxable;
+
     CStr          TerrainType;
     CStr          CityName;
     CStr          CityType;
     CStr          FlagText[LAND_FLAG_COUNT];
     CStr          Exits;
     CStr          Events;
-    CBaseCollById Structs;
+    //CBaseCollById Structs;
     CBaseCollById Units;
     CBaseColl     UnitsSeq; // this will keep units in the sequence they were met in the report
     CBaseColl     EdgeStructs;
     CProductColl  Products;
+
+    LandState initial_state_;
+    LandState current_state_;
+
+/*
+    long          peasants_amount_;
+    std::string   peasant_race_;
+
+    std::vector<CItem>                      resources_;
+    std::map<std::string, long>             produced_items_;
+    std::map<std::string, CProductMarket>   wanted_;
+    std::map<std::string, CProductMarket>   for_sale_;
+    CEconomy                                economy_;
+    std::vector<CError>                     run_orders_errors_;
+*/
     unsigned long Flags;
     unsigned long AlarmFlags;
-    unsigned long EventFlags;
     int           xExit[6]; // storage for the coordinates of the exit
     int           yExit[6]; // storage for the coordinates of the exit
     int           CoastBits;
@@ -474,8 +631,6 @@ public:
     int           AtlaclientsLastTurnNo;
     BOOL          WeatherWillBeGood;
     double        Wages;
-    long          MaxWages;
-    long          Entertainment;
     long          Troops[ATT_UNDECLARED+1];
 
     long          guiUnit;  // will be used by GUI only
@@ -488,7 +643,6 @@ public:
 
 const int EXIT_CLOSED = -255;
 const int EXIT_MAYBE  = -254;
-
 
 //-----------------------------------------------------------------
 
@@ -553,17 +707,16 @@ protected:
 class TProdDetails
 {
 public:
-    CStr skillname;
-    long skilllevel;
+    std::string skill_name_;
+    long skill_level_;
 
-    long months;
-    CStr resname[MAX_RES_NUM];
-    long resamt[MAX_RES_NUM];
+    double per_month_;
+    std::vector<std::pair<std::string, double>> req_resources_;
 
-    CStr toolname;
-    long toolhelp;
+    std::string tool_name_;
+    long tool_plus_;
 
-    void Empty();
+    void clear();
 };
 
 //-----------------------------------------------------------------
@@ -573,20 +726,20 @@ class CGameDataHelper
 public:
     void         ReportError       (const char * msg, int msglen, BOOL orderrelated);
     long         GetStudyCost      (const char * skill);
-    long         GetStructAttr     (const char * kind, long & MaxLoad, long & MinSailingPower);
+    //bool         GetStructAttr     (const char * kind, long & MaxLoad, long & MinSailingPower, long& flags);
     const char * GetConfString     (const char * section, const char * param);
     BOOL         GetOrderId        (const char * order, long & id);
     BOOL         IsTradeItem       (const char * item);
     BOOL         IsMan             (const char * item);
     const char * GetWeatherLine    (BOOL IsCurrent, BOOL IsGood, int Zone);
     const char * ResolveAlias      (const char * alias);
+    bool         ResolveAliasItems (const std::string& phrase, std::string& codename, std::string& name, std::string& name_plural);
     BOOL         GetItemWeights    (const char * item, int *& weights, const char **& movenames, int & movecount );
     void         GetMoveNames      (const char **& movenames);
     BOOL         GetTropicZone     (const char * plane, long & y_min, long & y_max);
     const char * GetPlaneSize      (const char * plane);
     void         SetTropicZone     (const char * plane, long y_min, long y_max);
     void         GetProdDetails    (const char * item, TProdDetails & details);
-    long         MaxSkillLevel     (const char * race, const char * skill, const char * leadership, BOOL IsArcadiaSkillSystem);
     BOOL         ImmediateProdCheck();
     BOOL         CanSeeAdvResources(const char * skillname, const char * terrain, CLongColl & Levels, CBufColl & Resources);
     BOOL         ShowMoveWarnings  ();
@@ -650,6 +803,7 @@ void TestLandId();
 BOOL IsASkillRelatedProperty(const char * propname);
 void MakeQualifiedPropertyName(const char * prefix, const char * shortname, CStr & FullName);
 void SplitQualifiedPropertyName(const char * fullname, CStr & Prefix, CStr & ShortName);
+bool evaluateLandByFilter(CLand* land, CStr * Property, eCompareOp * CompareOp, CStr * sValue, long * lValue, int count);
 BOOL EvaluateBaseObjectByBoxes(CBaseObject * pObj, CStr * Property, eCompareOp * CompareOp, CStr * Value, long * lValue, int count);
 
 #endif

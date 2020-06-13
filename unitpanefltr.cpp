@@ -456,7 +456,7 @@ void CUnitPaneFltr::OnPopupMenuIssueOrders(wxCommandEvent& event)
 {
     long           idx;
     CUnit        * pUnit;
-    CEditPane    * pOrders;
+    CUnitOrderEditPane    * pOrders;
     CGetTextDlg    dlg(this, "Order", "Orders for the selected units");
     CLongSortColl  LandIds;
     int            i;
@@ -468,11 +468,6 @@ void CUnitPaneFltr::OnPopupMenuIssueOrders(wxCommandEvent& event)
     dlg.m_Text.TrimRight(TRIM_ALL);
     if (dlg.m_Text.IsEmpty())
         return;
-
-
-    pOrders = (CEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-    if (pOrders)
-        pOrders->SaveModifications();
 
     idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
     while (idx>=0)

@@ -4,6 +4,8 @@
 #include <wx/msgdlg.h>
 #include <wx/string.h>
 
+#include "data_control.h"
+
 const long ShaftsFrame::ID_TEXTCTRL1 = wxNewId();
 const long ShaftsFrame::ID_TEXTCTRL2 = wxNewId();
 const long ShaftsFrame::ID_CHOICE1 = wxNewId();
@@ -79,10 +81,10 @@ void ShaftsFrame::UpdateSelect(wxChoice * choice, CLand * pLand)
 
     if (pLand == NULL) return;
 
-    for (long j=0; j<pLand->Structs.Count(); ++j)
+    for (size_t j=0; j<pLand->current_state_.structures_.size(); ++j)
     {
-        pStruct = (CStruct*)pLand->Structs.At(j);
-        choice->Append(wxString::FromUTF8(pStruct->Description.GetData()), (void *)j);
+        pStruct = pLand->current_state_.structures_[j];
+        choice->Append(wxString::FromUTF8(pStruct->original_description_.c_str()), (void *)pStruct->Id);
     }
 }
 
@@ -136,8 +138,9 @@ void ShaftsFrame::OnButtonConnectShaftClick(wxCommandEvent& event)
         int idx = (long) (ChoiceStructure1->GetClientData(selectedIdx1));
         if (idx >= 0)
         {
-            bool success = gpApp->m_pAtlantis->LinkShaft(pLandHex1, pLandHex2, idx);
-            if (success) message += wxT("Shaft linked in one direction. ");
+            bool success = land_control::structures::link_shafts(pLandHex1, pLandHex2, idx);
+            if (success) 
+                message += wxT("Shaft linked in one direction. ");
         }
     }
 
@@ -147,12 +150,11 @@ void ShaftsFrame::OnButtonConnectShaftClick(wxCommandEvent& event)
         if (idx >= 0)
         {
             // Link the way back, from the second hex to the first.
-            bool success = gpApp->m_pAtlantis->LinkShaft(pLandHex2, pLandHex1, idx);
+            bool success = land_control::structures::link_shafts(pLandHex2, pLandHex1, idx);
             if (success && !message.IsEmpty())
-            {
                 message = wxT("The shaft has been linked in both directions. ");
-            }
-            else if (success) message = wxT("Shaft linked in one direction. ");
+            else if (success) 
+                message = wxT("Shaft linked in one direction. ");
         }
     }
 

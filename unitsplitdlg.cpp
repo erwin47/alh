@@ -54,7 +54,6 @@ CUnitSplitDlg::CUnitSplitDlg(wxWindow *parent, CUnit * pUnit)
 {
     wxBoxSizer      * topsizer;
     wxBoxSizer      * sizer   ;
-//    wxBoxSizer      * rowsizer;
     wxGridSizer     * gridsizer;
     wxStaticText    * st;
     int               rows, cols, idx;

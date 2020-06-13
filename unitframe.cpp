@@ -99,7 +99,7 @@ void CUnitFrame::Init(int layout, const char * szConfigSection)
 
         p1 = new CUnitPane(panel1 );
         p2 = new CEditPane(m_Splitter2, wxEmptyString,   FALSE, FONT_EDIT_DESCR);
-        p3 = new CEditPane(m_Splitter3, wxT("Orders")  , FALSE, FONT_EDIT_ORDER );
+        p3 = new CUnitOrderEditPane(m_Splitter3, wxT("Orders")  , FALSE, FONT_EDIT_ORDER );
         p4 = new CEditPane(m_Splitter3, wxT("Comments"), TRUE , FONT_EDIT_ORDER );
 
         panel1->SetChild(p1);
