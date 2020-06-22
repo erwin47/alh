@@ -492,6 +492,9 @@ namespace orders
                 if (!parse_unit_id(it_beg, order->words_order_.end(), target_id, target_faction_id))
                     return false;
 
+                if (it_beg >= order->words_order_.end())
+                    return false;
+
                 if (stricmp("UNIT", (*it_beg).c_str()) == 0)
                 {
                     amount = 0;
@@ -499,7 +502,10 @@ namespace orders
                     return true;
                 }
 
-                if (stricmp("ALL", (*it_beg).c_str()) == 0)
+                if (it_beg >= order->words_order_.end())
+                    return false;
+
+                if (it_beg != order->words_order_.end() && stricmp("ALL", (*it_beg).c_str()) == 0)
                 {
                     amount = 0;
                     except = 0;
@@ -968,7 +974,7 @@ namespace orders
                 {
                     statement = order->comment_.substr(pos+sizeof("$COND"));
                 }   
-                action = LogicAction::ERROR;
+                action = LogicAction::LOGIC_ERROR;
                 return true;
             }
             return false;
@@ -1175,7 +1181,7 @@ namespace orders
                         {
                             long existing_amount(0);
                             land_control::perform_on_each_unit(land, [&](CUnit* cur_unit) {
-                                if (cur_unit->caravan_info_ == nullptr)
+                                if (cur_unit->IsOurs && cur_unit->caravan_info_ == nullptr)
                                     existing_amount += unit_control::get_item_amount(cur_unit, codename);
                             }); 
                             long to_request = unit_req - existing_amount;

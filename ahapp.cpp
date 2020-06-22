@@ -1202,24 +1202,33 @@ const char * CAhApp::GetWeatherLine(BOOL IsCurrent, BOOL IsGood, int Zone)
 
 //-------------------------------------------------------------------------
 
-void CAhApp::GetProdDetails(const char* item, TProdDetails& details)
+std::shared_ptr<TProdDetails> CAhApp::GetProdDetails(const char* item)
 {
-    details.clear();
+    static std::map<std::string, std::shared_ptr<TProdDetails>> known_item_details;
+    auto search = known_item_details.find(item);
+    if (search != known_item_details.end()) {
+        return search->second;
+    }
+
+    std::shared_ptr<TProdDetails> ret = std::make_shared<TProdDetails>();
     game_control::NameAndAmount skill_val = game_control::get_game_config_val<game_control::NameAndAmount>(SZ_SECT_PROD_SKILL, item);
-    details.skill_name_ = skill_val.name_;
-    details.skill_level_ = skill_val.amount_;
+    ret->skill_name_ = skill_val.name_;
+    ret->skill_level_ = skill_val.amount_;
 
     std::vector<game_control::NameAndAmount> resources = game_control::get_game_config<game_control::NameAndAmount>(SZ_SECT_PROD_RESOURCE, item);
-    details.req_resources_.resize(resources.size());
-    std::transform(resources.begin(), resources.end(), details.req_resources_.begin(), 
+    ret->req_resources_.resize(resources.size());
+    std::transform(resources.begin(), resources.end(), ret->req_resources_.begin(), 
         [](const game_control::NameAndAmount& name_and_amount) {
             return std::pair<std::string, double>(name_and_amount.name_, name_and_amount.amount_);
     });
 
-    details.per_month_ = game_control::get_game_config_val<double>(SZ_SECT_PROD_MONTHS, item);
+    ret->per_month_ = game_control::get_game_config_val<double>(SZ_SECT_PROD_MONTHS, item);
     game_control::NameAndAmount tool_val = game_control::get_game_config_val<game_control::NameAndAmount>(SZ_SECT_PROD_TOOL, item);
-    details.tool_name_ = tool_val.name_;
-    details.tool_plus_ = tool_val.amount_;
+    ret->tool_name_ = tool_val.name_;
+    ret->tool_plus_ = tool_val.amount_;
+
+    known_item_details[item] = ret;
+    return ret;
 }
 
 //-------------------------------------------------------------------------
@@ -2178,7 +2187,6 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
     long            men, lvl, tool, canproduce;
     CStr            sCoord, Skill;
     CItem      * pProd;
-    TProdDetails    details;
     CTaxProdDetails * pFactionInfo = NULL;
     CTaxProdDetails   Dummy;
     int               idx;
@@ -2191,9 +2199,9 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
         pProd = (CItem*)pLand->Products.At(k);
         if (0==pProd->amount_)
             continue;
-        GetProdDetails(pProd->code_name_.c_str(), details);
+        std::shared_ptr<TProdDetails> details = GetProdDetails(pProd->code_name_.c_str());
         Skill.Empty();
-        Skill << details.skill_name_.c_str() << PRP_SKILL_POSTFIX;
+        Skill << details->skill_name_.c_str() << PRP_SKILL_POSTFIX;
 
         for (x=0; x<pLand->Units.Count(); x++)
         {
@@ -2223,13 +2231,13 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
                     if (!pUnit->GetProperty(Skill.GetData(), type, (const void *&)lvl, eNormal) || (eLong!=type) )
                         continue;
 
-                    if (!details.tool_name_.empty())
-                        if (!pUnit->GetProperty(details.tool_name_.c_str(), type, (const void *&)tool, eNormal) || eLong!=type )
+                    if (!details->tool_name_.empty())
+                        if (!pUnit->GetProperty(details->tool_name_.c_str(), type, (const void *&)tool, eNormal) || eLong!=type )
                             tool = 0;
                     if (tool > men)
                         tool = men;
 
-                    canproduce = (long)((((double)men)*lvl + tool*details.tool_plus_) / details.per_month_);
+                    canproduce = (long)((((double)men)*lvl + tool*details->tool_plus_) / details->per_month_);
                     pFactionInfo->amount -= canproduce;
                 }
             }
@@ -5217,9 +5225,9 @@ const char * CGameDataHelper::GetPlaneSize (const char * plane)
     return gpApp->GetConfig(SZ_SECT_PLANE_SIZE, plane);
 }
 
-void CGameDataHelper::GetProdDetails (const char * item, TProdDetails & details)
+std::shared_ptr<TProdDetails> CGameDataHelper::GetProdDetails (const char * item)
 {
-    gpApp->GetProdDetails (item, details);
+    return gpApp->GetProdDetails(item);
 }
 
 BOOL CGameDataHelper::ImmediateProdCheck()

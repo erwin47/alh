@@ -1952,21 +1952,23 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
                 m_GatesCount = atol(S.GetData());
                 DoBreak = FALSE;
 
-
+                pGate = new CBaseObject;
+                pGate->Id = no;
                 if (m_Gates.Search(pGate, idx))
                 {
+                    delete pGate;
                     pGate = (CBaseObject*)m_Gates.At(idx);
                 }
                 else
-                {
-                    pGate = new CBaseObject;
-                    pGate->Id = no;
-                    m_Gates.Insert(pGate);
-                }
+                    idx = -1;
+
                 ComposeLandStrCoord(pLand, sCoord);
                 pGate->Description.Format("Gate % 4d. ", no);
                 pGate->Description << pLand->TerrainType << " (" << sCoord << ")";
                 pGate->Name        = pGate->Description;
+
+                if (idx<0)
+                    m_Gates.Insert(pGate);                
             }
             break;
         }
@@ -3788,6 +3790,22 @@ void CAtlaParser::compose_products_detailed(CLand* land, std::stringstream& out)
         }
     }
     out << std::endl;
+    if (land->current_state_.shared_items_.size() > 0)
+    {
+        out << "  Shared:";
+        for (auto& shared_item : land->current_state_.shared_items_)
+        {
+            if (shared_item.second.second == 0)
+                continue;
+
+            if (!gpApp->ResolveAliasItems(shared_item.first, code, name, plural))
+            {
+                name = shared_item.first;
+            }
+            out << std::endl << "    " << shared_item.second.first << "/" << shared_item.second.second << " " << name;
+        }            
+    }
+    out << std::endl;
 }
 
 //-------------------------------------------------------------
@@ -3891,12 +3909,11 @@ BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane,
 
     // Units out of structs, not optimized, does not matter
     if (pOptions->SaveUnits)
-        for (i=0; i<pLand->UnitsSeq.Count(); i++)
+        for (CUnit* unit : pLand->units_seq_)
         {
-            pUnit = (CUnit *)pLand->UnitsSeq.At(i);
-            if (!IS_NEW_UNIT(pUnit) && unit_control::structure_id(pUnit) == 0)//!pUnit->GetProperty(PRP_STRUCT_ID, type, value, eOriginal) )
+            if (!IS_NEW_UNIT(unit) && unit_control::structure_id(unit) == 0)//!pUnit->GetProperty(PRP_STRUCT_ID, type, value, eOriginal) )
             {
-                sLine << pUnit->Description;
+                sLine << unit->Description;
                 sLine.TrimRight(TRIM_ALL);
                 sLine << EOL_FILE;
             }
@@ -4979,7 +4996,6 @@ void CAtlaParser::RunPseudoComment(CStr & Line, CStr & ErrorLine, BOOL skiperror
 void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequence stop_step)
 {
     CBaseObject         Dummy;
-    CUnit             * pUnit;
     CUnit             * pUnitNew;
     CUnit             * pUnitMaster;
     CUnit             * pUnit2;
@@ -5149,7 +5165,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         if (sequence == TurnSequence::SQ_PRODUCE)
         {//no need to parse sequentially
             RunOrder_AOComments<orders::Type::O_PRODUCE>(pLand);
-            pLand->current_state_.produced_items_.clear();
+            //pLand->current_state_.produced_items_.clear();
             RunOrder_LandProduce(pLand);
         }
         if (sequence == TurnSequence::SQ_BUILD) {}
@@ -5168,12 +5184,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             RunOrder_AONames(pLand);
         }
 
-        for (mainidx=0; mainidx<pLand->UnitsSeq.Count(); mainidx++)
+        for (CUnit* pUnit : pLand->units_seq_)
         {
             nNestingMode = 0; // Shar1 Support for TURN/ENDTURN
             pUnitMaster = NULL;
             bool isSimCmd = false;
-            pUnit       = (CUnit*)pLand->UnitsSeq.At(mainidx);
             CLand* destination_land = nullptr;
             if (pUnit->caravan_info_ != nullptr)
                 destination_land = pUnit->caravan_info_->goal_land_;
@@ -5671,9 +5686,8 @@ int CAtlaParser::CountMenWithFlag(CLand * pLand, int unitFlag) const
     int headCount = 0;
     int skill;
 
-    for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
+    for (CUnit* pUnit : pLand->units_seq_)
     {
-        pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
         if (pUnit->Flags & unitFlag)
         {
             if (pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal) && (nmen>0))
@@ -5706,9 +5720,8 @@ void CAtlaParser::DistributeSilver(CLand * pLand, int unitFlag, int silver, int 
     if (menCount == 0)
         return;
 
-    for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
+    for (CUnit* pUnit : pLand->units_seq_)
     {
-        pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
         if (pUnit->Flags & unitFlag)
         {
             if (pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal) && (nmen>0))
@@ -5882,9 +5895,8 @@ void CAtlaParser::RunOrder_Upkeep(CLand * pLand)
 {
     CUnit * pUnit;
 
-    for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
+    for (CUnit* pUnit : pLand->units_seq_)
     {
-        pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
         if (pUnit->FactionId == m_CrntFactionId)
         {
             RunOrder_Upkeep(pUnit, 1);
@@ -5910,9 +5922,8 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
     // Normally only silver is shared between units with the share flag set.
     // When shareAll is set silver will be shared by all units (such as for upkeep costs).
 
-    for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
+    for (CUnit* pUnit : pLand->units_seq_)
     {
-        pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
         if (pUnit->IsOurs && !IS_NEW_UNIT(pUnit))
         {
             displayUnit = pUnit;
@@ -5930,9 +5941,8 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
     if (!silverNeeded) return;
     silverNeededOrig = silverNeeded;
 
-    for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
+    for (CUnit* pUnit : pLand->units_seq_)
     {
-        pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
         if (!pUnit->IsOurs) continue;
         if (shareType == SHARE_BUY || pUnit->movements_.size() == 0)
         if (shareType == SHARE_UPKEEP || pUnit->Flags & UNIT_FLAG_SHARING)
@@ -5952,9 +5962,8 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
     long silverAvailable = silverNeededOrig - silverNeeded;
     long shortage = silverNeeded;
 
-    for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
+    for (CUnit* pUnit : pLand->units_seq_)
     {
-        pUnit = (CUnit*)pLand->UnitsSeq.At(unitidx);
         if (!pUnit->IsOurs) continue;
         if (shareType == SHARE_BUY || pUnit->movements_.size() == 0)
         if (pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitSilver, eNormal))
@@ -6224,7 +6233,7 @@ template<orders::Type TYPE> void CAtlaParser::RunOrder_AOComments(CLand* land)
                                 orders::control::comment_order_out(order, unit);
                         };
                         break;
-                    case orders::autoorders::LogicAction::ERROR: {
+                    case orders::autoorders::LogicAction::LOGIC_ERROR: {
                         if (result)
                             OrderError("Warning", land, unit, "autoorders: warning condition altered: " + order->comment_);
                         };
@@ -6313,7 +6322,7 @@ BOOL CAtlaParser::CheckResourcesForProduction(CUnit * pUnit, CLand * pLand, CStr
     Error.Empty();
     if ((pUnit->Flags & UNIT_FLAG_PRODUCING) && !pUnit->ProducingItem.IsEmpty())
     {
-        gpDataHelper->GetProdDetails (pUnit->ProducingItem.GetData(), details);
+        std::shared_ptr<TProdDetails> details = gpDataHelper->GetProdDetails (pUnit->ProducingItem.GetData());
 
         if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal)  || (nmen<=0))
         {
@@ -6321,37 +6330,37 @@ BOOL CAtlaParser::CheckResourcesForProduction(CUnit * pUnit, CLand * pLand, CStr
             Ok = FALSE;
         }
 
-        if (details.skill_name_.empty() || details.per_month_<=0)
+        if (details->skill_name_.empty() || details->per_month_<=0)
         {
             Error << " - Production requirements for item '" << pUnit->ProducingItem << "' are not configured! ";
             Ok = FALSE;
         }
 
         // check skill level
-        S << details.skill_name_.c_str() << PRP_SKILL_POSTFIX;
+        S << details->skill_name_.c_str() << PRP_SKILL_POSTFIX;
         if (pUnit->GetProperty(S.GetData(), type, value, eNormal) && (eLong==type) )
         {
             nlvl = (long)value;
-            if (nlvl < details.skill_level_)
+            if (nlvl < details->skill_level_)
             {
-                Error << " - Skill " << details.skill_name_.c_str() << " level " << details.skill_level_ << " is required for production";
+                Error << " - Skill " << details->skill_name_.c_str() << " level " << details->skill_level_ << " is required for production";
                 Ok = FALSE;
             }
         }
         else
         {
-            Error << " - Skill " << details.skill_name_.c_str() << " is required for production";
+            Error << " - Skill " << details->skill_name_.c_str() << " is required for production";
             Ok = FALSE;
         }
 
 
-        if (!details.tool_name_.empty())
-            if (!pUnit->GetProperty(details.tool_name_.c_str(), type, (const void *&)ntool, eNormal) || eLong!=type )
+        if (!details->tool_name_.empty())
+            if (!pUnit->GetProperty(details->tool_name_.c_str(), type, (const void *&)ntool, eNormal) || eLong!=type )
                 ntool = 0;
         if (ntool > nmen)
             ntool = nmen;
 
-        ncanproduce = (long)((((double)nmen)*nlvl + ntool*details.tool_plus_) / details.per_month_);
+        ncanproduce = (long)((((double)nmen)*nlvl + ntool*details->tool_plus_) / details->per_month_);
 
         /*
         for (x=0; x<sizeof(details.resname)/sizeof(*details.resname); x++)
@@ -6410,151 +6419,102 @@ BOOL CAtlaParser::CheckResourcesForProduction(CUnit * pUnit, CLand * pLand, CStr
 
 void CAtlaParser::RunOrder_LandProduce(CLand* land)
 {
-    std::vector<CUnit*> producers;
-    land_control::get_units_if(land, producers, [](CUnit* unit) {
-        return orders::control::has_orders_with_type(orders::Type::O_PRODUCE, unit->orders_);
-    });
+    std::vector<unit_control::UnitError> errors;
+    std::vector<land_control::ProduceItem> out;
+    land_control::get_land_producers(land, out, errors);
 
-    struct ProducerInfo
+    //initialize shared items
+    for (auto& product_request : out)
     {
-        CUnit* producer_;
-        long item_amount_;
-    };
-
-    std::map<std::string, std::vector<ProducerInfo>> land_producers_info;//collection for each resource
-    for (CUnit* producer : producers)
-    {//check requirements and predict
-        long man_amount = unit_control::get_item_amount_by_mask(producer, PRP_MEN);
-        if (man_amount <= 0)
+        if (product_request.is_craft_)
         {
-            OrderError("Warning", land, producer, "produce: no man in the unit!");
+            std::shared_ptr<TProdDetails> prod_details = gpDataHelper->GetProdDetails(product_request.item_name_.c_str());
+            for (const auto& req_resource : prod_details->req_resources_)
+                land_control::get_land_shares(land, req_resource.first);
         }
-
-        auto produce_orders = orders::control::retrieve_orders_by_type(orders::Type::O_PRODUCE, producer->orders_);
-        if (produce_orders.size() > 1)
-        {//check amount of produce orders
-            OrderError("Error", land, producer, "produce: more than one production order!");
-            continue;
-        }
-        std::string item;
-        long goal_amount;
-        if (!orders::parser::specific::parse_produce(produce_orders[0], item, goal_amount))
-        {
-            OrderError("Error", land, producer, "produce: wrong format!");
-            continue;
-        }
-
-        TProdDetails prod_details;
-        gpDataHelper->GetProdDetails(item.c_str(), prod_details);
-        if (prod_details.skill_name_.empty() || prod_details.per_month_<=0)
-        {//check details settings
-            std::string mess = "produce: production requirements for '" + item + "' are not configured!";
-            OrderError("Warning", land, producer, mess);
-            continue;
-        }
-
-        long skill_days = unit_control::get_current_skill_days(producer, prod_details.skill_name_);
-        long skill_lvl = skills_control::get_skill_lvl_from_days(skill_days);
-        if (skill_lvl < prod_details.skill_level_)
-        {//check skill requirements
-            std::string mess = "produce: skill '" + prod_details.skill_name_ +
-                "' (" + std::to_string(prod_details.skill_level_) + ") is required to produce";
-            OrderError("Error", land, producer, mess);
-            continue;
-        }
-
-        long tools_plus(0);
-        if (!prod_details.tool_name_.empty())
-        {
-            long tool_amount = unit_control::get_item_amount(producer, prod_details.tool_name_);
-            tool_amount = std::min(tool_amount, man_amount);
-            tools_plus = tool_amount * prod_details.tool_plus_;
-        }
-
-        //how many this unit can produce
-        long basic_produce_power = (long)((man_amount*skill_lvl + tools_plus)/prod_details.per_month_);
-        
-        if (goal_amount > 0)//restriction by goal
-            basic_produce_power = std::min(goal_amount, basic_produce_power);
-        //produce from existing resources (if requires)
-        for (const auto& req_resource : prod_details.req_resources_)
-        {
-            long producer_has = unit_control::get_item_amount(producer, req_resource.first);
-            if (producer_has / req_resource.second < (long)(basic_produce_power))
-            {//restriction by existing resources
-                basic_produce_power = (long)(producer_has / req_resource.second);
-                producer->impact_description_.push_back("produce: "+req_resource.first+" " +
-                    std::to_string(producer_has) + " is enough just for "+ 
-                    std::to_string(basic_produce_power));
-            }
-        }
-
-        land_control::set_produced_items(land->current_state_, item, basic_produce_power);
-        land_producers_info[item].push_back({producer, basic_produce_power});
     }
 
-    //resolve land request (we had to collect all requests before calculation)
-    for (auto& res_to_producers : land_producers_info)
+    for (auto& product_request : out)
     {
-        if (std::find_if(land->current_state_.resources_.begin(), 
-                         land->current_state_.resources_.end(), 
-                         [&](const CItem& item) {
-                return item.code_name_ == res_to_producers.first;
-            }) != land->current_state_.resources_.end())
-        {//it's a request to land resources
-            long land_amount = land_control::get_resource(land->current_state_, res_to_producers.first);
-            long requested_amount = land_control::get_produced_items(land->current_state_, res_to_producers.first);
+        if (!product_request.is_craft_)
+        {//request from land
+            long land_amount = land_control::get_resource(land->current_state_, product_request.item_name_);
+            land_control::set_produced_items(land->current_state_, product_request.item_name_, product_request.items_amount_);
 
-            //fill producers description regarding their requests
             double leftovers(0.0);
-            std::sort(res_to_producers.second.begin(), res_to_producers.second.end(), 
-            [](const ProducerInfo& item1, const ProducerInfo& item2){
-                return item1.item_amount_ > item2.item_amount_;
-            });
-            for (const ProducerInfo& prod_info : res_to_producers.second)
+            for (const std::pair<CUnit*, long>& producer : product_request.units_)
             {
-                if (land_amount < requested_amount)
+                //or 1, or below 1 if we try to produce more than we can harvest
+                double prod_coeficient = std::min(((double)land_amount / product_request.items_amount_), (double)1);
+
+                //calculate production amount for current unit
+                double intpart;
+                leftovers += modf(prod_coeficient * producer.second, &intpart);
+                if (leftovers >= 0.999999)
                 {
-                    double intpart;
-                    leftovers += modf(((double)land_amount / requested_amount) * prod_info.item_amount_, &intpart);
-                    //prod_info.item_amount_ = intpart;
-                    if (leftovers >= 0.999999)
-                    {
-                        intpart += 1;
-                        leftovers -= 1.0;
-                    }
-                    unit_control::modify_item_by_produce(prod_info.producer_, res_to_producers.first, intpart);
+                    intpart += 1;
+                    leftovers -= 1.0;
                 }
-                else
-                    unit_control::modify_item_by_produce(prod_info.producer_, res_to_producers.first, prod_info.item_amount_);
+                unit_control::modify_item_by_produce(producer.first, product_request.item_name_, intpart);
             }
         }
         else
-        {//it's a production of items from other items not touching land 
-         //or request to lands resource which doesnt presented here
-            TProdDetails prod_details;
-            gpDataHelper->GetProdDetails(res_to_producers.first.c_str(), prod_details);
-
-            for (const ProducerInfo& prod_info : res_to_producers.second)
+        {//its a craft
+            for (const auto& producer : product_request.units_)
             {
-                if (prod_details.req_resources_.size() == 0)
-                {
-                    std::string mess = "produce: '" + res_to_producers.first +
-                        "' is not a craft, and not presented among land resources";
-                    OrderError("Warning", land, prod_info.producer_, mess);
-                    continue;                
+                CUnit* unit = producer.first;
+                long amount = producer.second;
+                
+                std::shared_ptr<TProdDetails> prod_details = gpDataHelper->GetProdDetails(product_request.item_name_.c_str());
+                for (const auto& req_resource : prod_details->req_resources_)
+                {//specify amount
+                    long res_amount = 0;
+                    if (!unit_control::flags::is_sharing(unit))
+                        res_amount = unit_control::get_item_amount(unit, req_resource.first);
+
+                    if (req_resource.second * amount > res_amount + land->current_state_.shared_items_[req_resource.first].first)
+                    {
+                        amount = (res_amount + land->current_state_.shared_items_[req_resource.first].first) / req_resource.second;
+                        unit->impact_description_.push_back("produce: "+req_resource.first+" " +
+                                    std::to_string(res_amount + land->current_state_.shared_items_[req_resource.first].first) + " is enough just for "+ 
+                                    std::to_string(amount));
+                    }
                 }
 
-                unit_control::modify_item_by_produce(prod_info.producer_, 
-                                                     res_to_producers.first, 
-                                                     prod_info.item_amount_);
+                for (const auto& req_resource : prod_details->req_resources_)
+                {//modify left shared resources
+                    long req_material_amount = req_resource.second * amount;
+                    if (req_material_amount > 0)
+                    {
+                        if (!unit_control::flags::is_sharing(unit)) 
+                        {
+                            long current_resource_amount = unit_control::get_item_amount(unit, req_resource.first);
+                            if (current_resource_amount >= req_material_amount)
+                            {
+                                unit_control::modify_item_by_produce(unit, 
+                                                                    product_request.item_name_,
+                                                                    -req_material_amount);
+                            }
+                            else
+                            {
+                                unit_control::modify_item_by_produce(unit, 
+                                                                    product_request.item_name_,
+                                                                    -current_resource_amount);
+                                req_material_amount -= current_resource_amount;
+                                land->current_state_.shared_items_[req_resource.first].first -= req_material_amount;
+                            }
+                        }
+                        else
+                        {
+                            land->current_state_.shared_items_[req_resource.first].first -= req_material_amount;
+                        }
+                    }
+                }                    
 
-                for (const auto& req_resource : prod_details.req_resources_)
-                {
-                    unit_control::modify_item_by_produce(prod_info.producer_, 
-                                                            req_resource.first, 
-                                                            (long)(-prod_info.item_amount_ * req_resource.second));
-                }
+                land_control::set_produced_items(land->current_state_, product_request.item_name_, amount);
+                unit_control::modify_item_by_produce(unit, 
+                                                    product_request.item_name_,
+                                                    amount);                     
             }
         }
     }
@@ -6681,9 +6641,8 @@ void CAtlaParser::RunOrder_LandFlags(CLand* land)
 //-------------------------------------------------------------
 void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
 {
-    for (size_t i = 0; i < land->UnitsSeq.Count(); i++)
+    for (CUnit* unit : land->units_seq_)
     {
-        CUnit* unit = (CUnit*)land->UnitsSeq.At(i);
         if (up_to != nullptr && unit->Id == up_to->Id)
             return;
 
@@ -7647,7 +7606,16 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
             cur_land = next_land;
             next_land = nullptr;
         }
-
+        cur_land = GetLand(unit->movement_stop_);
+        if (cur_land != nullptr)
+            cur_land->current_state_.incoming_units_.push_back(unit);
+        
+        if (unit->movements_.size() > 0)
+        {
+            cur_land = GetLand(unit->movements_.back());
+            if (cur_land != nullptr)
+                cur_land->current_state_.moveorder_stops_units_.push_back(unit);
+        }
         unit->impact_description_.push_back("moves; left movepoints: "+ std::to_string(movepoints));
     });
 
@@ -7800,7 +7768,7 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
         {
             unit->impact_description_.push_back("sails; left movepoints: "+ std::to_string(movepoints));
             ships_and_owners[unit_control::structure_id(unit)] = unit;
-        } 
+        }
     });
 
     //update passangers
@@ -7811,6 +7779,17 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
         {
             unit->movement_stop_ = ships_and_owners[cur_unit_struct_id]->movement_stop_;
             unit->movements_ = ships_and_owners[cur_unit_struct_id]->movements_;
+            
+            CLand* cur_land = GetLand(unit->movement_stop_);
+            if (cur_land != nullptr)
+                cur_land->current_state_.incoming_units_.push_back(unit);
+            
+            if (unit->movements_.size() > 0)
+            {
+                cur_land = GetLand(unit->movements_.back());
+                if (cur_land != nullptr)
+                    cur_land->current_state_.moveorder_stops_units_.push_back(unit);
+            }
         }
     });
 

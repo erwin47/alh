@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
+#include <algorithm>
 
 #include "stdhdr.h"
 
@@ -263,7 +264,7 @@ BOOL CAttitude::IsEqual(CAttitude * attitude)
 
 //=============================================================
 
-CLand::CLand() : CBaseObject(), Units(32), UnitsSeq(32)
+CLand::CLand() : CBaseObject(), Units(32)
 {
     Flags=0;
     AlarmFlags=0;
@@ -276,6 +277,7 @@ CLand::CLand() : CBaseObject(), Units(32), UnitsSeq(32)
     Wages = 0.0;
     init_land_state(initial_state_);
     init_land_state(current_state_);
+    units_seq_.reserve(10);
     for(int i=0; i<=ATT_UNDECLARED; i++) Troops[i]=0;
     ResetAllExits();
 }
@@ -288,7 +290,7 @@ CLand::~CLand()
     //Structs.FreeAll();
     EdgeStructs.FreeAll();
     Units.DeleteAll();
-    UnitsSeq.DeleteAll();
+    //UnitsSeq.DeleteAll();
     Products.FreeAll();
 }
 
@@ -307,8 +309,9 @@ BOOL CLand::AddUnit(CUnit * pUnit)
     {
         pUnit->LandId = Id;
         Flags |= LAND_UNITS;
-        UnitsSeq.Insert(pUnit);
-        pUnit->SetProperty(PRP_SEQUENCE, eLong, (void*)UnitsSeq.Count(), eNormal);
+        //UnitsSeq.Insert(pUnit);
+        units_seq_.push_back(pUnit);
+        pUnit->SetProperty(PRP_SEQUENCE, eLong, (void*)units_seq_.size(), eNormal);
         return TRUE;
     }
     else
@@ -327,12 +330,13 @@ void CLand::RemoveUnit(CUnit * pUnit)
     {
         Units.AtDelete(i);
 
-        for (i=UnitsSeq.Count()-1; i>=0; i--)
+        for (CUnit* p : units_seq_)
         {
-            p = (CUnit*)UnitsSeq.At(i);
             if (p->Id == pUnit->Id)
             {
-                UnitsSeq.AtDelete(i);
+                units_seq_.erase(std::remove_if(units_seq_.begin(), units_seq_.end(), [&](CUnit* p) {
+                        return p->Id == pUnit->Id;
+                    }), units_seq_.end());
                 break;
             }
         }
@@ -347,12 +351,9 @@ void CLand::DeleteAllNewUnits(int factionId)
     int       i;
     CUnit   * pUnit;
 
-    for (i=UnitsSeq.Count()-1; i>=0; i--)
-    {
-        pUnit = (CUnit*)UnitsSeq.At(i);
-        if (IS_NEW_UNIT(pUnit) && (pUnit->FactionId == factionId || 0 == factionId))
-            UnitsSeq.AtDelete(i);
-    }
+    units_seq_.erase(std::remove_if(units_seq_.begin(), units_seq_.end(), [&](CUnit* p) {
+            return IS_NEW_UNIT(p) && (p->FactionId == factionId || 0 == factionId);
+        }), units_seq_.end());
 
     for (i=Units.Count()-1; i>=0; i--)
     {
@@ -389,12 +390,17 @@ void init_land_state(LandState& lstate)
     init_land_item_state(lstate.entertain_);
     lstate.peasants_amount_ = 0;
     lstate.resources_.clear();
-    lstate.produced_items_.clear();
+    lstate.shared_items_.clear();
+    lstate.produced_items_.clear();    
     lstate.sold_items_.clear();
     lstate.bought_items_.clear();
     lstate.wanted_.clear();
     lstate.for_sale_.clear();
     lstate.structures_.clear();
+
+    lstate.incoming_units_.clear();
+    lstate.moveorder_stops_units_.clear();
+
     init_economy(lstate.economy_);
     lstate.run_orders_errors_.clear();
 }
@@ -546,7 +552,7 @@ void CLand::SetFlagsFromUnits()
         men=0;
         weapons=0;
         armours=0;
-        pUnit = (CUnit*)UnitsSeq.At(i);
+        pUnit = (CUnit*)Units.At(i);
         if (pUnit->FactionId==player_id) AlarmFlags |= PRESENCE_OWN;
         if (((pUnit->Flags & UNIT_FLAG_TAXING) || (pUnit->Flags & UNIT_FLAG_PILLAGING)) && !(pUnit->Flags & UNIT_FLAG_GIVEN))
             Flags |= LAND_TAX_NEXT;

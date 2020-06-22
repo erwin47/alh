@@ -211,7 +211,7 @@ public:
     BOOL                 IsMan          (const char * item);
     BOOL                 IsMagicSkill   (const char * skill);
     const char *         GetWeatherLine (BOOL IsCurrent, BOOL IsGood, int Zone);
-    void                 GetProdDetails (const char * item, TProdDetails & details);
+    std::shared_ptr<TProdDetails> GetProdDetails (const char * item);
     BOOL                 CanSeeAdvResources(const char * skillname, const char * terrain, CLongColl & Levels, CBufColl & Resources);
     int                  GetAttitudeForFaction(int id);
     void                 SetAttitudeForFaction(int id, int attitude);

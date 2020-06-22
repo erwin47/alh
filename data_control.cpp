@@ -843,7 +843,7 @@ namespace land_control
         for (size_t i=0; i<gpApp->m_pAtlantis->m_Planes.Count(); i++)
         {
             CPlane* pPlane = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(i);
-            if (strcasecmp(pPlane->Name.GetData(), plane_name) == 0)
+            if (stricmp(pPlane->Name.GetData(), plane_name) == 0)
                 return pPlane->Id;
         }
         return -1;
@@ -966,6 +966,12 @@ namespace land_control
                 return resource.amount_;
         }
         return 0;
+    }
+
+    void set_shared_items(LandState& state, const std::string& item_code, long amount)
+    {
+        state.shared_items_[item_code].first += amount;
+        state.shared_items_[item_code].second += amount;
     }
 
     void set_produced_items(LandState& state, const std::string& item_code, long amount)
@@ -1375,6 +1381,118 @@ namespace land_control
             apply_flag<orders::Type::O_REVEAL>(unit, errors);
             apply_flag<orders::Type::O_CONSUME>(unit, errors);
         });        
+    }
+
+    long get_land_shares(CLand* land, const std::string& item)
+    {
+        if (land->current_state_.shared_items_.find(item) != land->current_state_.shared_items_.end())
+            return land->current_state_.shared_items_[item].second;
+
+        long res(0);
+        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+            if (unit_control::flags::is_sharing(unit))
+                res += unit_control::get_item_amount(unit, item);
+        });
+
+        std::vector<CUnit*> stopped;
+        std::vector<CUnit*> ended_moveorder;
+        //incoming_units_
+        gpApp->GetUnitsMovingIntoHex(land->Id, stopped, ended_moveorder);
+        for (CUnit* unit : stopped)
+        {
+            if (unit_control::flags::is_sharing(unit))
+                res += unit_control::get_item_amount(unit, item);
+        }
+        land->current_state_.shared_items_[item].first = res;
+        land->current_state_.shared_items_[item].second = res;
+        return res;
+    }
+
+    void get_land_producers(CLand* land, std::vector<ProduceItem>& out, std::vector<unit_control::UnitError>& errors)
+    {
+        std::vector<CUnit*> producers;
+        land_control::get_units_if(land, producers, [](CUnit* unit) {
+            return orders::control::has_orders_with_type(orders::Type::O_PRODUCE, unit->orders_);
+        });
+
+        std::map<std::string, std::vector<std::pair<CUnit*, long>>> prod_requests;
+        for (CUnit* producer : producers)
+        {//check requirements and predict
+            long man_amount = unit_control::get_item_amount_by_mask(producer, PRP_MEN);
+            if (man_amount <= 0)
+            {
+                errors.push_back({"Warning", producer, "produce: no man in the unit!"});
+                continue;
+            }
+
+            auto produce_orders = orders::control::retrieve_orders_by_type(orders::Type::O_PRODUCE, producer->orders_);
+            if (produce_orders.size() > 1)
+            {//check amount of produce orders
+                errors.push_back({"Error", producer, "produce: more than one production order!"});
+                continue;
+            }
+            std::string item;
+            long goal_amount;
+            if (!orders::parser::specific::parse_produce(produce_orders[0], item, goal_amount))
+            {
+                errors.push_back({"Error", producer, "produce: wrong format!"});
+                continue;
+            }
+
+            std::shared_ptr<TProdDetails> prod_details = gpDataHelper->GetProdDetails(item.c_str());
+            if (prod_details->skill_name_.empty() || prod_details->per_month_<=0)
+            {//check details settings
+                std::string mess = "produce: production requirements for '" + item + "' are not configured!";
+                errors.push_back({"Warning", producer, mess});
+                continue;
+            }
+
+            long skill_days = unit_control::get_current_skill_days(producer, prod_details->skill_name_);
+            long skill_lvl = skills_control::get_skill_lvl_from_days(skill_days);
+            if (skill_lvl < prod_details->skill_level_)
+            {//check skill requirements
+                std::string mess = "produce: skill '" + prod_details->skill_name_ +
+                    "' (" + std::to_string(prod_details->skill_level_) + ") is required to produce";
+                errors.push_back({"Error", producer, mess});
+                continue;
+            }
+
+            long tools_plus(0);
+            if (!prod_details->tool_name_.empty())
+            {
+                long tool_amount = unit_control::get_item_amount(producer, prod_details->tool_name_);
+                tool_amount = std::min(tool_amount, man_amount);
+                tools_plus = tool_amount * prod_details->tool_plus_;
+            }
+
+            //how many this unit can produce
+            long basic_produce_power = (long)((man_amount*skill_lvl + tools_plus)/prod_details->per_month_);
+            producer->impact_description_.push_back("produce: unit production power: "+std::to_string(basic_produce_power));
+            
+            if (goal_amount > 0)//restriction by goal
+                basic_produce_power = std::min(goal_amount, basic_produce_power);
+
+            prod_requests[item].push_back({producer, basic_produce_power});
+            /*
+
+
+            */
+            //out.push_back({item, basic_produce_power, is_craft, producer});
+        }
+
+        for (const auto& prod_request : prod_requests)
+        {
+            long sum_prod_request(0);
+            for (const auto& req : prod_request.second) 
+                sum_prod_request += req.second;
+            bool is_craft = std::find_if(land->current_state_.resources_.begin(), 
+                                         land->current_state_.resources_.end(), 
+                                         [&](const CItem& item) {
+                                  return item.code_name_ == prod_request.first;
+                            }) == land->current_state_.resources_.end();
+
+            out.push_back({prod_request.first, sum_prod_request, is_craft, prod_request.second});
+        }
     }
 
     void get_land_builders(CLand* land, std::vector<ActionUnit>& out, std::vector<unit_control::UnitError>& errors)

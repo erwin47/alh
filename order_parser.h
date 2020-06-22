@@ -232,7 +232,7 @@ namespace orders
         enum class LogicAction {
             NONE,
             SWITCH_COMMENT,
-            ERROR
+            LOGIC_ERROR
         };
 
         AO_TYPES has_autoorders(const std::shared_ptr<Order>& order);

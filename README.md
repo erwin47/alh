@@ -45,8 +45,19 @@ And then enable for users to choose a phase of calculations.
 fix issue with speed of turtles in the ocean
 
 ## Changelog:
+### Jun 22 2020
+- internal: prod detail performance optimization
+- internal: units_seq_ of region is now a std collection
+- NEEDREG bugfix: it doesn't take into account silver of other known units, not belonging to faction.
+- bugfix: GIVE order doesn't crush program anymore if filled incorrectly
+- Production: takes into account also shared items for production.
+- MSVC compatibility problem: removed `ERROR` enumeration name
+- starting bugfix: Gate parsing doesn't lead to crush anymore.
+- Region economy: added shared resources production statistics (it takes into account resources which will come to region with units, having `share 1` flag)
+
+
 ### May 31 2020
-- check tax & drade: added more statistic info.
+- check tax & trade: added more statistic info.
 - economy bug: work income is counted during all the income calculation.
 - moving/sailing: crush bug fixed.
 - join: added join to list of known commands (still without parsing or checks).
@@ -216,7 +227,7 @@ Tax calculations now use those rules.
 - internal: RunOrder_LandProduce fixed.
 
 ### Feb 19 2020
-- GetProdDetails: allows float variables. This means one skill level can produce 0.5 of item, if it actually do that.
+- GetProdDetails: allows float variables. This means one skill level can produce 0.5 of item, if it actually does that.
 - Attack/Steal/Assassinate parser upgraded: it adds to description of the unit about it's orders. Also it adds the record to description of target units, so it's easy to see if you assassinate someone twice and so on.
 - ImmediateProdCheck now influence just the actual modification of production, but all errors, warnings and messages will be calculated and printed.
 - Too much items in GIVE order is a warning, but not error: it will be described, and actual amount of items will be changed according to rules of server.

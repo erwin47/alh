@@ -3,6 +3,7 @@
 
 #include "data.h"
 #include <memory>
+#include <vector>
 #include <algorithm>
 
 #ifdef _MSC_VER 
@@ -159,6 +160,14 @@ namespace land_control
         std::vector<std::pair<CUnit*, long>> units_;
     };
 
+    struct ProduceItem
+    {
+        std::string item_name_;
+        long items_amount_;
+        bool is_craft_;
+        std::vector<std::pair<CUnit*, long>> units_;
+    };    
+
     struct ActionUnit
     {
         std::string action_;
@@ -215,34 +224,25 @@ namespace land_control
     template<typename T>
     void get_units_if(CLand* land, std::vector<CUnit*>& units, T Pred)
     {
-        for (size_t i = 0; i < land->Units.Count(); i++)
-        {
-            CUnit* unit = (CUnit*)land->Units.At(i);
+        for (CUnit* unit : land->units_seq_)
             if (Pred(unit))
                 units.push_back(unit);
-        }       
     }
 
     template<typename T>
     CUnit* find_first_unit_if(CLand* land, T Pred)
     {
-        for (size_t i = 0; i < land->Units.Count(); i++)
-        {
-            CUnit* unit = (CUnit*)land->Units.At(i);
+        for (CUnit* unit : land->units_seq_)
             if (Pred(unit))
                 return unit;
-        }
         return nullptr;    
     }    
 
     template<typename T>
     void perform_on_each_unit(CLand* land, T Pred)
     {
-        for (size_t i = 0; i < land->UnitsSeq.Count(); i++)
-        {
-            CUnit* unit = (CUnit*)land->UnitsSeq.At(i);
+        for (CUnit* unit : land->units_seq_)
             Pred(unit);
-        }       
     }
 
     long get_land_id(const char* land);
@@ -265,6 +265,10 @@ namespace land_control
                                                             bool& result);
 
     void apply_land_flags(CLand* land, std::vector<unit_control::UnitError>& errors);
+    
+    long get_land_shares(CLand* land, const std::string& item);
+    void get_land_producers(CLand* land, std::vector<ProduceItem>& out, std::vector<unit_control::UnitError>& errors);
+
     void get_land_builders(CLand* land, std::vector<ActionUnit>& out, std::vector<unit_control::UnitError>& errors);
     void get_land_entertainers(CLand* land, Incomers& out, std::vector<unit_control::UnitError>& errors, bool apply_changes);
     void get_land_workers(CLand* land, Incomers& out, std::vector<unit_control::UnitError>& errors, bool apply_changes);

@@ -560,11 +560,15 @@ struct LandState
     std::map<std::string, CProductMarket>   wanted_;
     std::map<std::string, CProductMarket>   for_sale_;
 
+    std::map<std::string, std::pair<long, long>> shared_items_;//at production phase
     std::map<std::string, long>             produced_items_;
     std::map<std::string, long>             sold_items_;
     std::map<std::string, long>             bought_items_;
 
     std::vector<CStruct*>                   structures_;
+
+    std::vector<CUnit*>                     incoming_units_;
+    std::vector<CUnit*>                     moveorder_stops_units_;
 
     CEconomy                                economy_;
     std::vector<CError>                     run_orders_errors_;
@@ -604,7 +608,8 @@ public:
     CStr          Events;
     //CBaseCollById Structs;
     CBaseCollById Units;
-    CBaseColl     UnitsSeq; // this will keep units in the sequence they were met in the report
+    //CBaseColl     UnitsSeq; // this will keep units in the sequence they were met in the report
+    std::vector<CUnit*> units_seq_;// keeps units in the sequence they were met in the report
     CBaseColl     EdgeStructs;
     CProductColl  Products;
 
@@ -739,7 +744,7 @@ public:
     BOOL         GetTropicZone     (const char * plane, long & y_min, long & y_max);
     const char * GetPlaneSize      (const char * plane);
     void         SetTropicZone     (const char * plane, long y_min, long y_max);
-    void         GetProdDetails    (const char * item, TProdDetails & details);
+    std::shared_ptr<TProdDetails> GetProdDetails(const char * item);
     BOOL         ImmediateProdCheck();
     BOOL         CanSeeAdvResources(const char * skillname, const char * terrain, CLongColl & Levels, CBufColl & Resources);
     BOOL         ShowMoveWarnings  ();
