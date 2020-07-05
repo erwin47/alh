@@ -374,6 +374,20 @@ class CAttitude : public CBaseObject
 
 //-----------------------------------------------------------------
 
+struct UnitState
+{
+    std::string name_;
+    std::string description_;
+    std::set<CItem> men_;
+    CItem           silver_;
+    std::set<CItem> items_;
+    
+    std::map<std::string, long> skills_;
+
+    long struct_id_;//!<struct to which it belongs (0 if none)
+};
+
+
 class CUnit : public CBaseObject
 {
 public:
@@ -401,6 +415,10 @@ public:
     //and then should have possibility to reset CUnit by preserved initial state.
     //until we don't have that, we have to duplicate members (or have any other similar 
     //mechanisms) to have possibility restore state of CUnit. THat's for *_initial_.
+
+    //UnitState current_state_;
+    //UnitState initial_state_;
+
     std::set<CItem> men_;
     std::set<CItem> men_initial_;
 
@@ -616,17 +634,6 @@ public:
     LandState initial_state_;
     LandState current_state_;
 
-/*
-    long          peasants_amount_;
-    std::string   peasant_race_;
-
-    std::vector<CItem>                      resources_;
-    std::map<std::string, long>             produced_items_;
-    std::map<std::string, CProductMarket>   wanted_;
-    std::map<std::string, CProductMarket>   for_sale_;
-    CEconomy                                economy_;
-    std::vector<CError>                     run_orders_errors_;
-*/
     unsigned long Flags;
     unsigned long AlarmFlags;
     int           xExit[6]; // storage for the coordinates of the exit
@@ -808,7 +815,7 @@ void TestLandId();
 BOOL IsASkillRelatedProperty(const char * propname);
 void MakeQualifiedPropertyName(const char * prefix, const char * shortname, CStr & FullName);
 void SplitQualifiedPropertyName(const char * fullname, CStr & Prefix, CStr & ShortName);
-bool evaluateLandByFilter(CLand* land, CStr * Property, eCompareOp * CompareOp, CStr * sValue, long * lValue, int count);
+bool evaluateLandByFilter(CLand* land, const std::string& Property, const eCompareOp& CompareOp, const std::string& sValue);
 BOOL EvaluateBaseObjectByBoxes(CBaseObject * pObj, CStr * Property, eCompareOp * CompareOp, CStr * Value, long * lValue, int count);
 
 #endif

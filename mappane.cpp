@@ -3593,12 +3593,6 @@ void CMapPane::CenterClick(wxPoint point)
 
 void CMapPane::MarkFoundHexes(CHexFilterDlg * pFilter)
 {
-    CStr             Property [HEX_SIMPLE_FLTR_COUNT];
-    CStr             Compare  [HEX_SIMPLE_FLTR_COUNT];
-    CStr             sValue   [HEX_SIMPLE_FLTR_COUNT];
-    long             lValue   [HEX_SIMPLE_FLTR_COUNT];
-    eCompareOp       CompareOp[HEX_SIMPLE_FLTR_COUNT];
-    int              i,k,n;
     CLand          * pLand;
     CPlane         * pPlane;
 //    CStruct        * pStruct;
@@ -3607,36 +3601,35 @@ void CMapPane::MarkFoundHexes(CHexFilterDlg * pFilter)
     if (!pFilter)
         return;
 
-    // read boxes values
-    for (i=0; i<HEX_SIMPLE_FLTR_COUNT; i++)
-    {
-        Property[i] = pFilter->m_cbProperty[i]->GetValue().mb_str();
-        Compare [i] = pFilter->m_cbCompare [i]->GetValue().mb_str();
-        sValue  [i] = pFilter->m_tcValue   [i]->GetValue().mb_str();
-
-        Property[i].TrimRight(TRIM_ALL);    Property[i].TrimLeft(TRIM_ALL);
-        Compare [i].TrimRight(TRIM_ALL);    Compare [i].TrimLeft(TRIM_ALL);
-        sValue  [i].TrimRight(TRIM_ALL);    sValue  [i].TrimLeft(TRIM_ALL);
-
-        CompareOp[i] = NOP;
-        for (k=GT; k<NOP; k++)
-            if (0==stricmp(HEX_FILTER_OPERATION[k], Compare[i].GetData()))
-            {
-                CompareOp[i] = (eCompareOp)k;
-                break;
-            }
-        lValue[i] = atol(sValue[i].GetData());
-    }
-
-
-    for (n=0; n<gpApp->m_pAtlantis->m_Planes.Count(); n++)
+    for (size_t n=0; n<gpApp->m_pAtlantis->m_Planes.Count(); n++)
     {
         pPlane = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(n);
-        for (i=0; i<pPlane->Lands.Count(); i++)
+        for (size_t i=0; i<pPlane->Lands.Count(); i++)
         {
             pLand = (CLand*)pPlane->Lands.At(i);
-            if (//evaluateLandByFilter(pLand, Property, CompareOp, sValue, lValue, HEX_SIMPLE_FLTR_COUNT) || 
-                EvaluateBaseObjectByBoxes(pLand, Property, CompareOp, sValue, lValue, HEX_SIMPLE_FLTR_COUNT))
+
+            bool res = true;
+            for (size_t  j = 0; j < HEX_SIMPLE_FLTR_COUNT; ++j)
+            {
+                std::string property = pFilter->m_cbProperty[j]->GetValue().ToStdString();
+                std::string value = pFilter->m_tcValue[j]->GetValue().ToStdString();
+                
+                eCompareOp CompareOp = NOP;
+                for (size_t k=GT; k<NOP; k++)
+                    if (0==stricmp(HEX_FILTER_OPERATION[k], pFilter->m_cbCompare[j]->GetValue().mb_str()))
+                    {
+                        CompareOp = (eCompareOp)k;
+                        break;
+                    }
+
+                if (property.empty())
+                    continue;
+
+                res = res && evaluateLandByFilter(pLand, property, 
+                                                         CompareOp,
+                                                         value);
+            }
+            if (res)
             {
                 gpApp->m_pAtlantis->ComposeLandStrCoord(pLand, sCoord);
                 LandList << pLand->TerrainType << " (" << sCoord << ")" << EOL_SCR;

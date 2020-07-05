@@ -45,6 +45,15 @@ And then enable for users to choose a phase of calculations.
 fix issue with speed of turtles in the ocean
 
 ## Changelog:
+### Jul 05 2020
+- name generation. Created rules which, based on items & races, generate names. Rules are part of dictionaries (can be found in `autonaming.cpp`, but were not moved out as a setting, so, hardcoded for a while). Is handled by `SZ_KEY_AUTONAMING`, as internal name generation. General idea: to not give a clue to enemy about meaning of unit by it's internal state, that's why names generated (mostly, with few obvious exceptions) based on visible part of unit.
+With enabled feature any unit with order `@name unit ""` will automatically get generated name.
+- changed interface of "Find Hexes" functionality. Added next evaluations:
+`REG[NAME]` -- allows compare with region name property
+`REG[MITH]` -- allows search for hexes where it is possible to produce `MITH` (0 -- means that the hex was checked, but item wasn't found, -1 -- no info)
+`SELL_AMOUNT[MITH]`, `SELL_PRICE[MITH]`, `BUY_AMOUNT[MITH]`, `BUY_PRICE[MITH]` -- generally duplicate old interface
+
+
 ### Jun 22 2020
 - internal: prod detail performance optimization
 - internal: units_seq_ of region is now a std collection

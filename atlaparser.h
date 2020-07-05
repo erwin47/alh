@@ -350,6 +350,7 @@ protected:
     void         RunOrder_LandSell         (CLand* land);
     void         RunOrder_LandBuy          (CLand* land);
     void         RunOrder_LandProduce      (CLand* land);
+    void         RunOrder_LandBuild        (CLand* land);
     void         RunOrder_LandStudyTeach   (CLand* land);
     void         RunOrder_LandAggression   (CLand* land);//steal, assassinate, attack
     void         RunOrder_LandTaxPillage   (CLand* land, bool apply_changes);

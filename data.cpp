@@ -1452,32 +1452,91 @@ void SplitQualifiedPropertyName(const char * fullname, CStr & Prefix, CStr & Sho
 
 //--------------------------------------------------------------------------
 
-bool evaluateLandByFilter(CLand* land, CStr * Property, eCompareOp * CompareOp, CStr * sValue, long * lValue, int count)
+template<typename T>
+bool doCompare(T v1, T v2, eCompareOp CompareOp)
 {
-    bool ok = false;
-    for (int i=0; i < count; ++i)
+    switch (CompareOp)
     {
-        if (strnicmp(Property[i].GetData(), "REG[NAME]", sizeof("REG[NAME]")-1) == 0)
+        case GT: return v1 > v2;
+        case GE: return v1 >= v2;
+        case EQ: return v1 == v2;
+        case LE: return v1 <= v2;
+        case LT: return v1 < v2;
+        case NE: return v1 != v2;
+        default: return false;
+    }
+}
+
+template<>
+bool doCompare(std::string v1, std::string v2, eCompareOp CompareOp)
+{
+    switch (CompareOp)
+    {
+        case GT: return stricmp(v1.c_str(), v2.c_str()) > 0;
+        case GE: return stricmp(v1.c_str(), v2.c_str()) >= 0;
+        case EQ: return stricmp(v1.c_str(), v2.c_str()) == 0;
+        case LE: return stricmp(v1.c_str(), v2.c_str()) <= 0;
+        case LT: return stricmp(v1.c_str(), v2.c_str()) < 0;
+        case NE: return stricmp(v1.c_str(), v2.c_str()) != 0;
+        default: return false;
+    }
+}
+
+bool evaluateLandByFilter(CLand* land, const std::string& Property, const eCompareOp& CompareOp, const std::string& sValue)
+{
+    size_t beg = Property.find('[');
+    size_t end = Property.find(']', beg);
+    std::string command = Property.substr(0, beg);
+    std::string type = Property.substr(beg+1, end-beg-1);
+
+    if (stricmp(command.c_str(), "REG") == 0) 
+    {
+        if (stricmp(type.c_str(), "NAME") == 0)
+            return doCompare(std::string(land->Name.GetData(), land->Name.GetLength()), sValue, CompareOp);
+        else 
         {
-            switch (CompareOp[i])
+            std::vector<CItem>::iterator it = std::find_if(land->current_state_.resources_.begin(),
+                                                           land->current_state_.resources_.end(), [&](const CItem& item) {
+                if (stricmp(item.code_name_.c_str(), type.c_str()) == 0)
+                    return true;
+                return false;
+            });
+            if (it != land->current_state_.resources_.end())
             {
-            case GT: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) >  0); break;
-            case GE: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) >= 0); break;
-            case EQ: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) == 0); break;
-            case LE: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) <= 0); break;
-            case LT: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) <  0); break;
-            case NE: ok = (stricmp(land->Name.GetData(), sValue[i].GetData()) != 0); break;
-            default: break;
+                return doCompare(it->amount_, std::stol(sValue), CompareOp);
             }
         }
     }
-    return ok;
-;
+    else if (stricmp(command.c_str(), "SELL_AMOUNT") == 0)
+    {
+        if (land->current_state_.for_sale_.find(type) != land->current_state_.for_sale_.end())
+        {
+            return doCompare(land->current_state_.for_sale_[type].item_.amount_, std::stol(sValue), CompareOp);
+        }
+    }
+    else if (stricmp(command.c_str(), "SELL_PRICE") == 0)
+    {
+        if (land->current_state_.for_sale_.find(type) != land->current_state_.for_sale_.end())
+        {
+            return doCompare(land->current_state_.for_sale_[type].price_, std::stol(sValue), CompareOp);
+        }
+    }
+    else if (stricmp(command.c_str(), "BUY_AMOUNT") == 0)
+    {
+        if (land->current_state_.for_sale_.find(type) != land->current_state_.for_sale_.end())
+        {
+            return doCompare(land->current_state_.wanted_[type].item_.amount_, std::stol(sValue), CompareOp);
+        }
+    }
+    else if (stricmp(command.c_str(), "BUY_PRICE") == 0)
+    {
+        if (land->current_state_.for_sale_.find(type) != land->current_state_.for_sale_.end())
+        {
+            return doCompare(land->current_state_.wanted_[type].price_, std::stol(sValue), CompareOp);
+        }
+    }
+    return false;
 }
-
-
-
-
 
 
 BOOL EvaluateBaseObjectByBoxes(CBaseObject * pObj, CStr * Property, eCompareOp * CompareOp, CStr * sValue, long * lValue, int count)

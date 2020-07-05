@@ -217,16 +217,20 @@ void CHexFilterDlg::Init()
     for (count=0; count < HEX_SIMPLE_FLTR_COUNT; count++)
     {
         m_cbProperty[count]->Append(wxT(""));
-        m_cbCompare [count]->Append(wxT(""));
-
         m_cbProperty[count]->Append(wxT("REG[NAME]"));
+        m_cbProperty[count]->Append(wxT("REG[MITH]"));
+        m_cbProperty[count]->Append(wxT("SELL_AMOUNT[MITH]"));
+        m_cbProperty[count]->Append(wxT("SELL_PRICE[MITH]"));
+        m_cbProperty[count]->Append(wxT("BUY_AMOUNT[MITH]"));
+        m_cbProperty[count]->Append(wxT("BUY_PRICE[MITH]"));
 
-        for (i=0; i<gpApp->m_pAtlantis->m_LandPropertyNames.Count(); i++)
+        /*for (i=0; i<gpApp->m_pAtlantis->m_LandPropertyNames.Count(); i++)
         {
             item = (const char *) gpApp->m_pAtlantis->m_LandPropertyNames.At(i);
             m_cbProperty[count]->Append(wxString::FromAscii(item));
-        }
+        }*/
 
+        m_cbCompare [count]->Append(wxT(""));
         for (i=0; (unsigned)i<sizeof(HEX_FILTER_OPERATION)/sizeof(*HEX_FILTER_OPERATION); i++)
         {
             item = HEX_FILTER_OPERATION[i];

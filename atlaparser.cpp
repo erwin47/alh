@@ -2250,6 +2250,9 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
         pUnit->Description = UnitPrefix;
         pUnit->Description << UnitText;
         pUnit->Name = S1;
+        //pUnit->initial_state_.name_ = std::string(S1.GetData(), S1.GetLength());
+        //pUnit->initial_state_.description_ = std::string(S1.GetData(), S1.GetLength());
+
     }
     if (m_pCurStruct)
     {
@@ -5165,10 +5168,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         if (sequence == TurnSequence::SQ_PRODUCE)
         {//no need to parse sequentially
             RunOrder_AOComments<orders::Type::O_PRODUCE>(pLand);
-            //pLand->current_state_.produced_items_.clear();
             RunOrder_LandProduce(pLand);
         }
-        if (sequence == TurnSequence::SQ_BUILD) {}
+        if (sequence == TurnSequence::SQ_BUILD) {
+            RunOrder_LandBuild(pLand);
+        }
         if (sequence == TurnSequence::SQ_ENTERTAIN) 
         {
             //m_EconomyShareAfterBuy
@@ -6262,6 +6266,9 @@ void CAtlaParser::RunOrder_AONames(CLand* land)
         return;
 
     land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        if (!unit->IsOurs)
+            return;
+
         auto comment_orders = orders::control::retrieve_orders_by_type(orders::Type::O_COMMENT_AUTONAME, unit->orders_);
         for (auto& comment_order : comment_orders)
         {
@@ -6271,6 +6278,26 @@ void CAtlaParser::RunOrder_AONames(CLand* land)
                 comment_order->comment_.insert(0, "%DEL%");
                 orders::control::remove_orders_by_comment(unit, "%DEL%");
                 orders::control::add_order_to_unit(new_name, unit);
+            }
+        }
+
+        auto naming_orders = orders::control::retrieve_orders_by_type(orders::Type::O_NAME, unit->orders_);
+        for (auto& naming_order : naming_orders)
+        {
+            if (stricmp(naming_order->comment_.c_str(), ";$C") == 0 || 
+                stricmp(naming_order->comment_.c_str(), ";!C") == 0)
+                continue;
+            if (naming_order->words_order_.size() > 1 && 
+                naming_order->words_order_[1] == "UNIT" && 
+                naming_order->original_string_[0] == '@')
+            {
+                std::string new_name = "@name unit \"" + autonaming::generate_unit_name(land, unit) + "\"";
+                if (stricmp(new_name.c_str(), naming_order->original_string_.c_str()) != 0)
+                {
+                    naming_order->comment_.insert(0, ";%DEL%");
+                    orders::control::remove_orders_by_comment(unit, "%DEL%");
+                    orders::control::add_order_to_unit(new_name, unit);
+                }
             }
         }
     });
@@ -6416,6 +6443,12 @@ BOOL CAtlaParser::CheckResourcesForProduction(CUnit * pUnit, CLand * pLand, CStr
 }
 
 //-------------------------------------------------------------
+
+void CAtlaParser::RunOrder_LandBuild(CLand* land)
+{
+
+
+}
 
 void CAtlaParser::RunOrder_LandProduce(CLand* land)
 {
