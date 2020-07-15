@@ -1362,7 +1362,14 @@ namespace orders
                             case 'M': speed = CaravanSpeed::MOVE; break;
                             case 'R': speed = CaravanSpeed::RIDE; break;
                             case 'F': speed = CaravanSpeed::FLY; break;
-                            case 'S': speed = CaravanSpeed::SWIM; break;
+                            case 'S': {
+                                    const char* next = runner + 1;
+                                    if (next < end && *next == 'W')
+                                        speed = CaravanSpeed::SWIM;
+                                    else
+                                        speed = CaravanSpeed::SAIL; 
+                                }
+                                break;
                             default: speed = CaravanSpeed::UNDEFINED; break;
                         }
                     }
@@ -1643,6 +1650,24 @@ namespace orders
                         allowed_weight = unit_weights[4] - unit_weights[0];
                         weight_step = item_weights[4] - item_weights[0];
                         break;
+                    case orders::CaravanSpeed::SAIL: {
+                            long struct_id = unit_control::structure_id(unit);
+                            allowed_weight = 0;
+                            weight_step = -item_weights[0];//just weight of item
+                            if (struct_id > 0) {
+                                CLand* cur_land = land_control::get_land(unit->LandId);
+                                if (cur_land == nullptr)
+                                    break;
+
+                                land_control::structures::update_struct_weights(cur_land);
+                                CStruct* ship = land_control::get_struct(cur_land, struct_id);
+                                if (ship == nullptr)
+                                    break;
+                                    
+                                allowed_weight = ship->capacity_ - ship->occupied_capacity_;
+                            }                        
+                        }
+                        break;                        
                     default:
                         unit_control::order_message(unit, "Caravan speed is undefined", "(unlimited load)");              
                         break;

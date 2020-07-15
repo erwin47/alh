@@ -3367,6 +3367,67 @@ BOOL CAhApp::GetPrevTurnReport(CAtlaParser *& pPrevTurn)
 
 //-------------------------------------------------------------------------
 
+void fill_item_category_state_report(CLand* land, const char* category_mask, std::map<std::string, long[3]>& items_category)
+{
+    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        if (!unit->IsOurs)
+            return;
+
+        auto category_items = unit_control::get_all_items_by_mask(unit, category_mask);
+        for (const auto& item : category_items)
+        {
+            if (unit->movements_.size() > 0)
+                items_category[item.code_name_][2] += item.amount_;
+            else
+                items_category[item.code_name_][0] += item.amount_;
+        }
+    });
+}
+
+void number_to_state_out(CStr& out, long num)
+{
+    const char* padd1 = " ";
+    const char* padd2 = "  ";
+    const char* padd3 = "   ";
+    const char* padd4 = "    ";
+    if (num < 10)
+        out << padd4;
+    else if (num < 100)
+        out << padd3;
+    else if (num < 1000)
+        out << padd2;
+    else if (num < 10000)
+        out << padd1;
+    out << num;
+}
+
+void item_category_state_out(CStr& out, const char* category_name, std::map<std::string, long[3]>& items_category)
+{
+    if (items_category.empty())
+        return;
+
+    long category_size = strlen(category_name);
+    out << EOL_SCR << category_name;
+    for (long i = category_size; i < 12; ++i)
+        out << " ";
+    out << "[  NOW/   IN/  OUT]:" << EOL_SCR;
+
+    for (auto& resource : items_category)
+    {
+        out << "    " << resource.first.c_str() << "    ";
+        if (resource.first.size() == 3)
+            out << " ";
+        out << "[";
+        number_to_state_out(out, resource.second[0]);
+        out << "/";
+        number_to_state_out(out, resource.second[1]);
+        out << "/";
+        number_to_state_out(out, resource.second[2]);
+        out << "]" << EOL_SCR;
+    }
+}
+
+
 void CAhApp::UpdateHexEditPane(CLand * pLand)
 {
     CStruct     * pStruct;
@@ -3510,7 +3571,69 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
                                                        pLand->current_state_.economy_.maintenance_ -
                                                        std::max(pLand->current_state_.economy_.moving_out_, (long)0) - 
                                                        pLand->current_state_.economy_.study_expenses_ << EOL_SCR;
+
+
+            std::map<std::string, long[3]> resources;
+            std::map<std::string, long[3]> equipment;
+            std::map<std::string, long[3]> magic_items;
+            std::map<std::string, long[3]> mounts;
+            std::map<std::string, long[3]> trade_items;
             
+
+            fill_item_category_state_report(pLand, PRP_RESOURCES, resources);
+            fill_item_category_state_report(pLand, PRP_ARMORS, equipment);
+            fill_item_category_state_report(pLand, PRP_WEAPONS, equipment);
+            fill_item_category_state_report(pLand, PRP_BOWS, equipment);
+            fill_item_category_state_report(pLand, PRP_SHIELDS, equipment);
+            fill_item_category_state_report(pLand, PRP_MAG_ITEMS, magic_items);
+            fill_item_category_state_report(pLand, PRP_MOUNTS, mounts);
+            fill_item_category_state_report(pLand, PRP_FLYING_MOUNTS, mounts);
+            fill_item_category_state_report(pLand, PRP_TRADE_ITEMS, trade_items);
+
+            std::vector<CUnit*> stopped;
+            std::vector<CUnit*> ended_moveorder;
+            GetUnitsMovingIntoHex(pLand->Id, stopped, ended_moveorder);
+            for (CUnit* unit : stopped) 
+            {
+                auto category_items = unit_control::get_all_items_by_mask(unit, PRP_RESOURCES);
+                for (const auto& item : category_items)
+                    resources[item.code_name_][1] += item.amount_;
+                category_items = unit_control::get_all_items_by_mask(unit, PRP_ARMORS);
+                for (const auto& item : category_items)
+                    equipment[item.code_name_][1] += item.amount_;
+                category_items = unit_control::get_all_items_by_mask(unit, PRP_WEAPONS);
+                for (const auto& item : category_items)
+                    equipment[item.code_name_][1] += item.amount_;
+                category_items = unit_control::get_all_items_by_mask(unit, PRP_BOWS);
+                for (const auto& item : category_items)
+                    equipment[item.code_name_][1] += item.amount_;
+                category_items = unit_control::get_all_items_by_mask(unit, PRP_SHIELDS);
+                for (const auto& item : category_items)
+                    equipment[item.code_name_][1] += item.amount_;
+                category_items = unit_control::get_all_items_by_mask(unit, PRP_MAG_ITEMS);
+                for (const auto& item : category_items)
+                    magic_items[item.code_name_][1] += item.amount_;                    
+                category_items = unit_control::get_all_items_by_mask(unit, PRP_MOUNTS);
+                for (const auto& item : category_items)
+                    mounts[item.code_name_][1] += item.amount_;
+                category_items = unit_control::get_all_items_by_mask(unit, PRP_FLYING_MOUNTS);
+                for (const auto& item : category_items)
+                    mounts[item.code_name_][1] += item.amount_;
+                category_items = unit_control::get_all_items_by_mask(unit, PRP_TRADE_ITEMS);
+                for (const auto& item : category_items)
+                    trade_items[item.code_name_][1] += item.amount_;
+            }
+
+            item_category_state_out(m_HexDescrSrc, "Resources", resources);
+            item_category_state_out(m_HexDescrSrc, "Equipment", equipment);
+            item_category_state_out(m_HexDescrSrc, "Artifacts", magic_items);
+            item_category_state_out(m_HexDescrSrc, "Mounts", mounts);
+            item_category_state_out(m_HexDescrSrc, "Trade items", trade_items);
+
+            //Equipment/Upcoming/Leaving
+            //Mounts/Upcoming/Leaving
+            //TradeItems/Upcoming/Leaving
+
 
             for (i=0; i<LAND_FLAG_COUNT; i++)
                 if (!pLand->FlagText[i].IsEmpty())

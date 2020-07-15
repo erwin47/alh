@@ -152,13 +152,18 @@ void CUnitPane::Update(CLand * pLand)
 
     if (pLand)
     {
+        std::set<long> returning_ids;
         for (i=0; i<pLand->Units.Count(); i++)
         {
             pUnit = (CUnit*)pLand->Units.At(i);
+
+            if (pUnit && pUnit->movements_.size() > 0 && pUnit->movement_stop_ == pLand->Id)
+                returning_ids.insert(pUnit->Id);
+
             if (pUnit && pUnit->has_error_) {//pUnit->Flags & UNIT_FLAG_HAS_ERROR) {
                 GuiColor = 4;//light red, for units with errors
             }
-            else if (pUnit && pUnit->movements_.size() > 0)
+            else if (pUnit && pUnit->movement_stop_ != 0 && pUnit->movement_stop_ != pLand->Id)
                 GuiColor = 1;
             else if (pUnit && (pUnit->Flags & UNIT_FLAG_GUARDING))
                 GuiColor = 3;
@@ -176,12 +181,18 @@ void CUnitPane::Update(CLand * pLand)
         gpApp->GetUnitsMovingIntoHex(pLand->Id, stopping, ending_moving_orders);
         for (CUnit* unit : stopping)
         {
+            if (returning_ids.find(unit->Id) != returning_ids.end())
+                continue;
+
             GuiColor = 2;
             unit->SetProperty(PRP_GUI_COLOR, eLong, (void*)GuiColor, eBoth);
             m_pUnits->AtInsert(m_pUnits->Count(), unit);
         }
         for (CUnit* unit : ending_moving_orders)
         {
+            if (returning_ids.find(unit->Id) != returning_ids.end())
+                continue;
+                          
             GuiColor = 6;
             unit->SetProperty(PRP_GUI_COLOR, eLong, (void*)GuiColor, eBoth);
             m_pUnits->AtInsert(m_pUnits->Count(), unit);

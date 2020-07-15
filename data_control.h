@@ -1,6 +1,7 @@
 #ifndef DATA_CONTROL_INCL
 #define DATA_CONTROL_INCL
 
+#include "ahapp.h"
 #include "data.h"
 #include <memory>
 #include <vector>
@@ -245,12 +246,32 @@ namespace land_control
             Pred(unit);
     }
 
+    template<typename T>
+    void perform_on_each_unit_after_moving(CLand* land, T Pred)
+    {
+        for (CUnit* unit : land->units_seq_) {
+            //ignore those who move out
+            if (unit->movements_.size() > 0 && unit->movement_stop_ != 0)
+                continue;
+
+            Pred(unit);
+        }
+
+        std::vector<CUnit*> stopped;
+        std::vector<CUnit*> moveovers;
+        gpApp->GetUnitsMovingIntoHex(land->Id, stopped, moveovers);
+        //apply to units which stop
+        for (CUnit* unit : stopped) {
+            Pred(unit);
+        }
+    }
+
     long get_land_id(const char* land);
-    void get_land_coordinates(long land_id, int& x, int& y, int& z);
+    void get_land_coordinates(long land_id, long& x, long& y, long& z);
     std::string land_full_name(CLand* land);
 
     long get_plane_id(const char* plane_name);
-    CLand* get_land(int x, int y, int z);
+    CLand* get_land(long x, long y, long z);
     CLand* get_land(long land_id);
 
     namespace economy 
@@ -267,6 +288,7 @@ namespace land_control
     void apply_land_flags(CLand* land, std::vector<unit_control::UnitError>& errors);
     
     long get_land_shares(CLand* land, const std::string& item);
+    void init_land_all_shares(CLand* land);
     void get_land_producers(CLand* land, std::vector<ProduceItem>& out, std::vector<unit_control::UnitError>& errors);
 
     void get_land_builders(CLand* land, std::vector<ActionUnit>& out, std::vector<unit_control::UnitError>& errors);
@@ -320,13 +342,15 @@ namespace game_control
         return ret;
     }
 
+    std::vector<std::pair<std::string, std::string>> get_all_configuration(const char* section);
+
     template<typename T>
     T get_game_config_val(const char* section, const char* key)
     {
         return convert_to<T>(get_gpapp_config(section, key));
     }
 
-    bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag, SHIP_TRAVEL& travel);
+    bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag, SHIP_TRAVEL& travel, long& speed);
 
 }
 

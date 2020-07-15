@@ -41,10 +41,28 @@ add CheckOrder_LandXXXX() -- for each monthlong order, which would set the flags
 place those checks to the first phase, so all monthlong orders should be checked at the fist phase & represented in flags.
 That would let keeping flags updated without relaying to specific Phase of calculation.
 And then enable for users to choose a phase of calculations.
-
 fix issue with speed of turtles in the ocean
 
 ## Changelog:
+### Jul 15 2020
+A lot of strong new features:
+- Region description: added items state reports (after economy) incuding information about current amount of items, incoming amount and outgoing amount. For next categories: Resources [PRP_RESOURCES], Equipment[PRP_ARMORS, PRP_WEAPONS, PRP_BOWS, PRP_SHIELDS], Artifacts[PRP_MAG_ITEMS], Mounts[PRP_MOUNTS, PRP_FLYING_MOUNTS], Trade items[PRP_TRADE_ITEMS]. Should be useful for analysis of the whole picture of region regarding stuff in it.
+- Region description: shared resources now list all the shared resources, not just of a type which is used for production. Should be useful to see what is exactly shared in the region and can be used.
+- Movement tracking: fixed bug, related to tracking units, coming from different levels.
+- Teaching orders generation: now if teacher is sailing away, it will automatically try to teach units at the destination region (including those who will arrive there). Such units will be marked by specific comment in teaching order. Should help to manage teaching when a teacher or a student is sailing.
+- Running orders in the end will automatically check economy of regions, and those who are below 0 will be printed out in events log. Should help to avoid unexpected starvation.
+- Caravans: added `SAIL` variant of speed: now it loads stuff to not overweight the fleet.
+- Region popup: added "Move phases" button, which prints out all moving phases with units presenting in the region at those phases. Taking into account speed, type of movement, territories and etc. Should help planning operations.
+- Fleets: added expected speed of the vessel into parameters, to predict speed of the Fleet.
+- Autonaming: unit without men automatically gets internal name `000`, to be sorted out.
+- Autonaming: seriously upgraded logic and possibilities of unit's external naming.
+
+- internal: fixed bug with economy calculation when unit has amount of silver below zero.
+- internal: fixed bug with `move P` of unit with overweight.
+- internal: fixed bug with region masks related to BUY_AMOUNT and BUY_PRICE.
+- ReceiveDlg: fixed bug related to showing working units as moving units in drop-list of units.
+- conditional logic: fixed bug, which lead to wrong calculation of `&&`
+
 ### Jul 05 2020
 - name generation. Created rules which, based on items & races, generate names. Rules are part of dictionaries (can be found in `autonaming.cpp`, but were not moved out as a setting, so, hardcoded for a while). Is handled by `SZ_KEY_AUTONAMING`, as internal name generation. General idea: to not give a clue to enemy about meaning of unit by it's internal state, that's why names generated (mostly, with few obvious exceptions) based on visible part of unit.
 With enabled feature any unit with order `@name unit ""` will automatically get generated name.

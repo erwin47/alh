@@ -112,6 +112,7 @@ enum
     menu_Popup_New_Hex      ,
     menu_Popup_Del_Hex      ,
     menu_Popup_DistanceRing ,
+    menu_Popup_MovePhases   ,
 
     // accelerator key
     accel_NextUnit          ,
@@ -437,6 +438,7 @@ enum
 #define SZ_ATTR_STRUCT_MAX_LOAD          "MAX_LOAD"
 #define SZ_ATTR_STRUCT_MIN_SAIL          "MIN_POWER"
 #define SZ_ATTR_STRUCT_TRAVEL            "TRAVEL"
+#define SZ_ATTR_STRUCT_USUAL_SPEED       "USUAL_SPEED"
 
 #define SZ_LEADER                        "leader"
 #define SZ_HERO                          "hero"

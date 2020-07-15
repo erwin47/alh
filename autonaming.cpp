@@ -249,6 +249,9 @@ namespace autonaming
 
     std::string generate_unit_autoname(CLand* land, CUnit* unit)
     {
+        if (unit_control::get_item_amount_by_mask(unit, PRP_MEN) == 0)
+            return "000 $c";
+
         std::string type;
         std::string skills_line;
         std::string highest_skill;
@@ -313,223 +316,349 @@ namespace autonaming
      */
     enum class SquadTypes
     {
+        //war categories
         LightCavalry,
         HeavyCavalry,
         LightInfantry,
         HeavyInfantry,
+        
+        HeavyWarrior,
+        Warrior,
+        Guardsmen,
+
+        WeakEquipment,
+        StrongEquipment,        
+
         Bowmen,
         Crossbowmen,
+
+        AmountHuge,
+        AmountSmall,
+
+        //peaceful categories
         Worker,
         Scout,
         Transport,
+
+        //ships
+        Sailors,
+
         Undefined
     };
+
+    struct namingParameters
+    {
+        uint64_t is_guard_:1;
+        uint64_t is_avoid_:1;
+        uint64_t is_behind_:1;
+        uint64_t is_ship_owner_:1;
+        uint64_t is_big_:1;
+        uint64_t is_small_:1;
+        uint64_t is_one_:1;
+        uint64_t is_heavy_armored_:1;
+        uint64_t is_light_armored_:1;
+        uint64_t is_heavy_shield_:1;
+        uint64_t is_light_shield_:1;
+        uint64_t is_heavy_weaponed_:1;
+        uint64_t is_light_weaponed_:1;
+        uint64_t is_archer_:1;
+        uint64_t is_crossbowmen_:1;
+        uint64_t is_flying_:1;
+        uint64_t is_riding_:1;
+        uint64_t is_transporting_:1;
+        uint64_t reserve_:17;
+    };
+
 
     //probably have to be uploaded from settings
     std::map<std::string, std::map<SquadTypes, std::string>> race_name_generators = {
         {
             "GBLN", {
-                { SquadTypes::LightCavalry, "Gustyboys" },
-                { SquadTypes::HeavyCavalry, "Braet Gustyboys" },
-                { SquadTypes::LightInfantry, "Doughboys" },
-                { SquadTypes::HeavyInfantry, "Braet Doughboys" },
                 { SquadTypes::Bowmen, "Arrowshooters" },
                 { SquadTypes::Crossbowmen, "Boltshooters" },
                 { SquadTypes::Worker, "Hunkies" },
                 { SquadTypes::Scout, "Sneaker" },
                 { SquadTypes::Transport, "Pushcarters" },
+
+                { SquadTypes::Guardsmen, "Gartt" },
+                { SquadTypes::HeavyWarrior, "Gustyboiz" },
+                { SquadTypes::Warrior, "Doughboiz" },
+                { SquadTypes::WeakEquipment, "Braet" },
+                { SquadTypes::StrongEquipment, "Ourmd" },                 
+                { SquadTypes::AmountHuge, "Horde" },
+                { SquadTypes::AmountSmall, "Bunch" },
+
+                { SquadTypes::Sailors, "Gobsailors" }
             }
         },
         {
             "GNOL", {
-                { SquadTypes::LightCavalry, "War Hyenas" },
-                { SquadTypes::HeavyCavalry, "Heavy War Hyenas" },
-                { SquadTypes::LightInfantry, "War Hyenas" },
-                { SquadTypes::HeavyInfantry, "Heavy War Hyenas" },
-                { SquadTypes::Bowmen, "Distance fighters" },
-                { SquadTypes::Crossbowmen, "Distance fighters" },
-                { SquadTypes::Worker, "Gnoll Flock" },
-                { SquadTypes::Scout, "Sneaker" },
-                { SquadTypes::Transport, "Gnoll Flock" },
+                { SquadTypes::Bowmen, "Gnoll Bowmen" },
+                { SquadTypes::Crossbowmen, "Gnoll Boltsmen" },
+                { SquadTypes::Worker, "Gnolls" },
+                { SquadTypes::Scout, "Gnoll" },
+                { SquadTypes::Transport, "Gnolls Cartpushers" },
+
+                { SquadTypes::Guardsmen, "Watchdogs" },
+                { SquadTypes::HeavyWarrior, "Yeenoghu Fangs" },
+                { SquadTypes::Warrior, "Hyenas" },
+                { SquadTypes::WeakEquipment, "Paw" },
+                { SquadTypes::StrongEquipment, "Spotted" },                 
+                { SquadTypes::AmountHuge, "Flock" },
+                { SquadTypes::AmountSmall, "Group" },
+
+                { SquadTypes::Sailors, "Sailors" }
             }
         },
         {
             "ORC", {
-                { SquadTypes::LightCavalry, "Wolfriders" },
-                { SquadTypes::HeavyCavalry, "Heavy wolfriders" },
-                { SquadTypes::LightInfantry, "Grunts" },
-                { SquadTypes::HeavyInfantry, "Heavy Grunts" },
                 { SquadTypes::Bowmen, "Orcish Archers" },
                 { SquadTypes::Crossbowmen, "Orcish Boltsmen" },
-                { SquadTypes::Worker, "Orcs Flock" },
-                { SquadTypes::Scout, "Sneaker" },
-                { SquadTypes::Transport, "Orcs Flock" },
+                { SquadTypes::Worker, "Peons" },
+                { SquadTypes::Scout, "Peon" },
+                { SquadTypes::Transport, "Roaming Peons" },
+
+                { SquadTypes::Guardsmen, "Gruntguard" },
+                { SquadTypes::HeavyWarrior, "Grunts" },
+                { SquadTypes::Warrior, "Skulls" },
+                { SquadTypes::WeakEquipment, "Ragged" },
+                { SquadTypes::StrongEquipment, "Ironclad" },
+                { SquadTypes::AmountHuge, "Horde" },
+                { SquadTypes::AmountSmall, "Pack" },
+                { SquadTypes::Sailors, "Sailors" }
             }
         },
         {
             "WELF", {
-                { SquadTypes::LightCavalry, "Wood Rangers" },
-                { SquadTypes::HeavyCavalry, "Wood Lords" },
-                { SquadTypes::LightInfantry, "Wood Rangers" },
-                { SquadTypes::HeavyInfantry, "Wood Lords" },
                 { SquadTypes::Bowmen, "Wood Marksmen" },
                 { SquadTypes::Crossbowmen, "Wood Marksmen" },
-                { SquadTypes::Worker, "Tribe" },
-                { SquadTypes::Scout, "Scout" },
+                { SquadTypes::Worker, "Wood Tribe" },
+                { SquadTypes::Scout, "Wood Elf" },
                 { SquadTypes::Transport, "Roaming Tribe" },
+
+                { SquadTypes::Guardsmen, "Elfish Guard" },
+                { SquadTypes::HeavyWarrior, "Wood Lords" },
+                { SquadTypes::Warrior, "Wood Rangers" },
+                { SquadTypes::WeakEquipment, "Light" },
+                { SquadTypes::StrongEquipment, "Shining" },                 
+                { SquadTypes::AmountHuge, "Regiment" },
+                { SquadTypes::AmountSmall, "Detachment" },
+                { SquadTypes::Sailors, "Sailors" }
             }
         },
         {
             "HELF", {
-                { SquadTypes::LightCavalry, "High Rangers" },
-                { SquadTypes::HeavyCavalry, "High Lords" },
-                { SquadTypes::LightInfantry, "High Rangers" },
-                { SquadTypes::HeavyInfantry, "High Lords" },
                 { SquadTypes::Bowmen, "High Marksmen" },
                 { SquadTypes::Crossbowmen, "High Marksmen" },
-                { SquadTypes::Worker, "Tribe" },
-                { SquadTypes::Scout, "Ranger" },
+                { SquadTypes::Worker, "High Tribe" },
+                { SquadTypes::Scout, "High Elf" },
                 { SquadTypes::Transport, "Roaming Tribe" },
+
+                { SquadTypes::Guardsmen, "Elfish Guard" },
+                { SquadTypes::HeavyWarrior, "High Lords" },
+                { SquadTypes::Warrior, "High Rangers" },
+                { SquadTypes::WeakEquipment, "Light" },
+                { SquadTypes::StrongEquipment, "Shining" },                 
+                { SquadTypes::AmountHuge, "Regiment" },
+                { SquadTypes::AmountSmall, "Detachment" },
+                { SquadTypes::Sailors, "Sailors" }
             }
         },
         {
             "DRLF", {
-                { SquadTypes::LightCavalry, "Drow Rangers" },
-                { SquadTypes::HeavyCavalry, "Drow Lords" },
-                { SquadTypes::LightInfantry, "Drow Rangers" },
-                { SquadTypes::HeavyInfantry, "Drow Lords" },
                 { SquadTypes::Bowmen, "Drow Marksmen" },
                 { SquadTypes::Crossbowmen, "Drow Marksmen" },
-                { SquadTypes::Worker, "Tribe" },
-                { SquadTypes::Scout, "Ranger" },
+                { SquadTypes::Worker, "Drow Tribe" },
+                { SquadTypes::Scout, "Drow Elf" },
                 { SquadTypes::Transport, "Roaming Tribe" },
+
+                { SquadTypes::Guardsmen, "Elfish Guard" },
+                { SquadTypes::HeavyWarrior, "Drow Lords" },
+                { SquadTypes::Warrior, "Drow Rangers" },
+                { SquadTypes::WeakEquipment, "Light" },
+                { SquadTypes::StrongEquipment, "Shining" },                 
+                { SquadTypes::AmountHuge, "Regiment" },
+                { SquadTypes::AmountSmall, "Detachment" },
+                { SquadTypes::Sailors, "Sailors" }
             }
         },        
         {
             "IDWA", {
-                { SquadTypes::LightCavalry, "Longbeards" },
-                { SquadTypes::HeavyCavalry, "Storm Hird" },
-                { SquadTypes::LightInfantry, "Longbeards" },
-                { SquadTypes::HeavyInfantry, "Hird" },
                 { SquadTypes::Bowmen, "Dwarfish Archers" },
                 { SquadTypes::Crossbowmen, "Dwarfish Crossbowmen" },
                 { SquadTypes::Worker, "Peasants" },
-                { SquadTypes::Scout, "Dwarf" },
-                { SquadTypes::Transport, "Dwarfish Appraisers" },
+                { SquadTypes::Scout, "Ice Dwarf" },
+                { SquadTypes::Transport, "Appraisers" },
+
+                { SquadTypes::Guardsmen, "Dwarfish Guard" },
+                { SquadTypes::HeavyWarrior, "Longbeard Lords" },
+                { SquadTypes::Warrior, "Longbeards" },
+                { SquadTypes::WeakEquipment, "Nimble" },
+                { SquadTypes::StrongEquipment, "Ice" },
+                { SquadTypes::AmountHuge, "Hird" },
+                { SquadTypes::AmountSmall, "Squad" },
+                { SquadTypes::Sailors, "Sailors" }
             }
         },
         {
             "HDWA", {
-                { SquadTypes::LightCavalry, "Longbeards" },
-                { SquadTypes::HeavyCavalry, "Storm Hird" },
-                { SquadTypes::LightInfantry, "Longbeards" },
-                { SquadTypes::HeavyInfantry, "Hird" },
                 { SquadTypes::Bowmen, "Dwarfish Archers" },
                 { SquadTypes::Crossbowmen, "Dwarfish Crossbowmen" },
                 { SquadTypes::Worker, "Peasants" },
-                { SquadTypes::Scout, "Dwarf" },
-                { SquadTypes::Transport, "Dwarfish Appraisers" },
+                { SquadTypes::Scout, "Hill Dwarf" },
+                { SquadTypes::Transport, "Appraisers" },
+
+                { SquadTypes::Guardsmen, "Dwarfish Guard" },
+                { SquadTypes::HeavyWarrior, "Longbeard Lords" },
+                { SquadTypes::Warrior, "Longbeards" },
+                { SquadTypes::WeakEquipment, "Nimble" },
+                { SquadTypes::StrongEquipment, "Steel" },                 
+                { SquadTypes::AmountHuge, "Hird" },
+                { SquadTypes::AmountSmall, "Squad" },
+                { SquadTypes::Sailors, "Sailors" }
             }
         },
         {
             "UDWA", {
-                { SquadTypes::LightCavalry, "Longbeards" },
-                { SquadTypes::HeavyCavalry, "Storm Hird" },
-                { SquadTypes::LightInfantry, "Longbeards" },
-                { SquadTypes::HeavyInfantry, "Hird" },
                 { SquadTypes::Bowmen, "Dwarfish Archers" },
                 { SquadTypes::Crossbowmen, "Dwarfish Crossbowmen" },
                 { SquadTypes::Worker, "Peasants" },
-                { SquadTypes::Scout, "Dwarf" },
-                { SquadTypes::Transport, "Dwarfish Appraisers" },
+                { SquadTypes::Scout, "Under Dwarf" },
+                { SquadTypes::Transport, "Appraisers" },
+
+                { SquadTypes::Guardsmen, "Dwarfish Guard" },
+                { SquadTypes::HeavyWarrior, "Longbeard Lords" },
+                { SquadTypes::Warrior, "Longbeards" },
+                { SquadTypes::WeakEquipment, "Nimble" },
+                { SquadTypes::StrongEquipment, "Mithril" },
+                { SquadTypes::AmountHuge, "Hird" },
+                { SquadTypes::AmountSmall, "Squad" },
+                { SquadTypes::Sailors, "Sailors" }
             }
         },
         {
             "GNOM", {
-                { SquadTypes::LightCavalry, "Muleriders" },
-                { SquadTypes::HeavyCavalry, "Heavy muleriders" },
-                { SquadTypes::LightInfantry, "Sneaky Warriors" },
-                { SquadTypes::HeavyInfantry, "Sneaky Longbeards" },
                 { SquadTypes::Bowmen, "Half-tall Archers" },
                 { SquadTypes::Crossbowmen, "Half-tall Crossbowmen" },
-                { SquadTypes::Worker, "Gnomish Mob" },
+                { SquadTypes::Worker, "Peasants" },
                 { SquadTypes::Scout, "Gnome" },
-                { SquadTypes::Transport, "Appraisers" },
+                { SquadTypes::Transport, "Gnome Appraisers" },
+
+                { SquadTypes::Guardsmen, "Gnomish Guard" },
+                { SquadTypes::HeavyWarrior, "Shortbeard Lords" },
+                { SquadTypes::Warrior, "Shortbeards" },
+                { SquadTypes::WeakEquipment, "Nimble" },
+                { SquadTypes::StrongEquipment, "Iron" },
+                { SquadTypes::AmountHuge, "Mob" },
+                { SquadTypes::AmountSmall, "Group" },
+                { SquadTypes::Sailors, "Sailors" }
             }
         },                              
         {
             "CTAU", {
-                { SquadTypes::LightCavalry, "Hussars" },
-                { SquadTypes::HeavyCavalry, "Heavy hussars" },
-                { SquadTypes::LightInfantry, "Hussars" },
-                { SquadTypes::HeavyInfantry, "Heavy hussars" },
                 { SquadTypes::Bowmen, "Archers" },
                 { SquadTypes::Crossbowmen, "Crossbowmen" },
-                { SquadTypes::Worker, "Herd" },
+                { SquadTypes::Worker, "Centaurs" },
                 { SquadTypes::Scout, "Centaur" },
                 { SquadTypes::Transport, "Roaming Herd" },
+
+                { SquadTypes::Guardsmen, "Guard" },
+                { SquadTypes::HeavyWarrior, "Hussars" },
+                { SquadTypes::Warrior, "Hussars" },
+                { SquadTypes::WeakEquipment, "Light" },
+                { SquadTypes::StrongEquipment, "Heavy" },
+                { SquadTypes::AmountHuge, "Herd" },
+                { SquadTypes::AmountSmall, "Group" },
+                { SquadTypes::Sailors, "Heavy Sailors" }
             }
         },
         {
             "HUMN", {
-                { SquadTypes::LightCavalry, "Cavalry" },
-                { SquadTypes::HeavyCavalry, "Heavy Cavalry" },
-                { SquadTypes::LightInfantry, "Infantry" },
-                { SquadTypes::HeavyInfantry, "Heavy infantry" },
                 { SquadTypes::Bowmen, "Archers" },
                 { SquadTypes::Crossbowmen, "Crossbowmen" },
                 { SquadTypes::Worker, "Peasants" },
                 { SquadTypes::Scout, "Human" },
                 { SquadTypes::Transport, "Peasants" },
+
+                { SquadTypes::Guardsmen, "Guard" },
+                { SquadTypes::HeavyWarrior, "Infantry" },
+                { SquadTypes::Warrior, "Warriors" },
+                { SquadTypes::WeakEquipment, "Light" },
+                { SquadTypes::StrongEquipment, "Heavy" },
+                { SquadTypes::AmountHuge, "Regiment" },
+                { SquadTypes::AmountSmall, "Detachment" },
+                { SquadTypes::Sailors, "Sailors" }
             }
         },
         {
             "LIZA", {
-                { SquadTypes::LightCavalry, "Oceanriders" },
-                { SquadTypes::HeavyCavalry, "Heavy oceanriders" },
-                { SquadTypes::LightInfantry, "Oceanfighters" },
-                { SquadTypes::HeavyInfantry, "Heavy oceanfighters" },
                 { SquadTypes::Bowmen, "Swamp Archers" },
                 { SquadTypes::Crossbowmen, "Swamp Crossbowmen" },
                 { SquadTypes::Worker, "Swamp Peasants" },
                 { SquadTypes::Scout, "Lizard" },
                 { SquadTypes::Transport, "Swamp Peasants" },
+
+                { SquadTypes::Guardsmen, "Oceanguard" },
+                { SquadTypes::HeavyWarrior, "White Sharks" },
+                { SquadTypes::Warrior, "Sharks" },
+                { SquadTypes::WeakEquipment, "Light" },
+                { SquadTypes::StrongEquipment, "Sharp-Toothed" },
+                { SquadTypes::AmountHuge, "Swarm" },
+                { SquadTypes::AmountSmall, "Pack" },
+                { SquadTypes::Sailors, "Woodwalkers" }
             }
         },
         {
             "LEAD", {
-                { SquadTypes::LightInfantry, "Elite Infantry" },
-                { SquadTypes::HeavyInfantry, "Iron Fist Infantry" },
-                { SquadTypes::LightCavalry, "Knights" },
-                { SquadTypes::HeavyCavalry, "Heavy Knights" },
+                { SquadTypes::Bowmen, "Archers" },
+                { SquadTypes::Crossbowmen, "Crossbowmen" },
                 { SquadTypes::Worker, "Nobles" },
                 { SquadTypes::Scout, "Noble" },
                 { SquadTypes::Transport, "Nobles" },
+
+                { SquadTypes::Guardsmen, "Knightguard" },
+                { SquadTypes::HeavyWarrior, "Heavy Knights" },
+                { SquadTypes::Warrior, "Knights" },
+                { SquadTypes::WeakEquipment, "Light" },
+                { SquadTypes::StrongEquipment, "Shining" },
+                { SquadTypes::AmountHuge, "Regiment" },
+                { SquadTypes::AmountSmall, "Detachment" },
+                { SquadTypes::Sailors, "Sailors" }
             }
         },        
         {
             "default", {
-                { SquadTypes::LightInfantry, "Infantry" },
-                { SquadTypes::HeavyInfantry, "Heavy Infantry" },
-                { SquadTypes::LightCavalry, "Cavalry" },
-                { SquadTypes::HeavyCavalry, "Heavy Cavalry" },
+                { SquadTypes::Bowmen, "Archers" },
+                { SquadTypes::Crossbowmen, "Crossbowmen" },              
                 { SquadTypes::Worker, "Peasants" },
                 { SquadTypes::Scout, "Scout" },
                 { SquadTypes::Transport, "Carriers" },
+
+                { SquadTypes::Guardsmen, "Guard" },
+                { SquadTypes::HeavyWarrior, "Infantry" },
+                { SquadTypes::Warrior, "Warrior" },
+                { SquadTypes::WeakEquipment, "Light" },
+                { SquadTypes::StrongEquipment, "Heavy" },
+                { SquadTypes::AmountHuge, "Regiment" },
+                { SquadTypes::AmountSmall, "Detachment" },
+                { SquadTypes::Sailors, "Sailors" }
             }
         },
+    };
+
+    std::map<std::string, long> shield_weight {
+        {"WSHD", 3},
+        {"ISHD", 4},
+        {"MSHD", 5},
     };
 
     std::map<std::string, long> armor_weight {
         {"CLAR", 1},
         {"LARM", 2},
         {"CARM", 3},
-        {"WSHD", 3},
         {"PARM", 4},
-        {"ISHD", 5},
         {"MARM", 5},
         {"ARNG", 6},
-        {"MSHD", 6},
         {"AARM", 7},
         {"CLOA", 8},
     };
@@ -540,6 +669,7 @@ namespace autonaming
         {"AXE", 1},
         {"SPEA", 1},
         {"SWOR", 3},
+        {"JAVE", 3},
         {"LANC", 4},
         {"PIKE", 4},
         {"MSWO", 5},
@@ -549,12 +679,14 @@ namespace autonaming
     };
 
     std::map<std::string, long> bow_weight {
-        {"JAVE", 3},
-        {"LBOW", 3},
-        {"XBOW", 3},
-        {"MXBO", 5},
+        {"LBOW", 4},
         {"DBOW", 6},
     };
+
+    std::map<std::string, long> xbow_weight {
+        {"XBOW", 3},
+        {"MXBO", 5},
+    };    
 
 
     long deduct_equipment_weight(long men_amount, CUnit* unit, const std::map<std::string, long>& weights) 
@@ -597,6 +729,135 @@ namespace autonaming
         return false;
     }
 
+    namingParameters get_naming_parameters(CUnit* unit)
+    {
+        namingParameters ret;
+        memset(&ret, 0, sizeof(namingParameters));
+
+        long men_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+        if (men_amount >= 100)
+            ret.is_big_ = 1;
+        else if (men_amount == 1)
+            ret.is_one_ = 1;
+        else if (men_amount < 10)
+            ret.is_small_ = 1;
+
+        if (unit_control::flags::is_avoid(unit))
+            ret.is_avoid_ = 1;
+        if (unit_control::flags::is_behind(unit))
+            ret.is_behind_ = 1;
+        if (unit_control::flags::is_guard(unit))
+            ret.is_guard_ = 1;
+        if (unit_control::is_struct_owner(unit) && unit_control::structure_id(unit) > 100)
+            ret.is_ship_owner_ = 1;
+        if (is_transport(men_amount, unit))
+            ret.is_transporting_ = 1;
+        
+        unit_control::MoveMode movemode = unit_control::get_move_state(unit);
+        if (movemode.speed_ == 4)
+            ret.is_riding_ = 1;
+        if (movemode.speed_ == 6)
+            ret.is_flying_ = 1;
+        
+        long bow_score = deduct_equipment_weight(men_amount, unit, bow_weight);
+        long xbow_score = deduct_equipment_weight(men_amount, unit, xbow_weight);
+        long weap_score = deduct_equipment_weight(men_amount, unit, weapon_weight);
+        long armor_score = deduct_equipment_weight(men_amount, unit, armor_weight);
+        long shield_score = deduct_equipment_weight(men_amount, unit, shield_weight);
+        if (bow_score > 0)
+            ret.is_archer_ = 1;
+        if (xbow_score > 0)
+            ret.is_crossbowmen_ = 1;
+
+        if (weap_score >= weapon_weight["MSWO"])
+            ret.is_heavy_weaponed_ = 1;
+        else if (weap_score >= weapon_weight["SWOR"])
+            ret.is_light_weaponed_ = 1;
+
+        if (armor_score >= armor_weight["MARM"])
+            ret.is_heavy_armored_ = 1;
+        else if (armor_score >= armor_weight["CARM"])
+            ret.is_light_armored_ = 1;
+
+        if (shield_score >= shield_weight["MSHD"])
+            ret.is_heavy_shield_ = 1;
+        else if (shield_score >= shield_weight["ISHD"])
+            ret.is_light_shield_ = 1;
+
+        return ret;
+    }
+
+    std::string name_generator(const std::string& race, namingParameters params)
+    {
+        std::string ret, adjective, noun, sizer;
+
+        if (params.is_ship_owner_) {
+            if (params.is_one_)
+                noun = "Captain";
+            else
+                noun = race_name_generators[race][SquadTypes::Sailors];
+        } else if (params.is_avoid_) {
+            if (params.is_transporting_)
+                noun = race_name_generators[race][SquadTypes::Transport];
+            else if (params.is_one_)
+                noun = race_name_generators[race][SquadTypes::Scout];
+            else
+                noun = race_name_generators[race][SquadTypes::Worker];            
+        } else {
+            if (params.is_guard_) {
+                noun = race_name_generators[race][SquadTypes::Guardsmen];
+                
+                if (params.is_heavy_weaponed_ + params.is_heavy_shield_)
+                    adjective = race_name_generators[race][SquadTypes::StrongEquipment];
+                else if (params.is_light_weaponed_ + params.is_light_shield_ == 0)
+                    adjective = race_name_generators[race][SquadTypes::WeakEquipment];
+                
+            } else if (params.is_crossbowmen_) {
+                adjective = "";
+                noun = race_name_generators[race][SquadTypes::Crossbowmen];
+            } else if (params.is_archer_) {
+                adjective = "";
+                noun = race_name_generators[race][SquadTypes::Bowmen];
+            } else if (params.is_one_) {
+                adjective = "";
+                noun = race_name_generators[race][SquadTypes::Scout];
+
+            } else if (params.is_heavy_armored_) {
+                noun = race_name_generators[race][SquadTypes::HeavyWarrior];
+
+                if (params.is_heavy_weaponed_ + params.is_heavy_shield_)
+                    adjective = race_name_generators[race][SquadTypes::StrongEquipment];
+                else if (params.is_light_weaponed_ + params.is_light_shield_ == 0)
+                    adjective = race_name_generators[race][SquadTypes::WeakEquipment];
+
+            } else if (params.is_heavy_armored_) {
+                noun = race_name_generators[race][SquadTypes::Warrior];
+
+                if (params.is_heavy_weaponed_ + params.is_heavy_shield_)
+                    adjective = race_name_generators[race][SquadTypes::StrongEquipment];
+                else if (params.is_light_weaponed_ + params.is_light_shield_ == 0)
+                    adjective = race_name_generators[race][SquadTypes::WeakEquipment];
+
+            } else {
+                adjective = "";
+                noun = race_name_generators[race][SquadTypes::Worker];
+            }
+
+            if (params.is_small_) {
+                sizer = race_name_generators[race][SquadTypes::AmountSmall];
+            } else if (params.is_big_) {
+                sizer = race_name_generators[race][SquadTypes::AmountHuge];
+            }
+        }
+
+        if (adjective.size() > 0)
+            ret = adjective + " ";
+        ret += noun;
+        if (sizer.size() > 0)
+            ret += " " + sizer;
+        return ret;
+    }
+
     SquadTypes deduct_type(CUnit* unit) {
         long men_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
         if (men_amount == 1)
@@ -605,15 +866,14 @@ namespace autonaming
         long armor_points = deduct_equipment_weight(men_amount, unit, armor_weight);
         long weapon_points = deduct_equipment_weight(men_amount, unit, weapon_weight);
         long bow_points = deduct_equipment_weight(men_amount, unit, bow_weight);
+        long xbow_points = deduct_equipment_weight(men_amount, unit, xbow_weight);
 
         if (weapon_points + armor_points < 2 ||
             unit_control::get_current_skill_days(unit, "COMB") < 30)
         {
-            if (bow_points >= 2 && 
-                unit_control::get_current_skill_days(unit, "XBOW") >= 30)
+            if (xbow_points >= 2)
                 return SquadTypes::Crossbowmen;
-            else if (bow_points >= 2 && 
-                     unit_control::get_current_skill_days(unit, "LBOW") >= 30)
+            else if (bow_points >= 2)
                 return SquadTypes::Bowmen;
             else if (is_transport(men_amount, unit))
                 return SquadTypes::Transport;
@@ -639,7 +899,24 @@ namespace autonaming
 
     std::string generate_unit_name(CLand* land, CUnit* unit)
     {
-        SquadTypes type = deduct_type(unit);
+        namingParameters params = get_naming_parameters(unit);
+
+        auto races = unit_control::get_all_items_by_mask(unit, PRP_MEN);
+        std::string race_name;
+        long men_amount = 0;
+        for (auto race : races)
+        {
+            if (race.amount_ > men_amount)
+            {
+                men_amount = race.amount_;
+                race_name = race.code_name_;
+            }
+        }
+        if (race_name_generators.find(race_name) == race_name_generators.end())
+            race_name = "default";
+            
+        return name_generator(race_name, params);
+        /*SquadTypes type = deduct_type(unit);
         auto races = unit_control::get_all_items_by_mask(unit, PRP_MEN);
         std::string race_name;
         long men_amount = 0;
@@ -654,6 +931,6 @@ namespace autonaming
         if (race_name_generators.find(race_name) == race_name_generators.end())
             return race_name_generators["default"][type];
 
-        return race_name_generators[race_name][type];
+        return race_name_generators[race_name][type];*/
     }
 }

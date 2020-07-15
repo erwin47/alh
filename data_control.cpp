@@ -8,6 +8,118 @@
 #include "ah_control.h"
 #include "autonaming.h"
 
+namespace game_control
+{
+    template<>
+    std::string convert_to<std::string>(const std::string& str)
+    {
+        return str;
+    }
+
+    template<>
+    NameAndAmount convert_to(const std::string& str)
+    {//TYPE X    
+        size_t separator = str.find(' ');
+        if (separator == std::string::npos)
+            return {str, 0};
+        
+        return {str.substr(0, str.find(' ')), atof(&str[str.find(' ')+1])};
+    }
+
+    template<>
+    long convert_to<long>(const std::string& str)
+    {
+        return atol(str.c_str());
+    }
+
+    template<>
+    double convert_to<double>(const std::string& str)
+    {
+        return atof(str.c_str());
+    }    
+
+    std::string get_gpapp_config(const char* section, const char* key)
+    {
+        return gpApp->GetConfig(section, key);
+    }
+
+    std::vector<std::pair<std::string, std::string>> get_all_configuration(const char* section)
+    {
+        std::vector<std::pair<std::string, std::string>> ret;
+        const char  * szName;
+        const char  * szValue;      
+        int sectidx = gpApp->GetSectionFirst(section, szName, szValue);
+        while (sectidx >= 0)
+        {
+            std::pair<std::string, std::string> cur_pair = {std::string(szName), std::string(szValue)};
+            ret.emplace_back(cur_pair);
+            sectidx = gpApp->GetSectionNext(sectidx, section, szName, szValue);
+        }
+        return ret;
+    }
+
+
+    bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag, SHIP_TRAVEL& travel, long& speed)
+    {
+        std::string codename, name, plural_name;
+        if (!gpApp->ResolveAliasItems(struct_type, codename, name, plural_name))
+            name = struct_type;
+
+        std::vector<std::string> struct_parameters = game_control::get_game_config<std::string>(SZ_SECT_STRUCTS, name.c_str());
+        if (struct_parameters.size() == 0 && name[name.size()-1] == 's')
+        {
+            std::string name_without_s = name.substr(0, name.size()-1);
+            struct_parameters = game_control::get_game_config<std::string>(SZ_SECT_STRUCTS, name_without_s.c_str());
+            if (struct_parameters.size() == 0)
+                return false;
+        }
+        for (const auto& param : struct_parameters)
+        {
+            if      (param == SZ_ATTR_STRUCT_MOBILE)    structFlag |= SA_MOBILE;
+            else if (param == SZ_ATTR_STRUCT_HIDDEN)    structFlag |= SA_HIDDEN ;
+            else if (param == SZ_ATTR_STRUCT_SHAFT)     structFlag |= SA_SHAFT  ;
+            else if (param == SZ_ATTR_STRUCT_GATE)      structFlag |= SA_GATE   ;
+            else if (param == SZ_ATTR_STRUCT_ROAD_N)    structFlag |= SA_ROAD_N ;
+            else if (param == SZ_ATTR_STRUCT_ROAD_NE)   structFlag |= SA_ROAD_NE;
+            else if (param == SZ_ATTR_STRUCT_ROAD_SE)   structFlag |= SA_ROAD_SE;
+            else if (param == SZ_ATTR_STRUCT_ROAD_S)    structFlag |= SA_ROAD_S ;
+            else if (param == SZ_ATTR_STRUCT_ROAD_SW)   structFlag |= SA_ROAD_SW;
+            else if (param == SZ_ATTR_STRUCT_ROAD_NW)   structFlag |= SA_ROAD_NW;
+            else
+            {
+                // Two-token attributes, MaxLoad & MinSailingPower & travel type & speed.
+                size_t separator = param.find(' ');
+                if (separator == std::string::npos)
+                {
+                    //TODO: print out the wrong setting
+                    continue;
+                }
+
+                std::string key = param.substr(0, separator);
+                if (key == SZ_ATTR_STRUCT_MAX_LOAD)
+                    capacity += atol(param.substr(separator+1).c_str());
+                if (key == SZ_ATTR_STRUCT_MIN_SAIL)
+                    sailPower += atol(param.substr(separator+1).c_str());
+                if (key == SZ_ATTR_STRUCT_TRAVEL) {
+                    std::string traveling = param.substr(separator+1);
+                    if (stricmp(traveling.c_str(), "FLY") == 0 && travel != SHIP_TRAVEL::SAIL)
+                        travel = SHIP_TRAVEL::FLY;
+                    else
+                        travel = SHIP_TRAVEL::SAIL;
+                }
+                if (key == SZ_ATTR_STRUCT_USUAL_SPEED) {
+                    speed = atol(param.substr(separator+1).c_str());
+                }
+            }
+        }
+
+        if (0 == stricmp(name.c_str(), STRUCT_GATE))
+            structFlag |= SA_GATE; // to compensate for legacy missing gate flag in the config
+        return true;        
+    }
+
+}
+
 namespace item_control
 {
     std::string codename(const std::string& name)
@@ -147,7 +259,7 @@ namespace unit_control
         std::string compose_flag_info(CUnit* unit)
         {
             if (is_working(unit))
-                return "M";
+                return "W";
             else if (is_entertaining(unit))
                 return "E";            
             else if (is_teaching(unit))
@@ -823,10 +935,14 @@ namespace unit_control
 
 namespace land_control
 {
-    void get_land_coordinates(long land_id, int& x, int& y, int& z) {
-        LandIdToCoord(land_id, x, y, z);
+    void get_land_coordinates(long land_id, long& x, long& y, long& z) {
+        int xint, yint, zint;
+        LandIdToCoord(land_id, xint, yint, zint);
+        x = xint;
+        y = yint;
+        z = zint;      
     }
-    CLand* get_land(int x, int y, int z)
+    CLand* get_land(long x, long y, long z)
     {
         return gpApp->m_pAtlantis->GetLand(x, y, z, TRUE);
     }
@@ -1314,22 +1430,24 @@ namespace land_control
 
         result = true;
         size_t pos = 0;
-        size_t or_op = statement.find("||", 0);
+        size_t or_op = statement.find("||");
         while(or_op != std::string::npos)
         {//parse each statement separated by "||" separately
-            size_t and_op = statement.find("&&", pos, or_op - pos);
+            std::string substatement = statement.substr(pos, or_op - pos);
+            size_t sub_beg = 0;
+            size_t and_op = substatement.find("&&");
             while (and_op != std::string::npos)
             {//each statement separated by "&&" should be evaluated
-                result = result && autologic::evaluate_statement(land, unit, statement.substr(pos, and_op-pos), evaluation_errors);
+                result = result && autologic::evaluate_statement(land, unit, substatement.substr(sub_beg, and_op-sub_beg), evaluation_errors);
                 if (!result)//false, no need evaluate other AND
                     break;
 
-                pos = and_op+2;
-                and_op = statement.find("&&", pos, or_op - pos);
+                sub_beg = and_op+2;
+                and_op = substatement.find("&&", sub_beg);
             }
 
             if (result)//evaluate last/only statement if up to now it's true
-                result = result && autologic::evaluate_statement(land, unit, statement.substr(pos, or_op-pos), evaluation_errors);
+                result = result && autologic::evaluate_statement(land, unit, substatement.substr(sub_beg), evaluation_errors);
 
             //true, no need to evaluate other OR
             if (result)
@@ -1340,7 +1458,7 @@ namespace land_control
             result = true;//need to reset it for other statements separated by `||`
         }
 
-        size_t and_op = statement.find("&&", pos, or_op - pos);
+        size_t and_op = statement.find("&&", pos);
         while (and_op != std::string::npos)
         {
             result = result && autologic::evaluate_statement(land, unit, statement.substr(pos, and_op-pos), evaluation_errors);
@@ -1348,7 +1466,7 @@ namespace land_control
                 return action;
 
             pos = and_op+2;
-            and_op = statement.find("&&", pos, or_op - pos);
+            and_op = statement.find("&&", pos);
         }
         result = result && autologic::evaluate_statement(land, unit, statement.substr(pos), evaluation_errors);
         if (debug == false)
@@ -1403,10 +1521,56 @@ namespace land_control
             if (unit_control::flags::is_sharing(unit))
                 res += unit_control::get_item_amount(unit, item);
         }
-        land->current_state_.shared_items_[item].first = res;
-        land->current_state_.shared_items_[item].second = res;
+        set_shared_items(land->current_state_, item, res);
         return res;
     }
+
+    std::set<std::string> resources_list()
+    {
+        std::set<std::string> ret;
+        std::vector<std::pair<std::string, std::string>> production_collection = game_control::get_all_configuration(SZ_SECT_PROD_RESOURCE);
+        for (auto& prod_info : production_collection)
+        {
+            const char* beg = prod_info.second.c_str();
+            const char* end = prod_info.second.c_str() + prod_info.second.size();
+            const char* runner = beg;
+            while(beg < end)
+            {
+                while (beg < end && !isalpha(*beg) && !isdigit(*beg))
+                    ++beg;
+
+                if (beg == end)
+                    break;
+                    
+                runner = beg;
+                while (runner < end && *runner != ',')
+                    ++runner;
+
+                game_control::NameAndAmount item = game_control::convert_to<game_control::NameAndAmount>(std::string(beg, runner));
+
+                ret.insert(item.name_);
+                ++runner;
+                beg = runner;
+            }
+        }
+        return ret;
+    }
+
+    void init_land_all_shares(CLand* land)
+    {
+        static std::set<std::string> resource_types = resources_list();
+
+        land_control::perform_on_each_unit_after_moving(land, [&](CUnit* unit) {
+            if (unit_control::flags::is_sharing(unit)) {
+                const auto& item_collection = unit_control::get_all_items(unit);
+                for (const auto& item : item_collection) {
+                    if (resource_types.find(item.code_name_) != resource_types.end())
+                        set_shared_items(land->current_state_, item.code_name_, item.amount_);
+                }
+            }
+        });
+        return;
+    }    
 
     void get_land_producers(CLand* land, std::vector<ProduceItem>& out, std::vector<unit_control::UnitError>& errors)
     {
@@ -1865,7 +2029,7 @@ namespace land_control
     std::unordered_map<long, Student> get_land_students(CLand* land, std::vector<unit_control::UnitError>& errors)
     {
         std::unordered_map<long, Student> students;
-        perform_on_each_unit(land, [&](CUnit* unit) {
+        perform_on_each_unit_after_moving(land, [&](CUnit* unit) {
             std::shared_ptr<orders::Order> studying_order = orders::control::get_studying_order(unit->orders_);
             if (studying_order != nullptr) 
             {
@@ -1941,7 +2105,7 @@ namespace land_control
                                           std::vector<unit_control::UnitError>& errors)
     {
         std::vector<long> studs;
-        perform_on_each_unit(land, [&](CUnit* unit) {
+        perform_on_each_unit_after_moving(land, [&](CUnit* unit) {
             studs.clear();
             auto teaching_orders = orders::control::retrieve_orders_by_type(orders::Type::O_TEACH, unit->orders_);
             for (const auto& ord : teaching_orders)
@@ -2019,98 +2183,7 @@ namespace land_control
     }
 }
 
-namespace game_control
-{
-    template<>
-    std::string convert_to<std::string>(const std::string& str)
-    {
-        return str;
-    }
 
-    template<>
-    NameAndAmount convert_to(const std::string& str)
-    {//TYPE X    
-        size_t separator = str.find(' ');
-        if (separator == std::string::npos)
-            return {str, 0};
-        
-        return {str.substr(0, str.find(' ')), atof(&str[str.find(' ')+1])};
-    }
-
-    template<>
-    long convert_to<long>(const std::string& str)
-    {
-        return atol(str.c_str());
-    }
-
-    template<>
-    double convert_to<double>(const std::string& str)
-    {
-        return atof(str.c_str());
-    }    
-
-    std::string get_gpapp_config(const char* section, const char* key)
-    {
-        return gpApp->GetConfig(section, key);
-    }
-
-    bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag, SHIP_TRAVEL& travel)
-    {
-        std::string codename, name, plural_name;
-        if (!gpApp->ResolveAliasItems(struct_type, codename, name, plural_name))
-            name = struct_type;
-
-        std::vector<std::string> struct_parameters = game_control::get_game_config<std::string>(SZ_SECT_STRUCTS, name.c_str());
-        if (struct_parameters.size() == 0 && name[name.size()-1] == 's')
-        {
-            std::string name_without_s = name.substr(0, name.size()-1);
-            struct_parameters = game_control::get_game_config<std::string>(SZ_SECT_STRUCTS, name_without_s.c_str());
-            if (struct_parameters.size() == 0)
-                return false;
-        }
-        for (const auto& param : struct_parameters)
-        {
-            if      (param == SZ_ATTR_STRUCT_MOBILE)    structFlag |= SA_MOBILE;
-            else if (param == SZ_ATTR_STRUCT_HIDDEN)    structFlag |= SA_HIDDEN ;
-            else if (param == SZ_ATTR_STRUCT_SHAFT)     structFlag |= SA_SHAFT  ;
-            else if (param == SZ_ATTR_STRUCT_GATE)      structFlag |= SA_GATE   ;
-            else if (param == SZ_ATTR_STRUCT_ROAD_N)    structFlag |= SA_ROAD_N ;
-            else if (param == SZ_ATTR_STRUCT_ROAD_NE)   structFlag |= SA_ROAD_NE;
-            else if (param == SZ_ATTR_STRUCT_ROAD_SE)   structFlag |= SA_ROAD_SE;
-            else if (param == SZ_ATTR_STRUCT_ROAD_S)    structFlag |= SA_ROAD_S ;
-            else if (param == SZ_ATTR_STRUCT_ROAD_SW)   structFlag |= SA_ROAD_SW;
-            else if (param == SZ_ATTR_STRUCT_ROAD_NW)   structFlag |= SA_ROAD_NW;
-            else
-            {
-                // Two-token attributes, MaxLoad & MinSailingPower.
-                size_t separator = param.find(' ');
-                if (separator == std::string::npos)
-                {
-                    //TODO: print out the wrong setting
-                    continue;
-                }
-
-                std::string key = param.substr(0, separator);
-                if (key == SZ_ATTR_STRUCT_MAX_LOAD)
-                    capacity += atol(param.substr(separator+1).c_str());
-                if (key == SZ_ATTR_STRUCT_MIN_SAIL)
-                    sailPower += atol(param.substr(separator+1).c_str());
-                if (key == SZ_ATTR_STRUCT_TRAVEL) {
-                    std::string traveling = param.substr(separator+1);
-                    if (stricmp(traveling.c_str(), "FLY") == 0 && travel != SHIP_TRAVEL::SAIL)
-                        travel = SHIP_TRAVEL::FLY;
-                    else
-                        travel = SHIP_TRAVEL::SAIL;
-                }
-            }
-        }
-
-        if (0 == stricmp(name.c_str(), STRUCT_GATE))
-            structFlag |= SA_GATE; // to compensate for legacy missing gate flag in the config
-        return true;        
-    }
-
-}
 
 #include <algorithm> 
 #include <cctype>
@@ -2171,7 +2244,7 @@ namespace struct_control
             split_to_chunks(pieces[1], ',', parts);
             type = trim(parts[0]);
             if (type.find("Fleet") != std::string::npos)//known type with substructs
-            {                
+            {//its a ship 
                 std::vector<std::string> pair;
                 for(size_t i = 1; i < parts.size(); ++i)
                 {
@@ -2181,10 +2254,10 @@ namespace struct_control
                 }
             }
             else 
-            {
+            {//checking if it is still a ship
                 long capacity, sailPower, structFlag;
                 SHIP_TRAVEL travel;
-                game_control::get_struct_attributes(type, capacity, sailPower, structFlag, travel);
+                game_control::get_struct_attributes(type, capacity, sailPower, structFlag, travel, max_speed);
                 if (structFlag & SA_MOBILE)
                 {//its still the ship, so we will handle it as Fleet
                     substructures.push_back({type, 1});

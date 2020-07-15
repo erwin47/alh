@@ -166,7 +166,7 @@ protected:
     void      DrawRing(wxDC * pDC, wxRect * pRect, CPlane * pPlane);
     void      DrawRingSegment(wxDC * pDC, wxRect * pRect, CPlane * pPlane, int dx, int dy, int DirFlags);
 
-    void      DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, CUnit * pUnit, CPlane * pPlane, int copyno);
+    void      DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, CUnit * pUnit, size_t movement_step, CPlane * pPlane, int copyno);
     void      DrawTrackArrow(wxDC * pDC, int wx0, int wy0, int wx, int wy);
     void      CenterClick(wxPoint point);
     wxBrush * GetLandBrush(CLand * pLand, BOOL GetHatched);
@@ -192,6 +192,7 @@ protected:
     void      OnPopupNewHex      (wxCommandEvent & event);
     void      OnPopupDeleteHex   (wxCommandEvent & event);
     void      OnPopupDistanceRing(wxCommandEvent & event);
+    void      OnPopupMovePhases  (wxCommandEvent & event);
 
     void      StartRectangle(int x, int y);
     void      EndRectangle  (int x, int y);

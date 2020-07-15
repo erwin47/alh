@@ -69,9 +69,9 @@ const char * STD_UNIT_PROPS [] =
     PRP_SKILLS               ,
     PRP_MAG_SKILLS           ,
     PRP_STUFF                ,
-    PRP_HORS                 ,
+    PRP_MOUNTS               ,
     PRP_WEAPONS              ,
-    PRP_ARMOURS              ,
+    PRP_ARMORS               ,
     PRP_MAG_ITEMS            ,
     PRP_JUNK_ITEMS           ,
     PRP_SEL_FACT_MEN         ,
@@ -582,7 +582,7 @@ void CLand::SetFlagsFromUnits()
                 men = (long) troops;
             if ((pUnit->GetProperty(PRP_WEAPONS,type,gear_weapon,eNormal)) && (type==eLong))
                	weapons = (long) gear_weapon;
-            if ((pUnit->GetProperty(PRP_ARMOURS,type,gear_armour,eNormal)) && (type==eLong))
+            if ((pUnit->GetProperty(PRP_ARMORS,type,gear_armour,eNormal)) && (type==eLong))
                 armours = (long) gear_armour;
             if(weapons > (long) men) weapons = men;
             if(armours > weapons) armours = weapons;
@@ -1523,14 +1523,14 @@ bool evaluateLandByFilter(CLand* land, const std::string& Property, const eCompa
     }
     else if (stricmp(command.c_str(), "BUY_AMOUNT") == 0)
     {
-        if (land->current_state_.for_sale_.find(type) != land->current_state_.for_sale_.end())
+        if (land->current_state_.wanted_.find(type) != land->current_state_.wanted_.end())
         {
             return doCompare(land->current_state_.wanted_[type].item_.amount_, std::stol(sValue), CompareOp);
         }
     }
     else if (stricmp(command.c_str(), "BUY_PRICE") == 0)
     {
-        if (land->current_state_.for_sale_.find(type) != land->current_state_.for_sale_.end())
+        if (land->current_state_.wanted_.find(type) != land->current_state_.wanted_.end())
         {
             return doCompare(land->current_state_.wanted_[type].price_, std::stol(sValue), CompareOp);
         }

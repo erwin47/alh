@@ -1940,7 +1940,7 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
                 pStruct->original_description_ = std::string(CurLine.GetData(), CurLine.GetLength());
                 pStruct->type_        = STRUCT_GATE;
                 if (!game_control::get_struct_attributes(pStruct->type_, 
-                        pStruct->capacity_, pStruct->MinSailingPower, pStruct->Attr, pStruct->travel_))
+                        pStruct->capacity_, pStruct->MinSailingPower, pStruct->Attr, pStruct->travel_, pStruct->max_speed_))
                     OrderError("Error", pLand, nullptr, "Couldn't parse Gate data");
 
                 land_control::structures::add_structure(pLand, pLand->initial_state_, pStruct);
@@ -2565,18 +2565,31 @@ int CAtlaParser::ParseStructure(CStr & FirstLine)
                                  pStruct->Id, pStruct->name_, pStruct->type_, pStruct->fleet_ships_, pStruct->max_speed_);
 
     //pStruct->Name = pStruct->name_.c_str();
+    long speed_from_types(50);
     for (const auto& subship : pStruct->fleet_ships_)
     {
-        long load(0), spower(0);
+        long load(0), spower(0), speed;
         std::string code, name, longname;
-        game_control::get_struct_attributes(subship.first, load, spower, pStruct->Attr, pStruct->travel_);
+        game_control::get_struct_attributes(subship.first, load, spower, pStruct->Attr, 
+                                            pStruct->travel_, speed);
         pStruct->capacity_ += load * subship.second;
         pStruct->MinSailingPower += spower * subship.second;
+        speed_from_types = std::min(speed_from_types, speed);
     }
 
     if (pStruct->fleet_ships_.size() == 0)
     {//for non-mobile it needs to load flags
-        game_control::get_struct_attributes(pStruct->type_, pStruct->capacity_, pStruct->MinSailingPower, pStruct->Attr, pStruct->travel_);
+        game_control::get_struct_attributes(pStruct->type_, pStruct->capacity_, pStruct->MinSailingPower, 
+                                            pStruct->Attr, pStruct->travel_, pStruct->max_speed_);
+    } 
+    else 
+    {
+        //its a fleet, so we should determine its speed.
+        //in case that previously ship could not sail by any reason, it's speed may be below the speed
+        //of the fleet's type. In this case we need to define speed according to the ship's type.
+        //but if parsed speed was above the speed of the type of the ship (probably because of SWIN)
+        //it's better to keep using it
+        pStruct->max_speed_ = std::max(pStruct->max_speed_, speed_from_types);
     }
 
     if (pStruct->Attr & (SA_ROAD_N | SA_ROAD_NE | SA_ROAD_SE | SA_ROAD_S | SA_ROAD_SW | SA_ROAD_NW ))
@@ -3791,11 +3804,12 @@ void CAtlaParser::compose_products_detailed(CLand* land, std::stringstream& out)
             else
                 out << std::endl << "    " << craft.amount_ << " " << name;            
         }
+        out << std::endl;
     }
-    out << std::endl;
+
     if (land->current_state_.shared_items_.size() > 0)
     {
-        out << "  Shared:";
+        out << "  Shared resources (left/total):";
         for (auto& shared_item : land->current_state_.shared_items_)
         {
             if (shared_item.second.second == 0)
@@ -4620,7 +4634,12 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
     if (!pMainUnit || !pMainUnit->IsOurs)
         return FALSE;
 
-    CLand* pLand = GetLand(pMainUnit->LandId);
+    CLand* pLand = nullptr;
+    if (pMainUnit->movements_.size() > 0)
+        pLand = GetLand(pMainUnit->movement_stop_);
+    else
+        pLand = GetLand(pMainUnit->LandId);
+
     if (!pLand)
         return FALSE;
 
@@ -4695,7 +4714,17 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
                 pMainUnit->Orders << order.c_str();
                 for (size_t i = order.size(); i < indent; ++i)
                     pMainUnit->Orders << " ";
-                pMainUnit->Orders << ";" << skill.c_str() << " " << stud.second.cur_days_ << "(" << stud.second.max_days_ << ")";
+                pMainUnit->Orders << ";";
+                if (pMainUnit->LandId != pLand->Id) 
+                {
+                    long x,y,z;
+                    land_control::get_land_coordinates(pLand->Id, x, y, z);
+                    if (z > 1)
+                        pMainUnit->Orders << "[" << x << "," << y << "," << z << "] ";
+                    else
+                        pMainUnit->Orders << "[" << x << "," << y << "] ";
+                }
+                pMainUnit->Orders << skill.c_str() << " " << stud.second.cur_days_ << "(" << stud.second.max_days_ << ")";
                 if (unit_control::is_leader(stud.second.unit_))
                     pMainUnit->Orders << " lead: " << stud.second.man_amount_;
                 else
@@ -5167,6 +5196,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
         if (sequence == TurnSequence::SQ_PRODUCE)
         {//no need to parse sequentially
+            //initialize shared items
+            land_control::init_land_all_shares(pLand);        
             RunOrder_AOComments<orders::Type::O_PRODUCE>(pLand);
             RunOrder_LandProduce(pLand);
         }
@@ -5186,6 +5217,23 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         if (sequence == TurnSequence::SQ_MAINTENANCE) 
         {
             RunOrder_AONames(pLand);
+        }
+        if (sequence == TurnSequence::SQ_LAST) {
+            long region_balance = pLand->current_state_.economy_.initial_amount_ +
+                                  pLand->current_state_.economy_.tax_income_ +
+                                  pLand->current_state_.economy_.sell_income_ + 
+                                  pLand->current_state_.economy_.work_income_ +
+                                  std::max(pLand->current_state_.economy_.moving_in_, (long)0) -
+                                  pLand->current_state_.economy_.buy_expenses_ -
+                                  pLand->current_state_.economy_.maintenance_ -
+                                  std::max(pLand->current_state_.economy_.moving_out_, (long)0) - 
+                                  pLand->current_state_.economy_.study_expenses_;
+            if (region_balance > 0) {
+              int i = 5;
+            }
+            if (region_balance < 0) {
+                OrderError("Warning", pLand, nullptr, "Region has silver balance below 0: "+std::to_string(region_balance)+" SILV");
+            }
         }
 
         for (CUnit* pUnit : pLand->units_seq_)
@@ -5639,7 +5687,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                 if (unit != NULL)
                 {
                     pLand->current_state_.economy_.maintenance_ += unit_control::get_upkeep(unit);
-                    pLand->current_state_.economy_.moving_in_ += unit_control::get_item_amount(unit, PRP_SILVER);
+                    pLand->current_state_.economy_.moving_in_ += std::max(unit_control::get_item_amount(unit, PRP_SILVER), (long)0);//it have to be zero if its below 0
                 }
             }
 
@@ -5652,7 +5700,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                 {
                     //moving out
                     if (unit->movements_.size() > 0)
-                        pLand->current_state_.economy_.moving_out_ += unit_control::get_item_amount(unit, PRP_SILVER);
+                        pLand->current_state_.economy_.moving_out_ += std::max(unit_control::get_item_amount(unit, PRP_SILVER), (long)0);//it have to be zero if its below 0
                     else 
                     {//maintenance
                         pLand->current_state_.economy_.maintenance_ += unit_control::get_upkeep(unit);
@@ -6292,7 +6340,7 @@ void CAtlaParser::RunOrder_AONames(CLand* land)
                 naming_order->original_string_[0] == '@')
             {
                 std::string new_name = "@name unit \"" + autonaming::generate_unit_name(land, unit) + "\"";
-                if (stricmp(new_name.c_str(), naming_order->original_string_.c_str()) != 0)
+                if (new_name != naming_order->original_string_)
                 {
                     naming_order->comment_.insert(0, ";%DEL%");
                     orders::control::remove_orders_by_comment(unit, "%DEL%");
@@ -6456,7 +6504,8 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
     std::vector<land_control::ProduceItem> out;
     land_control::get_land_producers(land, out, errors);
 
-    //initialize shared items
+
+    /*
     for (auto& product_request : out)
     {
         if (product_request.is_craft_)
@@ -6465,7 +6514,7 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
             for (const auto& req_resource : prod_details->req_resources_)
                 land_control::get_land_shares(land, req_resource.first);
         }
-    }
+    }*/
 
     for (auto& product_request : out)
     {
@@ -6720,8 +6769,10 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
                     unit->impact_description_.push_back("give: drop off unit");
                 else if (target_unit->FactionId == unit->FactionId)
                     OrderError("Error", land, unit, "give: transfer unit to yourself: "+give_order->original_string_);
-                else 
+                else {
                     unit->impact_description_.push_back("give: transfer unit to faction "+std::to_string(target_unit->FactionId));
+                    unit->IsOurs = false;
+                }                    
                 continue;
             }
 
@@ -7498,8 +7549,19 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
         unit_control::MoveMode movemode = unit_control::get_move_state(unit);
         if (movemode.speed_ == 0)
         {
-            errors.push_back({"Error", unit, "move: unit can't move, probably the overweight"});
-            return;
+            bool all_pauses = true;
+            for (size_t ord_index = 1; ord_index < order->words_order_.size(); ++ord_index)
+            {//need to check that it is really going to move, and all the orders are not just PAUSE
+                if (stricmp(order->words_order_[ord_index].c_str(), "P") != 0) 
+                {
+                    errors.push_back({"Error", unit, "move: unit can't move, probably the overweight"});
+                    return;
+                } else {
+                    //in case of overload, but pause, we actually have movements, so it needs to define
+                    //unit->movement_stop_ explicitly
+                    unit->movement_stop_ = land->Id;
+                }
+            }
         }
 
         long movepoints = movemode.speed_;
@@ -7549,16 +7611,30 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
                         unit->movement_stop_ = next_hex_id;
 
                     movepoints -= move_cost;
+
+                    //logically perform the move
+                    while(move_cost > 1)
+                    {
+                        unit->movements_.push_back(cur_land->Id);
+                        --move_cost;
+                    }
+                    unit->movements_.push_back(next_hex_id);
+                    current_struct_id = 0;
+
                 }
                 else 
                 {
+                    if (movepoints >= 1)
+                        unit->movement_stop_ = next_hex_id;
+                    
                     movepoints -= 1;
+                    
                     unit->impact_description_.push_back("move: through unknown territory, prediction of movepoints may be wrong");
-                }
 
-                //logically perform the move
-                unit->movements_.push_back(next_hex_id);
-                current_struct_id = 0;
+                    //logically perform the move
+                    unit->movements_.push_back(next_hex_id);
+                    current_struct_id = 0;
+                }
             }
             else if (stricmp(order->words_order_[ord_index].c_str(), "IN") == 0)
             {//parsing IN order
@@ -7608,13 +7684,22 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
                     unit->movement_stop_ = next_hex_id;
                 movepoints -= move_cost;
 
+                //logically perform the move
+                while(move_cost > 1)
+                {
+                    unit->movements_.push_back(cur_land->Id);
+                    --move_cost;
+                }
                 unit->movements_.push_back(next_hex_id);
                 current_struct_id = 0;
             }
             else if (stricmp(order->words_order_[ord_index].c_str(), "P") == 0)
             {
                 //calculate move points to verify stopping hex if order longer than unit can move
+                if (movepoints >= 1)
+                    unit->movement_stop_ = cur_land->Id;                
                 movepoints -= 1;//even if we lost information, it's still valid
+                unit->movements_.push_back(cur_land->Id);
                 continue;
             }                
             else
@@ -7766,21 +7851,36 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
                         unit->movement_stop_ = next_hex_id;
 
                     movepoints -= move_cost;
+
+                    while (move_cost > 1) {
+                        unit->movements_.push_back(cur_land->Id);
+                        --move_cost;
+                    }
+                    //logically perform the move
+                    unit->movements_.push_back(next_hex_id);
+
                 } 
                 else 
                 {
+                    if (movepoints >= 1)
+                        unit->movement_stop_ = next_hex_id;                  
                     movepoints -= 1;
                     unit->impact_description_.push_back("sails: through unknown terrotiry, movepoints count may be wrong");
+                    //logically perform the move
+                    unit->movements_.push_back(next_hex_id);
+
                 }
                   
 
-                //logically perform the move
-                unit->movements_.push_back(next_hex_id);
             }
             else if (stricmp(order->words_order_[ord_index].c_str(), "P") == 0)
             {
                 //calculate move points to verify stopping hex if order longer than unit can move
+                if (movepoints >= 1)
+                    unit->movement_stop_ = cur_land->Id;  
+
                 movepoints -= 1;//even if we lost information, it's still valid
+                unit->movements_.push_back(cur_land->Id);
                 continue;
             }     
             else

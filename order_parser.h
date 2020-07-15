@@ -151,7 +151,7 @@ namespace orders
     }
 
     enum class CaravanSpeed {
-        MOVE, RIDE, FLY, SWIM, UNDEFINED
+        MOVE, RIDE, FLY, SWIM, SAIL, UNDEFINED
     };
 
     struct RegionInfo

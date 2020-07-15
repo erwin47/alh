@@ -114,6 +114,7 @@ BEGIN_EVENT_TABLE(CMapPane, wxWindow)
     EVT_MENU             (menu_Popup_New_Hex      , CMapPane::OnPopupNewHex       )
     EVT_MENU             (menu_Popup_Del_Hex      , CMapPane::OnPopupDeleteHex    )
     EVT_MENU             (menu_Popup_DistanceRing , CMapPane::OnPopupDistanceRing )
+    EVT_MENU             (menu_Popup_MovePhases   , CMapPane::OnPopupMovePhases   )
 
 
 
@@ -2901,9 +2902,21 @@ void CMapPane::RedrawTracksForUnit(CPlane * pPlane, CUnit * pUnit, wxDC * pDC, B
     // draw new tracks and remember hexes
     if (pUnit && pUnit->movements_.size() > 0)
     {
+        size_t movement_step = 0;
         LandIdToCoord(pUnit->LandId, X, Y, Z);
+        while(Z != pPlane->Id && movement_step < pUnit->movements_.size())
+        {
+            LandIdToCoord(pUnit->movements_[movement_step], X, Y, Z);
+            ++movement_step;
+        }
+        
         if (Z == pPlane->Id)
-            m_pTrackHexes->Insert((void*)pUnit->LandId);
+        {
+            if (movement_step > 0)
+                m_pTrackHexes->Insert((void*)pUnit->movements_[movement_step-1]);
+            else
+                m_pTrackHexes->Insert((void*)pUnit->LandId);
+        }            
         GetHexCenter(X, Y, wx0, wy0);
 
         if (pPlane->Width>0)
@@ -2914,12 +2927,12 @@ void CMapPane::RedrawTracksForUnit(CPlane * pPlane, CUnit * pUnit, wxDC * pDC, B
             wx0+=dx;
             while (wx0+m_HexSize <= rect.x + rect.width)
             {
-                DrawSingleTrack(X, Y, Z, wx0, wy0, pDC, pUnit, pPlane, copyno++);
+                DrawSingleTrack(X, Y, Z, wx0, wy0, pDC, pUnit, movement_step, pPlane, copyno++);
                 wx0 += dx;
             }
         }
         else
-            DrawSingleTrack(X, Y, Z, wx0, wy0, pDC, pUnit, pPlane, copyno);
+            DrawSingleTrack(X, Y, Z, wx0, wy0, pDC, pUnit, movement_step, pPlane, copyno);
     }
 
     if (DoDrawCitiesAndWeather)
@@ -2931,7 +2944,7 @@ void CMapPane::RedrawTracksForUnit(CPlane * pPlane, CUnit * pUnit, wxDC * pDC, B
 
 //--------------------------------------------------------------------------
 
-void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, CUnit * pUnit, CPlane * pPlane,int copyno)
+void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, CUnit * pUnit, size_t movement_step, CPlane * pPlane,int copyno)
 {
     int            i, X1, Y1, Z1;
     long           HexId;
@@ -2964,8 +2977,15 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
     if (pUnit->movements_.size() == 0)
         return;
 
-    for (long i = 0; i < pUnit->movements_.size(); ++i)
+    for (long i = movement_step; i < pUnit->movements_.size(); ++i)
     {
+        if (movement_step > 0 && i == movement_step)
+        {//track the path from the middle of it: start from black rectangle
+            int size = m_HexHalfHeight * 2 / 3;
+            pDC->SetBrush(*m_pBrushBlack);
+            pDC->DrawRectangle(wx-size/2, wy-size/2, size, size);
+        }
+
         wx0 = wx;
         wy0 = wy;
 
@@ -2974,6 +2994,9 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
 
         HexId = pUnit->movements_[i];
         LandIdToCoord(HexId, X1, Y1, Z1);
+
+        if (X==X1 && Y==Y1 && Z==Z1)
+            continue;//troops may stay in hex several phases
 
         // Prevent painting on a different level.
         if ((Z1 != pPlane->Id || (X==X1 && Y == Y1)) && (Z == pPlane->Id))
@@ -3558,6 +3581,7 @@ void CMapPane::OnMouseEvent(wxMouseEvent& event)
         menu.Append(menu_Popup_Center      , wxT("Center"));
         menu.Append(menu_Popup_WhoMovesHere, wxT("Find units moving here"));
         menu.Append(menu_Popup_DistanceRing, wxT("Distance ring"));
+        menu.Append(menu_Popup_MovePhases,   wxT("Moving Phases"));
 
 
 
@@ -3805,6 +3829,72 @@ void CMapPane::OnPopupDeleteHex(wxCommandEvent & event)
 }
 
 //--------------------------------------------------------------------------
+
+void CMapPane::OnPopupMovePhases(wxCommandEvent & event)
+{
+    CLand* cur_land = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
+
+    std::vector<std::vector<long>> move_phases = {
+      {},
+      {1},
+      {1, 5},
+      {1, 3, 6},
+      {1, 3, 5, 7},
+      {1, 2, 4, 5, 7},
+      {1, 2, 3, 5, 6, 7},
+      {1, 2, 3, 4, 5, 6, 7},
+      {1, 2, 3, 4, 5, 6, 7, 8},
+    };
+
+    std::vector<std::vector<CUnit*>> result_phases;
+    result_phases.resize(9);
+
+    for (int n=0; n<gpApp->m_pAtlantis->m_Planes.Count(); n++)
+    {
+        CPlane* plane = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(n);
+        for (int i=0; i<plane->Lands.Count(); i++)
+        {
+            CLand* land = (CLand*)plane->Lands.At(i);
+            land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+                if (!unit->IsOurs || unit->movements_.size() == 0)
+                    return;
+
+                unit_control::MoveMode move_mode = unit_control::get_move_state(unit);
+                
+                for (size_t j = 0; j < move_mode.speed_; ++j)
+                {
+                    if (unit->movements_[j] == cur_land->Id)
+                    {
+                        long phase = move_phases[move_mode.speed_][j];
+                        result_phases[phase].push_back(unit);
+                    }
+                }
+            });
+        }
+    }
+
+    for (size_t ph_id = 1; ph_id < result_phases.size(); ++ph_id)
+    {
+        if (result_phases[ph_id].size() > 0)
+        {
+            std::string phasename = "Phase # "+std::to_string(ph_id) + "\r\n";
+            gpApp->ShowError(phasename.c_str(), phasename.size(), TRUE);
+            
+            for (CUnit* unit : result_phases[ph_id]) {
+
+                std::string name = unit_control::compose_unit_name(unit) + "\r\n";
+                gpApp->ShowError(name.c_str(), name.size(), TRUE);
+
+            }
+                
+        }
+    }
+
+
+    //gpApp->ShowLandFinancial(pCurLand);
+    
+
+}
 
 void CMapPane::OnPopupDistanceRing(wxCommandEvent & event)
 {
