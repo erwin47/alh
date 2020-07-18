@@ -107,11 +107,14 @@ enum
     menu_Popup_UnitFlags    ,
     menu_Popup_IssueOrders  ,
     menu_Popup_WhoMovesHere ,
-    menu_Popup_Financial    ,
     menu_Popup_AutoOrders   ,
+    menu_Popup_ClearAutoOrders,
     menu_Popup_New_Hex      ,
     menu_Popup_Del_Hex      ,
     menu_Popup_DistanceRing ,
+    menu_Popup_Economy      ,
+    menu_Popup_Warehouse    ,
+    menu_Popup_ShowAutoOrders,
     menu_Popup_MovePhases   ,
 
     // accelerator key
@@ -121,6 +124,10 @@ enum
     accel_Orders            ,
     accel_CreateNewUnit     ,
     accel_ReceiveOrder      ,
+    accel_ShowLandEconomy   ,
+    accel_ShowLandWarehouse ,
+    accel_ShowLandAutoOrders,
+    accel_ShowLandMovePhases,
 
     // toolbar. order corresponds to one used in CMapFrame::MakeToolBar()
 

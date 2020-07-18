@@ -132,12 +132,17 @@ public:
 
     long        m_SelHexX;
     long        m_SelHexY;
+
     long        m_SelPlane;
 
     BOOL        m_bAdvancedIcons;
 
     CLongColl   m_HexSizes;
 
+    void      OnPopupEconomy     (wxCommandEvent & event);
+    void      OnPopupWarehouse   (wxCommandEvent & event);
+    void      OnPopupShowAutoOrders(wxCommandEvent & event);
+    void      OnPopupMovePhases  (wxCommandEvent & event);
 
 protected:
 
@@ -187,12 +192,12 @@ protected:
     void      OnPopupMenuCenter  (wxCommandEvent & event);
     void      OnPopupMenuBattles (wxCommandEvent & event);
     void      OnPopupWhoMovesHere(wxCommandEvent & event);
-    void      OnPopupFinancial   (wxCommandEvent & event);
-    void      OnPopupAutoOrders  (wxCommandEvent & event);
+    void     OnPopupRunAutoOrders(wxCommandEvent & event);
+    void   OnPopupClearAutoOrders(wxCommandEvent & event);
     void      OnPopupNewHex      (wxCommandEvent & event);
     void      OnPopupDeleteHex   (wxCommandEvent & event);
     void      OnPopupDistanceRing(wxCommandEvent & event);
-    void      OnPopupMovePhases  (wxCommandEvent & event);
+
 
     void      StartRectangle(int x, int y);
     void      EndRectangle  (int x, int y);
@@ -214,7 +219,7 @@ protected:
     wxPen        * m_pPenRoadBad;
     wxPen        * m_pPenBlack;
     wxPen        * m_pPenRed;
-    wxPen        * m_pPenRed2;
+    wxPen        * m_pPenRedSolid;
     wxPen        * m_pPenGrey;
     wxPen        * m_pPenFlag[LAND_FLAG_COUNT];
     wxPen        * m_pPenCoastline;

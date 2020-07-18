@@ -33,12 +33,14 @@ public:
     virtual void Update();
     virtual void Init();
     void         SetSource(CStr * pSource, BOOL * pChanged);
+    void         SetSource(const std::string& source, BOOL * pChanged);
     virtual void ApplyFonts();
     BOOL         SaveModifications();
     void         OnKillFocus();
     void         OnMouseDClick();
     void         SetReadOnly(BOOL ReadOnly);
     void         GetValue(CStr & value);
+    void         SetHeader(const std::string& new_header);
 
     wxTextCtrl   * m_pEditor;
 

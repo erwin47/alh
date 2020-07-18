@@ -571,29 +571,32 @@ void init_land_item_state(land_item_state& listate);
 
 struct LandState
 {
-    land_item_state tax_;
-    land_item_state work_;
-    land_item_state entertain_;
+    land_item_state                         tax_;                   //! stats regarding tax activity in the region
+    land_item_state                         work_;                  //! stats regarding work activity in the region
+    land_item_state                         entertain_;             //! stats regarding entertain activity in the region
 
-    long            peasants_amount_;
-    std::string     peasant_race_;
+    long                                    peasants_amount_;       //! peasants amount of region
+    std::string                             peasant_race_;          //! race of region
 
-    std::vector<CItem>                      resources_;    
-    std::map<std::string, CProductMarket>   wanted_;
-    std::map<std::string, CProductMarket>   for_sale_;
+    std::vector<CItem>                      resources_;             //! stats regarding resources available for 
+                                                                    //! production in the region  
+    std::map<std::string, CProductMarket>   wanted_;                //! stats regarding buy offers in the region
+    std::map<std::string, CProductMarket>   for_sale_;              //! stats regarding sale offers in the region
 
-    std::map<std::string, std::pair<long, long>> shared_items_;//at production phase
-    std::map<std::string, long>             produced_items_;
-    std::map<std::string, long>             sold_items_;
-    std::map<std::string, long>             bought_items_;
+    std::map<std::string, std::pair<long, long>> shared_items_;     //! stats regarding shared items in the region
+    std::map<std::string, long>             produced_items_;        //! stats regarding attempts to produce items from region
+    std::map<std::string, long>             sold_items_;            //! stats regarding attempts to sell items to region
+    std::map<std::string, long>             bought_items_;          //! stats regarding attempts to buy items from region
 
-    std::vector<CStruct*>                   structures_;
+    std::vector<CStruct*>                   structures_;            //! list of structures
 
-    std::vector<CUnit*>                     incoming_units_;
-    std::vector<CUnit*>                     moveorder_stops_units_;
+    std::vector<CUnit*>                     incoming_units_;        //! list of units that are going to 
+                                                                    //! stop in the region this turn
+    std::vector<CUnit*>                     moveorder_stops_units_; //! list of units that eventually are 
+                                                                    //! going to stop in the region
 
-    CEconomy                                economy_;
-    std::vector<CError>                     run_orders_errors_;
+    CEconomy                                economy_;               //! state of all silver flows
+    std::vector<CError>                     run_orders_errors_;     //! list of errors happened during the run orders
 };
 
 void init_land_state(LandState& lstate);
@@ -639,6 +642,11 @@ public:
     LandState current_state_;
 
     unsigned long Flags;
+    std::string                             text_for_region_search_;//! text used to be represented if region was a 
+                                                                    //! result of a Region search command
+
+
+
     unsigned long AlarmFlags;
     int           xExit[6]; // storage for the coordinates of the exit
     int           yExit[6]; // storage for the coordinates of the exit
@@ -819,7 +827,7 @@ void TestLandId();
 BOOL IsASkillRelatedProperty(const char * propname);
 void MakeQualifiedPropertyName(const char * prefix, const char * shortname, CStr & FullName);
 void SplitQualifiedPropertyName(const char * fullname, CStr & Prefix, CStr & ShortName);
-bool evaluateLandByFilter(CLand* land, const std::string& Property, const eCompareOp& CompareOp, const std::string& sValue);
+bool evaluateLandByFilter(CLand* land, const std::string& Property, const eCompareOp& CompareOp, const std::string& sValue, std::string& text_out);
 BOOL EvaluateBaseObjectByBoxes(CBaseObject * pObj, CStr * Property, eCompareOp * CompareOp, CStr * Value, long * lValue, int count);
 
 #endif

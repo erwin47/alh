@@ -11,6 +11,7 @@ namespace autologic
         NONE,
         UNIT_ITEM,
         UNIT_SKILL,
+        UNIT_SPEED,
         REGION_LOCATION,
         REGION_SELL,
         REGION_WANTED,

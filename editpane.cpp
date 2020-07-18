@@ -93,7 +93,7 @@ END_EVENT_TABLE()
 //--------------------------------------------------------------------
 
 CEditPane::CEditPane(wxWindow* parent, const wxString& header, BOOL editable, int WhichFont)
-          :wxPanel(parent, -1, wxDefaultPosition, wxDefaultSize )
+          : wxPanel(parent, -1, wxDefaultPosition, wxDefaultSize )
 {
     m_pSource       = NULL;
     m_pChanged      = NULL;
@@ -132,6 +132,14 @@ void CEditPane::SetSource(CStr * pSource, BOOL * pChanged)
     m_pEditor->SetValue(pSource?wxString::FromUTF8(pSource->GetData()):wxT(""));
 }
 
+void CEditPane::SetSource(const std::string& source, BOOL * pChanged)
+{
+    if (m_pSource)
+        m_pSource->SetStr(source.c_str());
+    m_pChanged  = pChanged;
+    m_pEditor->SetValue(source);
+}
+
 //--------------------------------------------------------------------
 
 void CEditPane::Update()
@@ -164,6 +172,11 @@ BOOL CEditPane::SaveModifications()
 void CEditPane::GetValue(CStr & value)
 {
     value.SetStr(m_pEditor->GetValue().mb_str());
+}
+
+void CEditPane::SetHeader(const std::string& new_header)
+{
+    m_pHeader->SetLabel(new_header);
 }
 
 //--------------------------------------------------------------------

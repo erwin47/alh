@@ -218,7 +218,10 @@ void CHexFilterDlg::Init()
     {
         m_cbProperty[count]->Append(wxT(""));
         m_cbProperty[count]->Append(wxT("REG[NAME]"));
-        m_cbProperty[count]->Append(wxT("REG[MITH]"));
+        m_cbProperty[count]->Append(wxT("RES[MITH]"));
+        m_cbProperty[count]->Append(wxT("ITEM[MITH]"));
+        m_cbProperty[count]->Append(wxT("SKILL[ARMO]"));
+        m_cbProperty[count]->Append(wxT("LOC_ITEM[MITH]"));
         m_cbProperty[count]->Append(wxT("SELL_AMOUNT[MITH]"));
         m_cbProperty[count]->Append(wxT("SELL_PRICE[MITH]"));
         m_cbProperty[count]->Append(wxT("BUY_AMOUNT[MITH]"));

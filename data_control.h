@@ -60,6 +60,7 @@ namespace unit_control
         std::string type_;
         CUnit* unit_;
         std::string message_;
+        
     };
     namespace flags
     {
@@ -349,6 +350,9 @@ namespace game_control
     {
         return convert_to<T>(get_gpapp_config(section, key));
     }
+
+    bool evaluateLandByFilter(CLand* land, const std::string& Property, const eCompareOp& CompareOp, 
+                                           const std::string& sValue, std::string& out_text);
 
     bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag, SHIP_TRAVEL& travel, long& speed);
 

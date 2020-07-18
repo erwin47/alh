@@ -145,7 +145,12 @@ BEGIN_EVENT_TABLE(CMapFrame, CAhFrame)
     EVT_MENU   (accel_UnitList            , CMapFrame::OnUnitList)
     EVT_MENU   (accel_Orders              , CMapFrame::OnOrders  )
     EVT_MENU   (accel_CreateNewUnit       , CMapFrame::OnCreateNewUnit         )
-    EVT_MENU   (accel_ReceiveOrder       , CMapFrame::OnReceiveOrder           )
+    EVT_MENU   (accel_ReceiveOrder        , CMapFrame::OnReceiveOrder          )
+    EVT_MENU   (accel_ShowLandEconomy     , CMapFrame::OnShowLandEconomy       )
+    EVT_MENU   (accel_ShowLandWarehouse   , CMapFrame::OnShowLandWarehouse     )
+    EVT_MENU   (accel_ShowLandAutoOrders  , CMapFrame::OnShowLandAutoOrders    )
+    EVT_MENU   (accel_ShowLandMovePhases  , CMapFrame::OnShowLandMovePhases    )
+
 
     EVT_UPDATE_UI(menu_ViewBattlesAll     , CMapFrame::OnViewBattlesAllUpdate  )
     EVT_UPDATE_UI(menu_ViewSkillsAll      , CMapFrame::OnViewSkillsAllUpdate   )
@@ -1081,6 +1086,30 @@ void CMapFrame::OnCreateNewUnit(wxCommandEvent& event)
 void CMapFrame::OnReceiveOrder(wxCommandEvent& event)
 {
     gpApp->UnitReceiveOrder(event);
+}
+
+void CMapFrame::OnShowLandEconomy(wxCommandEvent& event)
+{
+    if (m_Panes[AH_PANE_MAP])
+        ((CMapPane*)m_Panes[AH_PANE_MAP])->OnPopupEconomy(event);
+}
+
+void CMapFrame::OnShowLandWarehouse(wxCommandEvent& event)
+{
+    if (m_Panes[AH_PANE_MAP])
+        ((CMapPane*)m_Panes[AH_PANE_MAP])->OnPopupWarehouse(event);
+}
+
+void CMapFrame::OnShowLandAutoOrders(wxCommandEvent& event) 
+{
+    if (m_Panes[AH_PANE_MAP])
+        ((CMapPane*)m_Panes[AH_PANE_MAP])->OnPopupShowAutoOrders(event);
+}
+
+void CMapFrame::OnShowLandMovePhases(wxCommandEvent& event)
+{
+    if (m_Panes[AH_PANE_MAP])
+        ((CMapPane*)m_Panes[AH_PANE_MAP])->OnPopupMovePhases(event);
 }
 
 

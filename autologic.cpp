@@ -46,6 +46,8 @@ namespace autologic
             return Command::REGION_WANTED;
         else if (strnicmp(beg, "RESOURCE", sizeof("RESOURCE")-1) == 0)
             return Command::REGION_RESOURCE;
+        else if (strnicmp(beg, "SPEED", sizeof("SPEED")-1) == 0)
+            return Command::UNIT_SPEED;
 
         return Command::NONE;
     }
@@ -215,6 +217,16 @@ namespace autologic
                 errors.push_back({"Debug", unit, "Skill ("+arg+") level: "+std::to_string(skill_lvl) + 
                     "; op: " + to_string(operation) + "; val: "+val + " == " + (result ? "TRUE" : "FALSE")});
 
+                return result;
+            }
+
+            case Command::UNIT_SPEED: {
+                errors.push_back({"Debug", unit, "Command was evaluated as Command::UNIT_SPEED"});
+                unit_control::MoveMode movemode = unit_control::get_move_state(unit);
+
+                bool result = evaluate_operation((long)movemode.speed_, operation, atol(val.c_str()));
+                errors.push_back({"Debug", unit, "Speed: "+std::to_string(movemode.speed_) + 
+                    "; op: " + to_string(operation) + "; val: "+val + " == " + (result ? "TRUE" : "FALSE")});
                 return result;
             }
 

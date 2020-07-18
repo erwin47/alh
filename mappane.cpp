@@ -27,6 +27,8 @@
     #include "wx/numdlg.h"
 #endif
 
+#include <sstream>
+
 #include "cstr.h"
 #include "collection.h"
 #include "cfgfile.h"
@@ -109,11 +111,14 @@ BEGIN_EVENT_TABLE(CMapPane, wxWindow)
     EVT_MENU             (menu_Popup_Center       , CMapPane::OnPopupMenuCenter   )
     EVT_MENU             (menu_Popup_Battles      , CMapPane::OnPopupMenuBattles  )
     EVT_MENU             (menu_Popup_WhoMovesHere , CMapPane::OnPopupWhoMovesHere )
-    EVT_MENU             (menu_Popup_Financial    , CMapPane::OnPopupFinancial    )
-    EVT_MENU             (menu_Popup_AutoOrders   , CMapPane::OnPopupAutoOrders   )
+    EVT_MENU             (menu_Popup_AutoOrders   , CMapPane::OnPopupRunAutoOrders)
+    EVT_MENU             (menu_Popup_ClearAutoOrders, CMapPane::OnPopupClearAutoOrders)
     EVT_MENU             (menu_Popup_New_Hex      , CMapPane::OnPopupNewHex       )
     EVT_MENU             (menu_Popup_Del_Hex      , CMapPane::OnPopupDeleteHex    )
     EVT_MENU             (menu_Popup_DistanceRing , CMapPane::OnPopupDistanceRing )
+    EVT_MENU             (menu_Popup_Economy      , CMapPane::OnPopupEconomy      )
+    EVT_MENU             (menu_Popup_Warehouse    , CMapPane::OnPopupWarehouse    )
+    EVT_MENU             (menu_Popup_ShowAutoOrders, CMapPane::OnPopupShowAutoOrders)            
     EVT_MENU             (menu_Popup_MovePhases   , CMapPane::OnPopupMovePhases   )
 
 
@@ -140,7 +145,7 @@ CMapPane::CMapPane(wxWindow * parent, wxWindowID id, int layout)
     m_pPenRoad         = new wxPen;
     m_pPenRoadBad      = new wxPen;
     m_pPenBlack        = new wxPen(*wxBLACK, 1, wxPENSTYLE_SOLID);
-    m_pPenRed2         = new wxPen(*wxRED  , 2, wxPENSTYLE_SOLID);
+    m_pPenRedSolid     = new wxPen(*wxRED  , 3, wxPENSTYLE_SOLID);
     m_pPenRed          = new wxPen(*wxRED  , 1, wxPENSTYLE_SOLID);
     wxColor * grey     = new wxColor(98,109,112);
     m_pPenGrey         = new wxPen(*grey , 1, wxPENSTYLE_SOLID);
@@ -195,7 +200,7 @@ CMapPane::~CMapPane()
     delete m_pPenRoad;
     delete m_pPenRoadBad;
     delete m_pPenBlack;
-    delete m_pPenRed2;
+    delete m_pPenRedSolid;
     delete m_pPenRed;
     delete m_pPenGrey;
     delete m_pPenCoastline;
@@ -1648,14 +1653,28 @@ void CMapPane::DrawStructures(wxDC * pDC, CLand * pLand, wxPoint * point, int x0
         // the hex itself was located
         if (pLand && pLand->Flags & LAND_LOCATED_LAND)
         {
-            pDC->SetPen  (*m_pPenRed );
+            pDC->SetPen  (*m_pPenRedSolid );
+            pDC->SetBrush(*m_pBrushWhite);
+
+            //red square
+            wxPoint points[] = { wxPoint(x0-m_HexHalfSize, y0-m_HexHalfSize), wxPoint(x0-m_HexHalfSize, y0+m_HexHalfSize),
+                                 wxPoint(x0+m_HexHalfSize, y0+m_HexHalfSize), wxPoint(x0+m_HexHalfSize, y0-m_HexHalfSize)  };
+            pDC->DrawPolygon(sizeof(points)/sizeof(*points), points);
+
+            pDC->SetFont (*gpApp->m_Fonts[FONT_MAP_COORD]);
+            wxSize text_size = pDC->GetTextExtent(wxString(pLand->text_for_region_search_));
+            pDC->DrawText(wxString(pLand->text_for_region_search_), 
+                          x0-text_size.GetWidth()/2, y0-text_size.GetHeight()/2);
+
+            //white square
+            /*pDC->SetPen  (*m_pPenRed );
             pDC->SetBrush(*m_pBrushRed);
 
-            wxPoint points[] = { wxPoint(x0, y0-m_HexHalfSize),
-                                wxPoint( (long)(x0+m_HexHalfSize*cos30), y0+m_HexHalfSize/2),
-                                wxPoint( (long)(x0-m_HexHalfSize*cos30), y0+m_HexHalfSize/2) };
+            wxPoint points[] = { wxPoint(x0-m_HexHalfSize, y0-m_HexHalfSize), wxPoint(x0-m_HexHalfSize, y0+m_HexHalfSize),
+                                 wxPoint(x0+m_HexHalfSize, y0+m_HexHalfSize), wxPoint(x0+m_HexHalfSize, y0-m_HexHalfSize)  };
 
-            pDC->DrawPolygon(sizeof(points)/sizeof(*points), points);
+            pDC->DrawPolygon(sizeof(points)/sizeof(*points), points);*/
+
         }
     }
 
@@ -2949,7 +2968,7 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
     int            i, X1, Y1, Z1;
     long           HexId;
     int            wx0, wy0;
-    int            wx_a, wy_a, wx0_a, wy0_a;
+    int            wx_a(0), wy_a(0), wx0_a(0), wy0_a(0);
     BOOL           Arcadia3Sail = FALSE;
     CStruct      * pStruct;
     CLand        * pLand;
@@ -3567,8 +3586,10 @@ void CMapPane::OnMouseEvent(wxMouseEvent& event)
             menu.Append(menu_Popup_Flag, wxT("Flags"));
             if (m_pPopupLand->Flags&LAND_BATTLE)
                 menu.Append(menu_Popup_Battles, wxT("Battles"));
-            menu.Append(menu_Popup_Financial   , wxT("Financial details for the hex"));
-            menu.Append(menu_Popup_AutoOrders, wxT("Run autoorders for the hex"));
+            menu.Append(menu_Popup_Economy   , wxT("Economy (Ctrl+E)"));
+            menu.Append(menu_Popup_ClearAutoOrders, wxT("Clear autoorders"));
+            menu.Append(menu_Popup_AutoOrders, wxT("Run autoorders"));
+            menu.Append(menu_Popup_ShowAutoOrders, wxT("Show autoorders (Ctrl+A)"));
 
             if (0==strcmp(m_pPopupLand->Name.GetData(), SZ_MANUAL_HEX_PROVINCE))
                 menu.Append(menu_Popup_Del_Hex   , wxT("Remove Hex terrain"));
@@ -3577,11 +3598,11 @@ void CMapPane::OnMouseEvent(wxMouseEvent& event)
         {
             menu.Append(menu_Popup_New_Hex   , wxT("Set Hex terrain"));
         }
-
         menu.Append(menu_Popup_Center      , wxT("Center"));
         menu.Append(menu_Popup_WhoMovesHere, wxT("Find units moving here"));
         menu.Append(menu_Popup_DistanceRing, wxT("Distance ring"));
-        menu.Append(menu_Popup_MovePhases,   wxT("Moving Phases"));
+        menu.Append(menu_Popup_Warehouse    , wxT("Warehouse (Ctrl+W)"));        
+        menu.Append(menu_Popup_MovePhases,   wxT("Moving Phases (Ctrl+M)"));
 
 
 
@@ -3633,6 +3654,7 @@ void CMapPane::MarkFoundHexes(CHexFilterDlg * pFilter)
             pLand = (CLand*)pPlane->Lands.At(i);
 
             bool res = true;
+            std::string out_text;
             for (size_t  j = 0; j < HEX_SIMPLE_FLTR_COUNT; ++j)
             {
                 std::string property = pFilter->m_cbProperty[j]->GetValue().ToStdString();
@@ -3649,14 +3671,19 @@ void CMapPane::MarkFoundHexes(CHexFilterDlg * pFilter)
                 if (property.empty())
                     continue;
 
-                res = res && evaluateLandByFilter(pLand, property, 
-                                                         CompareOp,
-                                                         value);
+                std::string out;
+                res = res && game_control::evaluateLandByFilter(pLand, property, 
+                                                                       CompareOp,
+                                                                       value, 
+                                                                       out);
+                if (out_text.empty())
+                    out_text = out; //store just first out text
             }
             if (res)
             {
                 gpApp->m_pAtlantis->ComposeLandStrCoord(pLand, sCoord);
                 LandList << pLand->TerrainType << " (" << sCoord << ")" << EOL_SCR;
+                pLand->text_for_region_search_ = out_text;
                 pLand->Flags |= LAND_LOCATED_LAND;
             }
         }
@@ -3685,6 +3712,7 @@ void CMapPane::UnMarkFoundHexes()
         for (i=0; i<pPlane->Lands.Count(); i++)
         {
             pLand = (CLand*)pPlane->Lands.At(i);
+            pLand->text_for_region_search_.clear();
             pLand->Flags &= ~LAND_LOCATED_LAND;
         }
     }
@@ -3785,18 +3813,63 @@ void CMapPane::OnPopupWhoMovesHere(wxCommandEvent & event)
 
 //--------------------------------------------------------------------------
 
-void CMapPane::OnPopupFinancial   (wxCommandEvent & event)
+void CMapPane::OnPopupEconomy   (wxCommandEvent & event)
 {
-    CLand  * pCurLand;
+    CLand  * pLand = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
+    if (!pLand)
+        return;
 
-    pCurLand  = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
-    gpApp->ShowLandFinancial(pCurLand);
+    std::stringstream ss;
+    ss << "Initial amount:  "       << pLand->current_state_.economy_.initial_amount_ << std::endl;
+    ss << "    Claim:           +unknown" << std::endl;
+    ss << "    Tax/pillage:     +"  << pLand->current_state_.economy_.tax_income_ << std::endl;
+    ss << "    Sell income:     +"  << pLand->current_state_.economy_.sell_income_ << std::endl;
+    ss << "    Buy expenses:    -"  << pLand->current_state_.economy_.buy_expenses_ << std::endl;
+    ss << "Balance(intermediate):"         << pLand->current_state_.economy_.initial_amount_ +
+                                       pLand->current_state_.economy_.tax_income_ +
+                                       pLand->current_state_.economy_.sell_income_ - 
+                                       pLand->current_state_.economy_.buy_expenses_ << std::endl;
+    ss << "    Moving in:       +"  << std::max(pLand->current_state_.economy_.moving_in_, (long)0) << std::endl;
+    ss << "    Moving out:      -"  << std::max(pLand->current_state_.economy_.moving_out_, (long)0) << std::endl;             
+    ss << "    Study expenses:  -"  << pLand->current_state_.economy_.study_expenses_ << std::endl;
+    ss << "    Work/enterntain: +"  << pLand->current_state_.economy_.work_income_ << std::endl;
+    ss << "    Maintenance:     -"  << pLand->current_state_.economy_.maintenance_ << std::endl;
+    ss << "Balance End:   " <<         pLand->current_state_.economy_.initial_amount_ +
+                                       pLand->current_state_.economy_.tax_income_ +
+                                       pLand->current_state_.economy_.sell_income_ + 
+                                       pLand->current_state_.economy_.work_income_ +
+                                         std::max(pLand->current_state_.economy_.moving_in_, (long)0) -
+                                       pLand->current_state_.economy_.buy_expenses_ -
+                                       pLand->current_state_.economy_.maintenance_ -
+                                         std::max(pLand->current_state_.economy_.moving_out_, (long)0) - 
+                                       pLand->current_state_.economy_.study_expenses_ << std::endl;
+
+    CEditPane* pEditPane = (CEditPane*)gpApp->m_Panes[AH_PANE_MAP_DESCR];
+    if (pEditPane != nullptr) {
+        pEditPane->SetHeader("Economy");
+        pEditPane->SetSource(ss.str(), nullptr);
+    }
 }
 
-void CMapPane::OnPopupAutoOrders(wxCommandEvent & event)
+void CMapPane::OnPopupClearAutoOrders(wxCommandEvent & event)
 {
     CLand  * pCurLand;
     pCurLand  = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
+    if (!pCurLand)
+        return;
+    
+    land_control::perform_on_each_unit(pCurLand, [](CUnit* unit) {
+        orders::control::remove_orders_by_comment(unit, ";!AO");
+        orders::control::remove_orders_by_comment(unit, ";!ao");
+    });
+}
+
+void CMapPane::OnPopupRunAutoOrders(wxCommandEvent & event)
+{
+    CLand  * pCurLand;
+    pCurLand  = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
+    if (!pCurLand)
+        return;
     
     land_control::perform_on_each_unit(pCurLand, [](CUnit* unit) {
         orders::control::remove_orders_by_comment(unit, ";!AO");
@@ -3808,31 +3881,223 @@ void CMapPane::OnPopupAutoOrders(wxCommandEvent & event)
     gpApp->m_pAtlantis->ApplyLandDefaultOrders(pCurLand);
 }
 
-//--------------------------------------------------------------------------
-
-void CMapPane::OnPopupNewHex(wxCommandEvent & event)
+void fill_item_category_state_report(CLand* land, const char* category_mask, std::map<std::string, long[3]>& items_category)
 {
-    CPlane * pPlane   = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(m_SelPlane);
-    gpApp->AddTempHex(m_SelHexX, m_SelHexY, m_SelPlane);
-    SetSelection(m_SelHexX, m_SelHexY, NULL /*gpApp->GetSelectedUnit()*/, pPlane, TRUE);
+    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        if (!unit->IsOurs)
+            return;
+
+        auto category_items = unit_control::get_all_items_by_mask(unit, category_mask);
+        for (const auto& item : category_items)
+        {
+            if (unit->movements_.size() > 0)
+                items_category[item.code_name_][2] += item.amount_;
+            else
+                items_category[item.code_name_][0] += item.amount_;
+        }
+    });
 }
 
-
-//--------------------------------------------------------------------------
-
-
-void CMapPane::OnPopupDeleteHex(wxCommandEvent & event)
+void number_to_state_out(std::stringstream& out, long num)
 {
-    CPlane * pPlane   = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(m_SelPlane);
-    gpApp->DelTempHex(m_SelHexX, m_SelHexY, m_SelPlane);
-    SetSelection(m_SelHexX, m_SelHexY, NULL /*gpApp->GetSelectedUnit()*/, pPlane, TRUE);
+    std::string repr = std::to_string(num);
+    for (size_t i = repr.size(); i < 5; ++i)
+        out << " ";
+    out << repr;
 }
 
-//--------------------------------------------------------------------------
+void item_category_state_out(std::stringstream& out, const char* category_name, std::map<std::string, long[3]>& items_category)
+{
+    if (items_category.empty())
+        return;
+
+    long category_size = strlen(category_name);
+    out << category_name;
+    for (long i = category_size; i < 12; ++i)
+        out << " ";
+    out << "[  NOW/   IN/  OUT]:" << EOL_SCR;
+
+    for (auto& resource : items_category)
+    {
+        out << "    " << resource.first.c_str() << "    ";
+        if (resource.first.size() == 3)
+            out << " ";
+        out << "[";
+        number_to_state_out(out, resource.second[0]);
+        out << "/";
+        number_to_state_out(out, resource.second[1]);
+        out << "/";
+        number_to_state_out(out, resource.second[2]);
+        out << "]" << std::endl;
+    }
+}
+
+void CMapPane::OnPopupWarehouse   (wxCommandEvent & event)
+{
+    CLand  * pLand = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
+    if (!pLand)
+        return;
+
+    std::map<std::string, long[3]> resources;
+    std::map<std::string, long[3]> equipment;
+    std::map<std::string, long[3]> magic_items;
+    std::map<std::string, long[3]> mounts;
+    std::map<std::string, long[3]> trade_items;    
+
+    fill_item_category_state_report(pLand, PRP_RESOURCES, resources);
+    fill_item_category_state_report(pLand, PRP_ARMORS, equipment);
+    fill_item_category_state_report(pLand, PRP_WEAPONS, equipment);
+    fill_item_category_state_report(pLand, PRP_BOWS, equipment);
+    fill_item_category_state_report(pLand, PRP_SHIELDS, equipment);
+    fill_item_category_state_report(pLand, PRP_MAG_ITEMS, magic_items);
+    fill_item_category_state_report(pLand, PRP_MOUNTS, mounts);
+    fill_item_category_state_report(pLand, PRP_FLYING_MOUNTS, mounts);
+    fill_item_category_state_report(pLand, PRP_TRADE_ITEMS, trade_items);
+
+    std::vector<CUnit*> stopped;
+    std::vector<CUnit*> ended_moveorder;
+    gpApp->GetUnitsMovingIntoHex(pLand->Id, stopped, ended_moveorder);
+    for (CUnit* unit : stopped) 
+    {
+        auto category_items = unit_control::get_all_items_by_mask(unit, PRP_RESOURCES);
+        for (const auto& item : category_items)
+            resources[item.code_name_][1] += item.amount_;
+        category_items = unit_control::get_all_items_by_mask(unit, PRP_ARMORS);
+        for (const auto& item : category_items)
+            equipment[item.code_name_][1] += item.amount_;
+        category_items = unit_control::get_all_items_by_mask(unit, PRP_WEAPONS);
+        for (const auto& item : category_items)
+            equipment[item.code_name_][1] += item.amount_;
+        category_items = unit_control::get_all_items_by_mask(unit, PRP_BOWS);
+        for (const auto& item : category_items)
+            equipment[item.code_name_][1] += item.amount_;
+        category_items = unit_control::get_all_items_by_mask(unit, PRP_SHIELDS);
+        for (const auto& item : category_items)
+            equipment[item.code_name_][1] += item.amount_;
+        category_items = unit_control::get_all_items_by_mask(unit, PRP_MAG_ITEMS);
+        for (const auto& item : category_items)
+            magic_items[item.code_name_][1] += item.amount_;                    
+        category_items = unit_control::get_all_items_by_mask(unit, PRP_MOUNTS);
+        for (const auto& item : category_items)
+            mounts[item.code_name_][1] += item.amount_;
+        category_items = unit_control::get_all_items_by_mask(unit, PRP_FLYING_MOUNTS);
+        for (const auto& item : category_items)
+            mounts[item.code_name_][1] += item.amount_;
+        category_items = unit_control::get_all_items_by_mask(unit, PRP_TRADE_ITEMS);
+        for (const auto& item : category_items)
+            trade_items[item.code_name_][1] += item.amount_;
+    }
+
+    std::stringstream output;
+    item_category_state_out(output, "Resources", resources);
+    output << std::endl;
+    item_category_state_out(output, "Equipment", equipment);
+    output << std::endl;
+    item_category_state_out(output, "Artifacts", magic_items);
+    output << std::endl;
+    item_category_state_out(output, "Mounts", mounts);
+    output << std::endl;
+    item_category_state_out(output, "Trade items", trade_items);
+    output << std::endl;
+
+    CEditPane* pEditPane = (CEditPane*)gpApp->m_Panes[AH_PANE_MAP_DESCR];
+    if (pEditPane != nullptr) {
+        pEditPane->SetHeader("Warehouse");
+        pEditPane->SetSource(output.str(), nullptr);
+    }    
+}
+
+void CMapPane::OnPopupShowAutoOrders(wxCommandEvent & event)
+{
+    CLand* land = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
+    if (land == nullptr)
+        return;
+
+    //collect all sources of region, including sources from caravans
+    std::vector<orders::AutoSource> land_sources, caravan_sources;
+    std::vector<orders::AutoRequirement> needs;
+    orders::autoorders_caravan::get_land_autosources_and_autoneeds(land, land_sources, needs);
+    orders::autoorders_caravan::get_land_caravan_autosources_and_autoneeds(land, caravan_sources, needs);
+
+    //sort needs by priority (in case of equal priority, caravans should go last)
+    std::sort(needs.begin(), needs.end(), 
+        [](const orders::AutoRequirement& req1, const orders::AutoRequirement& req2) {
+            if (req1.priority_ == req2.priority_)
+            {
+                if (req1.unit_->caravan_info_ == nullptr && 
+                    req2.unit_->caravan_info_ != nullptr)
+                    return true;
+                return false;
+            }
+            return req1.priority_ < req2.priority_;
+    });
+
+    std::stringstream output;
+    if (needs.size() > 0) {
+        output << "Requests (according to priority)" << std::endl;
+        output << "CODE    Amount     P  Name" << std::endl;
+    }//8 8 4 <->
+        
+    for (const auto& need : needs)
+    {
+        output << need.name_;
+        for (int i = need.name_.size(); i < 4; ++i)
+            output << " ";
+        output << "     ";
+        number_to_state_out(output, need.amount_);
+        output << " ";
+        number_to_state_out(output, need.priority_);
+        output << "  " << unit_control::compose_unit_name(need.unit_) << std::endl;
+    }
+    output << std::endl;
+
+    if (caravan_sources.size() > 0) {
+        output << "Caravan's offers (performed first)" << std::endl;
+        output << "CODE    Amount     P  Name" << std::endl;
+    }
+
+    for (const auto& source : caravan_sources)
+    {
+        output << source.name_;
+        for (int i = source.name_.size(); i < 4; ++i)
+            output << " ";
+        output << "     ";
+        number_to_state_out(output, source.amount_);
+        output << " ";
+        number_to_state_out(output, source.priority_);
+        output << "  " << unit_control::compose_unit_name(source.unit_) << std::endl;
+    }
+    output << std::endl;
+
+    if (land_sources.size() > 0) {
+        output << "Land's offers (performed second)" << std::endl;
+        output << "CODE    Amount  P       Name" << std::endl;
+    }
+
+    for (const auto& source : land_sources)
+    {
+        output << source.name_;
+        for (int i = source.name_.size(); i < 4; ++i)
+            output << " ";
+        output << "    ";
+        number_to_state_out(output, source.amount_);
+        output << "   ";
+        number_to_state_out(output, source.priority_);
+        output << "   " << unit_control::compose_unit_name(source.unit_) << std::endl;
+    }
+
+    CEditPane* pEditPane = (CEditPane*)gpApp->m_Panes[AH_PANE_MAP_DESCR];
+    if (pEditPane != nullptr) {
+        pEditPane->SetHeader("Current Autoorders");
+        pEditPane->SetSource(output.str(), nullptr);
+    }    
+}
 
 void CMapPane::OnPopupMovePhases(wxCommandEvent & event)
 {
     CLand* cur_land = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
+    if (cur_land == nullptr)
+        return;
 
     std::vector<std::vector<long>> move_phases = {
       {},
@@ -3873,28 +4138,44 @@ void CMapPane::OnPopupMovePhases(wxCommandEvent & event)
         }
     }
 
+    std::stringstream output;
     for (size_t ph_id = 1; ph_id < result_phases.size(); ++ph_id)
     {
         if (result_phases[ph_id].size() > 0)
         {
-            std::string phasename = "Phase # "+std::to_string(ph_id) + "\r\n";
-            gpApp->ShowError(phasename.c_str(), phasename.size(), TRUE);
-            
+            output << "Phase # "+std::to_string(ph_id) << std::endl;
             for (CUnit* unit : result_phases[ph_id]) {
-
-                std::string name = unit_control::compose_unit_name(unit) + "\r\n";
-                gpApp->ShowError(name.c_str(), name.size(), TRUE);
-
+                output << "    " << unit_control::compose_unit_name(unit) << std::endl;
             }
-                
         }
     }
+    CEditPane* pEditPane = (CEditPane*)gpApp->m_Panes[AH_PANE_MAP_DESCR];
+    if (pEditPane != nullptr) {
+        pEditPane->SetHeader("Moving Phases");
+        pEditPane->SetSource(output.str(), nullptr);
+    }
+}    
+//--------------------------------------------------------------------------
 
-
-    //gpApp->ShowLandFinancial(pCurLand);
-    
-
+void CMapPane::OnPopupNewHex(wxCommandEvent & event)
+{
+    CPlane * pPlane   = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(m_SelPlane);
+    gpApp->AddTempHex(m_SelHexX, m_SelHexY, m_SelPlane);
+    SetSelection(m_SelHexX, m_SelHexY, NULL /*gpApp->GetSelectedUnit()*/, pPlane, TRUE);
 }
+
+
+//--------------------------------------------------------------------------
+
+
+void CMapPane::OnPopupDeleteHex(wxCommandEvent & event)
+{
+    CPlane * pPlane   = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(m_SelPlane);
+    gpApp->DelTempHex(m_SelHexX, m_SelHexY, m_SelPlane);
+    SetSelection(m_SelHexX, m_SelHexY, NULL /*gpApp->GetSelectedUnit()*/, pPlane, TRUE);
+}
+
+//--------------------------------------------------------------------------
 
 void CMapPane::OnPopupDistanceRing(wxCommandEvent & event)
 {

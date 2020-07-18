@@ -36,7 +36,34 @@ namespace game_control
     double convert_to<double>(const std::string& str)
     {
         return atof(str.c_str());
-    }    
+    }
+
+    template<typename T>
+    std::string convert_from(const T& t1)
+    {
+        return std::to_string(t1);
+    }
+
+    template<>
+    std::string convert_from<std::string>(const std::string& str)
+    {
+        return str;
+    }
+
+    template<typename T>
+    bool curtail(T& t1)
+    {
+        if (t1 >= 1000) {
+            t1 = t1 / 1000;
+            return true;
+        }
+        return false;
+    }
+    template<>
+    bool curtail<std::string>(std::string& t1)
+    {
+        return false;
+    }
 
     std::string get_gpapp_config(const char* section, const char* key)
     {
@@ -56,6 +83,150 @@ namespace game_control
             sectidx = gpApp->GetSectionNext(sectidx, section, szName, szValue);
         }
         return ret;
+    }
+
+    template<typename T>
+    bool doCompare(T v1, T v2, eCompareOp CompareOp)
+    {
+        switch (CompareOp)
+        {
+            case GT: return v1 > v2;
+            case GE: return v1 >= v2;
+            case EQ: return v1 == v2;
+            case LE: return v1 <= v2;
+            case LT: return v1 < v2;
+            case NE: return v1 != v2;
+            default: return false;
+        }
+    }
+
+    template<>
+    bool doCompare(std::string v1, std::string v2, eCompareOp CompareOp)
+    {
+        switch (CompareOp)
+        {
+            case GT: return stricmp(v1.c_str(), v2.c_str()) > 0;
+            case GE: return stricmp(v1.c_str(), v2.c_str()) >= 0;
+            case EQ: return stricmp(v1.c_str(), v2.c_str()) == 0;
+            case LE: return stricmp(v1.c_str(), v2.c_str()) <= 0;
+            case LT: return stricmp(v1.c_str(), v2.c_str()) < 0;
+            case NE: return stricmp(v1.c_str(), v2.c_str()) != 0;
+            default: return false;
+        }
+    }
+
+    template<typename T>
+    bool compare_and_out_text(T v1, T v2, eCompareOp CompareOp, std::string& out_text)
+    {
+        bool res = doCompare(v1, v2, CompareOp);
+        if (res) 
+        {
+            if (curtail<T>(v1))
+                out_text = convert_from<T>(v1)+"k";
+            else
+                out_text = convert_from<T>(v1);
+        }
+        return res;
+    }
+
+    bool evaluateLandByFilter(CLand* land, const std::string& Property, const eCompareOp& CompareOp, 
+                                          const std::string& sValue, std::string& out_text)
+    {
+        size_t beg = Property.find('[');
+        size_t end = Property.find(']', beg);
+        std::string command = Property.substr(0, beg);
+        std::string type = Property.substr(beg+1, end-beg-1);
+
+        if (stricmp(command.c_str(), "REG") == 0)
+        {
+            if (stricmp(type.c_str(), "NAME") == 0)
+                return compare_and_out_text(std::string(land->Name.GetData(), land->Name.GetLength()), sValue, CompareOp, out_text);
+            else 
+                return false;
+        }
+        else if (stricmp(command.c_str(), "RES") == 0) 
+        {
+            std::vector<CItem>::iterator it = std::find_if(land->current_state_.resources_.begin(),
+                                                            land->current_state_.resources_.end(), [&](const CItem& item) {
+                if (stricmp(item.code_name_.c_str(), type.c_str()) == 0)
+                    return true;
+                return false;
+            });
+            if (it != land->current_state_.resources_.end())
+            {
+                return compare_and_out_text(it->amount_, std::stol(sValue), CompareOp, out_text);
+            }
+        }
+        else if (stricmp(command.c_str(), "ITEM") == 0) 
+        {
+            long summary(0);
+            land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+                summary += unit_control::get_item_amount(unit, type);
+            });
+            return compare_and_out_text(summary, std::stol(sValue), CompareOp, out_text);
+        }
+        else if (stricmp(command.c_str(), "LOC_ITEM") == 0) 
+        {
+            long summary(0);
+            land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+                if (!unit->IsOurs)
+                    return;
+                summary += unit_control::get_item_amount(unit, type);
+            });
+            return compare_and_out_text(summary, std::stol(sValue), CompareOp, out_text);
+        }
+        else if (stricmp(command.c_str(), "SKILL") == 0) 
+        {
+            long amount(0);
+            land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+                if (!unit->IsOurs)
+                    return;
+                long lvl = skills_control::get_skill_lvl_from_days(unit_control::get_current_skill_days(unit, type));
+                if (doCompare(lvl, std::stol(sValue), CompareOp))
+                {
+                    amount += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+                }
+            });
+            if (amount > 0)
+                out_text = std::to_string(amount);
+            return amount > 0;
+        }          
+        else if (stricmp(command.c_str(), "SELL_AMOUNT") == 0)
+        {
+            if (land->current_state_.for_sale_.find(type) != land->current_state_.for_sale_.end())
+            {
+                bool res = compare_and_out_text(land->current_state_.for_sale_[type].item_.amount_, std::stol(sValue), CompareOp, out_text);
+                if (res)
+                    out_text+="("+std::to_string(land->current_state_.for_sale_[type].price_)+")";
+                return res;
+            }
+        }
+        else if (stricmp(command.c_str(), "SELL_PRICE") == 0)
+        {
+            if (land->current_state_.for_sale_.find(type) != land->current_state_.for_sale_.end())
+            {
+                bool res = compare_and_out_text(land->current_state_.for_sale_[type].price_, std::stol(sValue), CompareOp, out_text);
+                if (res)
+                    out_text+="("+std::to_string(land->current_state_.for_sale_[type].item_.amount_)+")";
+
+                return res;
+            }
+        }
+        else if (stricmp(command.c_str(), "BUY_AMOUNT") == 0)
+        {
+            if (land->current_state_.wanted_.find(type) != land->current_state_.wanted_.end())
+            {
+                return compare_and_out_text(land->current_state_.wanted_[type].item_.amount_, std::stol(sValue), CompareOp, out_text);
+            }
+        }
+        else if (stricmp(command.c_str(), "BUY_PRICE") == 0)
+        {
+            if (land->current_state_.wanted_.find(type) != land->current_state_.wanted_.end())
+            {
+                return compare_and_out_text(land->current_state_.wanted_[type].price_, std::stol(sValue), CompareOp, out_text);
+            }
+        }
+        return false;
     }
 
 
@@ -904,7 +1075,7 @@ namespace unit_control
     }
 
     long get_current_skill_days(CUnit* unit, const std::string& skill)
-    {
+    {//skills have to be current, to apply results of give order
         if (unit->skills_.find(skill) == unit->skills_.end())
             return 0;
         return unit->skills_[skill];

@@ -449,7 +449,7 @@ int CAhApp::OnExit()
 
 void CAhApp::CreateAccelerator()
 {
-    static wxAcceleratorEntry entries[7];
+    static wxAcceleratorEntry entries[11];
     entries[0].Set(wxACCEL_CTRL,  (int)'S',     menu_SaveOrders);
     entries[1].Set(wxACCEL_CTRL,  (int)'N',     accel_NextUnit );
     entries[2].Set(wxACCEL_CTRL,  (int)'P',     accel_PrevUnit );
@@ -457,7 +457,12 @@ void CAhApp::CreateAccelerator()
     entries[4].Set(wxACCEL_CTRL,  (int)'O',     accel_Orders   );
     entries[5].Set(wxACCEL_CTRL,  (int)'F',     accel_CreateNewUnit );
     entries[6].Set(wxACCEL_CTRL,  (int)'R',     accel_ReceiveOrder );
-    m_pAccel = new wxAcceleratorTable(7, entries);
+    entries[7].Set(wxACCEL_CTRL,  (int)'E',     accel_ShowLandEconomy );
+    entries[8].Set(wxACCEL_CTRL,  (int)'W',     accel_ShowLandWarehouse );
+    entries[9].Set(wxACCEL_CTRL,  (int)'A',     accel_ShowLandAutoOrders );
+    entries[10].Set(wxACCEL_CTRL, (int)'M',     accel_ShowLandMovePhases );
+
+    m_pAccel = new wxAcceleratorTable(11, entries);
 }
 
 //-------------------------------------------------------------------------
@@ -3001,7 +3006,7 @@ void CAhApp::EditPaneDClicked(CEditPane * pPane)
     long          position;
 
 
-    if (pPane == m_Panes[AH_PANE_MSG])
+    if (pPane == m_Panes[AH_PANE_MSG] || pPane == m_Panes[AH_PANE_MAP_DESCR])
     {
         pPane->GetValue(src);
         position = pPane->m_pEditor->GetInsertionPoint();
@@ -3367,65 +3372,7 @@ BOOL CAhApp::GetPrevTurnReport(CAtlaParser *& pPrevTurn)
 
 //-------------------------------------------------------------------------
 
-void fill_item_category_state_report(CLand* land, const char* category_mask, std::map<std::string, long[3]>& items_category)
-{
-    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-        if (!unit->IsOurs)
-            return;
 
-        auto category_items = unit_control::get_all_items_by_mask(unit, category_mask);
-        for (const auto& item : category_items)
-        {
-            if (unit->movements_.size() > 0)
-                items_category[item.code_name_][2] += item.amount_;
-            else
-                items_category[item.code_name_][0] += item.amount_;
-        }
-    });
-}
-
-void number_to_state_out(CStr& out, long num)
-{
-    const char* padd1 = " ";
-    const char* padd2 = "  ";
-    const char* padd3 = "   ";
-    const char* padd4 = "    ";
-    if (num < 10)
-        out << padd4;
-    else if (num < 100)
-        out << padd3;
-    else if (num < 1000)
-        out << padd2;
-    else if (num < 10000)
-        out << padd1;
-    out << num;
-}
-
-void item_category_state_out(CStr& out, const char* category_name, std::map<std::string, long[3]>& items_category)
-{
-    if (items_category.empty())
-        return;
-
-    long category_size = strlen(category_name);
-    out << EOL_SCR << category_name;
-    for (long i = category_size; i < 12; ++i)
-        out << " ";
-    out << "[  NOW/   IN/  OUT]:" << EOL_SCR;
-
-    for (auto& resource : items_category)
-    {
-        out << "    " << resource.first.c_str() << "    ";
-        if (resource.first.size() == 3)
-            out << " ";
-        out << "[";
-        number_to_state_out(out, resource.second[0]);
-        out << "/";
-        number_to_state_out(out, resource.second[1]);
-        out << "/";
-        number_to_state_out(out, resource.second[2]);
-        out << "]" << EOL_SCR;
-    }
-}
 
 
 void CAhApp::UpdateHexEditPane(CLand * pLand)
@@ -3536,9 +3483,15 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
                 m_HexDescrSrc << EOL_SCR << "-----------" << EOL_SCR;
             }
 
+            bool ships_part(false);
             land_control::perform_on_each_struct(pLand, [&](CStruct* structure) {
                 m_HexDescrSrc << structure->original_description_.c_str();
                 m_HexDescrSrc.TrimRight(TRIM_ALL); 
+                if (!ships_part && struct_control::flags::is_ship(structure)) {
+                    // separation between buildings and ships
+                    ships_part = true;
+                    m_HexDescrSrc << EOL_SCR;
+                }
                 if (struct_control::flags::is_ship(structure)) {
                     m_HexDescrSrc << " Forecast: Load[" << structure->occupied_capacity_ << 
                     "/" << structure->capacity_ << "], Power[" << structure->SailingPower << 
@@ -3547,93 +3500,18 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
                 m_HexDescrSrc << EOL_SCR;
             });
             
-            m_HexDescrSrc << EOL_SCR << "Economy:" << EOL_SCR;
-            m_HexDescrSrc << "    Initial amount:  " << pLand->current_state_.economy_.initial_amount_ << EOL_SCR;
-            m_HexDescrSrc << "    Claim:           +unknown" << EOL_SCR;
-            m_HexDescrSrc << "    Tax/pillage:     +" << pLand->current_state_.economy_.tax_income_ << EOL_SCR;
-            m_HexDescrSrc << "    Sell income:     +" << pLand->current_state_.economy_.sell_income_ << EOL_SCR;
-            m_HexDescrSrc << "    Buy expenses:    -" << pLand->current_state_.economy_.buy_expenses_ << EOL_SCR;
-            m_HexDescrSrc << "  Balance:     " << pLand->current_state_.economy_.initial_amount_ +
-                                                   pLand->current_state_.economy_.tax_income_ +
-                                                   pLand->current_state_.economy_.sell_income_ - 
-                                                   pLand->current_state_.economy_.buy_expenses_ << EOL_SCR;
-            m_HexDescrSrc << "    Moving in:       +" << std::max(pLand->current_state_.economy_.moving_in_, (long)0) << EOL_SCR;
-            m_HexDescrSrc << "    Moving out:      -" << std::max(pLand->current_state_.economy_.moving_out_, (long)0) << EOL_SCR;             
-            m_HexDescrSrc << "    Study expenses:  -" << pLand->current_state_.economy_.study_expenses_ << EOL_SCR;
-            m_HexDescrSrc << "    Work/enterntain: +" << pLand->current_state_.economy_.work_income_ << EOL_SCR;
-            m_HexDescrSrc << "    Maintenance:     -" << pLand->current_state_.economy_.maintenance_ << EOL_SCR;
-            m_HexDescrSrc << "  Balance End: " << pLand->current_state_.economy_.initial_amount_ +
-                                                       pLand->current_state_.economy_.tax_income_ +
-                                                       pLand->current_state_.economy_.sell_income_ + 
-                                                       pLand->current_state_.economy_.work_income_ +
-                                                       std::max(pLand->current_state_.economy_.moving_in_, (long)0) -
-                                                       pLand->current_state_.economy_.buy_expenses_ -
-                                                       pLand->current_state_.economy_.maintenance_ -
-                                                       std::max(pLand->current_state_.economy_.moving_out_, (long)0) - 
-                                                       pLand->current_state_.economy_.study_expenses_ << EOL_SCR;
+            long final_amount =  pLand->current_state_.economy_.initial_amount_ +
+                                 pLand->current_state_.economy_.tax_income_ +
+                                 pLand->current_state_.economy_.sell_income_ + 
+                                 pLand->current_state_.economy_.work_income_ +
+                                    std::max(pLand->current_state_.economy_.moving_in_, (long)0) -
+                                 pLand->current_state_.economy_.buy_expenses_ -
+                                 pLand->current_state_.economy_.maintenance_ -
+                                    std::max(pLand->current_state_.economy_.moving_out_, (long)0) - 
+                                 pLand->current_state_.economy_.study_expenses_;
 
-
-            std::map<std::string, long[3]> resources;
-            std::map<std::string, long[3]> equipment;
-            std::map<std::string, long[3]> magic_items;
-            std::map<std::string, long[3]> mounts;
-            std::map<std::string, long[3]> trade_items;
-            
-
-            fill_item_category_state_report(pLand, PRP_RESOURCES, resources);
-            fill_item_category_state_report(pLand, PRP_ARMORS, equipment);
-            fill_item_category_state_report(pLand, PRP_WEAPONS, equipment);
-            fill_item_category_state_report(pLand, PRP_BOWS, equipment);
-            fill_item_category_state_report(pLand, PRP_SHIELDS, equipment);
-            fill_item_category_state_report(pLand, PRP_MAG_ITEMS, magic_items);
-            fill_item_category_state_report(pLand, PRP_MOUNTS, mounts);
-            fill_item_category_state_report(pLand, PRP_FLYING_MOUNTS, mounts);
-            fill_item_category_state_report(pLand, PRP_TRADE_ITEMS, trade_items);
-
-            std::vector<CUnit*> stopped;
-            std::vector<CUnit*> ended_moveorder;
-            GetUnitsMovingIntoHex(pLand->Id, stopped, ended_moveorder);
-            for (CUnit* unit : stopped) 
-            {
-                auto category_items = unit_control::get_all_items_by_mask(unit, PRP_RESOURCES);
-                for (const auto& item : category_items)
-                    resources[item.code_name_][1] += item.amount_;
-                category_items = unit_control::get_all_items_by_mask(unit, PRP_ARMORS);
-                for (const auto& item : category_items)
-                    equipment[item.code_name_][1] += item.amount_;
-                category_items = unit_control::get_all_items_by_mask(unit, PRP_WEAPONS);
-                for (const auto& item : category_items)
-                    equipment[item.code_name_][1] += item.amount_;
-                category_items = unit_control::get_all_items_by_mask(unit, PRP_BOWS);
-                for (const auto& item : category_items)
-                    equipment[item.code_name_][1] += item.amount_;
-                category_items = unit_control::get_all_items_by_mask(unit, PRP_SHIELDS);
-                for (const auto& item : category_items)
-                    equipment[item.code_name_][1] += item.amount_;
-                category_items = unit_control::get_all_items_by_mask(unit, PRP_MAG_ITEMS);
-                for (const auto& item : category_items)
-                    magic_items[item.code_name_][1] += item.amount_;                    
-                category_items = unit_control::get_all_items_by_mask(unit, PRP_MOUNTS);
-                for (const auto& item : category_items)
-                    mounts[item.code_name_][1] += item.amount_;
-                category_items = unit_control::get_all_items_by_mask(unit, PRP_FLYING_MOUNTS);
-                for (const auto& item : category_items)
-                    mounts[item.code_name_][1] += item.amount_;
-                category_items = unit_control::get_all_items_by_mask(unit, PRP_TRADE_ITEMS);
-                for (const auto& item : category_items)
-                    trade_items[item.code_name_][1] += item.amount_;
-            }
-
-            item_category_state_out(m_HexDescrSrc, "Resources", resources);
-            item_category_state_out(m_HexDescrSrc, "Equipment", equipment);
-            item_category_state_out(m_HexDescrSrc, "Artifacts", magic_items);
-            item_category_state_out(m_HexDescrSrc, "Mounts", mounts);
-            item_category_state_out(m_HexDescrSrc, "Trade items", trade_items);
-
-            //Equipment/Upcoming/Leaving
-            //Mounts/Upcoming/Leaving
-            //TradeItems/Upcoming/Leaving
-
+            m_HexDescrSrc << EOL_SCR << "Silver balance: [" <<
+                pLand->current_state_.economy_.initial_amount_ << "/" << final_amount << "]" << EOL_SCR;
 
             for (i=0; i<LAND_FLAG_COUNT; i++)
                 if (!pLand->FlagText[i].IsEmpty())
@@ -3667,6 +3545,7 @@ void CAhApp::UpdateHexEditPane(CLand * pLand)
                 m_HexDescrSrc << "    " << unit_control::compose_unit_name(error.unit_).c_str() << error.message_.c_str() << EOL_SCR;
             }
         }
+        pEditPane->SetHeader("Hex description");
         pEditPane->SetSource(&m_HexDescrSrc, NULL);
     }
 }
@@ -3758,8 +3637,10 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
     if (!ReadOnly)
         ReadOnly = (m_pAtlantis->m_YearMon != (long)m_ReportDates.At(gpApp->m_ReportDates.Count()-1) );
 
-    if (pDescription)
+    if (pDescription) {
+        pDescription->SetHeader("Unit description");
         pDescription->SetSource(&m_UnitDescrSrc, NULL);
+    }        
     if (pOrders)
     {
         pOrders->change_representing_unit(pUnit);
@@ -4556,141 +4437,6 @@ void CAhApp::ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane)
     }
     else
         wxMessageBox(wxT("Found no units moving into the current hex."), wxT("Units moving"), wxOK | wxCENTRE, m_Frames[AH_FRAME_MAP]);
-}
-
-//--------------------------------------------------------------------------
-
-void CAhApp::ShowLandFinancial(CLand * pCurLand)
-{
-    CUnit            * pUnit;
-    int                idx, factidx;
-    long               CurFaction;
-    long               SilvOrg = 0;
-    long               SilvRes = 0;
-    long               TaxOur  = 0;
-    long               TaxTheir= 0;
-    long               WorkOur  = 0;
-    long               WorkTheir= 0;
-    long               Maintain = 0;
-    long               men;
-    long               MovedOut = 0;
-    long               Workers  = 0;
-    EValueType         type;
-    const void       * value;
-    CBaseObject        Report;
-    CBaseCollByName    coll;
-    CStr               sCoord;
-    CLongSortColl      Factions;
-    long               TaxPerTaxer;
-    long               UpkeepLeader;
-    long               UpkeepPeasant;
-    const char       * leadership;
-
-    if (!pCurLand)
-        return;
-
-    TaxPerTaxer = atol(GetConfig(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER));
-    UpkeepLeader = atol(GetConfig(SZ_SECT_COMMON, SZ_UPKEEP_LEADER));
-    UpkeepPeasant = atol(GetConfig(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT));
-
-    // get faction list
-    for (idx=0; idx<pCurLand->Units.Count(); idx++)
-    {
-        pUnit    = (CUnit*)pCurLand->Units.At(idx);
-        if (pUnit->FactionId != 0)
-            Factions.Insert((void*)pUnit->FactionId);
-    }
-
-    // check each faction
-    for (factidx=0; factidx<Factions.Count(); factidx++)
-    {
-        CurFaction = (long)Factions.At(factidx);
-        SilvOrg  = 0;
-        SilvRes  = 0;
-        TaxOur   = 0;
-        TaxTheir = 0;
-        WorkOur  = 0;
-        WorkTheir= 0;
-        Maintain = 0;
-        MovedOut = 0;
-        Workers  = 0;
-
-        for (idx=0; idx<pCurLand->Units.Count(); idx++)
-        {
-            pUnit    = (CUnit*)pCurLand->Units.At(idx);
-            if (!pUnit->IsOurs)
-                continue;
-            if (pUnit->FactionId == CurFaction)
-            {
-                if (pUnit->GetProperty(PRP_SILVER, type, value, eOriginal) && eLong==type)
-                    SilvOrg += (long)value;
-                if (pUnit->GetProperty(PRP_SILVER, type, value, eNormal) && eLong==type)
-                {
-                    SilvRes += (long)value;
-
-                    if (pUnit->movements_.size() > 0 && ((long)value > 0))
-                        MovedOut += (long)value;
-                }
-            }
-
-            if (pUnit->GetProperty(PRP_MEN, type, (const void *&)men, eNormal) && eLong==type)
-            {
-                if (pUnit->Flags & UNIT_FLAG_TAXING)
-                    if (pUnit->FactionId == CurFaction)
-                        TaxOur += men*TaxPerTaxer;
-                    else
-                        TaxTheir += men*TaxPerTaxer;
-
-                if (unit_control::flags::is_working(pUnit))
-                    if (pUnit->FactionId == CurFaction)
-                    {
-                        Workers += men;
-                        WorkOur +=  (long)(men*pCurLand->Wages);
-                    }
-                    else
-                        WorkTheir +=  (long)(men*pCurLand->Wages);
-
-                if (pUnit->FactionId == CurFaction && pUnit->movements_.size() == 0)
-                    if (unit_control::is_leader(pUnit))
-                        Maintain += men*UpkeepLeader;
-                    else
-                        Maintain += men*UpkeepPeasant;
-            }
-
-        }
-
-        long TotalTax = TaxOur + TaxTheir;
-        if (TotalTax > 0 && TotalTax > pCurLand->current_state_.tax_.amount_)
-            TaxOur =  (long)(((double)pCurLand->current_state_.tax_.amount_) / TotalTax * TaxOur);
-
-        long TotalWages = WorkOur + WorkTheir;
-        if (TotalWages > 0 && TotalWages > pCurLand->current_state_.work_.amount_)
-            WorkOur =  (long)(((double)pCurLand->current_state_.work_.amount_) / TotalWages * WorkOur);
-
-        if (Maintain>0)
-        {
-            Report.Description << EOL_SCR << "Faction " << (long)CurFaction << EOL_SCR;
-            Report.Description << "==========" << EOL_SCR;
-            Report.Description << "SILV in the beginning       "   << SilvOrg << EOL_SCR;
-            Report.Description << "SILV after executing orders "   << SilvRes << EOL_SCR;
-            Report.Description << "Expected Tax Income         "   << TaxOur << EOL_SCR;
-            Report.Description << "Expected Work Income        "   << WorkOur << EOL_SCR;
-            Report.Description << "Expected Maintenance       -"   << Maintain << EOL_SCR;
-            Report.Description << "Moved out                  -"   << MovedOut << EOL_SCR;
-            Report.Description << "                            -------"    << EOL_SCR;
-            Report.Description << "Expected Balance            "   << (SilvRes + TaxOur + WorkOur - Maintain - MovedOut) << EOL_SCR;
-            Report.Description << ""    << EOL_SCR;
-            Report.Description << "Workers                     "   << Workers << EOL_SCR;
-            Report.Description << "Max workers                 "   << (long)(((double)pCurLand->current_state_.work_.amount_)/pCurLand->Wages) << EOL_SCR;
-        }
-    }
-
-    m_pAtlantis->ComposeLandStrCoord(pCurLand, sCoord);
-    Report.Name << "Financial report for " << sCoord;
-    coll.Insert(&Report);
-
-    ShowDescriptionList(coll, "Financial report");
-    coll.DeleteAll();
 }
 
 //--------------------------------------------------------------------------

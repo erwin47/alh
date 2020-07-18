@@ -41,9 +41,23 @@ add CheckOrder_LandXXXX() -- for each monthlong order, which would set the flags
 place those checks to the first phase, so all monthlong orders should be checked at the fist phase & represented in flags.
 That would let keeping flags updated without relaying to specific Phase of calculation.
 And then enable for users to choose a phase of calculations.
+
 fix issue with speed of turtles in the ocean
 
+add ReceiveDlg check for type, and if its a mount -- print out free weight
+
+new units not counted in production stats
+
 ## Changelog:
+### Jul 18 2020
+- Hex Description: added Ctrl+E (for Economy output), Ctrl+W (for item's flow output), Ctrl+A (for autoorders status), Ctrl+M (for move phase status). So now this window may represent a region description by default or any of those info.
+- Hex/Unit Description: double-click now allow to select unit, which number is printed in the line.
+- Hex Description - removed Economy (shifted to Ctrl+E or land's popup)
+- Autologic: added function `SPEED[]` to statements, which returns speed of the unit, and command `$HELP`, which prints out help regarding autologic.
+- Produce: errors displayed correctly.
+- Map Popup: added options for all `Ctrl+` from above.
+- Region search: it prints out resulting name or number on the map.
+
 ### Jul 15 2020
 A lot of strong new features:
 - Region description: added items state reports (after economy) incuding information about current amount of items, incoming amount and outgoing amount. For next categories: Resources [PRP_RESOURCES], Equipment[PRP_ARMORS, PRP_WEAPONS, PRP_BOWS, PRP_SHIELDS], Artifacts[PRP_MAG_ITEMS], Mounts[PRP_MOUNTS, PRP_FLYING_MOUNTS], Trade items[PRP_TRADE_ITEMS]. Should be useful for analysis of the whole picture of region regarding stuff in it.
@@ -56,7 +70,6 @@ A lot of strong new features:
 - Fleets: added expected speed of the vessel into parameters, to predict speed of the Fleet.
 - Autonaming: unit without men automatically gets internal name `000`, to be sorted out.
 - Autonaming: seriously upgraded logic and possibilities of unit's external naming.
-
 - internal: fixed bug with economy calculation when unit has amount of silver below zero.
 - internal: fixed bug with `move P` of unit with overweight.
 - internal: fixed bug with region masks related to BUY_AMOUNT and BUY_PRICE.

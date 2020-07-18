@@ -6213,41 +6213,11 @@ template<orders::Type TYPE> void CAtlaParser::RunOrder_AOComments(CLand* land)
     //std::map<long, std::chrono::microseconds> time_points;
 
     land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        if (!unit->IsOurs)
+            return;
         //auto start = std::chrono::high_resolution_clock::now();
 
         auto orders_by_type = orders::control::retrieve_orders_by_type(TYPE, unit->orders_);
-
-        //time_points[0] += duration_cast<microseconds>(std::chrono::high_resolution_clock::now() - start);
-        //need to find comments which are commented out actual orders
-        
-        auto order_comments = orders::control::retrieve_orders_by_type(orders::Type::O_COMMENT, unit->orders_);
-        for (auto& order_comment : order_comments)
-        {
-            auto it = order_comment->comment_.begin();
-            while (it < order_comment->comment_.end() && (*it == '@' || *it == ';'))
-                ++it;
-            
-            auto it_end = it;
-            while (it_end < order_comment->comment_.end() && std::isalpha(*it_end))
-                ++it_end;
-            
-            if (orders::types_mapping[std::string(it, it_end)] == TYPE)
-                orders_by_type.push_back(order_comment);
-        }
-
-        /*auto order_comments = orders::control::retrieve_orders_by_type(orders::Type::O_COMMENT, unit->orders_);
-        for (auto& order_comment : order_comments)
-        {
-            auto it = order_comment->comment_.begin();
-            while (it < order_comment->comment_.end() && (*it == '@' || *it == ';'))
-                ++it;
-            
-            auto real_order = orders::parser::parse_line_to_order(std::string(it, order_comment->comment_.end()));
-            if (real_order->type_ == order_type)
-            {
-                orders_by_type.push_back(order_comment);
-            }
-        }*/
 
         //time_points[1] += duration_cast<microseconds>(std::chrono::high_resolution_clock::now() - start);
 
@@ -6296,6 +6266,33 @@ template<orders::Type TYPE> void CAtlaParser::RunOrder_AOComments(CLand* land)
 
                 for (const auto& error : errors)
                     OrderError(error.type_, land, error.unit_, error.message_);
+            }
+            if (type == orders::autoorders::AO_TYPES::AO_HELP)
+            {
+                OrderError("Warning", land, unit, "HELP (How to use autoorders)");
+                OrderError("Warning", land, unit, "");
+                OrderError("Warning", land, unit, "Each comment of this group of commands will be evaluated exactly at phase when should be evaluated the order itself, before the order. For example: `move S S ;!GET 5 LBOW` will be parsed in next sequence, at MOVE phase it will add 5 LBOW to unit, and then will parse moving order. If the order consist of just comment, then it will be evaluated in the beginning of RunOrders.");
+                OrderError("Warning", land, unit, "All examples use `$`, but instead of `$` it is possile to use `!`.");
+                OrderError("Warning", land, unit, "List of acceptable autoorders:");
+                OrderError("Warning", land, unit, "$GET X ITEM:");
+                OrderError("Warning", land, unit, "    gives X items to the unit");
+                OrderError("Warning", land, unit, "$COND <condition>");
+                OrderError("Warning", land, unit, "    will evaluate condition and if its TRUE, then the entire order will be uncommented. If its FALSE, then the entire order will be commented. It is possible to use form `$COND_d` to get debug info (all the evaluations will be printed out)");
+                OrderError("Warning", land, unit, "$WARN <condition>");
+                OrderError("Warning", land, unit, "    will evaluate condition and if its TRUE, then there will be generated warning.  It is possible to use form `$WARN_d` to get debug info (all the evaluations will be printed out)");
+                OrderError("Warning", land, unit, "<condition> - is the key to understand the system. It consist of statements united by logical `&&` and `||`. Each statement is evaluated, so eventually the condition will have the value: true or false.");
+                OrderError("Warning", land, unit, "<condition> - each statement have starts with function. If function returns boolean (like `LOC[15,25]`), then its the statement itself. If function returns number (like `ITEM[MITH]`]), then it has one of next operands: `>`, `<`, `==`, `>=`, `<=`, `!=`, and then a number.");
+                OrderError("Warning", land, unit, "List of possible functions:");
+                OrderError("Warning", land, unit, "ITEM[X] -- returns amount of item X in unit");
+                OrderError("Warning", land, unit, "SKILL[X] -- returns skill level of X of unit");
+                OrderError("Warning", land, unit, "LOC[X,Y,Z] -- returns true if unit is in region with coordinates X,Y,Z. Z may be omitted for 1st lvl.");
+                OrderError("Warning", land, unit, "SELL[X] -- returns amount of items X, selling by the region");
+                OrderError("Warning", land, unit, "WANTED[X] -- returns amount of items X, buying by the region");
+                OrderError("Warning", land, unit, "RESOURCE[X] -- returns amount of items X, available to be produced by the region");
+                OrderError("Warning", land, unit, "SPEED[] -- returns speed of the unit");
+                OrderError("Warning", land, unit, "$HELP - this command.");
+
+
             }
         }
         //time_points[2] += duration_cast<microseconds>(std::chrono::high_resolution_clock::now() - start);
@@ -6503,7 +6500,9 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
     std::vector<unit_control::UnitError> errors;
     std::vector<land_control::ProduceItem> out;
     land_control::get_land_producers(land, out, errors);
-
+    for (auto& error : errors) {
+        OrderError(error.type_, land, error.unit_, error.message_);
+    }
 
     /*
     for (auto& product_request : out)

@@ -807,7 +807,7 @@ namespace orders
             for (const auto& id : ids) {
                 if (!ignore_order(unit_orders.orders_[id]))//we don't parse orders with `;$ne`
                     res.push_back(unit_orders.orders_[id]);
-            }                
+            }             
             return res;
         }
 
@@ -815,7 +815,13 @@ namespace orders
         {
             if (unit_orders.hash_.find(type) == unit_orders.hash_.end())
                 return false;
-            return true;
+
+            std::vector<size_t> ids = unit_orders.hash_.at(type);
+            for (const auto& id : ids) {
+                if (!ignore_order(unit_orders.orders_[id]))//we don't parse orders with `;$ne`
+                    return true;
+            }                
+            return false;
         }
 
         void remove_orders_by_comment(CUnit* unit, const std::string& pattern)
@@ -917,7 +923,12 @@ namespace orders
 
             if (order->comment_.find(";$OWNER") != std::string::npos ||
                 order->comment_.find(";!OWNER") != std::string::npos)
-                return AO_TYPES::AO_OWNER;                
+                return AO_TYPES::AO_OWNER;
+
+            if (order->comment_.find(";$HELP") != std::string::npos ||
+                order->comment_.find(";!HELP") != std::string::npos)
+                return AO_TYPES::AO_HELP;
+
             return AO_TYPES::AO_NONE;
         }
 
@@ -1663,7 +1674,7 @@ namespace orders
                                 CStruct* ship = land_control::get_struct(cur_land, struct_id);
                                 if (ship == nullptr)
                                     break;
-                                    
+
                                 allowed_weight = ship->capacity_ - ship->occupied_capacity_;
                             }                        
                         }

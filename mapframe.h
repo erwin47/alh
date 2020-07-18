@@ -104,6 +104,10 @@ private:
 
     void OnCreateNewUnit(wxCommandEvent& event);
     void OnReceiveOrder(wxCommandEvent& event);
+    void OnShowLandEconomy(wxCommandEvent& event); 
+    void OnShowLandWarehouse(wxCommandEvent& event); 
+    void OnShowLandAutoOrders(wxCommandEvent& event); 
+    void OnShowLandMovePhases(wxCommandEvent& event); 
 
     wxSplitterWindow  * m_Splitter;
     wxSplitterWindow  * m_Splitter1;

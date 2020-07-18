@@ -226,7 +226,8 @@ namespace orders
             AO_NONE,
             AO_GET,
             AO_CONDITION,
-            AO_OWNER
+            AO_OWNER,
+            AO_HELP
         };
 
         enum class LogicAction {

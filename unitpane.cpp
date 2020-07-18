@@ -640,7 +640,12 @@ void CUnitPane::OnPopupMenuCreateNew(wxCommandEvent& event)
 void CUnitPane::OnPopupMenuReceiveItems(wxCommandEvent& event)
 {
     long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    if (idx < 0)
+        return;
     CUnit* pUnit = GetUnit(idx);
+    if (!pUnit)
+        return;
+
     CLand* pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
 
     CReceiveDlg dlg(this, pUnit, pLand);

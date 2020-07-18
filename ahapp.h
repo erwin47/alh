@@ -285,7 +285,6 @@ public:
 
     void                 GetUnitsMovingIntoHex(long HexId, std::vector<CUnit*>& stopped, std::vector<CUnit*>& ended_moveorder) const;
     void                 ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane);
-    void                 ShowLandFinancial(CLand * pCurLand);
     void                 AddTempHex(int X, int Y, int Plane);
     void                 DelTempHex(int X, int Y, int Plane);
 
