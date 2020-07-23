@@ -28,20 +28,23 @@ enum ScoutType {
 ,   SCOUT_GUARD
 };
 
+#include <functional>
+
+bool default_unit_filter(CUnit* unit);
+
 class CUnitPane: public CListPane
 {
 public:
     CUnitPane(wxWindow *parent, wxWindowID id = list_units_hex);
     virtual void Init(CAhFrame * pParentFrame, const char * szConfigSection, const char * szConfigSectionHdr);
     virtual void Done();
-    void         Update(CLand * pLand);
+    void         Update(CLand * pLand, std::function<bool(CUnit* unit)> filter = default_unit_filter);
     virtual void ApplyFonts();
     CUnit      * GetUnit(long index);
     virtual void Sort();
     void         SelectUnit(long UnitId);
     void         SelectNextUnit();
     void         SelectPrevUnit();
-    void         DeselectAll();
 
     void         LoadUnitListHdr();
     void         SaveUnitListHdr();
@@ -50,6 +53,8 @@ public:
 
     TPropertyHolderColl * m_pUnits;
     CLand               * m_pCurLand;
+
+    bool         is_filtered_;
 
 protected:
     void         OnSelected(wxListEvent& event);
@@ -73,6 +78,7 @@ public:
     void OnPopupMenuSplit             (wxCommandEvent& event);
     void OnPopupMenuCreateNew         (wxCommandEvent& event);
     void OnPopupMenuReceiveItems      (wxCommandEvent& event);
+    void OnPopupFilterByItems         (wxCommandEvent& event);
     void OnPopupMenuDiscardJunk       (wxCommandEvent& event);
     void OnPopupMenuDetectSpies       (wxCommandEvent& event);
     void OnPopupMenuGiveEverything    (wxCommandEvent& event);

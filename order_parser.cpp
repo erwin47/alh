@@ -67,6 +67,7 @@ namespace orders
         {"STUDY", orders::Type::O_STUDY},
         {"TAX", orders::Type::O_TAX},
         {"TEACH", orders::Type::O_TEACH},
+        {"TRANSPORT", orders::Type::O_TRANSPORT},
         {"WEAPON", orders::Type::O_WEAPON},
         {"WITHDRAW", orders::Type::O_WITHDRAW},
         {"WORK", orders::Type::O_WORK},
@@ -160,8 +161,110 @@ namespace orders
         {orders::Type::O_COMMENT, [](const std::vector<std::string>& words) {  return true;  } },
         {orders::Type::O_COMMENT_AUTONAME, [](const std::vector<std::string>& words) {  return true;  } },
         {orders::Type::O_ERROR, [](const std::vector<std::string>& words) {  return true;  } }
-
     };
+
+
+    std::string& resolve_item_alias(std::string& word) 
+    {
+        std::string code_name, name, plural_name;
+        if (gpApp->ResolveAliasItems(word, code_name, name, plural_name))
+            word = code_name;
+        return word;
+    }
+
+    std::string& resolve_skill_alias(std::string& word)
+    {
+        std::string alias_word = word;
+        std::replace(alias_word.begin(), alias_word.end(), ' ', '_'); //magic rule of aliases
+        word = gpApp->ResolveAlias(alias_word.c_str());
+        return word;
+    }
+
+    std::map<orders::Type, std::function<void(std::vector<std::string>&)> > OrderAliases = {
+        {orders::Type::O_ARMOR, [](std::vector<std::string>& words) {
+            for (size_t i = 1; i < words.size(); ++i)//ARMOR [item1] [item2] ...
+                words[i] = resolve_item_alias(words[i]);
+        }},
+        {orders::Type::O_BUILD, [](std::vector<std::string>& words) {  
+            if (words.size() >= 2 && words[1] != "HELP") {//BUILD [object type] vs BUILD HELP [unit] 
+                resolve_item_alias(words[1]);
+            }
+        }},
+        {orders::Type::O_BUY, [](std::vector<std::string>& words) {  
+            if (words.size() >= 3)//BUY [quantity] [item]  vs BUY ALL [item] 
+                resolve_item_alias(words[2]);
+        }},
+        {orders::Type::O_CAST, [](std::vector<std::string>&) {  return;  } },//should we resolve a spell?
+        {orders::Type::O_COMBAT, [](std::vector<std::string>&) {  return;  } },//should we resolve a spell?
+        {orders::Type::O_EXCHANGE, [](std::vector<std::string>& words) {
+            if (words.size() == 6)//EXCHANGE [unit] [quantity given] [item given] [quantity expected] [item expected] 
+            {
+                resolve_item_alias(words[3]);
+                resolve_item_alias(words[5]);
+            }            
+        }},
+        {orders::Type::O_FORGET, [](std::vector<std::string>& words) { 
+            if (words.size() == 2)//FORGET [skill]
+                resolve_skill_alias(words[1]);
+        }},
+        {orders::Type::O_GIVE, [](std::vector<std::string>& words) {
+            if (words.size() > 3)//GIVE [unit] ALL [item] EXCEPT [quantity]
+                resolve_item_alias(words[3]);
+        }},
+        {orders::Type::O_PREPARE, [](std::vector<std::string>& words) {
+            if (words.size() > 1)//PREPARE [item]
+                resolve_item_alias(words[1]);
+        }},
+        {orders::Type::O_PRODUCE, [](std::vector<std::string>& words) {  
+            if (words.size() == 2)//PRODUCE [item]
+                resolve_item_alias(words[1]);
+            if (words.size() == 3)//PRODUCE [number] [item] 
+                resolve_item_alias(words[2]);
+        }},
+        {orders::Type::O_SELL, [](std::vector<std::string>& words) {  
+            if (words.size() == 3)//SELL [number] [item] 
+                resolve_item_alias(words[2]);
+        }},
+        {orders::Type::O_SHOW, [](std::vector<std::string>& words) {  
+            if (words.size() == 3)
+            {
+                if (words[1] == "SKILL")
+                    resolve_skill_alias(words[2]);
+                if (words[1] == "ITEM")
+                    resolve_item_alias(words[2]);
+                if (words[1] == "OBJECT")
+                    resolve_skill_alias(words[2]);//skill?
+            }
+        }},
+        {orders::Type::O_STEAL, [](std::vector<std::string>& words) {  
+            if (words.size() == 3)//STEAL [unit] [item]
+                resolve_item_alias(words[2]);
+        }},
+        {orders::Type::O_STUDY, [](std::vector<std::string>& words) {  
+            if (words.size() >= 2)//STUDY [skill] [level] 
+                resolve_skill_alias(words[1]);
+        }},
+        {orders::Type::O_TAKE, [](std::vector<std::string>& words) {  
+            if (words.size() >= 5)//TAKE FROM [unit] ALL [item] EXCEPT [quantity]
+                resolve_item_alias(words[4]);
+        }},
+        {orders::Type::O_TRANSPORT, [](std::vector<std::string>& words) {
+            if (words.size() >= 4)//TRANSPORT [unit] ALL [item] EXCEPT [amount] 
+                resolve_item_alias(words[3]);
+        }},
+        {orders::Type::O_WEAPON, [](std::vector<std::string>& words) {
+            for (size_t i = 1; i < words.size(); ++i)//WEAPON [item] ... 
+                resolve_item_alias(words[i]);
+        }},
+        {orders::Type::O_WITHDRAW, [](std::vector<std::string>& words) {  
+            if (words.size() == 2)//WITHDRAW [item] 
+                resolve_item_alias(words[1]);
+            if (words.size() == 3)//WITHDRAW [quantity] [item]
+                resolve_item_alias(words[2]);
+        }},
+    };
+
+
 
     namespace utils 
     {
@@ -243,65 +346,48 @@ namespace orders
         std::shared_ptr<Order> parse_line_to_order(const std::string& line)
         {
             std::shared_ptr<Order> res = std::make_shared<Order>();
+            res->type_ = orders::Type::NORDERS;
             res->original_string_ = line;
             std::vector<std::string> words;
+
+            //split to words
             utils::parse_order_line(line, words);
+            if (words.empty())
+                return nullptr;
 
-            //first store the command
-
+            //sort out commends and words of order
             for (size_t i = 0; i < words.size(); ++i)
             {
-                if (words[i][0] == ';')
-                {
-                    res->comment_ = words[i];
-                    std::for_each(res->comment_.begin(), res->comment_.end(), [](char & c){
-                    c = ::toupper(c);
-                    });
-                    break;
-                }
-
-                if (i == 0)
-                {//for first word no need to resolve aliases
-                    std::for_each(words[i].begin(), words[i].end(), [](char & c){
-                    c = ::toupper(c);
-                    });
-                    res->words_order_.push_back(words[i]);
-                    continue;
-                }
-
-                std::string code_name, name, plural_name;
-                if (gpApp->ResolveAliasItems(words[i], code_name, name, plural_name))
-                {
-                    res->words_order_.push_back(code_name);
-                    continue;
-                }
-
-                std::string alias_word = words[i];
-                std::replace(alias_word.begin(), alias_word.end(), ' ', '_'); //magic rule of aliases
-                words[i] = gpApp->ResolveAlias(alias_word.c_str());
-                //need additional message or word for case when there is no alias for the word.
-                //at least check that word fits any of skills/items/number
+                //force uppercase
                 std::for_each(words[i].begin(), words[i].end(), [](char & c){
                 c = ::toupper(c);
                 });
+
+                if (words[i][0] == ';')
+                {
+                    res->comment_ = words[i];
+                    break;
+                }
                 res->words_order_.push_back(words[i]);
             }
 
-            res->type_ = orders::Type::NORDERS;
-            if (res->words_order_.size() == 0 && res->comment_.size() > 0)
-            {
+            if (res->words_order_.empty() && !res->comment_.empty())
+            {//if comment
                 if (res->comment_.find(";;") != std::string::npos && 
                     (res->comment_.find(" $C") != std::string::npos ||
                     res->comment_.find(" !C") != std::string::npos))
                     res->type_ = orders::Type::O_COMMENT_AUTONAME;
                 else
                     res->type_ = orders::Type::O_COMMENT;
-            }               
-
-            if (res->words_order_.size() > 0 && types_mapping.find(res->words_order_[0]) != types_mapping.end())
-            {
-                res->type_ = types_mapping[res->words_order_[0]];
             }
+            else if (types_mapping.find(words[0]) != types_mapping.end())
+            {//if known order
+                res->type_ = types_mapping[res->words_order_[0]];
+                
+                //resolve aliases
+                if (OrderAliases.find(res->type_) != OrderAliases.end())
+                    OrderAliases[res->type_](res->words_order_);
+            }            
 
             if (sanity_checks.find(res->type_) == sanity_checks.end())
             {
@@ -309,7 +395,6 @@ namespace orders
                 res->comment_ = "Didn't find this order among known orders";
                 return res;
             }
-
             if (!sanity_checks[res->type_](res->words_order_))
             {
                 res->type_ = orders::Type::O_ERROR;
@@ -334,7 +419,8 @@ namespace orders
                     if (begin != runner)
                     {
                         auto order = parse_line_to_order(std::string(begin, runner));
-                        utils::add_order_to_orders(order, res);
+                        if (order != nullptr)
+                            utils::add_order_to_orders(order, res);
                     }
                     ++runner;
                     begin = runner;
@@ -345,7 +431,8 @@ namespace orders
             if (begin != runner)
             {
                 auto order = parse_line_to_order(std::string(begin, runner));
-                utils::add_order_to_orders(order, res);                
+                if (order != nullptr)
+                    utils::add_order_to_orders(order, res);
             }
             return res;
         }
@@ -794,7 +881,8 @@ namespace orders
         void add_order_to_unit(std::string order_line, CUnit* unit)
         {
             std::shared_ptr<orders::Order> order = orders::parser::parse_line_to_order(order_line);
-            add_order_to_unit(order, unit);
+            if (order != nullptr)
+                add_order_to_unit(order, unit);
         }
 
         std::vector<std::shared_ptr<Order>> retrieve_orders_by_type(orders::Type type, const UnitOrders& unit_orders)

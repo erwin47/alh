@@ -121,23 +121,6 @@ namespace autologic
             val = extract_argument(beg, end);
             return true;
         }        
-        
-        runner = strchr(beg, '=');
-        if (runner != nullptr)
-        {
-            beg = runner+1;
-            if (beg < end && *beg == '=')
-            {
-                operation = Operation::EQUAL;
-                beg = beg + 1;
-            }                        
-            else
-            {
-                operation = Operation::EQUAL;
-            }
-            val = extract_argument(beg, end);
-            return true;
-        }    
 
         runner = strchr(beg, '!');
         if (runner != nullptr)
@@ -152,6 +135,18 @@ namespace autologic
             {
                 return false;
             }
+            val = extract_argument(beg, end);
+            return true;
+        }        
+
+        runner = strchr(beg, '=');
+        if (runner != nullptr)
+        {
+            beg = runner+1;
+            if (beg < end && *beg == '=')
+                beg = beg + 1;//for `==` case
+
+            operation = Operation::EQUAL;
             val = extract_argument(beg, end);
             return true;
         }

@@ -47,15 +47,15 @@ protected :
 
     CEditPane * m_pParent;
 
-    DECLARE_EVENT_TABLE()
+    //DECLARE_EVENT_TABLE()
 };
 
 //--------------------------------------------------------------------
 
-BEGIN_EVENT_TABLE(CEditorForPane, wxTextCtrl)
-    EVT_KILL_FOCUS       (    CEditorForPane::OnKillFocus      )
-    EVT_LEFT_DCLICK      (    CEditorForPane::OnMouseEvent     )
-END_EVENT_TABLE()
+//BEGIN_EVENT_TABLE(CEditorForPane, wxTextCtrl)    
+//    EVT_LEFT_DCLICK      (    CEditorForPane::OnMouseEvent     )
+//    EVT_KILL_FOCUS       (    CEditorForPane::OnKillFocus      )
+//END_EVENT_TABLE()
 
 
 //--------------------------------------------------------------------
@@ -64,13 +64,16 @@ CEditorForPane::CEditorForPane(CEditPane * parent)
                :wxTextCtrl(parent, -1, wxT(""), wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE)
 {
     m_pParent = parent;
+
+    this->Bind(wxEVT_LEFT_DCLICK, &CEditorForPane::OnMouseEvent, this);
+    this->Bind(wxEVT_KILL_FOCUS, &CEditorForPane::OnKillFocus, this);
 }
 
 //--------------------------------------------------------------------
 
 void CEditorForPane::OnKillFocus(wxFocusEvent& event)
 {
-    m_pParent->OnKillFocus();
+    m_pParent->OnKillFocus(event);
     event.Skip();
 }
 
@@ -83,9 +86,9 @@ void CEditorForPane::OnMouseEvent(wxMouseEvent& event)
 //====================================================================
 
 
-BEGIN_EVENT_TABLE(CEditPane, wxPanel)
-    EVT_SIZE             (                      CEditPane::OnSize           )
-END_EVENT_TABLE()
+//BEGIN_EVENT_TABLE(CEditPane, wxPanel)
+//    EVT_SIZE             (                      CEditPane::OnSize           )
+//END_EVENT_TABLE()
 
 
 
@@ -109,6 +112,8 @@ CEditPane::CEditPane(wxWindow* parent, const wxString& header, BOOL editable, in
                         APPLY_COLOR_DELTA(m_ColorNormal.Blue()));
 
     SetReadOnly(!editable);
+
+    this->Bind(wxEVT_SIZE, &CEditPane::OnSize, this);
 }
 
 CEditPane::~CEditPane()
@@ -209,10 +214,9 @@ void CEditPane::SetReadOnly(BOOL ReadOnly)
 
 //--------------------------------------------------------------------
 
-void CEditPane::OnKillFocus()
+void CEditPane::OnKillFocus(wxFocusEvent& event)
 {
-//    if (SaveModifications())
-//        gpApp->EditPaneChanged(this);
+
 }
 
 //--------------------------------------------------------------------
@@ -241,24 +245,28 @@ CUnitOrderEditPane::CUnitOrderEditPane(wxWindow *parent, const wxString &header,
           :CEditPane(parent, header, editable, WhichFont )
 {
     unit_ = NULL;
+    unit_order_pane_modified_ = false;
 #ifdef __APPLE__
     m_pEditor->OSXDisableAllSmartSubstitutions();
 #endif
     m_pEditor->Bind(wxEVT_TEXT, &CUnitOrderEditPane::OnOrderModified, this);
+    //m_pEditor->Bind(wxEVT_KILL_FOCUS, &CUnitOrderEditPane::OnOrderModified, this);
+
 }
 
 void CUnitOrderEditPane::OnOrderModified(wxCommandEvent& event)
-{
-    if (unit_ != NULL && m_pEditor->IsModified())
+{//EVT_KILL_FOCUS
+ /*   if (unit_ != NULL && m_pEditor->IsModified())
     {
-        unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
-        unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));
-        m_pEditor->DiscardEdits();
+        unit_order_pane_modified_ = true;
+        //unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
+        //unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));
+        //m_pEditor->DiscardEdits();
 
         //need to rerun orders for at least current land and land where it goes:
         //CLand* land = land_control::get_land(unit_->LandId);
         //gpApp->m_pAtlantis->RunLandOrders(land);
-    }
+    }*/
 }
 
 CUnitOrderEditPane::~CUnitOrderEditPane()
@@ -274,13 +282,13 @@ CUnit* CUnitOrderEditPane::change_representing_unit(CUnit* unit)
     label += "," + std::to_string(land_y) + "," + std::to_string(land_z) + ")";
     this->m_pHeader->SetLabel(label);
     CUnit* prev_unit = unit_;
-    //if (m_pEditor->IsModified() && unit_ != NULL)
-    //if (unit_ != NULL)
-    //{
-    //    unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
-    //    unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));
-    //    m_pEditor->DiscardEdits();
-    //}
+    if (m_pEditor->IsModified() && unit_ != NULL)
+    {
+        unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
+        unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));
+        unit_->orders_.is_modified_ = true;
+        m_pEditor->DiscardEdits();
+    }
     unit_ = unit;
     m_pEditor->ChangeValue(unit_ ? wxString::FromUTF8(unit_->Orders.GetData()) : wxT(""));
     return prev_unit;

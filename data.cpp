@@ -286,6 +286,8 @@ CLand::CLand() : CBaseObject(), Units(32)
 
 CLand::~CLand()
 {
+    affections_.clear_affections_of_others(this);
+
     ResetUnitsAndStructs();
     //Structs.FreeAll();
     EdgeStructs.FreeAll();
@@ -398,12 +400,38 @@ void init_land_state(LandState& lstate)
     lstate.for_sale_.clear();
     lstate.structures_.clear();
 
-    lstate.incoming_units_.clear();
-    lstate.moveorder_stops_units_.clear();
-
     init_economy(lstate.economy_);
     lstate.run_orders_errors_.clear();
 }
+
+//cleans all affectors from affecting current region
+void AffectionsInfo::clear_affections_of_others(CLand* current) 
+{
+    //need to notify all other objects that this land is not affected by them anymore, because it doesn't exist
+    for (auto& pair : incoming_units_)
+    {
+        pair.first->affections_.affected_lands_.erase(current);
+    }
+    for (auto& pair : going_to_come_units_)
+    {
+        pair.first->affections_.affected_lands_.erase(current);
+    } 
+}
+
+//cleans all affected from affections of current region
+void AffectionsInfo::clear_affected(CLand* current)
+{
+    for (CLand* rem_land : affected_lands_)
+    {
+        if (rem_land->affections_.incoming_units_.find(current) != rem_land->affections_.incoming_units_.end())
+            rem_land->affections_.incoming_units_.erase(current);
+    
+        if (rem_land->affections_.going_to_come_units_.find(current) != rem_land->affections_.going_to_come_units_.end())
+            rem_land->affections_.going_to_come_units_.erase(current);
+    }
+    affected_lands_.clear();  
+}
+
 
 void CLand::ResetUnitsAndStructs()
 {
@@ -427,6 +455,8 @@ void CLand::ResetUnitsAndStructs()
         if (pUnit->pStudents)
             pUnit->pStudents->DeleteAll(); // probably deleting it would not be very usefull
     }
+
+    affections_.clear_affected(this);
 
     for (size_t k=0; k<initial_state_.structures_.size(); k++)
     {

@@ -62,7 +62,7 @@ private:
     void OnViewProvinces       (wxCommandEvent& event);
     void OnViewFactionInfo     (wxCommandEvent& event);
     void OnViewFactionOverview (wxCommandEvent& event);
-    void OnApplyDefaultOrders  (wxCommandEvent& event);
+    void OnApplyAutoorders     (wxCommandEvent& event);
     void OnRerunOrders         (wxCommandEvent& event);
     void OnShaftConnect        (wxCommandEvent& event);
     void OnTaxPillage          (wxCommandEvent& event);
@@ -104,6 +104,7 @@ private:
 
     void OnCreateNewUnit(wxCommandEvent& event);
     void OnReceiveOrder(wxCommandEvent& event);
+    void OnFilterByItem(wxCommandEvent& event);
     void OnShowLandEconomy(wxCommandEvent& event); 
     void OnShowLandWarehouse(wxCommandEvent& event); 
     void OnShowLandAutoOrders(wxCommandEvent& event); 

@@ -23,7 +23,7 @@
 
 #define LIST_FLAG_ALIGN_RIGHT   0x0001
 
-enum eSelMode {sel_by_id, sel_by_no};
+enum eSelMode {sel_by_id, sel_by_no, no_selection};
 
 
 //--------------------------------------------------------------------
@@ -67,7 +67,7 @@ protected:
 
 #define NUM_SORTS 4
 
-class CListPane : public wxListCtrl
+class CListPane : public wxListCtrl//wxListView//wxListCtrl
 {
 public:
     CListPane(wxWindow *parent, wxWindowID id, long style=wxLC_REPORT|wxLC_SINGLE_SEL);

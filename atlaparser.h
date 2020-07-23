@@ -101,6 +101,7 @@ enum {
     O_STUDY,
     O_TAX,
     O_TEACH,
+    O_TRANSPORT,
     O_WEAPON,
     O_WITHDRAW,
     O_WORK,

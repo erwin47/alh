@@ -34,6 +34,11 @@ static inline std::string trim(std::string s) {
     return s;
 }
 
+static inline void trim_inplace(std::string& s) {
+    ltrim(s);
+    rtrim(s);
+}
+
 namespace item_control
 {
     //take on input full name, plural or code, returns code
@@ -209,6 +214,41 @@ namespace land_control
         return nullptr;    
     }    
 
+    namespace moving 
+    {
+        void apply_moving(CUnit* unit, CLand* from, CLand* where_stop, CLand* where_goal); //! apply lands affection by unit
+        
+        void print_out_affections(CLand* land, std::stringstream& ss);
+        //! checks that all affected regions have incoming units from current, and all lands, owning current incoming units
+        //! are aware of current land (that it is actually affected by them)
+        bool sanity_check_affections(CLand* land, std::stringstream& output);
+
+//    //moving to/from handling
+//    std::set<CLand*> affected_lands_; //! set of lands which were affected by current
+//    std::unordered_map<CLand*, std::vector<CUnit*>> incoming_units_;//! separated by foreign lands from which they come
+
+        template<typename T>
+        void perform_on_each_incoming_unit(CLand* land, T Pred)
+        {
+            for (const auto& pair : land->affections_.incoming_units())
+            {
+                for (const auto& unit : pair.second)
+                    Pred(unit);
+            }
+        }
+
+        template<typename T>
+        void perform_on_each_going_to_come_unit(CLand* land, T Pred)
+        {
+            for (const auto& pair : land->affections_.going_to_come_units())
+            {
+                for (const auto& unit : pair.second)
+                    Pred(unit);
+            }
+        }        
+    }
+
+
     namespace structures
     {
         void update_struct_weights(CLand* land);
@@ -258,13 +298,17 @@ namespace land_control
             Pred(unit);
         }
 
-        std::vector<CUnit*> stopped;
+        moving::perform_on_each_incoming_unit(land, [&](CUnit* unit) {
+            Pred(unit);
+        });
+
+/*        std::vector<CUnit*> stopped;
         std::vector<CUnit*> moveovers;
         gpApp->GetUnitsMovingIntoHex(land->Id, stopped, moveovers);
         //apply to units which stop
         for (CUnit* unit : stopped) {
             Pred(unit);
-        }
+        }*/
     }
 
     long get_land_id(const char* land);

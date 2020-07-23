@@ -1,10 +1,39 @@
 #include "receivedlg.h"
 
 #include <wx/statline.h>
+#include <wx/listbox.h>
 #include <sstream>
 #include <algorithm>
 #include "data_control.h"
 //#include "ah_control.h"
+
+std::set<CItem> get_item_types_list(CUnit* unit, CLand* land)
+{
+    //getting units belonging to current faction
+    std::vector<CUnit*> other_units;
+    land_control::get_units_if(land, other_units, [&unit](CUnit* cur_unit) {
+        return cur_unit->IsOurs && cur_unit->Id != unit->Id && !IS_NEW_UNIT(cur_unit);
+    });
+
+    //getting set of unique by ShortName products
+    std::set<CItem> item_types_list;
+    for (CUnit* cur_unit : other_units)
+    {
+        std::set<CItem> cur_products = unit_control::get_all_items(cur_unit);
+        for (const CItem& prod : cur_products) {
+            CItem item = prod;
+            std::set<CItem>::iterator it = item_types_list.find(prod);
+            if (it != item_types_list.end() && item.amount_ > 0) {
+                item.amount_ += it->amount_;
+                item_types_list.erase(it);
+            }
+            if (item.amount_ > 0)
+                item_types_list.insert(item);
+        }
+    }
+    return item_types_list;
+}
+
 
 CReceiveDlg::CReceiveDlg(wxWindow *parent, CUnit * pUnit, CLand* pLand) : 
     CResizableDlg( parent, wxT("Receive order"), RECEIVE_DLG_SETTINGS ), 
@@ -138,7 +167,8 @@ void CReceiveDlg::init_item_types_combobox()
         std::string codename, name, plural;
         gpApp->ResolveAliasItems(silv.code_name_, codename, name, plural);
 
-        long_to_short_item_names_[plural] = silv.code_name_;        
+        plural += " (" + std::to_string(items.find(silv)->amount_) + ")";
+        long_to_short_item_names_[plural] = silv.code_name_;
         combobox_item_types_->Append(plural);
         items.erase(silv);
     }
@@ -147,7 +177,7 @@ void CReceiveDlg::init_item_types_combobox()
     {
         std::string codename, name, plural;
         gpApp->ResolveAliasItems(item.code_name_, codename, name, plural);
-
+        plural += " (" + std::to_string(item.amount_) + ")";
         long_to_short_item_names_[plural] = item.code_name_;        
         combobox_item_types_->Append(plural);
     }        
@@ -165,27 +195,14 @@ std::string CReceiveDlg::compose_take_order(CUnit* from_whom, long amount, const
     return order.str();
 }
 
-std::set<CItem> CReceiveDlg::get_item_types_list(CUnit* unit, CLand* land) const
+
+
+std::string weight_to_represent(long weight, long capacity)
 {
-    //getting units belonging to current faction
-    std::vector<CUnit*> other_units;
-    land_control::get_units_if(land, other_units, [&unit](CUnit* cur_unit) {
-        return cur_unit->IsOurs && cur_unit->Id != unit->Id && !IS_NEW_UNIT(cur_unit);
-    });
-
-    //getting set of unique by ShortName products
-    std::set<CItem> item_types_list;
-    for (CUnit* cur_unit : other_units)
-    {
-        std::set<CItem> cur_products = unit_control::get_all_items(cur_unit);
-        for (const auto& prod : cur_products)
-            if (prod.amount_ > 0)
-                item_types_list.insert(prod);
-    }
-    return item_types_list;
+    if (weight > capacity)
+        return "-";
+    return std::to_string(capacity-weight);
 }
-
-
 
 std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& item_type, CUnit* unit, CLand* land)
 {
@@ -218,6 +235,17 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
             unit_name << " (:" << unit_control::get_item_amount(ppu.second, item_type, true) << "(";//initial amount of items
             unit_name << ppu.first << ") " << item_type << ")";//current amount of items
             unit_name << " " << unit_control::flags::compose_flag_info(ppu.second);//current fullmoth action sign (to help determine what is the unit)
+
+            long weights[5];
+            unit_control::get_weights(ppu.second, weights);
+            unit_name << "[";
+            unit_name << weights[0] << "/"; //unit weight
+            unit_name << weight_to_represent(weights[0], weights[1]) << "/"; //move carry weight
+            unit_name << weight_to_represent(weights[0], weights[2]) << "/"; //ride carry weight
+            unit_name << weight_to_represent(weights[0], weights[3]) << "/"; //fly carry weight
+            unit_name << weight_to_represent(weights[0], weights[4]) << "/"; //swim carry weight
+            unit_name << "]";
+
             unit_names.push_back(unit_name.str());
             unit_name_to_unit_[unit_name.str()] = {ppu.first, item_type, ppu.second};
         }
@@ -320,3 +348,86 @@ void CReceiveDlg::OnCancel       (wxCommandEvent& event)
     EndModal(wxID_CANCEL);
 }
 
+//=============================
+
+CItemChooseDlg::CItemChooseDlg(wxWindow *parent, CUnit * unit, CLand* land) : 
+    CResizableDlg( parent, wxT("Item filter"), "UNIT_PANE_ITEM_FILTER_DLG" ), 
+    unit_(unit),
+    land_(land)
+{
+    wxBoxSizer* topsizer = new wxBoxSizer( wxVERTICAL );
+    wxBoxSizer* itemssizer = new wxBoxSizer( wxHORIZONTAL );
+
+    listbox_items_ = new wxListBox(this, -1, wxDefaultPosition, wxDefaultSize, 0, NULL, wxLB_SINGLE | wxLB_NEEDED_SB | wxLB_SORT);
+    listbox_items_->Bind(wxEVT_COMBOBOX, &CItemChooseDlg::OnItemChosen, this);
+
+    //items_->Bind(wxEVT_LISTBOX, &CReceiveDlg::OnItemChosen, this);
+    listbox_items_->Bind(wxEVT_LISTBOX_DCLICK, &CItemChooseDlg::OnOk, this);
+    itemssizer->Add(listbox_items_, 1, wxALL | wxEXPAND);
+
+    std::set<CItem> items = get_item_types_list(unit, land);
+    for (const CItem& item : items)
+    {
+        std::string codename, name, plural;
+        gpApp->ResolveAliasItems(item.code_name_, codename, name, plural);
+        plural += " (" + std::to_string(item.amount_) + ")";
+        plural_to_code_[plural] = item.code_name_;        
+        listbox_items_->Append(plural);
+    }
+
+    wxBoxSizer* buttonsizer = new wxBoxSizer( wxHORIZONTAL );
+    wxButton* ok_button = new wxButton(this, -1, wxT("Ok"));
+    wxButton* cancel_button = new wxButton(this, -1, wxT("Cancel"));
+    ok_button->Bind(wxEVT_BUTTON, &CItemChooseDlg::OnOk, this);
+    cancel_button->Bind(wxEVT_BUTTON, &CItemChooseDlg::OnCancel, this);
+    buttonsizer->Add(ok_button, 1, wxALIGN_CENTER | wxALL);
+    buttonsizer->Add(cancel_button, 1, wxALIGN_CENTER | wxALL);
+
+    topsizer->Add(itemssizer, 5, wxALL | wxEXPAND);
+    //topsizer->Add(new wxStaticLine(this), 0, 0);
+    topsizer->Add(buttonsizer, 0, wxALIGN_BOTTOM);
+
+    wxAcceleratorEntry entries[2];
+    entries[0].Set(wxACCEL_ALT, 13, wxID_OK);
+    entries[1].Set(wxACCEL_CTRL, 13, wxID_OK);
+    wxAcceleratorTable accel(2, entries);
+    this->SetAcceleratorTable(accel);
+
+    SetAutoLayout( TRUE );     // tell dialog to use sizer
+    SetSizer( topsizer );      // actually set the sizer
+    topsizer->Fit( this );            // set size to minimum size as calculated by the sizer
+    topsizer->SetSizeHints( this );   // set size hints to honour mininum size}        
+    CResizableDlg::SetPos();
+}
+
+CItemChooseDlg::~CItemChooseDlg()
+{
+
+}
+
+void CItemChooseDlg::OnItemChosen   (wxCommandEvent& event)
+{
+    return;
+}
+
+void CItemChooseDlg::OnOk           (wxCommandEvent& event)
+{
+    int selected_item = listbox_items_->GetSelection();
+    if (selected_item == wxNOT_FOUND) {
+        EndModal(wxID_CANCEL);
+        return;
+    }
+
+    std::string long_name_item = listbox_items_->GetString(selected_item).ToStdString();
+    chosen_code_ = plural_to_code_[long_name_item];
+    StoreSize();  
+    EndModal(wxID_OK);
+}
+
+void CItemChooseDlg::OnCancel       (wxCommandEvent& event)
+{
+    EndModal(wxID_CANCEL);
+}
+
+
+  

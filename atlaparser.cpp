@@ -5676,20 +5676,14 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             }
 
             //calculate silver for incoming units
-            CBaseColl           arriving_units;
 
-            std::vector<CUnit*> stopping;
-            std::vector<CUnit*> ending_moving_orders;
-            CUnit*              unit_temp;
-            gpApp->GetUnitsMovingIntoHex(pLand->Id, stopping, ending_moving_orders);
-            for (CUnit* unit : stopping)
-            {
+            land_control::moving::perform_on_each_incoming_unit(pLand, [&](CUnit* unit) {
                 if (unit != NULL)
                 {
                     pLand->current_state_.economy_.maintenance_ += unit_control::get_upkeep(unit);
                     pLand->current_state_.economy_.moving_in_ += std::max(unit_control::get_item_amount(unit, PRP_SILVER), (long)0);//it have to be zero if its below 0
                 }
-            }
+            });
 
             land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {
                 if (!unit->IsOurs)
@@ -7558,12 +7552,44 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
                 } else {
                     //in case of overload, but pause, we actually have movements, so it needs to define
                     //unit->movement_stop_ explicitly
-                    unit->movement_stop_ = land->Id;
+                    unit->movements_.push_back(land->Id);
                 }
             }
         }
 
+        unit->movement_stop_ = land->Id; //initial, even if can't move a step
+
         long movepoints = movemode.speed_;
+        if (unit->caravan_info_ != nullptr)
+        {//sanity check caravan speed
+            switch(unit->caravan_info_->speed_) {
+                case orders::CaravanSpeed::MOVE: {
+                    if (!movemode.walk_ || movemode.speed_ < 2) 
+                        errors.push_back({"Error", unit, "move: speed is below expected"});
+                    break;
+                }
+                case orders::CaravanSpeed::RIDE: {
+                    if (!movemode.ride_ || movemode.speed_ < 4) 
+                        errors.push_back({"Error", unit, "move: speed is below expected"});
+                    break;
+                }
+                case orders::CaravanSpeed::FLY: {
+                    if (!movemode.fly_ || movemode.speed_ < 6) 
+                        errors.push_back({"Error", unit, "move: speed is below expected"});
+                    break;
+                }
+                case orders::CaravanSpeed::SWIM: {
+                    if (!movemode.swim_) 
+                        errors.push_back({"Error", unit, "move: expected swim, but it can't"});
+                    break;
+                }
+                case orders::CaravanSpeed::SAIL: {
+                    errors.push_back({"Error", unit, "move: expected sailing"});
+                    break;
+                }
+            }
+        }
+
         long current_struct_id = unit_control::structure_id(unit);
         long hex_id = land->Id;
         long next_hex_id(0);
@@ -7723,17 +7749,17 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
             cur_land = next_land;
             next_land = nullptr;
         }
-        cur_land = GetLand(unit->movement_stop_);
-        if (cur_land != nullptr)
-            cur_land->current_state_.incoming_units_.push_back(unit);
-        
+        CLand* moving_stop_land = GetLand(unit->movement_stop_);
+        CLand* moving_target_land = nullptr;
         if (unit->movements_.size() > 0)
-        {
-            cur_land = GetLand(unit->movements_.back());
-            if (cur_land != nullptr)
-                cur_land->current_state_.moveorder_stops_units_.push_back(unit);
-        }
+            moving_target_land = GetLand(unit->movements_.back());
+
+        land_control::moving::apply_moving(unit, land, moving_stop_land, moving_target_land);
         unit->impact_description_.push_back("moves; left movepoints: "+ std::to_string(movepoints));
+
+        if (moving_stop_land != nullptr && land_control::is_water(moving_stop_land) && 
+           !movemode.swim_ && unit_control::structure_id(unit) == 0)
+            errors.push_back({"Warn", unit, "move: end in the ocean"});
     });
 
     for (auto& error : errors) {
@@ -7895,6 +7921,13 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
             next_land = nullptr;
         }
 
+        CLand* moving_stop_land = GetLand(unit->movement_stop_);
+        CLand* moving_target_land = nullptr;
+        if (unit->movements_.size() > 0)
+            moving_target_land = GetLand(unit->movements_.back());
+
+        land_control::moving::apply_moving(unit, land, moving_stop_land, moving_target_land);
+        
         unit->impact_description_.push_back("sails; increased sailing power for: +" + std::to_string((men_amount*sailing_lvl)));
         if (unit_control::is_struct_owner(unit))
         {
@@ -7912,16 +7945,12 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
             unit->movement_stop_ = ships_and_owners[cur_unit_struct_id]->movement_stop_;
             unit->movements_ = ships_and_owners[cur_unit_struct_id]->movements_;
             
-            CLand* cur_land = GetLand(unit->movement_stop_);
-            if (cur_land != nullptr)
-                cur_land->current_state_.incoming_units_.push_back(unit);
-            
+            CLand* moving_stop_land = GetLand(unit->movement_stop_);
+            CLand* moving_target_land = nullptr;
             if (unit->movements_.size() > 0)
-            {
-                cur_land = GetLand(unit->movements_.back());
-                if (cur_land != nullptr)
-                    cur_land->current_state_.moveorder_stops_units_.push_back(unit);
-            }
+                moving_target_land = GetLand(unit->movements_.back());
+
+            land_control::moving::apply_moving(unit, land, moving_stop_land, moving_target_land);
         }
     });
 
@@ -8059,7 +8088,6 @@ BOOL CAtlaParser::ApplyDefaultOrders(BOOL EmptyOnly)
 
     //clearing and running all items
     RunOrders(NULL, TurnSequence::SQ_FIRST, TurnSequence::SQ_GIVE);
-    //RunOrders(NULL);
     
     //all source will give items to all needs according to priorities
     perform_on_each_land([&](CLand* land){

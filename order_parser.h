@@ -71,6 +71,7 @@ namespace orders
         O_STUDY,
         O_TAX,
         O_TEACH,
+        O_TRANSPORT,
         O_WEAPON,
         O_WITHDRAW,
         O_WORK,
@@ -109,12 +110,13 @@ namespace orders
 
     struct UnitOrders
     {
-        UnitOrders() : turn_endturn_started_(false) {}
+        UnitOrders() : turn_endturn_started_(false), is_modified_(false) {}
 
         std::vector<std::shared_ptr<orders::Order>> orders_;
         std::unordered_map<orders::Type, std::vector<size_t>, OrderTypeHash> hash_;
 
         bool turn_endturn_started_;
+        bool is_modified_;
         std::vector<std::shared_ptr<orders::Order>> turn_endturn_collection_;
         std::string errors_;
     };

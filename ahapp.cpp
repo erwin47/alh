@@ -254,6 +254,7 @@ bool CAhApp::OnInit()
     m_OrderHash.Insert("steal"      ,     (void*)O_STEAL      );
     m_OrderHash.Insert("study"      ,     (void*)O_STUDY      );
     m_OrderHash.Insert("teach"      ,     (void*)O_TEACH      );
+    m_OrderHash.Insert("transport"  ,     (void*)O_TRANSPORT  );
     m_OrderHash.Insert("turn"       ,     (void*)O_TURN       );
 
     m_OrderHash.Insert("pillage"    ,     (void*)O_PILLAGE    );
@@ -449,7 +450,7 @@ int CAhApp::OnExit()
 
 void CAhApp::CreateAccelerator()
 {
-    static wxAcceleratorEntry entries[11];
+    static wxAcceleratorEntry entries[12];
     entries[0].Set(wxACCEL_CTRL,  (int)'S',     menu_SaveOrders);
     entries[1].Set(wxACCEL_CTRL,  (int)'N',     accel_NextUnit );
     entries[2].Set(wxACCEL_CTRL,  (int)'P',     accel_PrevUnit );
@@ -457,12 +458,13 @@ void CAhApp::CreateAccelerator()
     entries[4].Set(wxACCEL_CTRL,  (int)'O',     accel_Orders   );
     entries[5].Set(wxACCEL_CTRL,  (int)'F',     accel_CreateNewUnit );
     entries[6].Set(wxACCEL_CTRL,  (int)'R',     accel_ReceiveOrder );
-    entries[7].Set(wxACCEL_CTRL,  (int)'E',     accel_ShowLandEconomy );
-    entries[8].Set(wxACCEL_CTRL,  (int)'W',     accel_ShowLandWarehouse );
-    entries[9].Set(wxACCEL_CTRL,  (int)'A',     accel_ShowLandAutoOrders );
-    entries[10].Set(wxACCEL_CTRL, (int)'M',     accel_ShowLandMovePhases );
+    entries[7].Set(wxACCEL_CTRL,  (int)'G',     accel_FilterByItem );
+    entries[8].Set(wxACCEL_CTRL,  (int)'E',     accel_ShowLandEconomy );
+    entries[9].Set(wxACCEL_CTRL,  (int)'W',     accel_ShowLandWarehouse );
+    entries[10].Set(wxACCEL_CTRL,  (int)'A',     accel_ShowLandAutoOrders );
+    entries[11].Set(wxACCEL_CTRL, (int)'M',     accel_ShowLandMovePhases );
 
-    m_pAccel = new wxAcceleratorTable(11, entries);
+    m_pAccel = new wxAcceleratorTable(12, entries);
 }
 
 //-------------------------------------------------------------------------
@@ -960,15 +962,42 @@ void CAhApp::ShowError(const char * msg, int msglen, BOOL ignore_disabled)
 //-------------------------------------------------------------------------
 
 const char * CAhApp::ResolveAlias(const char * alias)
-{
+{//TODO: split to AliasSkills and AliasGeneral(for the rest weird aliases if they really exist)
+    static std::unordered_map<std::string, std::string> local_cache;
+    if (local_cache.find(alias) != local_cache.end()) {
+        std::string res = local_cache[alias];
+        if (res.empty())
+            return alias;
+        return local_cache[alias].c_str();
+    }
+
     const char * p = SkipSpaces(GetConfig(SZ_SECT_ALIAS, alias));
-    if (p && *p)
+    if (p && *p) {
+        local_cache[alias] = p;
         return p;
+    }
+    local_cache[alias] = "";
     return alias;
 }
 
 bool CAhApp::ResolveAliasItems(const std::string& phrase, std::string& codename, std::string& name, std::string& name_plural)
 {
+    struct Aliases {
+      std::string code_;
+      std::string name_;
+      std::string name_plural_;
+    };
+
+    static std::unordered_map<std::string, std::shared_ptr<Aliases>> cache;
+    if (cache.find(phrase) != cache.end()) {
+        if (cache[phrase]->code_.empty())
+            return false;
+        codename = cache[phrase]->code_;
+        name = cache[phrase]->name_;
+        name_plural = cache[phrase]->name_plural_;
+        return true;
+    }
+
     const char* pkey;
     const char* pvalue;
     std::string current_codename, current_name, current_name_plural, value;
@@ -1004,10 +1033,16 @@ bool CAhApp::ResolveAliasItems(const std::string& phrase, std::string& codename,
             codename = current_codename;
             name = current_name;
             name_plural = current_name_plural;
+            cache[phrase] = std::make_shared<Aliases>();
+            cache[phrase]->code_ = codename;
+            cache[phrase]->name_ = name;
+            cache[phrase]->name_plural_ = name_plural;
             return true;
         }
         sectidx = gpApp->GetSectionNext(sectidx, SZ_SECT_ALIAS_ITEMS, pkey, pvalue);
     }
+    cache[phrase] = std::make_shared<Aliases>();
+    cache[phrase]->code_ = "";
     return false;
 }
 
@@ -2853,38 +2888,6 @@ int  CAhApp::LoadReport(BOOL Join)
 
 //-------------------------------------------------------------------------
 
-void CAhApp::EditPaneChanged(CEditPane * pPane) //not actually used at all ??
-{
-    CMapPane  * pMapPane  = (CMapPane* )m_Panes[AH_PANE_MAP];
-    CLand     * pLand;
-    CUnit     * pUnit;
-
-    if (pPane && pMapPane)
-    {
-        pLand = m_pAtlantis->GetLand(pMapPane->m_SelHexX, pMapPane->m_SelHexY, pMapPane->m_SelPlane, TRUE);
-        if (!pLand) return;
-
-        if (pPane == m_Panes[AH_PANE_UNIT_COMMANDS])
-        {
-            UpdateHexUnitList(pLand);
-            UpdateHexEditPane(pLand);
-            SetOrdersChanged(m_OrdersAreChanged); // this hack is needed since EditPanes are modifying the vars directly...
-        }
-        else if (pPane == m_Panes[AH_PANE_UNIT_COMMENTS])
-        {
-            // selected unit's comments / default orders have been changed
-            pUnit = GetSelectedUnit(); // depends on m_SelUnitIdx
-            if (pUnit)
-            {
-                pUnit->ExtractCommentsFromDefOrders();
-                UpdateHexUnitList(pLand);
-            }
-        }
-    }
-}
-
-//-------------------------------------------------------------------------
-
 void CAhApp::SelectTempUnit(CUnit * pUnit)
 {
     CEditPane   * pDescription = (CEditPane*)m_Panes[AH_PANE_UNIT_DESCR   ];
@@ -3375,218 +3378,233 @@ BOOL CAhApp::GetPrevTurnReport(CAtlaParser *& pPrevTurn)
 
 
 
-void CAhApp::UpdateHexEditPane(CLand * pLand)
+std::string CAhApp::land_description_editpane(CLand * pLand)
 {
-    CStruct     * pStruct;
-    CEditPane   * pEditPane;
-    int           i;
-    BOOL          FlagsEmpty = TRUE;
+    if (pLand == nullptr)
+        return "";
 
-    m_HexDescrSrc.Empty();
-
-    pEditPane = (CEditPane*)m_Panes[AH_PANE_MAP_DESCR];
-    if (pEditPane)
+    std::string reg_description(pLand->Description.GetData(), pLand->Description.GetLength());
+    if (pLand->current_state_.tax_.requesters_amount_)
     {
-        if (pLand)
+        size_t ins_pos = reg_description.find("-----------------------------");
+        while(ins_pos != std::string::npos && ins_pos > 0 && reg_description[ins_pos] != '.')
+            --ins_pos;
+
+        long tax_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER);
+        std::string tax_insertion = " (" + std::to_string(pLand->current_state_.tax_.requesters_amount_) + 
+                    "/" + std::to_string((pLand->current_state_.tax_.amount_-1)/tax_per_man +1) + ")";
+        reg_description.insert(ins_pos, tax_insertion);
+    }
+
+    if (pLand->current_state_.work_.requesters_amount_)
+    {
+        size_t ins_pos = reg_description.find("Wages: ");
+        ins_pos = reg_description.find('.', ins_pos);
+        if (std::isdigit(reg_description[ins_pos+1]))//if next symbol is digit, we are in a float wages
+            ins_pos = reg_description.find('.', ins_pos+1);
+
+        std::string work_insertion = " " + std::to_string(pLand->current_state_.work_.requesters_amount_) + 
+                    "/" + std::to_string(long((pLand->current_state_.work_.amount_-1)/pLand->Wages)+1);
+        reg_description.insert(ins_pos, work_insertion);
+    }   
+
+    if (pLand->current_state_.entertain_.requesters_amount_)
+    {
+        size_t ins_pos = reg_description.find("Entertainment available: ");
+        if (ins_pos != std::string::npos)
         {
-            std::string reg_description(pLand->Description.GetData(), pLand->Description.GetLength());
-            if (pLand->current_state_.tax_.requesters_amount_)
+            ins_pos = reg_description.find('.', ins_pos);
+
+            long ente_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_ENTERTAINMENT_SILVER);
+            std::string entertain_insertion = " (" + std::to_string(pLand->current_state_.entertain_.requesters_amount_) + 
+                        "/" + std::to_string(long((pLand->current_state_.entertain_.amount_-1)/ente_per_man)+1) + ")";
+            reg_description.insert(ins_pos, entertain_insertion);
+        }
+    }                       
+
+    if (pLand->current_state_.sold_items_.size() > 0)
+    {
+        size_t beg_pos = reg_description.find("Wanted: ");
+        size_t end_pos = reg_description.find('.', beg_pos);
+        for (const auto& pair : pLand->current_state_.sold_items_)
+        {
+            auto it = std::search(reg_description.begin()+beg_pos, reg_description.begin()+end_pos, 
+                      pair.first.begin(), pair.first.end());
+            if (it != reg_description.begin()+beg_pos)
             {
-                size_t ins_pos = reg_description.find("-----------------------------");
-                while(ins_pos != std::string::npos && ins_pos > 0 && reg_description[ins_pos] != '.')
+                size_t ins_pos = it - reg_description.begin();
+                while (ins_pos > beg_pos && !std::isdigit(reg_description[ins_pos]))
                     --ins_pos;
-
-                long tax_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER);
-                std::string tax_insertion = " (" + std::to_string(pLand->current_state_.tax_.requesters_amount_) + 
-                            "/" + std::to_string((pLand->current_state_.tax_.amount_-1)/tax_per_man +1) + ")";
-                reg_description.insert(ins_pos, tax_insertion);
-            }
-
-            if (pLand->current_state_.work_.requesters_amount_)
-            {
-                size_t ins_pos = reg_description.find("Wages: ");
-                ins_pos = reg_description.find('.', ins_pos);
-                if (std::isdigit(reg_description[ins_pos+1]))//if next symbol is digit, we are in a float wages
-                    ins_pos = reg_description.find('.', ins_pos+1);
-
-                std::string work_insertion = " " + std::to_string(pLand->current_state_.work_.requesters_amount_) + 
-                            "/" + std::to_string(long((pLand->current_state_.work_.amount_-1)/pLand->Wages)+1);
-                reg_description.insert(ins_pos, work_insertion);
-            }   
-
-            if (pLand->current_state_.entertain_.requesters_amount_)
-            {
-                size_t ins_pos = reg_description.find("Entertainment available: ");
-                if (ins_pos != std::string::npos)
-                {
-                    ins_pos = reg_description.find('.', ins_pos);
-
-                    long ente_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_ENTERTAINMENT_SILVER);
-                    std::string entertain_insertion = " (" + std::to_string(pLand->current_state_.entertain_.requesters_amount_) + 
-                                "/" + std::to_string(long((pLand->current_state_.entertain_.amount_-1)/ente_per_man)+1) + ")";
-                    reg_description.insert(ins_pos, entertain_insertion);
-                }
-            }                       
-
-            if (pLand->current_state_.sold_items_.size() > 0)
-            {
-                size_t beg_pos = reg_description.find("Wanted: ");
-                size_t end_pos = reg_description.find('.', beg_pos);
-                for (const auto& pair : pLand->current_state_.sold_items_)
-                {
-                    auto it = std::search(reg_description.begin()+beg_pos, reg_description.begin()+end_pos, 
-                              pair.first.begin(), pair.first.end());
-                    if (it != reg_description.begin()+beg_pos)
-                    {
-                        size_t ins_pos = it - reg_description.begin();
-                        while (ins_pos > beg_pos && !std::isdigit(reg_description[ins_pos]))
-                            --ins_pos;
-                        ++ins_pos;
-                        
-                        std::string buy_insertion = " (-"+std::to_string(pair.second)+")";
-                        reg_description.insert(ins_pos, buy_insertion);
-                    }
-                }
-            }
-
-            if (pLand->current_state_.bought_items_.size() > 0)
-            {
-                size_t beg_pos = reg_description.find("For Sale: ");
-                size_t end_pos = reg_description.find('.', beg_pos);
-                for (const auto& pair : pLand->current_state_.bought_items_)
-                {
-                    auto it = std::search(reg_description.begin()+beg_pos, reg_description.begin()+end_pos, 
-                              pair.first.begin(), pair.first.end());
-                    if (it != reg_description.begin()+beg_pos)
-                    {
-                        size_t ins_pos = it - reg_description.begin();
-                        while (ins_pos > beg_pos && !std::isdigit(reg_description[ins_pos]))
-                            --ins_pos;
-                        ++ins_pos;
-                        
-                        std::string sell_insertion = " (-"+std::to_string(pair.second)+")";
-                        reg_description.insert(ins_pos, sell_insertion);
-                    }
-                }
-            }            
-
-            m_HexDescrSrc << reg_description.c_str();
-
-            m_HexDescrSrc << EOL_SCR;
-            std::stringstream ss;
-            m_pAtlantis->compose_products_detailed(pLand, ss);
-            m_HexDescrSrc << ss.str().c_str();
-
-            if (pLand->current_state_.structures_.size()>0)
-            {
-                m_HexDescrSrc.TrimRight(TRIM_ALL);
-                m_HexDescrSrc << EOL_SCR << "-----------" << EOL_SCR;
-            }
-
-            bool ships_part(false);
-            land_control::perform_on_each_struct(pLand, [&](CStruct* structure) {
-                m_HexDescrSrc << structure->original_description_.c_str();
-                m_HexDescrSrc.TrimRight(TRIM_ALL); 
-                if (!ships_part && struct_control::flags::is_ship(structure)) {
-                    // separation between buildings and ships
-                    ships_part = true;
-                    m_HexDescrSrc << EOL_SCR;
-                }
-                if (struct_control::flags::is_ship(structure)) {
-                    m_HexDescrSrc << " Forecast: Load[" << structure->occupied_capacity_ << 
-                    "/" << structure->capacity_ << "], Power[" << structure->SailingPower << 
-                    "/" << structure->MinSailingPower << "].";                        
-                }
-                m_HexDescrSrc << EOL_SCR;
-            });
-            
-            long final_amount =  pLand->current_state_.economy_.initial_amount_ +
-                                 pLand->current_state_.economy_.tax_income_ +
-                                 pLand->current_state_.economy_.sell_income_ + 
-                                 pLand->current_state_.economy_.work_income_ +
-                                    std::max(pLand->current_state_.economy_.moving_in_, (long)0) -
-                                 pLand->current_state_.economy_.buy_expenses_ -
-                                 pLand->current_state_.economy_.maintenance_ -
-                                    std::max(pLand->current_state_.economy_.moving_out_, (long)0) - 
-                                 pLand->current_state_.economy_.study_expenses_;
-
-            m_HexDescrSrc << EOL_SCR << "Silver balance: [" <<
-                pLand->current_state_.economy_.initial_amount_ << "/" << final_amount << "]" << EOL_SCR;
-
-            for (i=0; i<LAND_FLAG_COUNT; i++)
-                if (!pLand->FlagText[i].IsEmpty())
-                {
-                    FlagsEmpty = FALSE;
-                    break;
-                }
-
-            if (!FlagsEmpty)
-            {
-                m_HexDescrSrc.TrimRight(TRIM_ALL);
-                m_HexDescrSrc << EOL_SCR << "-----------";
-
-                for (i=0; i<LAND_FLAG_COUNT; i++)
-                    if (!pLand->FlagText[i].IsEmpty())
-                        m_HexDescrSrc << EOL_SCR << pLand->FlagText[i];
-            }
-
-            //events/exits
-            if (!pLand->Events.IsEmpty() &&
-                 0 != stricmp(SkipSpaces(pLand->Events.GetData()), "none")
-               )
-                m_HexDescrSrc << EOL_SCR << "Events:" << EOL_SCR << pLand->Events << EOL_SCR;
-            m_HexDescrSrc << EOL_SCR << "Exits:"  << EOL_SCR << pLand->Exits;
-
-            //errors
-            if (pLand->current_state_.run_orders_errors_.size() > 0)
-                m_HexDescrSrc << EOL_SCR << "Errors:" << EOL_SCR;
-            for (const auto& error : pLand->current_state_.run_orders_errors_)
-            {
-                m_HexDescrSrc << "    " << unit_control::compose_unit_name(error.unit_).c_str() << error.message_.c_str() << EOL_SCR;
+                ++ins_pos;
+                
+                std::string buy_insertion = " (-"+std::to_string(pair.second)+")";
+                reg_description.insert(ins_pos, buy_insertion);
             }
         }
-        pEditPane->SetHeader("Hex description");
-        pEditPane->SetSource(&m_HexDescrSrc, NULL);
     }
+
+    if (pLand->current_state_.bought_items_.size() > 0)
+    {
+        size_t beg_pos = reg_description.find("For Sale: ");
+        size_t end_pos = reg_description.find('.', beg_pos);
+        for (const auto& pair : pLand->current_state_.bought_items_)
+        {
+            auto it = std::search(reg_description.begin()+beg_pos, reg_description.begin()+end_pos, 
+                      pair.first.begin(), pair.first.end());
+            if (it != reg_description.begin()+beg_pos)
+            {
+                size_t ins_pos = it - reg_description.begin();
+                while (ins_pos > beg_pos && !std::isdigit(reg_description[ins_pos]))
+                    --ins_pos;
+                ++ins_pos;
+                
+                std::string sell_insertion = " (-"+std::to_string(pair.second)+")";
+                reg_description.insert(ins_pos, sell_insertion);
+            }
+        }
+    }            
+
+    reg_description.append(EOL_SCR);
+
+    std::stringstream ss;
+    m_pAtlantis->compose_products_detailed(pLand, ss);
+    reg_description.append(ss.str());
+
+    if (pLand->current_state_.structures_.size()>0)
+    {
+        reg_description.append(EOL_SCR);
+        reg_description.append("-----------");
+        reg_description.append(EOL_SCR);
+    }
+
+    bool ships_part(false);
+    land_control::perform_on_each_struct(pLand, [&](CStruct* structure) {
+        reg_description.append(structure->original_description_);
+        trim_inplace(reg_description);
+        if (struct_control::flags::is_ship(structure)) {
+            reg_description += " Forecast: Load[" + std::to_string(structure->occupied_capacity_) 
+                            + "/" + std::to_string(structure->capacity_) + "], Power[" 
+                            + std::to_string(structure->SailingPower) + "/" 
+                            + std::to_string(structure->MinSailingPower) + "].";
+        }
+        if (!ships_part && struct_control::flags::is_ship(structure)) {
+            // separation between buildings and ships
+            ships_part = true;
+            reg_description.append(EOL_SCR);
+        }
+        reg_description.append(EOL_SCR);
+    });
+    
+    long final_amount =  pLand->current_state_.economy_.initial_amount_ +
+                          pLand->current_state_.economy_.tax_income_ +
+                          pLand->current_state_.economy_.sell_income_ + 
+                          pLand->current_state_.economy_.work_income_ +
+                            std::max(pLand->current_state_.economy_.moving_in_, (long)0) -
+                          pLand->current_state_.economy_.buy_expenses_ -
+                          pLand->current_state_.economy_.maintenance_ -
+                            std::max(pLand->current_state_.economy_.moving_out_, (long)0) - 
+                          pLand->current_state_.economy_.study_expenses_;
+
+    reg_description.append(EOL_SCR);
+    reg_description += "Silver balance: [" + std::to_string(pLand->current_state_.economy_.initial_amount_)
+                    + "/" + std::to_string(final_amount) + "]" + EOL_SCR;
+
+    bool FlagsEmpty(true);
+    for (long i=0; i<LAND_FLAG_COUNT; i++)
+        if (!pLand->FlagText[i].IsEmpty())
+        {
+            FlagsEmpty = false;
+            break;
+        }
+
+    if (!FlagsEmpty)
+    {
+        reg_description.append(EOL_SCR);
+        reg_description += "-----------";
+
+        for (long i=0; i<LAND_FLAG_COUNT; i++)
+            if (!pLand->FlagText[i].IsEmpty())
+            {
+                reg_description.append(EOL_SCR); 
+                reg_description.append(pLand->FlagText[i].GetData());
+            }
+              
+    }
+
+    //events/exits
+    if (!pLand->Events.IsEmpty() &&
+          0 != stricmp(SkipSpaces(pLand->Events.GetData()), "none"))
+    {
+        reg_description.append(EOL_SCR); 
+        reg_description.append("Events:");
+        reg_description.append(EOL_SCR); 
+        reg_description.append(pLand->Events.GetData());
+        reg_description.append(EOL_SCR); 
+        
+    }
+    reg_description.append(EOL_SCR); 
+    reg_description.append("Exits:"); 
+    reg_description.append(EOL_SCR); 
+    reg_description.append(pLand->Exits.GetData());
+
+    //errors
+    if (pLand->current_state_.run_orders_errors_.size() > 0)
+    {
+        reg_description.append(EOL_SCR); 
+        reg_description.append("Errors:"); 
+        reg_description.append(EOL_SCR);
+    }
+    for (const auto& error : pLand->current_state_.run_orders_errors_)
+    {
+        reg_description += "    " + unit_control::compose_unit_name(error.unit_) + error.message_;
+        reg_description.append(EOL_SCR);
+    }
+    return reg_description;
 }
 
 //-------------------------------------------------------------------------
-
-void CAhApp::UpdateHexUnitList(CLand * pLand)
+/*
+void CAhApp::UpdateUnitPane(CLand * pLand)
 {
     CUnitPane   * pUnitPane = (CUnitPane*)m_Panes[AH_PANE_UNITS_HEX];
 
     if (pLand != nullptr)
-        m_pAtlantis->RunLandOrders(pLand);
-    //m_pAtlantis->RunOrders(pLand, TurnSequence::SQ_FIRST, TurnSequence::SQ_BUY);
+        m_pAtlantis->RunOrders(pLand);
 
     if (pUnitPane)
-        pUnitPane->Update(pLand);
+        pUnitPane->Updaaaate(pLand);
 
-    //m_pAtlantis->RunOrders(pLand, TurnSequence::SQ_FORGET, TurnSequence::SQ_LAST);
-    
-}
+}*/
 
 //-------------------------------------------------------------------------
 
 void CAhApp::OnMapSelectionChange()
 {
-    CLand* land    = NULL;
-    CMapPane* pMapPane = (CMapPane* )m_Panes[AH_PANE_MAP];
+    CLand*        land              = NULL;
+    CMapPane*     map_pane          = (CMapPane* )m_Panes[AH_PANE_MAP];
+    CUnitPane*    unit_pane         = (CUnitPane*)m_Panes[AH_PANE_UNITS_HEX];
+    CEditPane*    description_pane  = (CEditPane*)m_Panes[AH_PANE_MAP_DESCR];
 
-    if (pMapPane)
-        land   = m_pAtlantis->GetLand(pMapPane->m_SelHexX, pMapPane->m_SelHexY, pMapPane->m_SelPlane, TRUE);
+    if (map_pane)
+        land = m_pAtlantis->GetLand(map_pane->m_SelHexX, map_pane->m_SelHexY, map_pane->m_SelPlane, TRUE);
 
-    //if (land != NULL) {
-    //    m_pAtlantis->RunLandOrders(land);
-    //}
+    if (land != nullptr)
+        m_pAtlantis->RunOrders(land);
 
-    UpdateHexUnitList(land);
-    UpdateHexEditPane(land);  // NULL is Ok!
+    if (unit_pane)
+    {
+        unit_pane->is_filtered_ = false;
+        unit_pane->Update(land);
+    }        
 
-    CUnitPane* pUnitPane = reinterpret_cast<CUnitPane*>(m_Panes[AH_PANE_UNITS_HEX]);
-    pUnitPane->DeselectAll();
-    pMapPane->SetFocus();
+    if (description_pane)
+    {
+        m_HexDescrSrc.Empty();
+        std::string description = land_description_editpane(land);  // NULL is Ok!
+        m_HexDescrSrc << description.c_str();
+        description_pane->SetHeader("Hex description");
+        description_pane->SetSource(&m_HexDescrSrc, NULL);
+    }    
     SetMapFrameTitle();
 }
 
@@ -3615,38 +3633,48 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
     m_UnitDescrSrc.Empty();
 
     if (pUnit)
-    {
-        m_UnitDescrSrc << unit_control::get_initial_description(pUnit).c_str() << EOL_SCR;
+    {//
+        ReadOnly = !pUnit->IsOurs || pUnit->Id<=0 || 
+                   (m_pAtlantis->m_YearMon != (long)m_ReportDates.At(gpApp->m_ReportDates.Count()-1) );
+        
+        if (pDescription) 
+        {//update description
+            m_UnitDescrSrc << unit_control::get_initial_description(pUnit).c_str() << EOL_SCR;
 
-        for (const std::string& impact_descr : pUnit->impact_description_)
-            m_UnitDescrSrc << ";" << impact_descr.c_str() << "." << EOL_SCR;
-        m_UnitDescrSrc << EOL_SCR;
+            for (const std::string& impact_descr : pUnit->impact_description_)
+                m_UnitDescrSrc << ";" << impact_descr.c_str() << "." << EOL_SCR;
+            m_UnitDescrSrc << EOL_SCR;
 
-        m_UnitDescrSrc << unit_control::get_actual_description(pUnit).c_str() << EOL_SCR;
+            m_UnitDescrSrc << unit_control::get_actual_description(pUnit).c_str() << EOL_SCR;
 
-        if (!IS_NEW_UNIT(pUnit)) 
-        {
-            if (!pUnit->Errors.IsEmpty())
-                m_UnitDescrSrc << " ***** Errors:" << EOL_SCR << pUnit->Errors;
-            if (!pUnit->Events.IsEmpty())
-                m_UnitDescrSrc << " ----- Events:" << EOL_SCR << pUnit->Events;
+            if (!IS_NEW_UNIT(pUnit)) 
+            {
+                if (!pUnit->Errors.IsEmpty())
+                    m_UnitDescrSrc << " ***** Errors:" << EOL_SCR << pUnit->Errors;
+                if (!pUnit->Events.IsEmpty())
+                    m_UnitDescrSrc << " ----- Events:" << EOL_SCR << pUnit->Events;
+            }
+            
+            pDescription->SetHeader("Unit description");
+            pDescription->SetSource(&m_UnitDescrSrc, NULL);
         }
-        ReadOnly = (!pUnit->IsOurs || pUnit->Id<=0) ;
     }
 
-    if (!ReadOnly)
-        ReadOnly = (m_pAtlantis->m_YearMon != (long)m_ReportDates.At(gpApp->m_ReportDates.Count()-1) );
-
-    if (pDescription) {
-        pDescription->SetHeader("Unit description");
-        pDescription->SetSource(&m_UnitDescrSrc, NULL);
-    }        
     if (pOrders)
-    {
-        pOrders->change_representing_unit(pUnit);
+    {//update orders
+        CLand* prev_unit_land(NULL);
+        CUnit* prev_unit = pOrders->change_representing_unit(pUnit);
+        if (prev_unit != NULL && prev_unit->orders_.is_modified_)//add here ORDER_MODIFIED check
+        {
+            prev_unit->orders_.is_modified_ = false;
+            prev_unit_land = gpApp->m_pAtlantis->GetLand(prev_unit->LandId);
+            if (prev_unit_land)
+                gpApp->m_pAtlantis->RunLandOrders(prev_unit_land);
+        }
         pOrders->SetReadOnly(ReadOnly);
         pOrders->ApplyFonts();
     }
+
     if (pComments)
     {
         if (pComments->m_pEditor->IsModified())
@@ -3689,8 +3717,10 @@ void CAhApp::LoadOrders()
         SetConfig(SZ_SECT_FOLDERS, SZ_KEY_FOLDER_ORDERS, Dir.GetData() );
 
         CUnitPane * pUnitPane = (CUnitPane*)m_Panes[AH_PANE_UNITS_HEX];
-        if (pUnitPane)
+        if (pUnitPane) {
             pUnitPane->Update(NULL);
+        }
+            
 
         LoadOrders(S.GetData());
         SetOrdersChanged(FALSE);
@@ -4494,10 +4524,11 @@ void CAhApp::RerunOrders()
 {
     m_pAtlantis->RunOrders(NULL);//, TurnSequence::SQ_FIRST, TurnSequence::SQ_BUY);
     CUnitPane * pUnitPane = (CUnitPane*)gpApp->m_Panes[AH_PANE_UNITS_HEX];
-    if (pUnitPane)
+    if (pUnitPane) {
         pUnitPane->Update(pUnitPane->m_pCurLand);
+    }
+        
 
-    //m_pAtlantis->RunOrders(NULL, TurnSequence::SQ_FORGET, TurnSequence::SQ_LAST);
 }
 
 //--------------------------------------------------------------------------

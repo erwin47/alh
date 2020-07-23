@@ -36,7 +36,7 @@ public:
     void         SetSource(const std::string& source, BOOL * pChanged);
     virtual void ApplyFonts();
     BOOL         SaveModifications();
-    void         OnKillFocus();
+    virtual void         OnKillFocus(wxFocusEvent& event);
     void         OnMouseDClick();
     void         SetReadOnly(BOOL ReadOnly);
     void         GetValue(CStr & value);
@@ -56,12 +56,13 @@ protected :
     wxColour       m_ColorNormal;
     wxColour       m_ColorReadOnly;
 
-    DECLARE_EVENT_TABLE()
+    //DECLARE_EVENT_TABLE()
 };
 
 class CUnitOrderEditPane : public CEditPane
 {
     CUnit*          unit_;
+    bool            unit_order_pane_modified_;
 
 public:
     CUnitOrderEditPane(wxWindow *parent, const wxString &header, BOOL editable, int WhichFont);
@@ -70,6 +71,7 @@ public:
     CUnit*       change_representing_unit(CUnit* unit);
 
     void OnOrderModified(wxCommandEvent& event);
+    //virtual void         OnKillFocus(wxFocusEvent& event);
 };
 
 #endif

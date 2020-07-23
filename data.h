@@ -590,16 +590,42 @@ struct LandState
 
     std::vector<CStruct*>                   structures_;            //! list of structures
 
-    std::vector<CUnit*>                     incoming_units_;        //! list of units that are going to 
-                                                                    //! stop in the region this turn
-    std::vector<CUnit*>                     moveorder_stops_units_; //! list of units that eventually are 
-                                                                    //! going to stop in the region
-
     CEconomy                                economy_;               //! state of all silver flows
     std::vector<CError>                     run_orders_errors_;     //! list of errors happened during the run orders
 };
 
 void init_land_state(LandState& lstate);
+
+//each region is affecting other regions
+class AffectionsInfo
+{
+    //moving to/from handling
+    std::set<CLand*>                                  affected_lands_;//! set of lands which were affected by current
+    std::unordered_map<CLand*, std::vector<CUnit*>>   incoming_units_;//! separated by foreign lands from which they come
+    std::unordered_map<CLand*, std::vector<CUnit*>>   going_to_come_units_;//! separated by foreign lands from which they come
+
+public:
+    //! cleans all affectors from affecting current region
+    //! expected usage: during deletion of the land: all other lands shouldn't affect deleted land
+    void          clear_affections_of_others(CLand* current);
+    //! cleans all affected from affections of current region
+    //! expected usage: during rerunning of orders: initially land should not affect any other land
+    void          clear_affected(CLand* current);
+
+    //setters
+    //! adds land to list of affected lands. This land should get incoming and/or going_to_income unit
+    inline void   add_affected(CLand* land)                   {  affected_lands_.insert(land);  }
+    //! adds land & unit to list of incoming units of current land.
+    inline void   add_incoming(CLand* land, CUnit* unit)      { incoming_units_[land].push_back(unit); }
+    //! adds land & unit to list of going_to_come units of current land.
+    inline void   add_going_to_come(CLand* land, CUnit* unit) { going_to_come_units_[land].push_back(unit); }
+
+    //getters
+    inline std::set<CLand*>&                                affected_lands()      {  return affected_lands_;  }
+    inline std::unordered_map<CLand*, std::vector<CUnit*>>& incoming_units()      {  return incoming_units_; }
+    inline std::unordered_map<CLand*, std::vector<CUnit*>>& going_to_come_units() {  return going_to_come_units_;  }
+};
+
 
 class CLand : public CBaseObject
 {
@@ -633,7 +659,6 @@ public:
     CStr          Events;
     //CBaseCollById Structs;
     CBaseCollById Units;
-    //CBaseColl     UnitsSeq; // this will keep units in the sequence they were met in the report
     std::vector<CUnit*> units_seq_;// keeps units in the sequence they were met in the report
     CBaseColl     EdgeStructs;
     CProductColl  Products;
@@ -641,11 +666,14 @@ public:
     LandState initial_state_;
     LandState current_state_;
 
+    //Flags handling
     unsigned long Flags;
     std::string                             text_for_region_search_;//! text used to be represented if region was a 
                                                                     //! result of a Region search command
 
-
+    //info related to affected of one region by others
+    //currently used for MovingFromOtherRegion info
+    AffectionsInfo affections_;
 
     unsigned long AlarmFlags;
     int           xExit[6]; // storage for the coordinates of the exit

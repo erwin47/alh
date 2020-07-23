@@ -54,6 +54,7 @@ BEGIN_EVENT_TABLE(CUnitPane, wxListCtrl)
     EVT_MENU             (menu_Popup_Split         , CUnitPane::OnPopupMenuSplit          )
     EVT_MENU             (menu_Popup_Create_New    , CUnitPane::OnPopupMenuCreateNew      )
     EVT_MENU             (menu_Popup_ReceiveItems  , CUnitPane::OnPopupMenuReceiveItems   )
+    EVT_MENU             (menu_Popup_FilterByItems , CUnitPane::OnPopupFilterByItems      )
     EVT_MENU             (menu_Popup_DiscardJunk   , CUnitPane::OnPopupMenuDiscardJunk    )
     EVT_MENU             (menu_Popup_DetectSpies   , CUnitPane::OnPopupMenuDetectSpies    )
     EVT_MENU             (menu_Popup_GiveEverything, CUnitPane::OnPopupMenuGiveEverything )
@@ -81,6 +82,7 @@ CUnitPane::CUnitPane(wxWindow *parent, wxWindowID id)
     m_pUnits   = NULL;
     m_pCurLand = NULL;
     m_ColClicked = -1;
+    is_filtered_ = false;
     ApplyFonts();
 }
 
@@ -122,7 +124,9 @@ void CUnitPane::Done()
 
 //--------------------------------------------------------------------------
 
-void CUnitPane::Update(CLand * pLand)
+bool default_unit_filter(CUnit* unit) {   return true;  }
+
+void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
 {
     int               i;
     CUnit           * pUnit;
@@ -134,12 +138,12 @@ void CUnitPane::Update(CLand * pLand)
     long              GuiColor;
 
     //because we don't update windows, except current unit's list
-    if (gpApp->getLayout() == AH_LAYOUT_1_WIN_ONE_DESCR)
-        FullUpdate = FALSE;
+    //if (gpApp->getLayout() == AH_LAYOUT_1_WIN_ONE_DESCR)
+    //    FullUpdate = FALSE;
     // It is a must, since some locations pointed to by stored pointers may be invalid at the moment.
     // Namely all new units are deleted when orders are processed.
-    m_pUnits->DeleteAll();
-//    m_pFactions->DeleteAll();
+    if (!this->is_filtered_)
+        m_pUnits->DeleteAll();
 
     if (!FullUpdate)
         for (i=GetItemCount()-1; i>=0; i--)
@@ -150,15 +154,19 @@ void CUnitPane::Update(CLand * pLand)
             GetItem(info);
         }
 
-    if (pLand)
+    if (!this->is_filtered_ && pLand)
     {
-        std::set<long> returning_ids;
+        std::set<long> already_listed_units;
         for (i=0; i<pLand->Units.Count(); i++)
         {
             pUnit = (CUnit*)pLand->Units.At(i);
+            if (pUnit && !filter(pUnit)) {
+                this->is_filtered_ = true;
+                continue;
+            }              
 
             if (pUnit && pUnit->movements_.size() > 0 && pUnit->movement_stop_ == pLand->Id)
-                returning_ids.insert(pUnit->Id);
+                already_listed_units.insert(pUnit->Id);
 
             if (pUnit && pUnit->has_error_) {//pUnit->Flags & UNIT_FLAG_HAS_ERROR) {
                 GuiColor = 4;//light red, for units with errors
@@ -174,29 +182,33 @@ void CUnitPane::Update(CLand * pLand)
             pUnit->SetProperty(PRP_GUI_COLOR, eLong, (void*)GuiColor, eBoth);
             m_pUnits->AtInsert(m_pUnits->Count(), pUnit);
         }
-        m_pUnits->SetSortMode(m_SortKey, NUM_SORTS);
+        land_control::moving::perform_on_each_incoming_unit(pLand, [&](CUnit* unit) {
+            if (already_listed_units.find(unit->Id) != already_listed_units.end())
+                return;
 
-        std::vector<CUnit*> stopping;
-        std::vector<CUnit*> ending_moving_orders;
-        gpApp->GetUnitsMovingIntoHex(pLand->Id, stopping, ending_moving_orders);
-        for (CUnit* unit : stopping)
-        {
-            if (returning_ids.find(unit->Id) != returning_ids.end())
-                continue;
+            if (unit && !filter(unit))
+                return;
 
+            already_listed_units.insert(unit->Id);
             GuiColor = 2;
             unit->SetProperty(PRP_GUI_COLOR, eLong, (void*)GuiColor, eBoth);
             m_pUnits->AtInsert(m_pUnits->Count(), unit);
-        }
-        for (CUnit* unit : ending_moving_orders)
-        {
-            if (returning_ids.find(unit->Id) != returning_ids.end())
-                continue;
-                          
+        });
+
+        land_control::moving::perform_on_each_going_to_come_unit(pLand, [&](CUnit* unit) {
+            if (already_listed_units.find(unit->Id) != already_listed_units.end())
+                return;
+
+            if (unit && !filter(unit))
+                return;
+
+            already_listed_units.insert(unit->Id);
             GuiColor = 6;
             unit->SetProperty(PRP_GUI_COLOR, eLong, (void*)GuiColor, eBoth);
             m_pUnits->AtInsert(m_pUnits->Count(), unit);
-        }
+        });
+
+        m_pUnits->SetSortMode(m_SortKey, NUM_SORTS);
 
         if (pLand->guiUnit)
         {
@@ -204,9 +216,20 @@ void CUnitPane::Update(CLand * pLand)
             selmode = sel_by_id;
         }
     }
+    CLand* prev_land = m_pCurLand;
     m_pCurLand = pLand;
+    
 
-    SetData(selmode, seldata, FullUpdate);
+    if (prev_land != pLand)
+        SetData(no_selection, seldata, FullUpdate);
+    else
+        SetData(selmode, seldata, FullUpdate);
+
+    /*if (prev_land != pLand) {
+        long item = this->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_FOCUSED);
+        if (item >= 0)
+            this->SetItemState(item, 0, wxLIST_STATE_FOCUSED | wxLIST_STATE_SELECTED);
+    }*/
 
     //We don't actually want to update windows, except unit's list
     //if ((0==m_pUnits->Count()) || !FullUpdate) // otherwise will be called from OnSelected()
@@ -366,33 +389,11 @@ void CUnitPane::OnSelected(wxListEvent& event)
 
     if (pUnit)
     {
-        CLand* prev_unit_land(NULL);
-        pOrders = (CUnitOrderEditPane*)gpApp->m_Panes[AH_PANE_UNIT_COMMANDS];
-        if (pOrders)
-        {
-            CUnit* prev_unit = pOrders->change_representing_unit(pUnit);
-            if (prev_unit != NULL)
-            {
-                prev_unit_land = gpApp->m_pAtlantis->GetLand(prev_unit->LandId);
-                if (prev_unit_land)
-                    gpApp->m_pAtlantis->RunOrders(prev_unit_land);
-            }
-        }
-        if (m_pCurLand != prev_unit_land && m_pCurLand != NULL)
-            gpApp->m_pAtlantis->RunOrders(m_pCurLand);
-
         if (m_pCurLand)
             m_pCurLand->guiUnit = pUnit->Id;
 
-        //if (changed)
-        //{
-        //    gpApp->EditPaneChanged((CEditPane*)pOrders);
-        //}
         gpApp->OnUnitHexSelectionChange(event.m_itemIndex);
-
-        gpApp->m_pAtlantis->RunLandOrders(m_pCurLand);//, TurnSequence::SQ_FIRST, TurnSequence::SQ_BUY);
-        Update(m_pCurLand);        
-        //gpApp->m_pAtlantis->RunLandOrders(m_pCurLand, TurnSequence::SQ_FORGET, TurnSequence::SQ_LAST);
+        Update(m_pCurLand);
     }
 }
 
@@ -440,21 +441,6 @@ void CUnitPane::SelectPrevUnit()
         CUnit      * pUnit = GetUnit(idx-1);
         if (pUnit)
             SelectUnit(pUnit->Id);
-    }
-}
-
-void CUnitPane::DeselectAll()
-{
-    long item = -1;
-    for ( ;; )
-    {
-        item = this->GetNextItem(item,
-                                 wxLIST_NEXT_ALL,
-                                 wxLIST_STATE_SELECTED);
-        if ( item == -1 )
-            break;
-
-        this->SetItemState(item, 0, wxLIST_MASK_STATE);
     }
 }
 
@@ -539,10 +525,11 @@ void CUnitPane::OnRClick(wxListEvent& event)
                 {
                     menu.Append(menu_Popup_ShareSilv     , wxT("Share SILV")        );
                     menu.Append(menu_Popup_Split         , wxT("Split")             );
-                    menu.Append(menu_Popup_Create_New    , wxT("Create new unit")   );
+                    menu.Append(menu_Popup_Create_New    , wxT("Create new unit (Ctrl+F)")   );
                 }
                 menu.Append(menu_Popup_Teach         , wxT("Teach")             );
-                menu.Append(menu_Popup_ReceiveItems  , wxT("Receive")             );
+                menu.Append(menu_Popup_ReceiveItems  , wxT("Receive (Ctrl+R)")             );
+                menu.Append(menu_Popup_FilterByItems  , wxT("Filter units (Ctrl+G)")  );
                 if (IS_NEW_UNIT(pUnit))
                 {
                     menu.Append(menu_Popup_DiscardJunk   , wxT("Discard This Unit") );
@@ -635,6 +622,47 @@ void CUnitPane::OnPopupMenuCreateNew(wxCommandEvent& event)
         gpApp->m_pAtlantis->RunLandOrders(pLand);
         Update(m_pCurLand);
     }
+}
+
+void CUnitPane::OnPopupFilterByItems(wxCommandEvent& event)
+{
+    long idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    if (idx < 0)
+        return;
+    CUnit* pUnit = GetUnit(idx);
+    if (!pUnit)
+        return;
+
+    CLand* pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
+    CItemChooseDlg dlg(this, pUnit, pLand);
+
+    if (wxID_OK == dlg.ShowModal()) // it will modify unit's orders
+    {
+        struct UpdateFilter {
+            std::string code_;
+            CUnit* issuing_unit_;
+            bool operator()(CUnit* unit) {
+                if (unit->Id == issuing_unit_->Id)
+                    return true;
+                if (unit_control::get_item_amount(unit, code_) > 0)
+                    return true;
+                return false;
+            }
+        };
+        
+        this->is_filtered_ = false;
+        UpdateFilter filter;
+        filter.code_ = dlg.chosen_code_;
+        filter.issuing_unit_ = pUnit;
+        Update(m_pCurLand, filter);
+        this->is_filtered_ = true;
+    }
+    else
+    {
+        this->is_filtered_ = false;
+        Update(m_pCurLand);
+    }
+    //gpApp->m_pAtlantis->RunLandOrders(pLand);
 }
 
 void CUnitPane::OnPopupMenuReceiveItems(wxCommandEvent& event)

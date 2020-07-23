@@ -113,7 +113,7 @@ BEGIN_EVENT_TABLE(CMapFrame, CAhFrame)
     EVT_MENU     (menu_ListColUnits       , CMapFrame::OnListCol               )
     EVT_MENU     (menu_ListColUnitsFltr   , CMapFrame::OnListCol               )
 
-    EVT_MENU     (menu_ApplyDefaultOrders , CMapFrame::OnApplyDefaultOrders    )
+    EVT_MENU     (menu_ApplyAutoorders    , CMapFrame::OnApplyAutoorders       )
     EVT_MENU     (menu_RerunOrders        , CMapFrame::OnRerunOrders           )
     EVT_MENU     (menu_ShaftConnect       , CMapFrame::OnShaftConnect          )
 
@@ -146,6 +146,7 @@ BEGIN_EVENT_TABLE(CMapFrame, CAhFrame)
     EVT_MENU   (accel_Orders              , CMapFrame::OnOrders  )
     EVT_MENU   (accel_CreateNewUnit       , CMapFrame::OnCreateNewUnit         )
     EVT_MENU   (accel_ReceiveOrder        , CMapFrame::OnReceiveOrder          )
+    EVT_MENU   (accel_FilterByItem        , CMapFrame::OnFilterByItem          )
     EVT_MENU   (accel_ShowLandEconomy     , CMapFrame::OnShowLandEconomy       )
     EVT_MENU   (accel_ShowLandWarehouse   , CMapFrame::OnShowLandWarehouse     )
     EVT_MENU   (accel_ShowLandAutoOrders  , CMapFrame::OnShowLandAutoOrders    )
@@ -243,7 +244,7 @@ void CMapFrame::MakeMenu(int layout)
     menuBar->Append(menuItem, wxT("&View"));
 
     menuItem = new wxMenu;
-    menuItem->Append(menu_ApplyDefaultOrders, wxT("Apply default orders")          , wxT(""));
+    menuItem->Append(menu_ApplyAutoorders   , wxT("Apply all autoorders")          , wxT(""));
     menuItem->Append(menu_RerunOrders       , wxT("Rerun orders")                  , wxT(""));
     menuItem->Append(menu_ShaftConnect      , wxT("Connect shafts")                , wxT(""));
     menuItem->Append(menu_CheckMonthLongOrd , wxT("Check month long orders")       , wxT(""));
@@ -370,12 +371,12 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
     case AH_LAYOUT_1_WIN:
     case AH_LAYOUT_1_WIN_WIDE:
         {
-            CMapPane          * p1;
-            CUnitPane         * p2;
-            CEditPane         * p3;
-            CEditPane         * p4;
-            CEditPane         * p5;
-            CEditPane         * p6;
+            CMapPane          * p1;//map window
+            CUnitPane         * p2;//unit panel
+            CEditPane         * p3;//hex description
+            CEditPane         * p4;//unit description (at Layout 4 is the same as p3)
+            CEditPane         * p5;//unit orders
+            CEditPane         * p6;//unit local remarks
             int                 x,y;
             const bool          wide = (layout == AH_LAYOUT_1_WIN_WIDE);
             const bool          layout_united_description = (layout == AH_LAYOUT_1_WIN_ONE_DESCR);
@@ -917,7 +918,7 @@ void CMapFrame::OnWindowEditors(wxCommandEvent& event)
 
 //--------------------------------------------------------------------
 
-void CMapFrame::OnApplyDefaultOrders(wxCommandEvent& event)
+void CMapFrame::OnApplyAutoorders(wxCommandEvent& event)
 {
     gpApp->SetOrdersChanged(gpApp->m_pAtlantis->ApplyDefaultOrders(TRUE) //(BOOL)atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_DEFAULT_EMPTY_ONLY)))
                             || gpApp->GetOrdersChanged());
@@ -1086,6 +1087,12 @@ void CMapFrame::OnCreateNewUnit(wxCommandEvent& event)
 void CMapFrame::OnReceiveOrder(wxCommandEvent& event)
 {
     gpApp->UnitReceiveOrder(event);
+}
+
+void CMapFrame::OnFilterByItem(wxCommandEvent& event)
+{
+    if (m_Panes[AH_PANE_UNITS_HEX])
+        ((CUnitPane*)m_Panes[AH_PANE_UNITS_HEX])->OnPopupFilterByItems(event);
 }
 
 void CMapFrame::OnShowLandEconomy(wxCommandEvent& event)

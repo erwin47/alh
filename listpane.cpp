@@ -309,7 +309,7 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
     while (m_pData->Count() < GetItemCount())
         DeleteItem(m_pData->Count());
 
-    if (FullUpdate && (selno>=0))
+    if (selno>=0)
     {
         SetItemState(selno, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
         EnsureVisible(selno);

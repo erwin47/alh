@@ -1106,6 +1106,82 @@ namespace unit_control
 
 namespace land_control
 {
+    namespace moving 
+    {
+        void apply_moving(CUnit* unit, CLand* from, CLand* where_stop, CLand* where_goal)
+        {
+            if (where_stop != nullptr) 
+            {
+                from->affections_.add_affected(where_stop);
+                where_stop->affections_.add_incoming(from, unit);
+            }
+            if (where_goal != nullptr)
+            {
+                from->affections_.add_affected(where_goal);
+                where_goal->affections_.add_going_to_come(from, unit);
+            }
+        }
+
+        void print_out_affections(CLand* land, std::stringstream& output)
+        {
+            output << "Affected regions" << std::endl;
+            for (auto affected_land : land->affections_.affected_lands())
+            {
+                output << land_control::land_full_name(affected_land) << std::endl;
+            }
+            output << std::endl << "Units" << std::endl;
+            for (auto pair : land->affections_.incoming_units())
+            {
+                output << land_control::land_full_name(pair.first) << std::endl;
+                for (auto inc_unit : pair.second)
+                {
+                  output << "    " << unit_control::compose_unit_name(inc_unit) << std::endl;
+                }
+            }
+            output << std::endl << "Going to come Units" << std::endl;
+            for (auto pair : land->affections_.going_to_come_units())
+            {
+                output << land_control::land_full_name(pair.first) << std::endl;
+                for (auto inc_unit : pair.second)
+                {
+                  output << "    " << unit_control::compose_unit_name(inc_unit) << std::endl;
+                }
+            }
+        }
+
+        bool sanity_check_affections(CLand* land, std::stringstream& output)
+        {
+            bool res = true;
+            for (CLand* affected : land->affections_.affected_lands())
+            {
+                if (affected->affections_.incoming_units().find(land) == affected->affections_.incoming_units().end() && 
+                    affected->affections_.going_to_come_units().find(land) == affected->affections_.going_to_come_units().end())
+                {
+                    output << "    " << land_control::land_full_name(land) << " has affected " << land_control::land_full_name(affected) << ", where no unit is moving or going to" << std::endl;
+                    res = false;
+                }
+            }
+            for (auto& pair : land->affections_.incoming_units())
+            {
+                if (pair.first->affections_.affected_lands().find(land) == pair.first->affections_.affected_lands().end())
+                {
+                    output << "    " << land_control::land_full_name(land) << " has incoming unit from " << land_control::land_full_name(pair.first) << ", where its not aware of it" << std::endl;
+                    res = false;
+                }
+            }
+
+            for (auto& pair : land->affections_.going_to_come_units())
+            {
+                if (pair.first->affections_.affected_lands().find(land) == pair.first->affections_.affected_lands().end())
+                {
+                    output << "    " << land_control::land_full_name(land) << " has going to come unit from " << land_control::land_full_name(pair.first) << ", where its not aware of it" << std::endl;
+                    res = false;
+                }
+            }
+            return res;
+        }
+    }
+
     void get_land_coordinates(long land_id, long& x, long& y, long& z) {
         int xint, yint, zint;
         LandIdToCoord(land_id, xint, yint, zint);
@@ -1683,15 +1759,12 @@ namespace land_control
                 res += unit_control::get_item_amount(unit, item);
         });
 
-        std::vector<CUnit*> stopped;
-        std::vector<CUnit*> ended_moveorder;
         //incoming_units_
-        gpApp->GetUnitsMovingIntoHex(land->Id, stopped, ended_moveorder);
-        for (CUnit* unit : stopped)
-        {
+        land_control::moving::perform_on_each_incoming_unit(land, [&](CUnit* unit) {
             if (unit_control::flags::is_sharing(unit))
                 res += unit_control::get_item_amount(unit, item);
-        }
+        });
+
         set_shared_items(land->current_state_, item, res);
         return res;
     }
@@ -2296,6 +2369,7 @@ namespace land_control
             }
             std::vector<Student*> active_students;
             long students_amount(0);
+            std::vector<std::pair<long, long>> other_faction_students;//number, amount
             for (long studId : studs)
             {
                 if (studId == unit->Id)
@@ -2305,7 +2379,24 @@ namespace land_control
                 }
                 if (students.find(studId) == students.end())
                 {
-                    errors.push_back({"Warning", unit, "teach: " + unit_control::compose_unit_number(studId) + " is not studying"});
+                    CUnit* lost_student = land_control::find_first_unit_if(land, [&](CUnit* cur_lost_student) {
+                                              if (cur_lost_student->Id == studId)
+                                                  return true;
+                                              return false;
+                                          });
+                    if (lost_student != nullptr)
+                    {
+                        if (!lost_student->IsOurs) 
+                        {
+                            long lost_student_amount = unit_control::get_item_amount_by_mask(lost_student, PRP_MEN);
+                            other_faction_students.push_back({studId, lost_student_amount});
+                            students_amount += lost_student_amount;
+                        }
+                        else
+                            errors.push_back({"Warning", unit, "teach: " + unit_control::compose_unit_number(studId) + " is not studying"});
+                    }
+                    else 
+                        errors.push_back({"Warning", unit, "teach: " + unit_control::compose_unit_number(studId) + " can't be found in the region"});
                     continue;
                 }
                 if (students[studId].max_days_ - students[studId].cur_days_ - students[studId].days_of_teaching_- (long)30 <= 0)
@@ -2328,6 +2419,19 @@ namespace land_control
             
             if (students_amount <= 0)
                 return;
+
+            if (!other_faction_students.empty())
+            {
+                std::string message("teaching: aliens ");
+                long foreign_amount(0);
+                for (auto& pair : other_faction_students)
+                {
+                    message += " "+std::to_string(pair.first);
+                    foreign_amount += pair.second;
+                }
+                message += ", amount = " + std::to_string(foreign_amount);
+                unit->impact_description_.push_back(message);
+            }
 
             unit->SetProperty(PRP_TEACHING, eLong, (const void*)students_amount, EPropertyType::eBoth);
             //we assume that studying is correct: teacher can teach, student can study and so on

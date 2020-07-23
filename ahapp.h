@@ -190,9 +190,7 @@ public:
     const char         * GetNextSectionName(int fileno, const char * szStart); // sorry, but fileno is needed here
     void                 MoveSectionEntries(int fileno, const char * src, const char * dest);
 
-    void                 EditPaneChanged(CEditPane * pPane);
     void                 EditPaneDClicked(CEditPane * pPane);
-
 
     void                 FrameClosing(CAhFrame * pFrame);
 
@@ -330,8 +328,8 @@ private:
     void                 SaveUnitFlags();
     void                 LoadTerrainCostConfig();
 
-    void                 UpdateHexEditPane(CLand * pLand);
-    void                 UpdateHexUnitList(CLand * pLand);
+    std::string          land_description_editpane(CLand * pLand);
+    //void                 UpdateUnitPane(CLand * pLand);
     void                 SwitchToYearMon(long YearMon);
 
     int                  GetConfigFileNo(const char * szSection);

@@ -2823,42 +2823,6 @@ void CMapPane::DrawCoordPanes(wxDC * pDC, int mapwidth, int mapheight, CPlane * 
 
 //--------------------------------------------------------------------------
 
-/*
-void CMapPane::SelectHex(int NoX, int NoY)
-{
-    int              wx, wy;
-    int              width, height;
-
-    if (NoX!=m_SelHexX || NoY!=m_SelHexY)
-    {
-        m_SelHexX = NoX;
-        m_SelHexY = NoY;
-
-        GetClientSize(&width, &height);
-        GetHexCenter(NoX, NoY, wx, wy);
-
-        if (wx-m_HexSize < 0)
-            m_AtlaX0 -= (0 - (wx-m_HexSize) + m_HexSize);
-        else
-            if ((wx+m_HexSize > width))
-                m_AtlaX0 += (wx+m_HexSize - width + m_HexSize);
-
-
-        if (wy-m_HexHalfHeight < 0)
-            m_AtlaY0 -= (0  - (wy-m_HexHalfHeight) + m_HexHalfHeight);
-        else
-            if ((wy+m_HexHalfHeight > height))
-                m_AtlaY0 += (wy+m_HexHalfHeight - height + m_HexHalfHeight);
-
-        //UpdateEditPane();
-        gpApp->OnMapSelectionChange();
-    }
-}
-*/
-
-
-//--------------------------------------------------------------------------
-
 void CMapPane::RedrawTracksForUnit(CPlane * pPlane, CUnit * pUnit, wxDC * pDC, BOOL DoDrawCitiesAndWeather)
 {
     int            i, X, Y, Z;
@@ -3954,11 +3918,7 @@ void CMapPane::OnPopupWarehouse   (wxCommandEvent & event)
     fill_item_category_state_report(pLand, PRP_FLYING_MOUNTS, mounts);
     fill_item_category_state_report(pLand, PRP_TRADE_ITEMS, trade_items);
 
-    std::vector<CUnit*> stopped;
-    std::vector<CUnit*> ended_moveorder;
-    gpApp->GetUnitsMovingIntoHex(pLand->Id, stopped, ended_moveorder);
-    for (CUnit* unit : stopped) 
-    {
+    land_control::moving::perform_on_each_incoming_unit(pLand, [&](CUnit* unit) {
         auto category_items = unit_control::get_all_items_by_mask(unit, PRP_RESOURCES);
         for (const auto& item : category_items)
             resources[item.code_name_][1] += item.amount_;
@@ -3986,7 +3946,7 @@ void CMapPane::OnPopupWarehouse   (wxCommandEvent & event)
         category_items = unit_control::get_all_items_by_mask(unit, PRP_TRADE_ITEMS);
         for (const auto& item : category_items)
             trade_items[item.code_name_][1] += item.amount_;
-    }
+    });
 
     std::stringstream output;
     item_category_state_out(output, "Resources", resources);
@@ -4071,7 +4031,7 @@ void CMapPane::OnPopupShowAutoOrders(wxCommandEvent & event)
 
     if (land_sources.size() > 0) {
         output << "Land's offers (performed second)" << std::endl;
-        output << "CODE    Amount  P       Name" << std::endl;
+        output << "CODE    Amount     P  Name" << std::endl;
     }
 
     for (const auto& source : land_sources)
@@ -4079,12 +4039,34 @@ void CMapPane::OnPopupShowAutoOrders(wxCommandEvent & event)
         output << source.name_;
         for (int i = source.name_.size(); i < 4; ++i)
             output << " ";
-        output << "    ";
+        output << "     ";
         number_to_state_out(output, source.amount_);
-        output << "   ";
+        output << " ";
         number_to_state_out(output, source.priority_);
-        output << "   " << unit_control::compose_unit_name(source.unit_) << std::endl;
+        output << "  " << unit_control::compose_unit_name(source.unit_) << std::endl;
     }
+
+    //DEBUG
+
+    output << std::endl << std::endl;
+    output << "Moving debug" << std::endl;
+    land_control::moving::print_out_affections(land, output);
+
+    //DEBUG 2
+    output << std::endl << std::endl;
+    output << "LINK debug" << std::endl;    
+    long land_amount(0);
+    for (int n=0; n<gpApp->m_pAtlantis->m_Planes.Count(); n++)
+    {
+        CPlane* pPlane = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(n);
+        for (int i=0; i<pPlane->Lands.Count(); i++)
+        {
+            CLand* pLand = (CLand*)pPlane->Lands.At(i);
+            ++land_amount;
+            land_control::moving::sanity_check_affections(pLand, output);            
+        }        
+    }
+    output << "Land #" << land_amount << std::endl;
 
     CEditPane* pEditPane = (CEditPane*)gpApp->m_Panes[AH_PANE_MAP_DESCR];
     if (pEditPane != nullptr) {
@@ -4124,13 +4106,11 @@ void CMapPane::OnPopupMovePhases(wxCommandEvent & event)
                 if (!unit->IsOurs || unit->movements_.size() == 0)
                     return;
 
-                unit_control::MoveMode move_mode = unit_control::get_move_state(unit);
-                
-                for (size_t j = 0; j < move_mode.speed_; ++j)
+                for (size_t j = 0; j < unit->movements_.size(); ++j)
                 {
                     if (unit->movements_[j] == cur_land->Id)
                     {
-                        long phase = move_phases[move_mode.speed_][j];
+                        long phase = move_phases[unit->movements_.size()][j];
                         result_phases[phase].push_back(unit);
                     }
                 }

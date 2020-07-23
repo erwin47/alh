@@ -52,7 +52,7 @@ private:
     void perform_take(CUnit* giving_one, CUnit* receiving_one, long amount, const std::string& item_code_name);
     void perform_give(CUnit* giving_one, CUnit* receiving_one, long amount, const std::string& item_code_name);
 
-    std::set<CItem> get_item_types_list(CUnit* unit, CLand* land) const;
+    //std::set<CItem> get_item_types_list(CUnit* unit, CLand* land) const;
     std::vector<std::string> get_units_with_item(const std::string& item_type, CUnit* unit, CLand* land);
 
     //Events
@@ -60,6 +60,28 @@ private:
     void OnMax          (wxCommandEvent& event);
     void OnOk           (wxCommandEvent& event);
     void OnAdd          (wxCommandEvent& event);
+    void OnCancel       (wxCommandEvent& event);
+
+};
+
+class CItemChooseDlg : public CResizableDlg
+{
+    CUnit* unit_;
+    CLand* land_;
+
+    wxListBox*  listbox_items_;
+    std::map<std::string, std::string> plural_to_code_;
+
+public:
+    CItemChooseDlg(wxWindow *parent, CUnit * pUnit, CLand* pLand);
+    ~CItemChooseDlg();
+
+    std::string chosen_code_;
+
+private:
+    //Events
+    void OnItemChosen   (wxCommandEvent& event);
+    void OnOk           (wxCommandEvent& event);
     void OnCancel       (wxCommandEvent& event);
 
 };
