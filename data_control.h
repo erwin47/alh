@@ -1,6 +1,7 @@
 #ifndef DATA_CONTROL_INCL
 #define DATA_CONTROL_INCL
 
+#include <cctype>
 #include "ahapp.h"
 #include "data.h"
 #include <memory>
@@ -190,8 +191,7 @@ namespace land_control
     CProductMarket get_for_sale(LandState& state, const std::string& item_code);
     void add_resource(LandState& state, const CItem& item);
     long get_resource(LandState& state, const std::string& item_code);
-    void set_produced_items(LandState& state, const std::string& item_code, long amount);
-    long get_produced_items(LandState& state, const std::string& item_code);
+    void set_produced_items(LandState& state, const std::string& item_code, long amount, long attempt_amount);
 
     CStruct* get_struct(CLand* land, long struct_id);
     long get_struct_weight(CLand* land, long struct_id);

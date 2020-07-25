@@ -1698,19 +1698,17 @@ void DecodeConfigLine(CStr & dest, const char * src)
 void CAhApp::LoadComments()
 {
     int           i;
-    CUnit       * pUnit;
     char          buf[32];
     CStr          S;
 
-    for (i=0; i<m_pAtlantis->m_Units.Count(); i++)
+    for (CUnit* unit : m_pAtlantis->units_)
     {
-        pUnit = (CUnit*)m_pAtlantis->m_Units.At(i);
-        sprintf(buf, "%ld", pUnit->Id);
+        sprintf(buf, "%ld", unit->Id);
 
-        DecodeConfigLine(pUnit->DefOrders, GetConfig(SZ_SECT_DEF_ORDERS, buf));
+        DecodeConfigLine(unit->DefOrders, GetConfig(SZ_SECT_DEF_ORDERS, buf));
 
-        pUnit->DefOrders.TrimRight(TRIM_ALL);
-        pUnit->ExtractCommentsFromDefOrders();
+        unit->DefOrders.TrimRight(TRIM_ALL);
+        unit->ExtractCommentsFromDefOrders();
     }
     m_CommentsChanged = FALSE;
 }
@@ -1725,10 +1723,9 @@ void CAhApp::SaveComments()
     CStr          S;
     const char  * p;
 
-    for (i=0; i<m_pAtlantis->m_Units.Count(); i++)
+    for (CUnit* pUnit : m_pAtlantis->units_)
     {
         S.Empty();
-        pUnit = (CUnit*)m_pAtlantis->m_Units.At(i);
         pUnit->DefOrders.TrimRight(TRIM_ALL);
         if (pUnit->DefOrders.GetLength() > 0)
         {
@@ -1749,13 +1746,11 @@ void CAhApp::SaveComments()
 void CAhApp::LoadUnitFlags()
 {
     int           i, x;
-    CUnit       * pUnit;
     char          buf[32];
     CStr          S;
 
-    for (i=0; i<m_pAtlantis->m_Units.Count(); i++)
+    for (CUnit* pUnit : m_pAtlantis->units_)
     {
-        pUnit = (CUnit*)m_pAtlantis->m_Units.At(i);
         sprintf(buf, "%ld", pUnit->Id);
 
         x = atol(GetConfig(SZ_SECT_UNIT_FLAGS, buf));
@@ -1777,9 +1772,8 @@ void CAhApp::SaveUnitFlags()
     char          buf[32];
     CStr          S;
 
-    for (i=0; i<m_pAtlantis->m_Units.Count(); i++)
+    for (CUnit* pUnit : m_pAtlantis->units_)
     {
-        pUnit = (CUnit*)m_pAtlantis->m_Units.At(i);
         sprintf(buf, "%ld", pUnit->Id);
 
         S.Empty();
@@ -1841,10 +1835,8 @@ void CAhApp::SetAllLandUnitFlags()
 
     if ( (ID_BTN_SET_ALL_UNIT==rc || ID_BTN_RMV_ALL_UNIT==rc) && dlg.m_UnitFlags>0 )
     {
-        for (i=0; i<m_pAtlantis->m_Units.Count(); i++)
+        for (CUnit* pUnit : m_pAtlantis->units_)
         {
-            pUnit = (CUnit*)m_pAtlantis->m_Units.At(i);
-
             if (ID_BTN_SET_ALL_UNIT==rc)
             {
                 pUnit->Flags    |= (dlg.m_UnitFlags & UNIT_CUSTOM_FLAG_MASK);
@@ -2162,7 +2154,7 @@ bool CAhApp::GetTradeActivityDescription(CLand* land, std::map<int, std::vector<
 
             auto produce_it = std::find_if(land->current_state_.produced_items_.begin(), 
                                            land->current_state_.produced_items_.end(), 
-                                            [&](const std::pair<std::string, long>& item) {
+                                            [&](const std::pair<std::string, std::pair<long,long>>& item) {
                                         return resource.code_name_ == item.first;
                             });
 
@@ -2170,7 +2162,7 @@ bool CAhApp::GetTradeActivityDescription(CLand* land, std::map<int, std::vector<
             {
                 if (produce_it != land->current_state_.produced_items_.end())
                 {
-                    report[factionId].push_back(reg_line + " (requested: " + std::to_string(produce_it->second) + ")");
+                    report[factionId].push_back(reg_line + " (requested: " + std::to_string(produce_it->second.second) + ")");
                 }
                 else 
                 {
@@ -2192,7 +2184,7 @@ bool CAhApp::GetTradeActivityDescription(CLand* land, std::map<int, std::vector<
             {
                 if (resource_it == land->current_state_.resources_.end())
                 {
-                    report[factionId].push_back("    produce: " + product.first + " " + std::to_string(product.second));
+                    report[factionId].push_back("    produce: " + product.first + " " + std::to_string(product.second.second));
                 }
             }
         }
@@ -2652,9 +2644,8 @@ void CAhApp::PostLoadReport()
     // If no orders loaded, no movement will be calculated. Force it.
     if (!m_pAtlantis->m_OrdersLoaded)
     {
-        for (i=0; i<m_pAtlantis->m_Units.Count(); i++)
+        for (CUnit* pUnit : m_pAtlantis->units_)
         {
-            pUnit = (CUnit*)m_pAtlantis->m_Units.At(i);
             pUnit->ResetNormalProperties();
         }
 
@@ -3042,6 +3033,13 @@ void CAhApp::EditPaneDClicked(CEditPane * pPane)
         p = SkipSpaces(S.GetToken(p, " \t", ch, TRIM_ALL));
         if (0==stricmp("UNIT", S.GetData()))  // that is an order problem report
         {
+            /*long unitId = atol(S.GetData());
+            if (m_pAtlantis->units_ids_.find(unitId) != m_pAtlantis->units_ids_.end())
+            {
+                SelectUnit(m_pAtlantis->units_[units_ids_[unitId]]);
+                return;
+            }*/
+
             S.GetToken(p, " \t", ch, TRIM_ALL);
             Dummy.Id = atol(S.GetData());
             if (m_pAtlantis->m_Units.Search(&Dummy, idx))
@@ -3383,7 +3381,10 @@ std::string CAhApp::land_description_editpane(CLand * pLand)
     if (pLand == nullptr)
         return "";
 
+    //load full region description
     std::string reg_description(pLand->Description.GetData(), pLand->Description.GetLength());
+
+
     if (pLand->current_state_.tax_.requesters_amount_)
     {
         size_t ins_pos = reg_description.find("-----------------------------");
@@ -3470,31 +3471,6 @@ std::string CAhApp::land_description_editpane(CLand * pLand)
     m_pAtlantis->compose_products_detailed(pLand, ss);
     reg_description.append(ss.str());
 
-    if (pLand->current_state_.structures_.size()>0)
-    {
-        reg_description.append(EOL_SCR);
-        reg_description.append("-----------");
-        reg_description.append(EOL_SCR);
-    }
-
-    bool ships_part(false);
-    land_control::perform_on_each_struct(pLand, [&](CStruct* structure) {
-        reg_description.append(structure->original_description_);
-        trim_inplace(reg_description);
-        if (struct_control::flags::is_ship(structure)) {
-            reg_description += " Forecast: Load[" + std::to_string(structure->occupied_capacity_) 
-                            + "/" + std::to_string(structure->capacity_) + "], Power[" 
-                            + std::to_string(structure->SailingPower) + "/" 
-                            + std::to_string(structure->MinSailingPower) + "].";
-        }
-        if (!ships_part && struct_control::flags::is_ship(structure)) {
-            // separation between buildings and ships
-            ships_part = true;
-            reg_description.append(EOL_SCR);
-        }
-        reg_description.append(EOL_SCR);
-    });
-    
     long final_amount =  pLand->current_state_.economy_.initial_amount_ +
                           pLand->current_state_.economy_.tax_income_ +
                           pLand->current_state_.economy_.sell_income_ + 
@@ -3509,6 +3485,31 @@ std::string CAhApp::land_description_editpane(CLand * pLand)
     reg_description += "Silver balance: [" + std::to_string(pLand->current_state_.economy_.initial_amount_)
                     + "/" + std::to_string(final_amount) + "]" + EOL_SCR;
 
+    if (pLand->current_state_.structures_.size()>0)
+    {
+        reg_description.append(EOL_SCR);
+        reg_description.append("-----------");
+        reg_description.append(EOL_SCR);
+    }
+
+    bool ships_part(false);
+    land_control::perform_on_each_struct(pLand, [&](CStruct* structure) {
+        if (!ships_part && struct_control::flags::is_ship(structure)) {
+            // separation between buildings and ships
+            ships_part = true;
+            reg_description.append(EOL_SCR);
+        }
+        reg_description.append(structure->original_description_);
+        trim_inplace(reg_description);
+        if (struct_control::flags::is_ship(structure)) {
+            reg_description += " Forecast: Load[" + std::to_string(structure->occupied_capacity_) 
+                            + "/" + std::to_string(structure->capacity_) + "], Power[" 
+                            + std::to_string(structure->SailingPower) + "/" 
+                            + std::to_string(structure->MinSailingPower) + "].";
+        }
+        reg_description.append(EOL_SCR);
+    });
+    
     bool FlagsEmpty(true);
     for (long i=0; i<LAND_FLAG_COUNT; i++)
         if (!pLand->FlagText[i].IsEmpty())

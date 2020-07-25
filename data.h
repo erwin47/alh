@@ -583,8 +583,8 @@ struct LandState
     std::map<std::string, CProductMarket>   wanted_;                //! stats regarding buy offers in the region
     std::map<std::string, CProductMarket>   for_sale_;              //! stats regarding sale offers in the region
 
-    std::map<std::string, std::pair<long, long>> shared_items_;     //! stats regarding shared items in the region
-    std::map<std::string, long>             produced_items_;        //! stats regarding attempts to produce items from region
+    std::map<std::string, std::pair<long, long>> shared_items_;     //! stats regarding shared items in the region (actual left/initially)
+    std::map<std::string, std::pair<long, long>> produced_items_;   //! stats regarding attempts to produce items from region (actual/attempt)
     std::map<std::string, long>             sold_items_;            //! stats regarding attempts to sell items to region
     std::map<std::string, long>             bought_items_;          //! stats regarding attempts to buy items from region
 

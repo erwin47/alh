@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(ah, VERSION 1.0)
+project(ah VERSION 1.0)
 
 set(AH_CPP
     "${PROJECT_SOURCE_DIR}/ahapp.cpp"
@@ -121,6 +121,9 @@ include(${wxWidgets_USE_FILE})
 # add the executable
 if(WIN32)
 add_executable(ah ${AH_CPP} ${AH_HEADERS} ${PROJECT_SOURCE_DIR}/ah.rc)
+set_target_properties(${PROJECT_NAME} PROPERTIES
+LINK_FLAGS /SUBSYSTEM:WINDOWS
+)
 else()
 add_executable(ah ${AH_CPP} ${AH_HEADERS})
 endif()

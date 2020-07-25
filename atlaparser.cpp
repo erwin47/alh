@@ -257,6 +257,9 @@ void CAtlaParser::Clear()
     m_Planes.DeleteAll();
     m_PlanesNamed.FreeAll();  // this one must go before units since it checks contents of CLand::Units collection!!!
     m_Units.FreeAll();
+    units_ids_.clear();
+    units_.clear();
+    
 
     m_CrntFactionId = 0;
     m_CrntFactionPwd.Empty();
@@ -2113,6 +2116,17 @@ CUnit * CAtlaParser::MakeUnit(long Id)
         m_Units.Insert(pUnit);
     }
 
+    if (units_ids_.find(Id) != units_ids_.end())
+    {
+        return units_[units_ids_[Id]];
+    }
+    else
+    {
+        //pUnit = new CUnit;
+        //pUnit->Id = Id;
+        units_.push_back(pUnit);
+        units_ids_[Id] = units_.size()-1;
+    }
     return pUnit;
 }
 
@@ -3770,12 +3784,12 @@ void CAtlaParser::compose_products_detailed(CLand* land, std::stringstream& out)
 
         if (land->current_state_.produced_items_.find(code) != land->current_state_.produced_items_.end())
         {
-            out << " (attempt: " << land->current_state_.produced_items_[code] << ")";
+            out << " (attempt: " << land->current_state_.produced_items_[code].second << ")";
         }
     }
     out << std::endl;
 
-    std::vector<CItem> crafted;
+    std::map<std::string, std::pair<long, long>> crafted;
     for (const auto& production : land->current_state_.produced_items_)
     {
         if (std::find_if(land->current_state_.resources_.begin(),
@@ -3783,7 +3797,7 @@ void CAtlaParser::compose_products_detailed(CLand* land, std::stringstream& out)
                 return production.first == item.code_name_;
             }) == land->current_state_.resources_.end())
         {
-            crafted.push_back({production.second, production.first});
+            crafted[production.first] = production.second;
             //out << std::endl << "    " << production.second << " " << production.first;
         }
     }
@@ -3793,16 +3807,19 @@ void CAtlaParser::compose_products_detailed(CLand* land, std::stringstream& out)
         out << "  Crafts:";
         for (auto& craft : crafted)
         {
-            if (!gpApp->ResolveAliasItems(craft.code_name_, code, name, plural))
+            std::string item_name = craft.first;
+            long actual_production = craft.second.first;
+            long attempt_production = craft.second.second;
+            if (!gpApp->ResolveAliasItems(item_name, code, name, plural))
             {
-                code = craft.code_name_;
-                name = craft.code_name_;
-                plural = craft.code_name_;
+                code = item_name;
+                name = item_name;
+                plural = item_name;
             }
-            if (craft.amount_ > 1)
-                out << std::endl << "    " << craft.amount_ << " " << plural;
+            if (actual_production > 1)
+                out << std::endl << "    " << actual_production << " " << plural << " (attempt: " << attempt_production << ")";
             else
-                out << std::endl << "    " << craft.amount_ << " " << name;            
+                out << std::endl << "    " << actual_production << " " << name << " (attempt: " << attempt_production << ")";
         }
         out << std::endl;
     }
@@ -4261,6 +4278,12 @@ int CAtlaParser::LoadOrders  (CFileReader & F, int FactionId, BOOL GetComments)
                 pUnit = (CUnit*)m_Units.At(idx);
             else
                 pUnit = NULL;
+
+            if (units_ids_.count(Dummy.Id) > 0)
+            {
+                pUnit = units_[units_ids_[Dummy.Id]];
+                int i = 5;
+            }
         }
         else if (0==stricmp(S.GetData(),"form") && !pOrigUnit)
         {
@@ -5228,9 +5251,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                                   pLand->current_state_.economy_.maintenance_ -
                                   std::max(pLand->current_state_.economy_.moving_out_, (long)0) - 
                                   pLand->current_state_.economy_.study_expenses_;
-            if (region_balance > 0) {
-              int i = 5;
-            }
             if (region_balance < 0) {
                 OrderError("Warning", pLand, nullptr, "Region has silver balance below 0: "+std::to_string(region_balance)+" SILV");
             }
@@ -5596,7 +5616,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                     pUnit->Orders << Line << EOL_SCR;
 
             } // commands loop
-
 
             //if(TurnSequence::SQ_TEACH==sequence)  // we have to collect all the students, then teach
             //{
@@ -6213,6 +6232,15 @@ template<orders::Type TYPE> void CAtlaParser::RunOrder_AOComments(CLand* land)
 
         auto orders_by_type = orders::control::retrieve_orders_by_type(TYPE, unit->orders_);
 
+        //get commented orders of the type
+        if (TYPE != orders::Type::O_COMMENT) {
+            auto commented_orders_of_type = orders::control::retrieve_orders_by_type(TYPE | orders::Type::O_COMMENT, unit->orders_);
+            //extend the list of orders to parse on
+            orders_by_type.insert(orders_by_type.end(), commented_orders_of_type.begin(), commented_orders_of_type.end());
+
+        }
+            
+
         //time_points[1] += duration_cast<microseconds>(std::chrono::high_resolution_clock::now() - start);
 
         //parse_line_to_order(const std::string& line)
@@ -6514,7 +6542,10 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
         if (!product_request.is_craft_)
         {//request from land
             long land_amount = land_control::get_resource(land->current_state_, product_request.item_name_);
-            land_control::set_produced_items(land->current_state_, product_request.item_name_, product_request.items_amount_);
+            land_control::set_produced_items(land->current_state_, 
+                                             product_request.item_name_, 
+                                             product_request.items_amount_, //requested amount (in case of non-craft)
+                                             product_request.items_amount_);//requested amount
 
             double leftovers(0.0);
             for (const std::pair<CUnit*, long>& producer : product_request.units_)
@@ -6586,7 +6617,7 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
                     }
                 }                    
 
-                land_control::set_produced_items(land->current_state_, product_request.item_name_, amount);
+                land_control::set_produced_items(land->current_state_, product_request.item_name_, amount, producer.second);
                 unit_control::modify_item_by_produce(unit, 
                                                     product_request.item_name_,
                                                     amount);                     
@@ -7287,7 +7318,7 @@ void CAtlaParser::RunOrder_LandBuy(CLand * land)
         {
             if (gpDataHelper->IsTradeItem(buyer.item_name_.c_str()))
             {
-                land_control::set_produced_items(land->current_state_, buyer.item_name_, buyer.items_amount_);
+                land_control::set_produced_items(land->current_state_, buyer.item_name_, buyer.items_amount_, buyer.items_amount_);
                 land->Flags |= LAND_TRADE_NEXT;
             }
         }

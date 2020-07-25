@@ -252,6 +252,10 @@ public:
 
     CBaseCollById     m_Factions;
     CBaseCollById     m_Units;
+
+    std::unordered_map<long, size_t> units_ids_; //<Id, pos in units_>
+    std::vector<CUnit*> units_;
+    
     CBaseColl         m_Planes;
     long              m_YearMon;    // Current year/month accumulated for all loaded files
     CStringSortColl   m_UnitPropertyNames;

@@ -165,7 +165,7 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
                 continue;
             }              
 
-            if (pUnit && pUnit->movements_.size() > 0 && pUnit->movement_stop_ == pLand->Id)
+            if (pUnit && pUnit->movements_.size() > 0 || pUnit->movement_stop_ == pLand->Id)
                 already_listed_units.insert(pUnit->Id);
 
             if (pUnit && pUnit->has_error_) {//pUnit->Flags & UNIT_FLAG_HAS_ERROR) {
@@ -644,7 +644,7 @@ void CUnitPane::OnPopupFilterByItems(wxCommandEvent& event)
             bool operator()(CUnit* unit) {
                 if (unit->Id == issuing_unit_->Id)
                     return true;
-                if (unit_control::get_item_amount(unit, code_) > 0)
+                if (unit_control::get_item_amount(unit, code_, true) > 0)
                     return true;
                 return false;
             }

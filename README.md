@@ -37,28 +37,31 @@ Also there will be explicitely written if any of students is not studying anymor
 In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `REC_DLG_GROUPS` may be listed groups with which ReceiveDlg will work, as with items. For example, `REC_DLG_GROUPS = trade_items,food` mean, that in ReceiveDlg in drop up list there will be possibility to choose `trade_items` or `food`, and get list of all units having any items belonging to the group. Those entities (trade_items and food) have to be defined in section `UNIT_PROPERTY_GROUPS`.
 
 ### TODO
-* enable for users to choose a phase of calculations.
-* fix issue with speed of turtles in the ocean
-* add ReceiveDlg check for type, and if its a mount -- print out free weight
-* new units not counted in production stats
-* Layout 1 failure -- figure out why.
 * supress warnings for teaching units of other faction [done]
 * stop parsing empty lines as orders [done]
 * multiple warnings on the same issue. Each time when land orders processing finished.[done]
-* use modified flag to control when it needs to rerun the orders.
-* add recalculate orders event for case when: 1) orders were modified and 2) focus removed from order window
+* fix: clear unit selection on new region selection OR when new region is selected, it automatically "selects" a first unit, but to actually select it it needs to click somewhere and then on the unit: fix: it should be selected just by direct clicking on the unit.[done]
+* add ReceiveDlg amount of items in items drop-list [done]
+* warn if move ends on the water [done]
+* use modified flag to control when it needs to rerun the orders [done]
+* add ReceiveDlg check for type, and if its a mount -- print out free weight [done]
+* add recalculate orders event for case when: 1) orders were modified and 2) focus removed from order window [done]
+* order's replacement system: instead of delete and add, there should be option to actually modify existing order [done]
+
+* enable for users to choose a phase of calculations. [future]
+* fix issue with speed of turtles in the ocean [future]
+* new units not counted in production stats
+* TAX_RULES -- should have default values, as STRUCTURES.
+* Layout 1 failure -- figure out why.
 * Performance: `ResolveAlias` split to 2 new methods `AliasSkills` and `AliasGeneral`(for the rest weird aliases if they really exist)
 * Performance: `CalcWeightsAndMovement` replace by existing `unit_control::get_weights(unit, weights)` && `unit_control::get_move_state(unit)`
-* fix: clear unit selection on new region selection OR when new region is selected, it automatically "selects" a first unit, but to actually select it it needs to click somewhere and then on the unit: fix: it should be selected just by direct clicking on the unit.[done]
-* order's replacement system: instead of delete and add, there should be option to actually modify existing order
-* add ReceiveDlg amount of items in items drop-list [done]
 * move to config settings for Phase Calculation
 * move to config settings for Warehouse categories
 * caravan autogenerate movement -> should be parsed
 * unit_pane doesn't represent skills of a new unit with given skilled peasants
 * land search -- save prev input
-* warn if move ends on the water [done]
 * allowed multiple monthlong orders (not just teach)
+* new click to region after it was chosen, but no unit was chosen -- selects a unit in the center -- fix.
 
 ## Changelog:
 ### Jul 23 2020

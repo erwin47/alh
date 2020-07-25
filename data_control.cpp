@@ -196,8 +196,8 @@ namespace game_control
             if (land->current_state_.for_sale_.find(type) != land->current_state_.for_sale_.end())
             {
                 bool res = compare_and_out_text(land->current_state_.for_sale_[type].item_.amount_, std::stol(sValue), CompareOp, out_text);
-                if (res)
-                    out_text+="("+std::to_string(land->current_state_.for_sale_[type].price_)+")";
+                //if (res)
+                //    out_text+="("+std::to_string(land->current_state_.for_sale_[type].price_)+")";
                 return res;
             }
         }
@@ -206,8 +206,8 @@ namespace game_control
             if (land->current_state_.for_sale_.find(type) != land->current_state_.for_sale_.end())
             {
                 bool res = compare_and_out_text(land->current_state_.for_sale_[type].price_, std::stol(sValue), CompareOp, out_text);
-                if (res)
-                    out_text+="("+std::to_string(land->current_state_.for_sale_[type].item_.amount_)+")";
+                //if (res)
+                //    out_text+="("+std::to_string(land->current_state_.for_sale_[type].item_.amount_)+")";
 
                 return res;
             }
@@ -1337,15 +1337,10 @@ namespace land_control
         state.shared_items_[item_code].second += amount;
     }
 
-    void set_produced_items(LandState& state, const std::string& item_code, long amount)
+    void set_produced_items(LandState& state, const std::string& item_code, long amount, long attempt_amount)
     {
-        state.produced_items_[item_code] += amount;
-    }
-    long get_produced_items(LandState& state, const std::string& item_code)
-    {
-        if (state.produced_items_.find(item_code) != state.produced_items_.end())
-            return state.produced_items_[item_code];
-        return -1;
+        state.produced_items_[item_code].first += amount;
+        state.produced_items_[item_code].second += attempt_amount;
     }
 
     CStruct* get_struct(CLand* land, long struct_id)
