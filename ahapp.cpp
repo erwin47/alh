@@ -2386,7 +2386,7 @@ void CAhApp::CheckTaxTrade()
                     if (orders::parser::specific::parse_claim(ord, amount))
                         output_stats[unit->FactionId].claim_requested_amount_ += amount;
                     else
-                        m_pAtlantis->OrderError("Error", pLand, unit, "claim: couldn't unparse");
+                        m_pAtlantis->OrderError("Error", pLand, unit, ord, "claim: couldn't unparse");
                 }
             });
 

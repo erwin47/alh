@@ -1519,10 +1519,10 @@ namespace land_control
 
                 }
                 else 
-                    errors.push_back({"Error", unit, "couldn't parse order: "+(orders[orders.size()-1])->original_string_});
+                    errors.push_back({"Error", unit, orders[orders.size()-1], "couldn't parse order: "+(orders[orders.size()-1])->original_string_});
             }
             else 
-                errors.push_back({"Error", unit, "Internal error in hashtable: doesn't have order "+std::to_string((int)TYPE)});
+                errors.push_back({"Error", unit, nullptr, "Internal error in hashtable: doesn't have order "+std::to_string((int)TYPE)});
         }        
     }
 
@@ -1552,13 +1552,13 @@ namespace land_control
                         unit->Flags &= ~UNIT_FLAG_REVEALING_FACTION;
                     }
                     else
-                        errors.push_back({"Error", unit, "unknown parameter in order: "+(orders[orders.size()-1])->original_string_});
+                        errors.push_back({"Error", unit, orders[orders.size()-1], "unknown parameter in order: "+(orders[orders.size()-1])->original_string_});
                 }
                 else 
-                    errors.push_back({"Error", unit, "couldn't parse order: "+(orders[orders.size()-1])->original_string_});
+                    errors.push_back({"Error", unit, orders[orders.size()-1], "couldn't parse order: "+(orders[orders.size()-1])->original_string_});
             }
             else 
-                errors.push_back({"Error", unit, "Internal error in hashtable: doesn't have order `reveal`"});
+                errors.push_back({"Error", unit, nullptr, "Internal error in hashtable: doesn't have order `reveal`"});
         }        
     }
 
@@ -1588,13 +1588,13 @@ namespace land_control
                         unit->Flags &= ~UNIT_FLAG_CONSUMING_FACTION;
                     }
                     else
-                        errors.push_back({"Error", unit, "unknown parameter in order: "+(orders[orders.size()-1])->original_string_});
+                        errors.push_back({"Error", unit, orders[orders.size()-1], "unknown parameter in order: "+(orders[orders.size()-1])->original_string_});
                 }
                 else 
-                    errors.push_back({"Error", unit, "couldn't parse order: "+(orders[orders.size()-1])->original_string_});
+                    errors.push_back({"Error", unit, orders[orders.size()-1], "couldn't parse order: "+(orders[orders.size()-1])->original_string_});
             }
             else 
-                errors.push_back({"Error", unit, "Internal error in hashtable: doesn't have order `consume`"});
+                errors.push_back({"Error", unit, nullptr, "Internal error in hashtable: doesn't have order `consume`"});
         }        
     }
 
@@ -1634,13 +1634,13 @@ namespace land_control
                     else if (param.empty() || stricmp("all", param.c_str()) == 0)
                         set_spoils_flags(unit, 0);
                     else
-                        errors.push_back({"Error", unit, "unknown parameter in order: "+(orders[orders.size()-1])->original_string_});
+                        errors.push_back({"Error", unit, orders[orders.size()-1], "unknown parameter in order: "+(orders[orders.size()-1])->original_string_});
                 }
                 else 
-                    errors.push_back({"Error", unit, "couldn't parse order: "+(orders[orders.size()-1])->original_string_});
+                    errors.push_back({"Error", unit, orders[orders.size()-1], "couldn't parse order: "+(orders[orders.size()-1])->original_string_});
             }
             else 
-                errors.push_back({"Error", unit, "Internal error in hashtable: doesn't have order `consume`"});
+                errors.push_back({"Error", unit, nullptr, "Internal error in hashtable: doesn't have order `consume`"});
         }        
     }    
 
@@ -1664,7 +1664,7 @@ namespace land_control
         bool debug = false;
         if (!orders::autoorders::parse_logic(order, action, statement, debug))
         {
-            errors.push_back({"Error", unit, "autologic: couldn't parse condition: " + order->comment_});
+            errors.push_back({"Error", unit, order, "autologic: couldn't parse condition: " + order->comment_});
             return orders::autoorders::LogicAction::NONE;
         }
 
@@ -1821,24 +1821,25 @@ namespace land_control
         std::map<std::string, std::vector<std::pair<CUnit*, long>>> prod_requests;
         for (CUnit* producer : producers)
         {//check requirements and predict
-            long man_amount = unit_control::get_item_amount_by_mask(producer, PRP_MEN);
-            if (man_amount <= 0)
-            {
-                errors.push_back({"Warning", producer, "produce: no man in the unit!"});
-                continue;
-            }
-
             auto produce_orders = orders::control::retrieve_orders_by_type(orders::Type::O_PRODUCE, producer->orders_);
             if (produce_orders.size() > 1)
             {//check amount of produce orders
-                errors.push_back({"Error", producer, "produce: more than one production order!"});
+                errors.push_back({"Error", producer, nullptr, "produce: more than one production order!"});
                 continue;
             }
+
+            long man_amount = unit_control::get_item_amount_by_mask(producer, PRP_MEN);
+            if (man_amount <= 0)
+            {
+                errors.push_back({"Warning", producer, produce_orders[0], "produce: no man in the unit!"});
+                continue;
+            }
+
             std::string item;
             long goal_amount;
             if (!orders::parser::specific::parse_produce(produce_orders[0], item, goal_amount))
             {
-                errors.push_back({"Error", producer, "produce: wrong format!"});
+                errors.push_back({"Error", producer, produce_orders[0], "produce: wrong format!"});
                 continue;
             }
 
@@ -1846,7 +1847,7 @@ namespace land_control
             if (prod_details->skill_name_.empty() || prod_details->per_month_<=0)
             {//check details settings
                 std::string mess = "produce: production requirements for '" + item + "' are not configured!";
-                errors.push_back({"Warning", producer, mess});
+                errors.push_back({"Warning", producer, produce_orders[0], mess});
                 continue;
             }
 
@@ -1856,7 +1857,7 @@ namespace land_control
             {//check skill requirements
                 std::string mess = "produce: skill '" + prod_details->skill_name_ +
                     "' (" + std::to_string(prod_details->skill_level_) + ") is required to produce";
-                errors.push_back({"Error", producer, mess});
+                errors.push_back({"Error", producer, produce_orders[0], mess});
                 continue;
             }
 
@@ -1917,19 +1918,19 @@ namespace land_control
                         if (structure != nullptr)
                             out.push_back({"build", "continue to build "+structure->name_ + " : " + structure->type_, unit});
                         else
-                            errors.push_back({"Error", unit, "build: continue to build outside of building"});
+                            errors.push_back({"Error", unit, ret[0], "build: continue to build outside of building"});
                     }                        
                     else
                         out.push_back({"build", "build new " + building, unit});
                 }
                 else 
                 {//unknown format
-                    errors.push_back({"Error", unit, "build: unknown format: "+ret[0]->original_string_});
+                    errors.push_back({"Error", unit, ret[0], "build: unknown format: "+ret[0]->original_string_});
                 }
             }
             else if (ret.size() > 1)
             {
-                errors.push_back({"Error", unit, "build: multiple build orders."});
+                errors.push_back({"Error", unit, ret[0], "build: multiple build orders."});
             }
         });        
     }
@@ -1949,7 +1950,7 @@ namespace land_control
             long skill_lvl = skills_control::get_skill_lvl_from_days(unit_control::get_current_skill_days(unit, "ENTE"));
             if (skill_lvl == 0)
             {
-                errors.push_back({"Error", unit, " doesn't know skill ENTE to entertain"});
+                errors.push_back({"Error", unit, nullptr, " doesn't know skill ENTE to entertain"});
                 return;
             }
             if (!unit->IsOurs)
@@ -2034,7 +2035,7 @@ namespace land_control
             long man_in_unit = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
             if (man_in_unit == 0)
             {
-                errors.push_back({"Error", unit, "tax: no man to tax"});
+                errors.push_back({"Error", unit, nullptr, "tax: no man to tax"});
                 return;
             }
 
@@ -2079,7 +2080,7 @@ namespace land_control
                     other_factions_men_pillage += taxing_man;
                 else if (taxing_man == 0)
                 {
-                    errors.push_back({"Error", unit, " can't tax or pillage, see TAX_RULES settings"});
+                    errors.push_back({"Error", unit, nullptr, " can't pillage, see TAX_RULES settings"});
                 }
                 else
                 {
@@ -2093,7 +2094,7 @@ namespace land_control
                     other_factions_men_tax += taxing_man;
                 else if (taxing_man == 0)
                 {
-                    errors.push_back({"Error", unit, " can't tax or pillage, see TAX_RULES settings"});
+                    errors.push_back({"Error", unit, nullptr, " can't tax, see TAX_RULES settings"});
                 }
                 else
                 {
@@ -2119,7 +2120,7 @@ namespace land_control
             {
                 for (auto& pillager : pillage.units_)
                 {
-                    errors.push_back({"Error", pillager.first, " pillage, but not enough pillagers, needs: "+
+                    errors.push_back({"Error", pillager.first, nullptr, " pillage, but not enough pillagers, needs: "+
                             std::to_string(required_pillagers)+", but has: "+std::to_string(pillage.man_amount_ + other_factions_men_pillage)});
                 }
                 pillage.expected_income_ = 0;
@@ -2132,7 +2133,7 @@ namespace land_control
             if (pillage.expected_income_ > 0) 
             {//pillage already succeed
                 for (auto& unit : tax.units_)
-                    errors.push_back({"Error", unit.first, " - is trying to tax, while region is pillaged!"});
+                    errors.push_back({"Error", unit.first, nullptr, " - is trying to tax, while region is pillaged!"});
             }
             else
             {
@@ -2158,7 +2159,7 @@ namespace land_control
                 bool all;
                 if (!orders::parser::specific::parse_sellbuy(buy_order, item_name, amount_to_buy, all))
                 {
-                    errors.push_back({"Error", unit, " - Buy: couldn't parse order - " + buy_order->original_string_});
+                    errors.push_back({"Error", unit, buy_order, " - Buy: couldn't parse order - " + buy_order->original_string_});
                     continue;
                 }
 
@@ -2170,7 +2171,7 @@ namespace land_control
                 CProductMarket sell_item = land_control::get_for_sale(land->current_state_, item_name);
                 if (sell_item.item_.amount_ <= 0)
                 {
-                    errors.push_back({"Error", unit, " - Buy: items are not selling - " + buy_order->original_string_});
+                    errors.push_back({"Error", unit, buy_order, " - Buy: items are not selling - " + buy_order->original_string_});
                     continue;
                 }
 
@@ -2178,7 +2179,7 @@ namespace land_control
                     amount_to_buy = sell_item.item_.amount_;
 
                 if (sell_item.item_.amount_ < amount_to_buy) {
-                    errors.push_back({"Warning", unit, " - Buy: attempt to buy " + std::to_string(amount_to_buy) +
+                    errors.push_back({"Warning", unit, buy_order, " - Buy: attempt to buy " + std::to_string(amount_to_buy) +
                                                        ", but available just " + std::to_string(sell_item.item_.amount_)});
                     amount_to_buy = sell_item.item_.amount_;
                 }
@@ -2191,7 +2192,7 @@ namespace land_control
         {
             CProductMarket sell_item = land_control::get_for_sale(land->current_state_, request.first);
             if (sell_item.item_.amount_ < request.second)
-                errors.push_back({"Warning", nullptr, " - request ("+std::to_string(request.second)+
+                errors.push_back({"Warning", nullptr, nullptr, " - request ("+std::to_string(request.second)+
                                   ") is higher than the offer ("+std::to_string(sell_item.item_.amount_)+")"});
         }
     }
@@ -2209,21 +2210,21 @@ namespace land_control
                 bool all;
                 if (!orders::parser::specific::parse_sellbuy(sell_order, item_name, amount_to_sell, all))
                 {
-                    errors.push_back({"Error", unit, " - Sell: couldn't parse order - " + sell_order->original_string_});
+                    errors.push_back({"Error", unit, sell_order, " - Sell: couldn't parse order - " + sell_order->original_string_});
                     continue;
                 }
 
                 long amount_at_unit = unit_control::get_item_amount(unit, item_name);
                 if (amount_at_unit <= 0)
                 {
-                    errors.push_back({"Warning", unit, " - Sell: no items to sell - " + sell_order->original_string_});
+                    errors.push_back({"Warning", unit, sell_order, " - Sell: no items to sell - " + sell_order->original_string_});
                     continue;
                 }
 
                 CProductMarket wanted_item = land_control::get_wanted(land->current_state_, item_name);
                 if (wanted_item.item_.amount_ <= 0)
                 {
-                    errors.push_back({"Error", unit, " - Sell: items are not wanted - " + sell_order->original_string_});
+                    errors.push_back({"Error", unit, sell_order, " - Sell: items are not wanted - " + sell_order->original_string_});
                     continue;
                 }
 
@@ -2231,7 +2232,7 @@ namespace land_control
                     amount_to_sell = std::min(amount_at_unit, wanted_item.item_.amount_);
                 if (amount_to_sell <= 0)
                 {
-                    errors.push_back({"Warning", unit, " - Sell: specified amount is not correct - " + sell_order->original_string_});
+                    errors.push_back({"Warning", unit, sell_order, " - Sell: specified amount is not correct - " + sell_order->original_string_});
                     continue;
                 }
 
@@ -2239,14 +2240,14 @@ namespace land_control
                 {
                     std::string warning = "trying to sell " + std::to_string(amount_to_sell)+
                                           " but has " + std::to_string(amount_at_unit);
-                    errors.push_back({"Warning", unit, " - Sell: " + warning});
+                    errors.push_back({"Warning", unit, sell_order, " - Sell: " + warning});
                     amount_to_sell = amount_at_unit;
                 }
                 if (amount_to_sell > wanted_item.item_.amount_)
                 {
                     std::string warning = "trying to sell "+std::to_string(amount_to_sell)+
                             " but wanted just "+std::to_string(wanted_item.item_.amount_);                    
-                    errors.push_back({"Warning", unit, "sell: " + warning});
+                    errors.push_back({"Warning", unit, sell_order, "sell: " + warning});
                     amount_to_sell = wanted_item.item_.amount_;
                 }
                 out.push_back({sell_order, item_name, amount_to_sell, wanted_item.price_, unit});
@@ -2259,7 +2260,7 @@ namespace land_control
             CProductMarket wanted_item = land_control::get_wanted(land->current_state_, request.first);
             if (request.second > wanted_item.item_.amount_)
             {
-                errors.push_back({"Warning", nullptr, "region accepts: " + std::to_string(wanted_item.item_.amount_) +
+                errors.push_back({"Warning", nullptr, nullptr, "region accepts: " + std::to_string(wanted_item.item_.amount_) +
                  ", but sell attempts: " + std::to_string(request.second)});
             }
         }
@@ -2276,28 +2277,28 @@ namespace land_control
                 long goal_lvl;
                 if (!orders::parser::specific::parse_study(studying_order, studying_skill, goal_lvl))
                 {
-                    errors.push_back({"Error", unit, "study: wrong studying command: " + studying_order->original_string_});
+                    errors.push_back({"Error", unit, studying_order, "study: wrong studying command: " + studying_order->original_string_});
                     return;
                 }
 
                 long price = gpApp->GetStudyCost(studying_skill.c_str());
                 if (price <= 0)
                 {
-                    errors.push_back({"Error", unit, "study: can not study " + studying_skill});
+                    errors.push_back({"Error", unit, studying_order, "study: can not study " + studying_skill});
                     return;
                 }
 
                 long amount_of_man = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
                 if (amount_of_man == 0)//order is given, but unit is empty
                 {
-                    errors.push_back({"Warning", unit, "study: no men in the unit!"});
+                    errors.push_back({"Warning", unit, studying_order, "study: no men in the unit!"});
                     return;
                 }
 
                 long max_skill = unit_control::get_max_skill_lvl(unit, studying_skill);
                 if (max_skill < 0)
                 {
-                    errors.push_back({"Error", unit, "study: skill max level wasn't determined."});
+                    errors.push_back({"Error", unit, studying_order, "study: skill max level wasn't determined."});
                     return;
                 }
 
@@ -2305,7 +2306,7 @@ namespace land_control
                 long max_days = 30*(max_skill+1)*(max_skill)/2;
                 if (current_days >= max_days)
                 {
-                    errors.push_back({"Error", unit, "study: skill is already at max level."});
+                    errors.push_back({"Error", unit, studying_order, "study: skill is already at max level."});
                     return;
                 }
 
@@ -2314,7 +2315,7 @@ namespace land_control
                     long goal_days = 30*(goal_lvl+1)*(goal_lvl)/2;
                     if (current_days >= goal_days)
                     {
-                        errors.push_back({"Warning", unit, "study: skill already reached specified goal."});
+                        errors.push_back({"Warning", unit, studying_order, "study: skill already reached specified goal."});
                         return;
                     }
                 }
@@ -2323,7 +2324,7 @@ namespace land_control
                 //support of Unit List functionality
                 if (PE_OK!=unit->SetProperty(PRP_SILVER,   eLong, (const void *)(unit->silver_.amount_), eNormal))
                 {
-                    errors.push_back({"Error", unit, "property: cannot set, probably a bug."});
+                    errors.push_back({"Error", unit, studying_order, "property: cannot set, probably a bug."});
                 }                  
 
                 students[unit->Id];
@@ -2350,7 +2351,7 @@ namespace land_control
             for (const auto& ord : teaching_orders)
             {
                 if (!orders::parser::specific::parse_teaching(ord, unit->FactionId, studs))
-                    errors.push_back({"Error", unit, "teach: couldn't parse order: "+ord->original_string_});
+                    errors.push_back({"Error", unit, ord, "teach: couldn't parse order: "+ord->original_string_});
             }
 
             if (studs.size() == 0)
@@ -2359,7 +2360,7 @@ namespace land_control
             long teachers_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
             if (teachers_amount <= 0)
             {
-                errors.push_back({"Warning", unit, "teach: have no teaching men"});
+                errors.push_back({"Warning", unit, nullptr, "teach: have no teaching men"});
                 return;
             }
             std::vector<Student*> active_students;
@@ -2369,7 +2370,7 @@ namespace land_control
             {
                 if (studId == unit->Id)
                 {
-                    errors.push_back({"Error", unit, "teach: can't teach himself"});
+                    errors.push_back({"Error", unit, nullptr, "teach: can't teach himself"});
                     continue;
                 }
                 if (students.find(studId) == students.end())
@@ -2388,15 +2389,15 @@ namespace land_control
                             students_amount += lost_student_amount;
                         }
                         else
-                            errors.push_back({"Warning", unit, "teach: " + unit_control::compose_unit_number(studId) + " is not studying"});
+                            errors.push_back({"Warning", unit, nullptr, "teach: " + unit_control::compose_unit_number(studId) + " is not studying"});
                     }
                     else 
-                        errors.push_back({"Warning", unit, "teach: " + unit_control::compose_unit_number(studId) + " can't be found in the region"});
+                        errors.push_back({"Warning", unit, nullptr, "teach: " + unit_control::compose_unit_number(studId) + " can't be found in the region"});
                     continue;
                 }
                 if (students[studId].max_days_ - students[studId].cur_days_ - students[studId].days_of_teaching_- (long)30 <= 0)
                 {
-                    errors.push_back({"Warning", unit, "teach: "+ unit_control::compose_unit_number(studId) + " doesn't need any teacher more"});
+                    errors.push_back({"Warning", unit, nullptr, "teach: "+ unit_control::compose_unit_number(studId) + " doesn't need any teacher more"});
                     continue;
                 }
 
@@ -2406,7 +2407,7 @@ namespace land_control
                 long student_lvl = skills_control::get_skill_lvl_from_days(students[studId].cur_days_);
                 if (teacher_lvl <= student_lvl)
                 {
-                    errors.push_back({"Error", unit, "teach: can't teach " + unit_control::compose_unit_name(students[studId].unit_)});
+                    errors.push_back({"Error", unit, nullptr, "teach: can't teach " + unit_control::compose_unit_name(students[studId].unit_)});
                     continue;                        
                 }
                 students_amount += students[studId].man_amount_;

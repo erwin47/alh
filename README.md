@@ -50,9 +50,10 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 
 * enable for users to choose a phase of calculations. [future]
 * fix issue with speed of turtles in the ocean [future]
-* new units not counted in production stats
+* new units not counted in production stats [non-reproducable]
 * TAX_RULES -- should have default values, as STRUCTURES.
-* Layout 1 failure -- figure out why.
+* region orders don't get updated unless selected unit changes
+* Layout 1 failure -- figure out why [non-reproducable]
 * Performance: `ResolveAlias` split to 2 new methods `AliasSkills` and `AliasGeneral`(for the rest weird aliases if they really exist)
 * Performance: `CalcWeightsAndMovement` replace by existing `unit_control::get_weights(unit, weights)` && `unit_control::get_move_state(unit)`
 * move to config settings for Phase Calculation
@@ -60,10 +61,21 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 * caravan autogenerate movement -> should be parsed
 * unit_pane doesn't represent skills of a new unit with given skilled peasants
 * land search -- save prev input
-* allowed multiple monthlong orders (not just teach)
-* new click to region after it was chosen, but no unit was chosen -- selects a unit in the center -- fix.
+* allowed multiple monthlong orders (not just teach) - or is it a feature to avoid mistakes?
 
 ## Changelog:
+### Jul 26 2020
+- Autocommands: `$ne` now doesn't mean ignore order, but just supress order. We assume that if order will be partly parsed and any existing mechanism of prediction or analysis will start working incorrectly, its by intention of the user. Furthermore, order duplications and some other cases may be insensitive to `$ne` currently.
+- Advance Give System (Ctrl+G): reload units immediately.
+- Fixed bug with adding/removing column to unit pane (it didn't work ever)
+
+
+
+### Jul 25 2020
+- Hex description: crafted info shows attempt & actual craft.
+- Autologic: $get, $warn, $cond and others now can provide phase on which they should be evaluated. For example `;move ;$GET 5 hors` will add 5 horses on phase of order move. Its possible to use any order to force evaluation at the phase of that order.
+- orders now are not replaced, but modified.
+
 ### Jul 23 2020
 - Unit Pane: added possibility to filter out units in Unit Pane by items they have (supposed to helr during redistribution of items). Works as popup or Ctrl+G.
 - Unit Pane: receiveDlg in drop items list prints out amount of items, in drop units list units show their weight parameters also.

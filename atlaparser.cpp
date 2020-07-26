@@ -1944,7 +1944,7 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
                 pStruct->type_        = STRUCT_GATE;
                 if (!game_control::get_struct_attributes(pStruct->type_, 
                         pStruct->capacity_, pStruct->MinSailingPower, pStruct->Attr, pStruct->travel_, pStruct->max_speed_))
-                    OrderError("Error", pLand, nullptr, "Couldn't parse Gate data");
+                    OrderError("Error", pLand, nullptr, nullptr, "Couldn't parse Gate data");
 
                 land_control::structures::add_structure(pLand, pLand->initial_state_, pStruct);
                 //pLand->AddNewStruct(pStruct);
@@ -4064,7 +4064,7 @@ int  CAtlaParser::SaveOrders(const char * FNameOut, const char * password, BOOL 
                         {
                             wxString landDescr = wxString::FromUTF8(pLand->Description.GetData());
                             wxString s = wxString::Format(wxT("Unable to save new unit orders in %s."), landDescr.BeforeFirst('.').c_str());
-                            OrderError("Warning", pLand, pUnit, s.ToStdString());
+                            OrderError("Warning", pLand, pUnit, nullptr, s.ToStdString());
                         }
                     }
                 }
@@ -4120,7 +4120,7 @@ int  CAtlaParser::SaveOrders(const char * FNameOut, const char * password, BOOL 
                 {
                     wxString landDescr = wxString::FromUTF8(pLand->Description.GetData());
                     wxString s = wxString::Format(wxT("Unable to save new unit orders in %s."), landDescr.BeforeFirst('.').c_str());
-                    OrderError("Warning", pLand, 0, s.ToStdString());
+                    OrderError("Warning", pLand, 0, nullptr, s.ToStdString());
                     FormOrders.clear();
                 }
             }
@@ -4389,10 +4389,14 @@ void CAtlaParser::OrderErrFinalize()
 }
 
 
-void CAtlaParser::OrderError(const std::string& type, CLand* land, CUnit* unit, const std::string& Msg)
+void CAtlaParser::OrderError(const std::string& type, CLand* land, CUnit* unit, 
+                             const std::shared_ptr<orders::Order>& order, const std::string& Msg)
 {
     CStr         S(32);
     CStr         prefix;
+
+    if (order != nullptr && orders::control::should_supress_error(order))
+        return;
 
     std::string land_name;
     if (land != nullptr)
@@ -4444,7 +4448,7 @@ void CAtlaParser::GenericErr(int Severity, const char * Msg)
 #define GEN_ERR(pUnit, msg)                 \
 {                                           \
     Line << msg;                            \
-    OrderError("Error", pLand, pUnit, Line.GetData()); \
+    OrderError("Error", pLand, pUnit, nullptr, Line.GetData()); \
     return Changed;                         \
 }
 
@@ -4562,14 +4566,14 @@ BOOL CAtlaParser::GenGiveEverything(CUnit * pFrom, const char * To)
         if (!GetTargetUnitId(p, pFrom->FactionId, n1))
         {
             S << "Invalid unit id " << To;
-            OrderError("Error", pLand, pFrom, S.GetData());
+            OrderError("Error", pLand, pFrom, nullptr, S.GetData());
             break;
         }
         Dummy.Id = n1;
         if (n1 != 0 && !pLand->Units.Search(&Dummy, i) )
         {
             S << "Can not find unit " << To;
-            OrderError("Error", pLand, pFrom, S.GetData());
+            OrderError("Error", pLand, pFrom, nullptr, S.GetData());
             break;
         }
 
@@ -4687,7 +4691,7 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
 
     for (auto& error : errors)
     {
-        OrderError(error.type_, pLand, error.unit_, error.message_);
+        OrderError(error.type_, pLand, error.unit_, error.order_, error.message_);
     }        
 
     BOOL changed = FALSE;
@@ -4938,7 +4942,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     {                                                \
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
-        OrderError("Warning", pLand, pUnit, ErrorLine.GetData()); \
+        OrderError("Warning", pLand, pUnit, nullptr, ErrorLine.GetData()); \
     }                                                \
     continue;                                        \
 }
@@ -4949,7 +4953,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     {                                                \
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
-        OrderError("Warning", pLand, pUnit, ErrorLine.GetData()); \
+        OrderError("Warning", pLand, pUnit, nullptr, ErrorLine.GetData()); \
     }                                                \
 }
 
@@ -4959,7 +4963,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
     {                                                \
         ErrorLine.Empty();                           \
         ErrorLine << Line << msg;                    \
-        OrderError("Warning", pLand, pUnit, ErrorLine.GetData()); \
+        OrderError("Warning", pLand, pUnit, nullptr, ErrorLine.GetData()); \
         break;                                       \
     }                                                \
 }
@@ -5135,7 +5139,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                 std::vector<std::shared_ptr<orders::Order>> errors = orders::control::retrieve_orders_by_type(orders::Type::O_ERROR, unit->orders_);
                 for (auto& order : errors)
                 {
-                    OrderError("error", pLand, unit, order->comment_ + ": " + order->original_string_);
+                    OrderError("error", pLand, unit, order, order->comment_ + ": " + order->original_string_);
                 }
             });
             RunOrder_AOComments<orders::Type::O_COMMENT>(pLand);
@@ -5252,7 +5256,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                                   std::max(pLand->current_state_.economy_.moving_out_, (long)0) - 
                                   pLand->current_state_.economy_.study_expenses_;
             if (region_balance < 0) {
-                OrderError("Warning", pLand, nullptr, "Region has silver balance below 0: "+std::to_string(region_balance)+" SILV");
+                OrderError("Warning", pLand, nullptr, nullptr, "Region has silver balance below 0: "+std::to_string(region_balance)+" SILV");
             }
         }
 
@@ -5823,75 +5827,105 @@ void CAtlaParser::RunOrder_LandTaxPillage(CLand* land, bool apply_changes)
 
     for (const auto& error : errors)
     {
-        OrderError(error.type_, land, error.unit_, error.message_);
+        OrderError(error.type_, land, error.unit_, error.order_, error.message_);
     }
+}
+
+std::vector<orders::Type> get_monthlong_orders()
+{
+    std::vector<orders::Type> ret;
+    std::vector<std::string> monthlong_orders = game_control::get_game_config<std::string>(SZ_SECT_COMMON, SZ_KEY_ORD_MONTH_LONG);
+    for (const std::string& mon_order : monthlong_orders)
+    {
+        if (orders::types_mapping.find(mon_order) == orders::types_mapping.end())
+        {
+            gpApp->m_pAtlantis->OrderError("Error", nullptr, nullptr, nullptr, std::string("Unknown order in ")+SZ_KEY_ORD_MONTH_LONG + " group: " + mon_order);
+            continue;
+        }
+        ret.push_back(orders::types_mapping[mon_order]);
+    }    
+    return ret;
+}
+
+std::set<orders::Type> get_duplicatable_orders()
+{
+    std::set<orders::Type> ret;
+    std::vector<std::string> dup_orders = game_control::get_game_config<std::string>(SZ_SECT_COMMON, SZ_KEY_ORD_DUPLICATABLE);
+    for (const std::string& dup_order : dup_orders)
+    {
+        if (orders::types_mapping.find(dup_order) == orders::types_mapping.end())
+        {
+            gpApp->m_pAtlantis->OrderError("Error", nullptr, nullptr, nullptr, std::string("Unknown order in ")+SZ_KEY_ORD_DUPLICATABLE + " group: " + dup_order);
+            continue;
+        }
+        ret.insert(orders::types_mapping[dup_order]);
+    }
+    return ret;
 }
 
 void CAtlaParser::CheckOrder_LandMonthlong(CLand *land)
 {
     std::vector<unit_control::UnitError> errors;
-    std::vector<std::vector<std::shared_ptr<orders::Order>>> monthlong_collection;
-    monthlong_collection.reserve(16);
+    std::map<orders::Type, std::vector<std::shared_ptr<orders::Order>>> monthlong_collection;
 
+    static std::vector<orders::Type> monthlong_orders = get_monthlong_orders();
+    static std::set<orders::Type> duplicatable_orders = get_duplicatable_orders();
+    
     land_control::perform_on_each_unit(land, [&](CUnit* unit) {
         monthlong_collection.clear();
-        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_WORK, unit->orders_));
-        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_ENTERTAIN, unit->orders_));
-        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_PILLAGE, unit->orders_));
-        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_TAX, unit->orders_));
-        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_BUILD, unit->orders_));
-        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_PRODUCE, unit->orders_));
-        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_TEACH, unit->orders_));
-        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_STUDY, unit->orders_));
-        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_MOVE, unit->orders_));
-        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_SAIL, unit->orders_));
-        monthlong_collection.emplace_back(orders::control::retrieve_orders_by_type(orders::Type::O_ADVANCE, unit->orders_));
+
+        for (const auto& ord_type : monthlong_orders)
+            monthlong_collection[ord_type] = orders::control::retrieve_orders_by_type(ord_type, unit->orders_);
 
         size_t monthlong_orders_amount = std::accumulate(monthlong_collection.begin(), monthlong_collection.end(), (size_t)0, 
-                                        [](size_t acc, std::vector<std::shared_ptr<orders::Order>>& orders) {
-                                            if (orders.size() > 0 && orders[0]->type_ == orders::Type::O_TEACH)
-                                                return acc + 1;//teach is allowed to be multiplied
-                                            return acc + orders.size();
-                                        });
+          [&](size_t acc, const std::pair<orders::Type, std::vector<std::shared_ptr<orders::Order>>>& orders) {
+              if (duplicatable_orders.find(orders.first) == duplicatable_orders.end())
+                  return acc + orders.second.size();
+              else if (orders.second.size() > 0)
+                  return acc + 1;
+              else 
+                  return acc;//no orders found
+          });
+
         if (monthlong_orders_amount == 0)
             return;
 
         if (monthlong_orders_amount > 1)
-            errors.push_back({"Error", unit, " duplicates monthlong orders"});
+            errors.push_back({"Error", unit, nullptr, " duplicates monthlong orders"});
 
         for (const auto& monthlong_orders : monthlong_collection)
         {
-            if (monthlong_orders.size() > 0)
+            if (monthlong_orders.second.size() > 0)
             {
-                if (monthlong_orders[0]->type_ == orders::Type::O_WORK)
+                if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_WORK))
                     unit->Flags |= UNIT_FLAG_WORKING;
-                else if (monthlong_orders[0]->type_ == orders::Type::O_ENTERTAIN)
+                else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_ENTERTAIN))
                     unit->Flags |= UNIT_FLAG_ENTERTAINING;
-                else if (monthlong_orders[0]->type_ == orders::Type::O_PILLAGE) {
+                else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_PILLAGE)) {
                     unit->Flags |= UNIT_FLAG_PILLAGING;
                     land->Flags |= LAND_TAX_NEXT;
                 }
-                else if (monthlong_orders[0]->type_ == orders::Type::O_TAX) {
+                else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_TAX)) {
                     unit->Flags |= UNIT_FLAG_TAXING;
                     land->Flags |= LAND_TAX_NEXT;
                 }                    
-                else if (monthlong_orders[0]->type_ == orders::Type::O_BUILD) {
+                else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_BUILD)) {
                     unit->Flags |= UNIT_FLAG_PRODUCING;
                     land->Flags |= LAND_TRADE_NEXT;
                 }                  
-                else if (monthlong_orders[0]->type_ == orders::Type::O_PRODUCE) {
+                else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_PRODUCE)) {
                     unit->Flags |= UNIT_FLAG_PRODUCING;
                     land->Flags |= LAND_TRADE_NEXT;
                 }                    
-                else if (monthlong_orders[0]->type_ == orders::Type::O_TEACH)
+                else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_TEACH))
                     unit->Flags |= UNIT_FLAG_TEACHING;
-                else if (monthlong_orders[0]->type_ == orders::Type::O_STUDY)
+                else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_STUDY))
                     unit->Flags |= UNIT_FLAG_STUDYING;
-                else if (monthlong_orders[0]->type_ == orders::Type::O_MOVE)
+                else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_MOVE))
                     unit->Flags |= UNIT_FLAG_MOVING;
-                else if (monthlong_orders[0]->type_ == orders::Type::O_ADVANCE)
+                else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_ADVANCE))
                     unit->Flags |= UNIT_FLAG_MOVING;
-                else if (monthlong_orders[0]->type_ == orders::Type::O_SAIL)
+                else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_SAIL))
                     unit->Flags |= UNIT_FLAG_MOVING;
             }
         }
@@ -5899,7 +5933,7 @@ void CAtlaParser::CheckOrder_LandMonthlong(CLand *land)
 
     for (const auto& error : errors)
     {
-        OrderError(error.type_, land, error.unit_, error.message_);
+        OrderError(error.type_, land, error.unit_, error.order_, error.message_);
     }
 }
 
@@ -5915,7 +5949,7 @@ void CAtlaParser::RunOrder_LandWork(CLand *land, bool apply_changes)
 
     for (const auto& error : errors)
     {
-        OrderError(error.type_, land, error.unit_, error.message_);
+        OrderError(error.type_, land, error.unit_, error.order_, error.message_);
     }
 }
 
@@ -5931,7 +5965,7 @@ void CAtlaParser::RunOrder_LandEntertain(CLand *land, bool apply_changes)
 
     for (const auto& error : errors)
     {
-        OrderError(error.type_, land, error.unit_, error.message_);
+        OrderError(error.type_, land, error.unit_, error.order_, error.message_);
     }    
 }
 
@@ -6069,7 +6103,7 @@ void CAtlaParser::RunOrder_LandStudyTeach(CLand* land)
     //teaching orders -- no need to wait for TurnSequence::Teach
     land_control::update_students_by_land_teachers(land, students_of_the_land, errors);
     for (auto& error : errors) {
-        OrderError(error.type_, land, error.unit_, error.message_);
+        OrderError(error.type_, land, error.unit_, error.order_, error.message_);
     }
         
 
@@ -6080,7 +6114,7 @@ void CAtlaParser::RunOrder_LandStudyTeach(CLand* land)
         long study_lvl_goal;
         if (!orders::parser::specific::parse_study(stud.second.order_, skill, study_lvl_goal))
         {
-            OrderError("Error", land, stud.second.unit_, "study order " + stud.second.order_->original_string_ + " is not valid!");
+            OrderError("Error", land, stud.second.unit_, stud.second.order_, "study order " + stud.second.order_->original_string_ + " is not valid!");
             continue;
         }
 
@@ -6106,13 +6140,13 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
 
             if (orders.size() > 1)
             {
-                OrderError("Error", land, unit, " more than 1 assassinate order");                        
+                OrderError("Error", land, unit, nullptr, " more than 1 assassinate order");                        
                 return;
             }
             long target_id;
             if (!orders::parser::specific::parse_assassinate(orders[0], target_id))
             {
-                OrderError("Error", land, unit, "assassinate: wrong format");
+                OrderError("Error", land, unit, orders[0], "assassinate: wrong format");
                 return;
             }
 
@@ -6121,12 +6155,12 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
             });
             if (target_unit == nullptr)
             {
-                OrderError("Error", land, unit, "assassinate: not existing target");
+                OrderError("Error", land, unit, orders[0], "assassinate: not existing target");
                 return;
             }
             if (target_unit != nullptr && target_unit->FactionId == unit->FactionId)
             {
-                OrderError("Error", land, unit, "assassinate: target belongs to the same faction");
+                OrderError("Error", land, unit, orders[0], "assassinate: target belongs to the same faction");
                 return;
             }
             else 
@@ -6140,36 +6174,41 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
         }
         if (orders::control::has_orders_with_type(orders::Type::O_ATTACK, unit->orders_))
         {
-            std::vector<long> targets;
+            std::vector<std::pair<std::shared_ptr<orders::Order>, std::vector<long>>> order_targets;//id, supress
             auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_ATTACK, unit->orders_);
             for (auto& order : orders)
             {
-                if (!orders::parser::specific::parse_attack(order, targets))
+                std::vector<long> cur_targets;
+                if (!orders::parser::specific::parse_attack(order, cur_targets))
                 {
-                    OrderError("Error", land, unit, "Couldn't parse attack order: " + order->original_string_);
+                    OrderError("Error", land, unit, order, "Couldn't parse attack order: " + order->original_string_);
                     continue;
                 }
+                order_targets.push_back({order, cur_targets});
             }
-            for (auto& target : targets)
+            for (auto& order_target : order_targets)
             {
-                CUnit* target_unit = land_control::find_first_unit_if(land, [&](CUnit* unit) {
-                    return unit->Id == target;
-                });
-                if (target_unit == nullptr)
+                for (auto& target : order_target.second)
                 {
-                    std::string mess = "attack: "+std::to_string(target)+"not existing target!";
-                    OrderError("Error", land, unit, mess.c_str());
-                    continue;
+                    CUnit* target_unit = land_control::find_first_unit_if(land, [&](CUnit* unit) {
+                        return unit->Id == target;
+                    });
+                    if (target_unit == nullptr)
+                    {
+                        std::string mess = "attack: "+std::to_string(target)+"not existing target!";
+                        OrderError("Error", land, unit, order_target.first, mess.c_str());
+                        continue;
+                    }
+                    if (target_unit != nullptr && target_unit->FactionId == unit->FactionId)
+                    {
+                        std::string mess = "attack: "+std::to_string(target)+"belongs to the same faction!";
+                        OrderError("Error", land, unit, order_target.first, mess.c_str());
+                    }
+                    else 
+                    {
+                        target_unit->impact_description_.push_back("Is attacked by " + std::string(unit->Name.GetData()));
+                    }  
                 }
-                if (target_unit != nullptr && target_unit->FactionId == unit->FactionId)
-                {
-                    std::string mess = "attack: "+std::to_string(target)+"belongs to the same faction!";
-                    OrderError("Error", land, unit, mess.c_str());
-                }
-                else 
-                {
-                    target_unit->impact_description_.push_back("Is attacked by " + std::string(unit->Name.GetData()));
-                }  
             }
         }
         if (orders::control::has_orders_with_type(orders::Type::O_STEAL, unit->orders_))
@@ -6179,14 +6218,14 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
                 return;
             if (orders.size() > 1)
             {
-                OrderError("Error", land, unit, "steal: more than 1 stealing order");
+                OrderError("Error", land, unit, nullptr, "steal: more than 1 stealing order");
                 return;
             }
             long target_id;
             std::string item;
             if (!orders::parser::specific::parse_steal(orders[0], target_id, item))
             {
-                OrderError("Error", land, unit, "steal: wrong format, should be 'STEAL XXX ITEM'!");
+                OrderError("Error", land, unit, orders[0], "steal: wrong format, should be 'STEAL XXX ITEM'!");
                 return;
             }
             CUnit* target_unit = land_control::find_first_unit_if(land, [&](CUnit* unit) {
@@ -6194,18 +6233,18 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
             });
             if (target_unit == nullptr)
             {
-                OrderError("Error", land, unit, "steal: not existing target");
+                OrderError("Error", land, unit, orders[0], "steal: not existing target");
                 return;
             }
             if (target_unit != nullptr && target_unit->FactionId == unit->FactionId)
             {
-                OrderError("Error", land, unit, "steal: target belongs to the same faction");
+                OrderError("Error", land, unit, orders[0], "steal: target belongs to the same faction");
                 return;
             } 
             else if (unit_control::get_item_amount(target_unit, item) == 0 && 
                      item_control::weight(item) > 0)
             {
-                OrderError("Error", land, unit, "steal: "+std::to_string(target_unit->Id)+" has no: " + item);
+                OrderError("Error", land, unit, orders[0], "steal: "+std::to_string(target_unit->Id)+" has no: " + item);
                 return;
             }
             else 
@@ -6254,7 +6293,7 @@ template<orders::Type TYPE> void CAtlaParser::RunOrder_AOComments(CLand* land)
                 std::string item;
                 if (!orders::autoorders::parse_get(order, amount, item))
                 {
-                    OrderError("error", land, unit, "autoorders: couldn't parse get: " + order->comment_);
+                    OrderError("error", land, unit, nullptr, "autoorders: couldn't parse get: " + order->comment_);
                     continue;
                 }
 
@@ -6279,7 +6318,7 @@ template<orders::Type TYPE> void CAtlaParser::RunOrder_AOComments(CLand* land)
                         break;
                     case orders::autoorders::LogicAction::LOGIC_ERROR: {
                         if (result)
-                            OrderError("Warning", land, unit, "autoorders: warning condition altered: " + order->comment_);
+                            OrderError("Warning", land, unit, nullptr,  "autoorders: warning condition altered: " + order->comment_);
                         };
                         break;
                     case orders::autoorders::LogicAction::NONE:
@@ -6287,32 +6326,32 @@ template<orders::Type TYPE> void CAtlaParser::RunOrder_AOComments(CLand* land)
                 }
 
                 for (const auto& error : errors)
-                    OrderError(error.type_, land, error.unit_, error.message_);
+                    OrderError(error.type_, land, error.unit_, error.order_, error.message_);
             }
             if (type == orders::autoorders::AO_TYPES::AO_HELP)
             {
-                OrderError("Warning", land, unit, "HELP (How to use autoorders)");
-                OrderError("Warning", land, unit, "");
-                OrderError("Warning", land, unit, "Each comment of this group of commands will be evaluated exactly at phase when should be evaluated the order itself, before the order. For example: `move S S ;!GET 5 LBOW` will be parsed in next sequence, at MOVE phase it will add 5 LBOW to unit, and then will parse moving order. If the order consist of just comment, then it will be evaluated in the beginning of RunOrders.");
-                OrderError("Warning", land, unit, "All examples use `$`, but instead of `$` it is possile to use `!`.");
-                OrderError("Warning", land, unit, "List of acceptable autoorders:");
-                OrderError("Warning", land, unit, "$GET X ITEM:");
-                OrderError("Warning", land, unit, "    gives X items to the unit");
-                OrderError("Warning", land, unit, "$COND <condition>");
-                OrderError("Warning", land, unit, "    will evaluate condition and if its TRUE, then the entire order will be uncommented. If its FALSE, then the entire order will be commented. It is possible to use form `$COND_d` to get debug info (all the evaluations will be printed out)");
-                OrderError("Warning", land, unit, "$WARN <condition>");
-                OrderError("Warning", land, unit, "    will evaluate condition and if its TRUE, then there will be generated warning.  It is possible to use form `$WARN_d` to get debug info (all the evaluations will be printed out)");
-                OrderError("Warning", land, unit, "<condition> - is the key to understand the system. It consist of statements united by logical `&&` and `||`. Each statement is evaluated, so eventually the condition will have the value: true or false.");
-                OrderError("Warning", land, unit, "<condition> - each statement have starts with function. If function returns boolean (like `LOC[15,25]`), then its the statement itself. If function returns number (like `ITEM[MITH]`]), then it has one of next operands: `>`, `<`, `==`, `>=`, `<=`, `!=`, and then a number.");
-                OrderError("Warning", land, unit, "List of possible functions:");
-                OrderError("Warning", land, unit, "ITEM[X] -- returns amount of item X in unit");
-                OrderError("Warning", land, unit, "SKILL[X] -- returns skill level of X of unit");
-                OrderError("Warning", land, unit, "LOC[X,Y,Z] -- returns true if unit is in region with coordinates X,Y,Z. Z may be omitted for 1st lvl.");
-                OrderError("Warning", land, unit, "SELL[X] -- returns amount of items X, selling by the region");
-                OrderError("Warning", land, unit, "WANTED[X] -- returns amount of items X, buying by the region");
-                OrderError("Warning", land, unit, "RESOURCE[X] -- returns amount of items X, available to be produced by the region");
-                OrderError("Warning", land, unit, "SPEED[] -- returns speed of the unit");
-                OrderError("Warning", land, unit, "$HELP - this command.");
+                OrderError("Warning", land, unit, nullptr, "HELP (How to use autoorders)");
+                OrderError("Warning", land, unit, nullptr, "");
+                OrderError("Warning", land, unit, nullptr, "Each comment of this group of commands will be evaluated exactly at phase when should be evaluated the order itself, before the order. For example: `move S S ;!GET 5 LBOW` will be parsed in next sequence, at MOVE phase it will add 5 LBOW to unit, and then will parse moving order. If the order consist of just comment, then it will be evaluated in the beginning of RunOrders.");
+                OrderError("Warning", land, unit, nullptr, "All examples use `$`, but instead of `$` it is possile to use `!`.");
+                OrderError("Warning", land, unit, nullptr, "List of acceptable autoorders:");
+                OrderError("Warning", land, unit, nullptr, "$GET X ITEM:");
+                OrderError("Warning", land, unit, nullptr, "    gives X items to the unit");
+                OrderError("Warning", land, unit, nullptr, "$COND <condition>");
+                OrderError("Warning", land, unit, nullptr, "    will evaluate condition and if its TRUE, then the entire order will be uncommented. If its FALSE, then the entire order will be commented. It is possible to use form `$COND_d` to get debug info (all the evaluations will be printed out)");
+                OrderError("Warning", land, unit, nullptr, "$WARN <condition>");
+                OrderError("Warning", land, unit, nullptr, "    will evaluate condition and if its TRUE, then there will be generated warning.  It is possible to use form `$WARN_d` to get debug info (all the evaluations will be printed out)");
+                OrderError("Warning", land, unit, nullptr, "<condition> - is the key to understand the system. It consist of statements united by logical `&&` and `||`. Each statement is evaluated, so eventually the condition will have the value: true or false.");
+                OrderError("Warning", land, unit, nullptr, "<condition> - each statement have starts with function. If function returns boolean (like `LOC[15,25]`), then its the statement itself. If function returns number (like `ITEM[MITH]`]), then it has one of next operands: `>`, `<`, `==`, `>=`, `<=`, `!=`, and then a number.");
+                OrderError("Warning", land, unit, nullptr, "List of possible functions:");
+                OrderError("Warning", land, unit, nullptr, "ITEM[X] -- returns amount of item X in unit");
+                OrderError("Warning", land, unit, nullptr, "SKILL[X] -- returns skill level of X of unit");
+                OrderError("Warning", land, unit, nullptr, "LOC[X,Y,Z] -- returns true if unit is in region with coordinates X,Y,Z. Z may be omitted for 1st lvl.");
+                OrderError("Warning", land, unit, nullptr, "SELL[X] -- returns amount of items X, selling by the region");
+                OrderError("Warning", land, unit, nullptr, "WANTED[X] -- returns amount of items X, buying by the region");
+                OrderError("Warning", land, unit, nullptr, "RESOURCE[X] -- returns amount of items X, available to be produced by the region");
+                OrderError("Warning", land, unit, nullptr, "SPEED[] -- returns speed of the unit");
+                OrderError("Warning", land, unit, nullptr, "$HELP - this command.");
 
 
             }
@@ -6339,13 +6378,9 @@ void CAtlaParser::RunOrder_AONames(CLand* land)
         auto comment_orders = orders::control::retrieve_orders_by_type(orders::Type::O_COMMENT_AUTONAME, unit->orders_);
         for (auto& comment_order : comment_orders)
         {
-            std::string new_name = "@;;" + autonaming::generate_unit_autoname(land, unit);
-            if (stricmp(&new_name[1], comment_order->comment_.c_str()) != 0)//[1] to ignore @ at comparation
-            {
-                comment_order->comment_.insert(0, "%DEL%");
-                orders::control::remove_orders_by_comment(unit, "%DEL%");
-                orders::control::add_order_to_unit(new_name, unit);
-            }
+            std::string new_client_name = "@;;" + autonaming::generate_unit_autoname(land, unit);
+            if (stricmp(&new_client_name[1], comment_order->comment_.c_str()) != 0)//[1] to ignore @ at comparation
+                orders::control::modify_order(unit, comment_order, new_client_name);
         }
 
         auto naming_orders = orders::control::retrieve_orders_by_type(orders::Type::O_NAME, unit->orders_);
@@ -6360,11 +6395,7 @@ void CAtlaParser::RunOrder_AONames(CLand* land)
             {
                 std::string new_name = "@name unit \"" + autonaming::generate_unit_name(land, unit) + "\"";
                 if (new_name != naming_order->original_string_)
-                {
-                    naming_order->comment_.insert(0, ";%DEL%");
-                    orders::control::remove_orders_by_comment(unit, "%DEL%");
-                    orders::control::add_order_to_unit(new_name, unit);
-                }
+                    orders::control::modify_order(unit, naming_order, new_name);
             }
         }
     });
@@ -6523,7 +6554,7 @@ void CAtlaParser::RunOrder_LandProduce(CLand* land)
     std::vector<land_control::ProduceItem> out;
     land_control::get_land_producers(land, out, errors);
     for (auto& error : errors) {
-        OrderError(error.type_, land, error.unit_, error.message_);
+        OrderError(error.type_, land, error.unit_, error.order_, error.message_);
     }
 
     /*
@@ -6740,7 +6771,7 @@ void CAtlaParser::RunOrder_LandFlags(CLand* land)
     land_control::apply_land_flags(land, errors);
     for (const auto& error : errors)
     {
-        OrderError(error.type_, land, error.unit_, error.message_);
+        OrderError(error.type_, land, error.unit_, error.order_, error.message_);
     }
 }
 
@@ -6762,7 +6793,7 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
             std::string item_code;
             if (!orders::parser::specific::parse_give(give_order, target_id, target_faction_id, amount, item_code, except))
             {
-                OrderError("Error", land, unit, "give: couldn't parse order: "+give_order->original_string_);
+                OrderError("Error", land, unit, give_order, "give: couldn't parse order: "+give_order->original_string_);
                 continue;
             }
 
@@ -6782,7 +6813,7 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
                 });
                 if (target_unit == nullptr)
                 {
-                    OrderError("Error", land, unit, "give: can't locate target unit: "+give_order->original_string_);
+                    OrderError("Error", land, unit, give_order, "give: can't locate target unit: "+give_order->original_string_);
                     continue;
                 }
             }
@@ -6792,7 +6823,7 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
                 if (target_unit == nullptr)
                     unit->impact_description_.push_back("give: drop off unit");
                 else if (target_unit->FactionId == unit->FactionId)
-                    OrderError("Error", land, unit, "give: transfer unit to yourself: "+give_order->original_string_);
+                    OrderError("Error", land, unit, give_order, "give: transfer unit to yourself: "+give_order->original_string_);
                 else {
                     unit->impact_description_.push_back("give: transfer unit to faction "+std::to_string(target_unit->FactionId));
                     unit->IsOurs = false;
@@ -6811,9 +6842,9 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
                         //TODO
                     }
                 }
-                OrderError("Error", land, unit, "give: no items to give in order: "+give_order->original_string_);
-                OrderError("Warning", land, unit, "give: if you try to give a ship, please, add it to ALIASES_ITEMS related to object in STRUCTURES (nut supported yet)");
-                OrderError("Warning", land, unit, "give: if you try to give item class, please, add it to UNIT_PROPERTY_GROUPS of your config (nut supported yet)");
+                OrderError("Error", land, unit, give_order, "give: no items to give in order: "+give_order->original_string_);
+                //OrderError("Warning", land, unit, "give: if you try to give a ship, please, add it to ALIASES_ITEMS related to object in STRUCTURES (nut supported yet)");
+                //OrderError("Warning", land, unit, "give: if you try to give item class, please, add it to UNIT_PROPERTY_GROUPS of your config (nut supported yet)");
                 continue;
             }
 
@@ -6822,7 +6853,7 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
 
             if (amount > unit_control::get_item_amount(unit, item_code))
             {
-                OrderError("Warning", land, unit, "give: "+std::to_string(unit_control::get_item_amount(unit, item_code))+
+                OrderError("Warning", land, unit, give_order, "give: "+std::to_string(unit_control::get_item_amount(unit, item_code))+
                     " instead of "+std::to_string(amount)+", no more items");
                 amount = std::min(amount, unit_control::get_item_amount(unit, item_code));
             }
@@ -7157,7 +7188,7 @@ void CAtlaParser::AdjustSkillsAfterGivingMen(CUnit * pUnitGive, CUnit * pUnitTak
     if (pUnitGive->GetProperty(PRP_LEADER, type, valueGive, eNormal) && eCharPtr!=type)
     {
         S = "Wrong property type ";  S << BUG;
-        OrderError("Warning", nullptr, pUnitGive,  S.GetData());
+        OrderError("Warning", nullptr, pUnitGive, nullptr, S.GetData());
         return;
     }
     if (!pUnitTake->GetProperty(PRP_LEADER, type, valueTake, eNormal))
@@ -7167,7 +7198,7 @@ void CAtlaParser::AdjustSkillsAfterGivingMen(CUnit * pUnitGive, CUnit * pUnitTak
     else if (eCharPtr!=type)
     {
         S = "Wrong property type ";  S << BUG;
-        OrderError("Warning", nullptr, pUnitTake,  S.GetData());
+        OrderError("Warning", nullptr, pUnitTake, nullptr, S.GetData());
         return;
     }
 
@@ -7310,7 +7341,7 @@ void CAtlaParser::RunOrder_LandBuy(CLand * land)
                                      (const void *)(sold_item.item_.amount_ - buyer.items_amount_),  
                                      eNormal))
         {
-            errors.push_back({"Error", buyer.unit_, " - Can not set unit property"});
+            errors.push_back({"Error", buyer.unit_, nullptr, " - Can not set unit property"});
         }
 
         //should it be counted as production in the region
@@ -7326,7 +7357,7 @@ void CAtlaParser::RunOrder_LandBuy(CLand * land)
     }    
 
     for (auto& error : errors) {
-        OrderError(error.type_, land, error.unit_, error.message_);
+        OrderError(error.type_, land, error.unit_, error.order_, error.message_);
     }
 
 }
@@ -7362,12 +7393,12 @@ void CAtlaParser::RunOrder_LandSell(CLand * land)
                                     eLong, 
                                     (const void *)(wanted_item.item_.amount_ - seller.items_amount_),  
                                     eNormal))
-            OrderError("Error", land, seller.unit_, std::string(NOSET) + BUG);            
+            OrderError("Error", land, seller.unit_, nullptr, std::string(NOSET) + BUG);            
         seller.unit_->CalcWeightsAndMovement();  
     }
 
     for (const auto& error : errors) {
-        OrderError(error.type_, land, error.unit_, error.message_);
+        OrderError(error.type_, land, error.unit_, error.order_, error.message_);
     }
 }
 
@@ -7397,17 +7428,17 @@ void CAtlaParser::RunOrder_Promote(CStr & Line, CStr & ErrorLine, BOOL skiperror
             long struct_id = unit_control::structure_id(pUnit);
             if (struct_id == 0)
             {
-                OrderError("Error", pLand, pUnit, "promote: units isn't in structure");
+                OrderError("Error", pLand, pUnit, nullptr, "promote: units isn't in structure");
                 return;
             }
             if (!unit_control::is_struct_owner(pUnit))
             {
-                OrderError("Error", pLand, pUnit, "promote: units isn't owner of structure");
+                OrderError("Error", pLand, pUnit, nullptr, "promote: units isn't owner of structure");
                 return;
             }
             if (struct_id != unit_control::structure_id(pUnit2))
             {
-                OrderError("Error", pLand, pUnit, "promote: target unit isn't in the same structure");
+                OrderError("Error", pLand, pUnit, nullptr, "promote: target unit isn't in the same structure");
                 return;
             }
             unit_control::set_structure(pUnit, struct_id, false);
@@ -7480,8 +7511,9 @@ namespace moving
 
         if (move_orders.size() + advance_orders.size() + sail_orders.size() > 1)
         {
-            errors.push_back({"Error", unit, "multiple move/advance/sail orders"});
-            return nullptr;
+            //multiple check should work well
+            //errors.push_back({"Error", unit, "multiple move/advance/sail orders"});
+            //return nullptr;
         }
 
         if (move_orders.size() > 0)
@@ -7566,7 +7598,7 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
 
         if (unit_control::get_item_amount_by_mask(unit, PRP_MEN) == 0)
         {
-            errors.push_back({"Error", unit, "move: unit has no men"});
+            errors.push_back({"Error", unit, order, "move: unit has no men"});
             return;
         }
 
@@ -7578,7 +7610,7 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
             {//need to check that it is really going to move, and all the orders are not just PAUSE
                 if (stricmp(order->words_order_[ord_index].c_str(), "P") != 0) 
                 {
-                    errors.push_back({"Error", unit, "move: unit can't move, probably the overweight"});
+                    errors.push_back({"Error", unit, order, "move: unit can't move, probably the overweight"});
                     return;
                 } else {
                     //in case of overload, but pause, we actually have movements, so it needs to define
@@ -7596,26 +7628,26 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
             switch(unit->caravan_info_->speed_) {
                 case orders::CaravanSpeed::MOVE: {
                     if (!movemode.walk_ || movemode.speed_ < 2) 
-                        errors.push_back({"Error", unit, "move: speed is below expected"});
+                        errors.push_back({"Error", unit, order, "move: speed is below expected"});
                     break;
                 }
                 case orders::CaravanSpeed::RIDE: {
                     if (!movemode.ride_ || movemode.speed_ < 4) 
-                        errors.push_back({"Error", unit, "move: speed is below expected"});
+                        errors.push_back({"Error", unit, order, "move: speed is below expected"});
                     break;
                 }
                 case orders::CaravanSpeed::FLY: {
                     if (!movemode.fly_ || movemode.speed_ < 6) 
-                        errors.push_back({"Error", unit, "move: speed is below expected"});
+                        errors.push_back({"Error", unit, order, "move: speed is below expected"});
                     break;
                 }
                 case orders::CaravanSpeed::SWIM: {
                     if (!movemode.swim_) 
-                        errors.push_back({"Error", unit, "move: expected swim, but it can't"});
+                        errors.push_back({"Error", unit, order, "move: expected swim, but it can't"});
                     break;
                 }
                 case orders::CaravanSpeed::SAIL: {
-                    errors.push_back({"Error", unit, "move: expected sailing"});
+                    errors.push_back({"Error", unit, order, "move: expected sailing"});
                     break;
                 }
             }
@@ -7638,19 +7670,19 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
                 //exits check
                 if (moving::is_exit_closed(cur_land, dir) || 
                     moving::is_exit_closed(next_land, moving::reverse_direction(dir)))
-                    errors.push_back({"Warning", unit, "move: probably is going through the wall"});
+                    errors.push_back({"Warning", unit, order, "move: probably is going through the wall"});
 
                 //water check
                 if (next_land && land_control::is_water(next_land))
                 {
                     if (unit_control::flags::is_nocross(unit))
                     {
-                        errors.push_back({"Error", unit, "move: is going to step into ocean with `nocross 1`"});
+                        errors.push_back({"Error", unit, order, "move: is going to step into ocean with `nocross 1`"});
                         break;
                     }
                     if (movemode.swim_ == 0 && movemode.fly_ == 0)
                     {
-                        errors.push_back({"Error", unit, "move: is going to step into ocean being not swimming & not flying"});
+                        errors.push_back({"Error", unit, order, "move: is going to step into ocean being not swimming & not flying"});
                         break;
                     }
                 }
@@ -7695,36 +7727,36 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
             else if (stricmp(order->words_order_[ord_index].c_str(), "IN") == 0)
             {//parsing IN order
                 if (cur_land == nullptr) {//specific check, because we are trying to change plane from unknown position
-                    errors.push_back({"Error", unit, "move: going IN from unknown region"});
+                    errors.push_back({"Error", unit, order, "move: going IN from unknown region"});
                     break;
                 }
 
                 if (current_struct_id == 0)
                 {
-                    errors.push_back({"Error", unit, "move: going IN without being in a structure"});
+                    errors.push_back({"Error", unit, order, "move: going IN without being in a structure"});
                     break;
                 }
                 CStruct* shaft = land_control::get_struct(cur_land, current_struct_id);
                 if (shaft == nullptr)
                 {
-                    errors.push_back({"Error", unit, "move: didn't find specified structure, can't predict further"});
+                    errors.push_back({"Error", unit, order, "move: didn't find specified structure, can't predict further"});
                     break;
                 }
                 if (!struct_control::flags::is_shaft(shaft))
                 {
-                    errors.push_back({"Error", unit, "move: specified structure is not a shaft, can't predict further"});
+                    errors.push_back({"Error", unit, order, "move: specified structure is not a shaft, can't predict further"});
                     break;
                 }
                 if (!struct_control::has_link(shaft))
                 {
-                    errors.push_back({"Error", unit, "move: specified structure has no link, can't predict further"});
+                    errors.push_back({"Error", unit, order, "move: specified structure has no link, can't predict further"});
                     break;
                 }
 
                 next_land = GetLandFlexible(wxString::FromUTF8(shaft->original_description_.c_str()));
                 if (next_land == nullptr)
                 {
-                    errors.push_back({"Error", unit, "move: couldn't deduct next region from shaft description, can't predict further"});
+                    errors.push_back({"Error", unit, order, "move: couldn't deduct next region from shaft description, can't predict further"});
                     break;
                 }
 
@@ -7767,7 +7799,7 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
                               return !std::isdigit(c); 
                             }) != order->words_order_[ord_index].end())
                 {
-                    errors.push_back({"Error", unit, "move: unknown moving order: "+order->words_order_[ord_index]});
+                    errors.push_back({"Error", unit, order, "move: unknown moving order: "+order->words_order_[ord_index]});
                     break;
                 }
                 current_struct_id = atol(order->words_order_[ord_index].c_str());
@@ -7790,11 +7822,11 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
 
         if (moving_stop_land != nullptr && land_control::is_water(moving_stop_land) && 
            !movemode.swim_ && unit_control::structure_id(unit) == 0)
-            errors.push_back({"Warn", unit, "move: end in the ocean"});
+            errors.push_back({"Warn", unit, order, "move: end in the ocean"});
     });
 
     for (auto& error : errors) {
-        OrderError(error.type_, land, error.unit_, error.message_);
+        OrderError(error.type_, land, error.unit_, error.order_, error.message_);
     }
 }
 
@@ -7810,8 +7842,8 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
             return;
 
         if (orders.size() > 1)
-        {
-            errors.push_back({"Error", unit, "sail: multiple orders"});
+        {//should be accepted if the order can multiply
+            errors.push_back({"Error", unit, nullptr, "sail: multiple orders"});
             return;
         }
 
@@ -7820,27 +7852,27 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
         long men_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
         if (men_amount == 0)
         {
-            errors.push_back({"Error", unit, "sail: unit has no men"});
+            errors.push_back({"Error", unit, order, "sail: unit has no men"});
             return;
         }
 
         if (unit_control::structure_id(unit) == 0)
         {
-            errors.push_back({"Error", unit, "sail: must be in a ship to issue SAIL order"});
+            errors.push_back({"Error", unit, order, "sail: must be in a ship to issue SAIL order"});
             return;          
         }
 
         long sailing_lvl = skills_control::get_skill_lvl_from_days(unit_control::get_current_skill_days(unit, "SAIL"));
         if (sailing_lvl == 0)
         {
-            errors.push_back({"Error", unit, "sail: need to know SAIL skill to sail"});
+            errors.push_back({"Error", unit, order, "sail: need to know SAIL skill to sail"});
             return;
         }
 
         CStruct* ship  = land_control::get_struct(land, unit_control::structure_id(unit));
         if (ship == nullptr)
         {
-            errors.push_back({"Error", unit, "sail: couldn't find ship's object"});
+            errors.push_back({"Error", unit, order, "sail: couldn't find ship's object"});
             return;
         }
 
@@ -7848,7 +7880,7 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
                         orders::autoorders::has_autoorders(order) == orders::autoorders::AO_TYPES::AO_OWNER;
         if (!is_owner && order->words_order_.size() > 1)
         {
-            errors.push_back({"Error", unit, "sail: order direction being non-owner"});
+            errors.push_back({"Error", unit, order, "sail: order direction being non-owner"});
             return;
         }
 
@@ -7859,13 +7891,13 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
             ship->MinSailingPower == 0 ||
             ship->capacity_ == 0)
         {
-            errors.push_back({"Error", unit, "sail: ship was not set up properly, please set up CAPACITY/SAILING_POWER/TRAVEL parameters"});
+            errors.push_back({"Error", unit, order, "sail: ship was not set up properly, please set up CAPACITY/SAILING_POWER/TRAVEL parameters"});
             return;
         }
         
         if (ship->occupied_capacity_ > ship->capacity_)
         {
-            errors.push_back({"Error", unit, "sail: can't sail due to overweight"});
+            errors.push_back({"Error", unit, order, "sail: can't sail due to overweight"});
             return;
         }
         
@@ -7887,7 +7919,7 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
                 //exits check
                 if (moving::is_exit_closed(cur_land, dir) || 
                     moving::is_exit_closed(next_land, moving::reverse_direction(dir)))
-                    errors.push_back({"Warning", unit, "sail: probably is going through the wall"});
+                    errors.push_back({"Warning", unit, order, "sail: probably is going through the wall"});
 
                 //land check
                 if (ship->travel_ == SHIP_TRAVEL::SAIL && 
@@ -7895,7 +7927,7 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
                     !land_control::is_water(cur_land) && 
                     !land_control::is_water(next_land))
                 {
-                    errors.push_back({"Error", unit, "sail: is going to sail from land to land"});
+                    errors.push_back({"Error", unit, order, "sail: is going to sail from land to land"});
                     break;
                 }
 
@@ -7941,7 +7973,7 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
             }     
             else
             {
-                errors.push_back({"Error", unit, "sail: unknown sailing order: "+order->words_order_[ord_index]});
+                errors.push_back({"Error", unit, order, "sail: unknown sailing order: "+order->words_order_[ord_index]});
                 break;
             }
 
@@ -7986,7 +8018,7 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
     });
 
     for (auto& error : errors) {
-        OrderError(error.type_, land, error.unit_, error.message_);
+        OrderError(error.type_, land, error.unit_, error.order_, error.message_);
     }
 }
 
@@ -8075,8 +8107,9 @@ void CAtlaParser::RunOrders(CLand * pLand, TurnSequence start_step, TurnSequence
             for (i=0; i<pPlane->Lands.Count(); i++)
             {
                 pLand = (CLand*)pPlane->Lands.At(i);
-                if (pLand)
+                if (pLand) {
                     RunLandOrders(pLand, start_step, stop_step);
+                }                    
             }
         }
     }

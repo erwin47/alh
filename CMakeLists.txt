@@ -120,6 +120,7 @@ include(${wxWidgets_USE_FILE})
 
 # add the executable
 if(WIN32)
+message("WIN32: ${WIN32}")
 add_executable(ah ${AH_CPP} ${AH_HEADERS} ${PROJECT_SOURCE_DIR}/ah.rc)
 set_target_properties(${PROJECT_NAME} PROPERTIES
 LINK_FLAGS /SUBSYSTEM:WINDOWS

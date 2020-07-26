@@ -285,7 +285,8 @@ public:
 
     const char * ReadPropertyName(const char * src, CStr & Name);
 
-    void         OrderError(const std::string& type, CLand* land, CUnit* unit, const std::string& Msg);
+    void         OrderError(const std::string& type, CLand* land, CUnit* unit, 
+                            const std::shared_ptr<orders::Order>& order, const std::string& Msg);
 
 protected:
     int          ParseFactionInfo(BOOL GetNo, BOOL Join);

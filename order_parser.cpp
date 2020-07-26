@@ -266,12 +266,23 @@ namespace orders
 
     namespace control 
     {
-        bool ignore_order(const std::shared_ptr<Order>& order)
+        bool is_order_type(const std::shared_ptr<Order>& order, const orders::Type& type)
+        {
+            return (order->type_ == type) || (order->type_ == (type | orders::Type::O_SUPRESS_ERRORS));
+        }
+
+        bool should_supress_error(const std::shared_ptr<Order>& order)
+        {
+            return ((order->type_ & orders::Type::O_SUPRESS_ERRORS) == orders::Type::O_SUPRESS_ERRORS);
+        }
+
+        /*bool ignore_order(const std::shared_ptr<Order>& order)
         {
             return order->comment_.size() == 4 && //to avoid other comments which fit ";$ne*"/";!ne*"
                     (strnicmp(order->comment_.c_str(), ";$ne", 4) == 0 ||
                     strnicmp(order->comment_.c_str(), ";!ne", 4) == 0);
-        }
+        }*/
+
 
     }
 
@@ -411,8 +422,14 @@ namespace orders
                     OrderAliases[res->type_](res->words_order_);
             }            
 
-            if (orders::control::ignore_order(res))
+            if (res->comment_.size() == 4 && //to avoid other comments which fit ";$ne*"/";!ne*"
+                (strncmp(res->comment_.c_str(), ";$NE", 4) == 0 ||
+                 strncmp(res->comment_.c_str(), ";!NE", 4) == 0)) 
+            {
+                res->type_ = res->type_ | orders::Type::O_SUPRESS_ERRORS;
                 return res;
+            }
+                
 
             if ((res->type_ & orders::Type::O_COMMENT) == orders::Type::O_NORDERS &&
                  sanity_checks.find(res->type_) == sanity_checks.end())
@@ -865,6 +882,22 @@ namespace orders
         long flag_by_order_type<orders::Type::O_SHARE>() {  return UNIT_FLAG_SHARING; }
 
 
+        bool modify_order(CUnit* unit, std::shared_ptr<Order>& order, const std::string& new_order_line)
+        {
+            auto new_order = orders::parser::parse_line_to_order(new_order_line);
+            if (new_order != nullptr) {
+                order->comment_ = new_order->comment_;
+                order->type_ = new_order->type_;
+                order->words_order_ = new_order->words_order_;
+                order->original_string_ = new_order_line;
+
+                unit->Orders.Empty();
+                unit->Orders << orders::parser::compose_string(unit->orders_).c_str();
+                parser::recalculate_hash(unit->orders_);  
+                return true;
+            }
+            return false;
+        }
 
         void remove_empty_lines(CUnit* unit)
         {
@@ -917,24 +950,28 @@ namespace orders
                 return {};
 
             std::vector<std::shared_ptr<Order>> res;
-            std::vector<size_t> ids = unit_orders.hash_.at(type);
-            for (const auto& id : ids) {
-                if (!ignore_order(unit_orders.orders_[id]))//we don't parse orders with `;$ne`
+            if (unit_orders.hash_.find(type) != unit_orders.hash_.end()) {
+                std::vector<size_t> ids = unit_orders.hash_.at(type);
+                for (const auto& id : ids) {
                     res.push_back(unit_orders.orders_[id]);
-            }             
+                }
+            }
+
+            if (unit_orders.hash_.find(type | orders::Type::O_SUPRESS_ERRORS) != unit_orders.hash_.end()) {
+                std::vector<size_t> ids_supressed = unit_orders.hash_.at(type | orders::Type::O_SUPRESS_ERRORS);    
+                for (const auto& id : ids_supressed) {
+                    res.push_back(unit_orders.orders_[id]);
+                }            
+            }
             return res;
         }
 
         bool has_orders_with_type(orders::Type type, const UnitOrders& unit_orders)
         {
-            if (unit_orders.hash_.find(type) == unit_orders.hash_.end())
-                return false;
-
-            std::vector<size_t> ids = unit_orders.hash_.at(type);
-            for (const auto& id : ids) {
-                if (!ignore_order(unit_orders.orders_[id]))//we don't parse orders with `;$ne`
-                    return true;
-            }                
+            //check for the type or the type with supress_flag
+            if (unit_orders.hash_.find(type) != unit_orders.hash_.end() || 
+                unit_orders.hash_.find(type | orders::Type::O_SUPRESS_ERRORS) != unit_orders.hash_.end())
+                return true;
             return false;
         }
 
@@ -963,21 +1000,7 @@ namespace orders
             else 
                 new_order_line.insert(0, ";");
 
-            auto commented_order = orders::parser::parse_line_to_order(new_order_line);
-            if (commented_order != nullptr) {
-                order->comment_ = commented_order->comment_;
-                order->type_ = commented_order->type_;
-                order->words_order_ = commented_order->words_order_;
-                order->original_string_ = new_order_line;
-            }
-
-            unit->Orders.Empty();
-            unit->Orders << orders::parser::compose_string(unit->orders_).c_str();
-            parser::recalculate_hash(unit->orders_);  
-
-            //order->comment_.insert(0, "%DEL%");
-            //orders::control::remove_orders_by_comment(unit, "%DEL%");
-            //orders::control::add_order_to_unit(new_order_line, unit);
+            orders::control::modify_order(unit, order, new_order_line);
         }
 
         void uncomment_order(std::shared_ptr<Order>& order, CUnit* unit)
@@ -992,21 +1015,7 @@ namespace orders
             else 
                 new_order_line.erase(0, 1);
 
-            auto uncommented_order = orders::parser::parse_line_to_order(new_order_line);
-            if (uncommented_order != nullptr) {
-                order->comment_ = uncommented_order->comment_;
-                order->type_ = uncommented_order->type_;
-                order->words_order_ = uncommented_order->words_order_;
-                order->original_string_ = new_order_line;
-            }
-
-            unit->Orders.Empty();
-            unit->Orders << orders::parser::compose_string(unit->orders_).c_str(); 
-            parser::recalculate_hash(unit->orders_);
-
-            //order->comment_.insert(0, "%DEL%");
-            //orders::control::remove_orders_by_comment(unit, "%DEL%");
-            //orders::control::add_order_to_unit(new_order_line, unit);
+            orders::control::modify_order(unit, order, new_order_line);
         }
 
         std::shared_ptr<Order> compose_give_order(CUnit* target, long amount, const std::string& item, const std::string& comment, bool repeating)

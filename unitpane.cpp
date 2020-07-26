@@ -162,6 +162,7 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
             pUnit = (CUnit*)pLand->Units.At(i);
             if (pUnit && !filter(pUnit)) {
                 this->is_filtered_ = true;
+                FullUpdate = true;
                 continue;
             }              
 
@@ -186,8 +187,12 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
             if (already_listed_units.find(unit->Id) != already_listed_units.end())
                 return;
 
-            if (unit && !filter(unit))
+            if (unit && !filter(unit)) {
+                this->is_filtered_ = true;
+                FullUpdate = true;
                 return;
+            }
+                
 
             already_listed_units.insert(unit->Id);
             GuiColor = 2;
@@ -199,8 +204,11 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
             if (already_listed_units.find(unit->Id) != already_listed_units.end())
                 return;
 
-            if (unit && !filter(unit))
+            if (unit && !filter(unit)) {
+                this->is_filtered_ = true;
+                FullUpdate = true;//
                 return;
+            }
 
             already_listed_units.insert(unit->Id);
             GuiColor = 6;
@@ -333,9 +341,13 @@ void CUnitPane::ReloadHdr(const char * szConfigSectionHdr)
     m_sConfigSectionHdr = szConfigSectionHdr;
 
     DeleteAllItems();
-    x = m_pLayout ? (m_pLayout->Count()+20) : 100;
-    for (i=x; i>=0; i--)
-        DeleteColumn(i);
+    DeleteAllColumns();
+    /*if (m_pLayout != nullptr)
+    {
+        x = m_pLayout->Count()-1; //why +20 ??? : (m_pLayout->Count()+20) : 100;
+        for (i=x; i>=0; i--)
+            DeleteColumn(i);
+    }*/
 
     LoadUnitListHdr();
 

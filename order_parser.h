@@ -89,6 +89,7 @@ namespace orders
         O_ERROR = 70,
         O_COMMENT = 256,//any comment not belonging to any other comments groups
         O_COMMENT_AUTONAME = 512,//specific comment which belongs to autoname generation system
+        O_SUPRESS_ERRORS = 1024,//specific comment which belongs to autoname generation system
     };
 
     extern std::unordered_map<std::string, orders::Type> types_mapping;
@@ -174,6 +175,15 @@ namespace orders
 
     namespace control
     {
+        //! checks if the order belongs to a specified type
+        bool is_order_type(const std::shared_ptr<Order>& order, const orders::Type& type);
+
+        //! checks if the order have to be supressed
+        bool should_supress_error(const std::shared_ptr<Order>& order);
+
+        //! modifies existing order to adjust it to provided string, true on success
+        bool modify_order(CUnit* unit, std::shared_ptr<Order>& order, const std::string& new_order_line);
+             
         //! returns collection of orders of specified type
         std::vector<std::shared_ptr<Order>> retrieve_orders_by_type(orders::Type type, const UnitOrders& unit_orders);
         

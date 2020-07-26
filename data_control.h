@@ -65,6 +65,7 @@ namespace unit_control
     {
         std::string type_;
         CUnit* unit_;
+        std::shared_ptr<orders::Order> order_;
         std::string message_;
         
     };
