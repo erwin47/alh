@@ -388,7 +388,7 @@ namespace orders
                 c = ::toupper(c);
                 });
 
-                if (words[i][0] == ';')
+                if (words[i].size() > 0 && words[i][0] == ';')
                 {
                     res->comment_ = words[i];
                     break;
@@ -405,15 +405,19 @@ namespace orders
                 else {
                     //find a subtype if exists (example: `;sell all ITEM`)
                     res->type_ = orders::Type::O_COMMENT;
-                    std::vector<std::string> commented_words;
-                    utils::parse_order_line(&res->comment_[1], commented_words);
-                    if (types_mapping.find(commented_words[0]) != types_mapping.end())
+                    if (res->comment_.size() > 1)
                     {
-                        res->type_ = res->type_ | types_mapping[commented_words[0]];
+                        std::vector<std::string> commented_words;
+                        utils::parse_order_line(&res->comment_[1], commented_words);
+                        if (!commented_words.empty() && 
+                             types_mapping.find(commented_words[0]) != types_mapping.end())
+                        {
+                            res->type_ = res->type_ | types_mapping[commented_words[0]];
+                        }
                     }
                 }                    
             }
-            else if (types_mapping.find(words[0]) != types_mapping.end())
+            else if (types_mapping.find(res->words_order_[0]) != types_mapping.end())
             {//if known order
                 res->type_ = types_mapping[res->words_order_[0]];
                 

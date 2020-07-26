@@ -143,7 +143,8 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
     // It is a must, since some locations pointed to by stored pointers may be invalid at the moment.
     // Namely all new units are deleted when orders are processed.
     if (!this->is_filtered_)
-        m_pUnits->DeleteAll();
+        m_pUnits->DeleteAll();//we shouldn't delete all, if we are already filtered, we just want to continue
+                              //with list of units which we have
 
     if (!FullUpdate)
         for (i=GetItemCount()-1; i>=0; i--)
