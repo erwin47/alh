@@ -408,9 +408,10 @@ void CUnitPane::SaveUnitListHdr()
 
 void CUnitPane::OnSelected(wxListEvent& event)
 {
-    if (is_selection_automatic_)
+    if (is_selection_automatic_) {
         is_selection_automatic_ = false;
         return;
+    }
 
     CUnitOrderEditPane* pOrders;
     CUnit      * pUnit = GetUnit(event.m_itemIndex);
