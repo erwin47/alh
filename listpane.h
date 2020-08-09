@@ -89,7 +89,7 @@ protected:
     const char          * m_SortKey[NUM_SORTS];
     int                   m_nColCount;
 
-    bool         is_selection_automatic_;//! is used to supress selection event if it was triggered automatically, not by user
+    //bool         is_selection_automatic_;//! is used to supress selection event if it was triggered automatically, not by user
                                          //! to avoid recursion.
 
 };

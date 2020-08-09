@@ -42,7 +42,7 @@ CListPane::CListPane(wxWindow *parent, wxWindowID id, long style)
     m_pLayout        = NULL;
     m_pData          = NULL;
 
-    is_selection_automatic_ = false;
+    //is_selection_automatic_ = false;
 
     // Disable the SystemTheme before calling Create
     //   This prevents gaps in the backgroundcolor of selected rows.
@@ -317,7 +317,7 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
 
     if (selno>=0)
     {
-        this->is_selection_automatic_ = true;
+        //this->is_selection_automatic_ = true;
         SetItemState(selno, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
         EnsureVisible(selno);
     }

@@ -242,7 +242,7 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
     //    selected_unit_id_ = -1;
         //SetData(no_selection, 0, true);
     //}
-    SetData(sel_by_id, selected_unit_id_, true);
+    SetData(sel_by_id, selected_unit_id_, prev_land != m_pCurLand);
         
 
     /*if (prev_land != pLand) {
@@ -263,6 +263,7 @@ void CUnitPane::SelectUnit(long UnitId)
     int               i;
     wxListItem        info;
 
+    selected_unit_id_ = -1;
     for (i=GetItemCount()-1; i>=0; i--)
     {
         info.m_itemId = i;
@@ -274,9 +275,9 @@ void CUnitPane::SelectUnit(long UnitId)
             selected_unit_id_ = UnitId;
             SetItemState(i, wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED, wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED);
             EnsureVisible(i);
+            this->SetFocus();
         }
         else {
-            selected_unit_id_ = -1;
             SetItemState(i, 0, wxLIST_STATE_SELECTED);            
         }
             
@@ -408,10 +409,10 @@ void CUnitPane::SaveUnitListHdr()
 
 void CUnitPane::OnSelected(wxListEvent& event)
 {
-    if (is_selection_automatic_) {
-        is_selection_automatic_ = false;
-        return;
-    }
+    //if (is_selection_automatic_) {
+    //    is_selection_automatic_ = false;
+    //    return;
+    //}
 
     CUnitOrderEditPane* pOrders;
     CUnit      * pUnit = GetUnit(event.m_itemIndex);
@@ -423,9 +424,8 @@ void CUnitPane::OnSelected(wxListEvent& event)
         selected_unit_id_ = pUnit->Id;
 //        if (m_pCurLand)
 //            m_pCurLand->guiUnit = pUnit->Id;
-
-        gpApp->OnUnitHexSelectionChange(event.m_itemIndex);
-        Update(m_pCurLand);
+        if (gpApp->OnUnitHexSelectionChange(event.m_itemIndex))
+            Update(m_pCurLand);
     }
 }
 

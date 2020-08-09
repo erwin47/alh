@@ -236,7 +236,7 @@ public:
     BOOL                 CanSwitchToRep(eRepSeq whichrep, int & RepIdx);
 
     void                 OnMapSelectionChange();
-    void                 OnUnitHexSelectionChange(long idx);
+    bool                 OnUnitHexSelectionChange(long idx);
 
     void                 OpenOptionsDlg();
     void                 OpenUnitFrame();

@@ -3612,17 +3612,17 @@ void CAhApp::OnMapSelectionChange()
 //-------------------------------------------------------------------------
 
 
-void CAhApp::OnUnitHexSelectionChange(long idx)
+bool CAhApp::OnUnitHexSelectionChange(long idx)
 {
     // It can be called as a result of selecting a hex on the map!
 
     // It will be unit in the current hex!
-
     BOOL          ReadOnly = TRUE;
     CEditPane   * pDescription;
     CUnitOrderEditPane   * pOrders;
     CEditPane   * pComments;
     CUnit       * pUnit;
+    bool return_value = false;//! signals if we rerun orders
 
     //m_SelUnitIdx = idx;
     pUnit        = GetSelectedUnit(); // depends on m_SelUnitIdx
@@ -3667,6 +3667,7 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
         CUnit* prev_unit = pOrders->change_representing_unit(pUnit);
         if (prev_unit != NULL && prev_unit->orders_.is_modified_)//add here ORDER_MODIFIED check
         {
+            return_value = true;
             prev_unit->orders_.is_modified_ = false;
             prev_unit_land = gpApp->m_pAtlantis->GetLand(prev_unit->LandId);
             if (prev_unit_land)
@@ -3686,6 +3687,7 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
         pComments->SetSource(pUnit?&pUnit->DefOrders:NULL, &m_CommentsChanged);
     }
     RedrawTracks();
+    return return_value;
 }
 
 //-------------------------------------------------------------------------
