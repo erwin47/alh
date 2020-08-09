@@ -279,7 +279,27 @@ namespace land_control
             if (Pred(unit))
                 return unit;
         return nullptr;    
-    }    
+    }
+
+    template<typename T>
+    CUnit* find_first_unit_after_moving_if(CLand* land, T Pred)
+    {
+        for (CUnit* unit : land->units_seq_) {
+            //ignore those who move out
+            if (unit->movements_.size() > 0 && unit->movement_stop_ != 0)
+                continue;
+            
+            if (Pred(unit))
+                return unit;
+        }
+        for (const auto& pair : land->affections_.incoming_units())
+        {
+            for (const auto& unit : pair.second)
+                if (Pred(unit))
+                    return unit;            
+        }        
+        return nullptr;    
+    }      
 
     template<typename T>
     void perform_on_each_unit(CLand* land, T Pred)

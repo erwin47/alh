@@ -408,7 +408,7 @@ namespace orders
                     if (res->comment_.size() > 1)
                     {
                         std::vector<std::string> commented_words;
-                        utils::parse_order_line(&res->comment_[1], commented_words);
+                        utils::parse_order_line(res->comment_.substr(1), commented_words);
                         if (!commented_words.empty() && 
                              types_mapping.find(commented_words[0]) != types_mapping.end())
                         {
@@ -417,7 +417,8 @@ namespace orders
                     }
                 }                    
             }
-            else if (types_mapping.find(res->words_order_[0]) != types_mapping.end())
+            else if (!res->words_order_.empty() && 
+                     types_mapping.find(res->words_order_[0]) != types_mapping.end())
             {//if known order
                 res->type_ = types_mapping[res->words_order_[0]];
                 
@@ -432,8 +433,7 @@ namespace orders
             {
                 res->type_ = res->type_ | orders::Type::O_SUPRESS_ERRORS;
                 return res;
-            }
-                
+            }                
 
             if ((res->type_ & orders::Type::O_COMMENT) == orders::Type::O_NORDERS &&
                  sanity_checks.find(res->type_) == sanity_checks.end())

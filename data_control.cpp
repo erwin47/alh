@@ -2375,7 +2375,7 @@ namespace land_control
                 }
                 if (students.find(studId) == students.end())
                 {
-                    CUnit* lost_student = land_control::find_first_unit_if(land, [&](CUnit* cur_lost_student) {
+                    CUnit* lost_student = land_control::find_first_unit_after_moving_if(land, [&](CUnit* cur_lost_student) {
                                               if (cur_lost_student->Id == studId)
                                                   return true;
                                               return false;

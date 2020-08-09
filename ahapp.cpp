@@ -79,7 +79,7 @@ CAhApp::CAhApp() : m_HexDescrSrc    (128),
     m_CommentsChanged   = FALSE;
     m_UpgradeLandFlags  = FALSE;
     m_DiscardChanges    = FALSE;
-    m_SelUnitIdx        = -1;
+    //m_SelUnitIdx        = -1;
     m_layout            = 0;
     m_DisableErrs       = FALSE;
     m_pAccel            = NULL;
@@ -1604,7 +1604,7 @@ CUnit * CAhApp::GetSelectedUnit()
     CUnitPane   * pUnitPane = (CUnitPane*)m_Panes[AH_PANE_UNITS_HEX];
 
     if (pUnitPane)
-        pUnit = (CUnit*)pUnitPane->m_pUnits->At(m_SelUnitIdx);
+        pUnit = pUnitPane->GetSelectedUnit();// m_pUnits->At(m_SelUnitIdx);
 
     return pUnit;
 }
@@ -2924,7 +2924,7 @@ void CAhApp::SelectUnit(CUnit * pUnit)
     if (!pLand)
         return;
 
-    pLand->guiUnit = pUnit->Id;
+    //pLand->guiUnit = pUnit->Id;
 
     LandIdToCoord(pLand->Id, nx, ny, nz);
     pPlane   = (CPlane*)m_pAtlantis->m_Planes.At(nz);
@@ -3594,7 +3594,7 @@ void CAhApp::OnMapSelectionChange()
 
     if (unit_pane)
     {
-        unit_pane->is_filtered_ = false;
+        unit_pane->is_filtered_ = false;//selection on map should discard filters
         unit_pane->Update(land);
     }        
 
@@ -3624,7 +3624,7 @@ void CAhApp::OnUnitHexSelectionChange(long idx)
     CEditPane   * pComments;
     CUnit       * pUnit;
 
-    m_SelUnitIdx = idx;
+    //m_SelUnitIdx = idx;
     pUnit        = GetSelectedUnit(); // depends on m_SelUnitIdx
 
     pDescription = (CEditPane*)m_Panes[AH_PANE_UNIT_DESCR   ];

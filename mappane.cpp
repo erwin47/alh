@@ -2960,6 +2960,7 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
     if (pUnit->movements_.size() == 0)
         return;
 
+    int prev_coord_x, prev_coord_y, last_coord_x, last_coord_y;
     for (long i = movement_step; i < pUnit->movements_.size(); ++i)
     {
         if (movement_step > 0 && i == movement_step)
@@ -2978,8 +2979,27 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
         HexId = pUnit->movements_[i];
         LandIdToCoord(HexId, X1, Y1, Z1);
 
-        if (X==X1 && Y==Y1 && Z==Z1)
-            continue;//troops may stay in hex several phases
+        if (X==X1 && Y==Y1 && Z==Z1) 
+        {//troops may stay in hex several phases
+            if (i == pUnit->movements_.size() -1)
+                DrawTrackArrow(pDC, prev_coord_x, prev_coord_y, last_coord_x, last_coord_y);
+            /*if (i == pUnit->movements_.size() -1)
+            {
+                pDC->SetPen  (*m_pPenRedSolid );
+                pDC->SetBrush(*m_pBrushWhite);
+
+                //red square
+                wxPoint points[] = { wxPoint(wx-m_HexHalfSize, wy-m_HexHalfSize), wxPoint(wx-m_HexHalfSize, wy+m_HexHalfSize),
+                                    wxPoint(wx+m_HexHalfSize, wy+m_HexHalfSize), wxPoint(wx+m_HexHalfSize, wy-m_HexHalfSize)  };
+                pDC->DrawPolygon(sizeof(points)/sizeof(*points), points);
+
+                pDC->SetFont (*gpApp->m_Fonts[FONT_MAP_COORD]);
+                wxSize text_size = pDC->GetTextExtent(wxString(std::to_string(pUnit->movements_.size())));
+                pDC->DrawText(wxString(std::to_string(pUnit->movements_.size())), 
+                              wx-text_size.GetWidth()/2, wy-text_size.GetHeight()/2);
+            }*/
+            continue;
+        }
 
         // Prevent painting on a different level.
         if ((Z1 != pPlane->Id || (X==X1 && Y == Y1)) && (Z == pPlane->Id))
@@ -3028,6 +3048,10 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
             else
             {
                 pDC->DrawLine(wx0, wy0, wx, wy);
+                prev_coord_x = wx0;
+                prev_coord_y = wy0;
+                last_coord_x = wx;
+                last_coord_y = wy;
                 if (i == pUnit->movements_.size()-1)
                     DrawTrackArrow(pDC, wx0, wy0, wx, wy);
             }
@@ -4106,14 +4130,36 @@ void CMapPane::OnPopupMovePhases(wxCommandEvent & event)
                 if (!unit->IsOurs || unit->movements_.size() == 0)
                     return;
 
+                //check if ship && if sails on it, then take speed of the ship
+                //otherwise take speed of movemode
+                // OR
+                //make movement consist of each _EACH_ moving stage, even if it wasn't defined
+                //in order, and thus it have to be deducted from speed.
+                //unit_control::MoveMode movemode = unit_control::get_move_state(unit);
+
+                //size_t speed = movemode.speed_;
+                long in_the_reg = -1;
                 for (size_t j = 0; j < unit->movements_.size(); ++j)
-                {
+                {//                    
                     if (unit->movements_[j] == cur_land->Id)
-                    {
+                    {//if we first time entered the region: register on the phase
+                        if (in_the_reg < 0)
+                            in_the_reg = move_phases[unit->movements_.size()][j];
+                    }
+                    else if (in_the_reg >= 0)
+                    {//if we left the region, register on all phases between initial phase 
+                     //and leaving phase, and then unregister from the phase
                         long phase = move_phases[unit->movements_.size()][j];
-                        result_phases[phase].push_back(unit);
+                        for (long k = in_the_reg; k < phase; ++k)
+                            result_phases[k].push_back(unit);
+                        in_the_reg = -1;
                     }
                 }
+                if (in_the_reg >= 0)
+                {//if end up in the region, register on all phases between entering phase and last phase
+                    for (long k = in_the_reg; k < result_phases.size(); ++k)
+                        result_phases[k].push_back(unit);
+                }                
             });
         }
     }

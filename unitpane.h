@@ -46,6 +46,8 @@ public:
     void         SelectNextUnit();
     void         SelectPrevUnit();
 
+    CUnit*       GetSelectedUnit();
+
     void         LoadUnitListHdr();
     void         SaveUnitListHdr();
     void         ReloadHdr(const char * szConfigSectionHdr);
@@ -54,7 +56,8 @@ public:
     TPropertyHolderColl * m_pUnits;
     CLand               * m_pCurLand;
 
-    bool         is_filtered_;
+    long         selected_unit_id_;//! 
+    bool         is_filtered_;//! is used for Ctrl+G interface filtering out units by a chosen rule
 
 protected:
     void         OnSelected(wxListEvent& event);

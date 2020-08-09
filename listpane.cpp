@@ -19,6 +19,8 @@
 
 #include "stdhdr.h"
 
+#include <sstream>
+
 #include <wx/listctrl.h>
 #include <wx/version.h>
 
@@ -26,6 +28,7 @@
 #include "objs.h"
 //#include "data.h"
 #include "consts_ah.h"
+#include <codecvt>
 
 #include "listpane.h"
 #include "data_control.h"
@@ -38,6 +41,8 @@ CListPane::CListPane(wxWindow *parent, wxWindowID id, long style)
     m_pParent        = parent;
     m_pLayout        = NULL;
     m_pData          = NULL;
+
+    is_selection_automatic_ = false;
 
     // Disable the SystemTheme before calling Create
     //   This prevents gaps in the backgroundcolor of selected rows.
@@ -189,52 +194,53 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
     if (FullUpdate)
         DeleteAllItems();
 
-    info.m_mask   = wxLIST_MASK_TEXT;
+    info.SetMask(wxLIST_MASK_TEXT);
     if (m_pData && m_pLayout)
         for (row=0; row<m_pData->Count(); row++)
         {
             dataitem = (TPropertyHolder*)m_pData->At(row);
-            info.m_itemId = row;
+            info.SetId(row);//m_itemId = row;
             for (col=0; col<m_pLayout->Count(); col++)
             {
                 layoutitem = (CListLayoutItem*)m_pLayout->At(col);
 
-                info.m_text.Empty();
-                info.m_col= col;
+                info.SetText("");
+                info.SetColumn(col);
 
                 CUnit* unit = dynamic_cast<CUnit*>(dataitem);
                 if (unit != nullptr && 
                     stricmp(layoutitem->m_Name, PRP_FLAGS_STANDARD) == 0)
                 {
                     
-                    CStr sValue;
-                    if (unit->Flags & UNIT_FLAG_PILLAGING        )  sValue << "€";
-                    if (unit->Flags & UNIT_FLAG_TAXING           )  sValue << '$';
-                    if (unit->Flags & UNIT_FLAG_PRODUCING        )  sValue << 'P';
-                    if (unit_control::flags::is_entertaining(unit)) sValue << 'E';
-                    if (unit->Flags & UNIT_FLAG_STUDYING         )  sValue << 'S';
-                    if (unit_control::flags::is_teaching(unit)   )  sValue << 'T';        
-                    if (unit_control::flags::is_working(unit)    )  sValue << 'W';
-                    if (unit->Flags & UNIT_FLAG_MOVING           )  sValue << 'M';  
-                    sValue << '|';
-                    if (unit->Flags & UNIT_FLAG_GUARDING         )  sValue << 'g';
-                    if (unit->Flags & UNIT_FLAG_AVOIDING         )  sValue << 'a';
-                    if (unit->Flags & UNIT_FLAG_BEHIND           )  sValue << 'b';
-                    if (unit->Flags & UNIT_FLAG_REVEALING_UNIT   )  sValue << "rU";
-                    else if (unit->Flags & UNIT_FLAG_REVEALING_FACTION)  sValue << "rF";
-                    if (unit->Flags & UNIT_FLAG_HOLDING          )  sValue << 'h';
-                    if (unit->Flags & UNIT_FLAG_RECEIVING_NO_AID )  sValue << 'i';
-                    if (unit->Flags & UNIT_FLAG_CONSUMING_UNIT   )  sValue << "cU";
-                    else if (unit->Flags & UNIT_FLAG_CONSUMING_FACTION)  sValue << "cF";
-                    if (unit->Flags & UNIT_FLAG_NO_CROSS_WATER   )  sValue << 'x';
-                    if (unit->Flags & UNIT_FLAG_SPOILS_NONE)  sValue << "sN"; 
-                    if (unit->Flags & UNIT_FLAG_SPOILS_WALK)  sValue << "sW";
-                    if (unit->Flags & UNIT_FLAG_SPOILS_RIDE)  sValue << "sR";
-                    if (unit->Flags & UNIT_FLAG_SPOILS_FLY)  sValue << "sF";
-                    if (unit->Flags & UNIT_FLAG_SPOILS_SWIM)  sValue << "sS";
-                    if (unit->Flags & UNIT_FLAG_SPOILS_SAIL)  sValue << "sL";
-                    if (unit->Flags & UNIT_FLAG_SHARING          )  sValue << 'z';
-                    info.m_text = wxString::FromUTF8(sValue.GetData());
+                    std::stringstream ss;
+                    if (unit->Flags & UNIT_FLAG_PILLAGING        )  ss << "$$";
+                    if (unit->Flags & UNIT_FLAG_TAXING           )  ss << '$';
+                    if (unit->Flags & UNIT_FLAG_PRODUCING        )  ss << 'P';
+                    if (unit_control::flags::is_entertaining(unit)) ss << 'E';
+                    if (unit->Flags & UNIT_FLAG_STUDYING         )  ss << 'S';
+                    if (unit_control::flags::is_teaching(unit)   )  ss << 'T';        
+                    if (unit_control::flags::is_working(unit)    )  ss << 'W';
+                    if (unit->Flags & UNIT_FLAG_MOVING           )  ss << 'M';  
+                    ss << '|';
+                    if (unit->Flags & UNIT_FLAG_GUARDING         )  ss << 'g';
+                    if (unit->Flags & UNIT_FLAG_AVOIDING         )  ss << 'a';
+                    if (unit->Flags & UNIT_FLAG_BEHIND           )  ss << 'b';
+                    if (unit->Flags & UNIT_FLAG_REVEALING_UNIT   )  ss << "rU";
+                    else if (unit->Flags & UNIT_FLAG_REVEALING_FACTION)  ss << "rF";
+                    if (unit->Flags & UNIT_FLAG_HOLDING          )  ss << 'h';
+                    if (unit->Flags & UNIT_FLAG_RECEIVING_NO_AID )  ss << 'i';
+                    if (unit->Flags & UNIT_FLAG_CONSUMING_UNIT   )  ss << "cU";
+                    else if (unit->Flags & UNIT_FLAG_CONSUMING_FACTION)  ss << "cF";
+                    if (unit->Flags & UNIT_FLAG_NO_CROSS_WATER   )  ss << 'x';
+                    if (unit->Flags & UNIT_FLAG_SPOILS_NONE)  ss << "sN"; 
+                    if (unit->Flags & UNIT_FLAG_SPOILS_WALK)  ss << "sW";
+                    if (unit->Flags & UNIT_FLAG_SPOILS_RIDE)  ss << "sR";
+                    if (unit->Flags & UNIT_FLAG_SPOILS_FLY)  ss << "sF";
+                    if (unit->Flags & UNIT_FLAG_SPOILS_SWIM)  ss << "sS";
+                    if (unit->Flags & UNIT_FLAG_SPOILS_SAIL)  ss << "sL";
+                    if (unit->Flags & UNIT_FLAG_SHARING )  ss << 'z';
+                    wxString temp(ss.str());
+                    info.SetText(temp);
                 }
                 else if (dataitem->GetProperty(layoutitem->m_Name, valuetype, value ))
                 {
@@ -243,10 +249,10 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
                     case eLong:
                         if (((long)value<0) && (0==stricmp(PRP_ID, layoutitem->m_Name)))
                             value = 0; // mask negative ids of new units
-                        info.m_text << (long)value;
+                        info.SetText(std::to_string((long)value));
                         break;
                     case eCharPtr:
-                        info.m_text = wxString::FromUTF8((const char*)value);
+                        info.SetText(std::string((const char*)value));
                         break;
                     default:
                         break;
@@ -311,6 +317,7 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
 
     if (selno>=0)
     {
+        this->is_selection_automatic_ = true;
         SetItemState(selno, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
         EnsureVisible(selno);
     }

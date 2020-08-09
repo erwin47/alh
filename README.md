@@ -47,7 +47,6 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 * add ReceiveDlg check for type, and if its a mount -- print out free weight [done]
 * add recalculate orders event for case when: 1) orders were modified and 2) focus removed from order window [done]
 * order's replacement system: instead of delete and add, there should be option to actually modify existing order [done]
-
 * enable for users to choose a phase of calculations. [future]
 * fix issue with speed of turtles in the ocean [future]
 * new units not counted in production stats [non-reproducable]
@@ -62,14 +61,23 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 * unit_pane doesn't represent skills of a new unit with given skilled peasants
 * land search -- save prev input
 * allowed multiple monthlong orders (not just teach) - or is it a feature to avoid mistakes?
+* in shared list of region items represented items of units that are going to come, but don't come this turn -- should be removed
+* sailing troops should be explicitly shown: at moving phase from initial reg and at end phase at end reg.
+* structures representation: ships mixed with buildings
+* new units moving to current hex from other hex has same number as local new units, which leads to losing ability to choose one of them.
 
 ## Changelog:
+### Aug 10 2020
+- Selection of units: new region selection discards any selection. Selection of the same region discards filter, if was, but doesn't discard selection. Removed recursion.
+- Movement: movement stop in case of movement is calculated for current region initially. That resolved some bugs based on movement logic.
+- Fixed bug with Movement Phase calculation.
+- Teaching: takes into account units, coming from other regions.
+
+
 ### Jul 26 2020
 - Autocommands: `$ne` now doesn't mean ignore order, but just supress order. We assume that if order will be partly parsed and any existing mechanism of prediction or analysis will start working incorrectly, its by intention of the user. Furthermore, order duplications and some other cases may be insensitive to `$ne` currently.
 - Advance Give System (Ctrl+G): reload units immediately.
 - Fixed bug with adding/removing column to unit pane (it didn't work ever)
-
-
 
 ### Jul 25 2020
 - Hex description: crafted info shows attempt & actual craft.

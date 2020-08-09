@@ -599,8 +599,8 @@ namespace autonaming
                 { SquadTypes::Transport, "Swamp Peasants" },
 
                 { SquadTypes::Guardsmen, "Oceanguard" },
-                { SquadTypes::HeavyWarrior, "White Sharks" },
-                { SquadTypes::Warrior, "Sharks" },
+                { SquadTypes::HeavyWarrior, "Alligators" },
+                { SquadTypes::Warrior, "Crocodiles" },
                 { SquadTypes::WeakEquipment, "Light" },
                 { SquadTypes::StrongEquipment, "Sharp-Toothed" },
                 { SquadTypes::AmountHuge, "Swarm" },

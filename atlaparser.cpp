@@ -7620,9 +7620,6 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
             }
         }
 
-        unit->movement_stop_ = land->Id; //initial, even if can't move a step
-
-        long movepoints = movemode.speed_;
         if (unit->caravan_info_ != nullptr)
         {//sanity check caravan speed
             switch(unit->caravan_info_->speed_) {
@@ -7652,12 +7649,13 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
                 }
             }
         }
-
+        long movepoints = movemode.speed_;
         long current_struct_id = unit_control::structure_id(unit);
         long hex_id = land->Id;
         long next_hex_id(0);
         CLand* cur_land = land;
         CLand* next_land = nullptr;
+        unit->movement_stop_ = hex_id; //initial, even if can't move a step
 
         for (size_t ord_index = 1; ord_index < order->words_order_.size(); ++ord_index)
         {
@@ -7812,6 +7810,12 @@ void CAtlaParser::RunOrder_LandMove(CLand* land)
             cur_land = next_land;
             next_land = nullptr;
         }
+
+        //if we didn't use last steps, then fill movement as if it was "P"
+        for (long i = 0; i < movepoints; ++i)
+            unit->movements_.push_back(unit->movement_stop_);
+
+
         CLand* moving_stop_land = GetLand(unit->movement_stop_);
         CLand* moving_target_land = nullptr;
         if (unit->movements_.size() > 0)
@@ -7887,6 +7891,10 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
         ship->SailingPower += (men_amount*sailing_lvl);
 
         //continue just struct owners
+        if (!is_owner)
+            return;
+
+        // check that settings for the structure were set well
         if (ship->travel_ == SHIP_TRAVEL::NONE ||
             ship->MinSailingPower == 0 ||
             ship->capacity_ == 0)
@@ -7895,6 +7903,7 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
             return;
         }
         
+        //capacity check
         if (ship->occupied_capacity_ > ship->capacity_)
         {
             errors.push_back({"Error", unit, order, "sail: can't sail due to overweight"});
@@ -7906,6 +7915,7 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
         long next_hex_id(0);
         CLand* cur_land = land;
         CLand* next_land = nullptr;
+        unit->movement_stop_ = hex_id;
 
         for (size_t ord_index = 1; ord_index < order->words_order_.size(); ++ord_index)
         {
@@ -7956,10 +7966,7 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
                     unit->impact_description_.push_back("sails: through unknown terrotiry, movepoints count may be wrong");
                     //logically perform the move
                     unit->movements_.push_back(next_hex_id);
-
                 }
-                  
-
             }
             else if (stricmp(order->words_order_[ord_index].c_str(), "P") == 0)
             {
@@ -7984,12 +7991,15 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
             next_land = nullptr;
         }
 
-        CLand* moving_stop_land = GetLand(unit->movement_stop_);
-        CLand* moving_target_land = nullptr;
-        if (unit->movements_.size() > 0)
-            moving_target_land = GetLand(unit->movements_.back());
+        for (long i = 0; i < movepoints; ++i)
+            unit->movements_.push_back(unit->movement_stop_);        
 
-        land_control::moving::apply_moving(unit, land, moving_stop_land, moving_target_land);
+        //CLand* moving_stop_land = GetLand(unit->movement_stop_);
+        //CLand* moving_target_land = nullptr;
+        //if (unit->movements_.size() > 0)
+        //    moving_target_land = GetLand(unit->movements_.back());
+
+        //land_control::moving::apply_moving(unit, land, moving_stop_land, moving_target_land);
         
         unit->impact_description_.push_back("sails; increased sailing power for: +" + std::to_string((men_amount*sailing_lvl)));
         if (unit_control::is_struct_owner(unit))
@@ -7999,7 +8009,7 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
         }
     });
 
-    //update passangers
+    //update passangers & apply moving affection
     long cur_unit_struct_id;
     land_control::perform_on_each_unit(land, [&](CUnit* unit) {
         cur_unit_struct_id = unit_control::structure_id(unit);

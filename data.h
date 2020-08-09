@@ -244,6 +244,11 @@ enum {
 #define NEW_UNIT_ID(pLand,n) (-pLand->Id*100 - n)
 */
 #define NEW_UNIT_ID(_n, _FactId) ((_FactId << 16) | _n)
+
+//assuming that x, y, z, FactId are below 4000, number is below 64k*16
+#define NEW_UNIT_ID_PRO(_x, _y, _z, _FactId, _n) ((_z << 56) | (_y << 44) | (_x << 32) | (_FactId << 20) | _n)
+#define REVERSE_NEW_UNIT_ID_PRO(_n) (_n & 0xFFFFF)
+
 #define REVERSE_NEW_UNIT_ID(_n) (_n & 0xFFFF)
 #define IS_NEW_UNIT_ID(_Id)   ((_Id & 0xFFFF0000) != 0)
 #define IS_NEW_UNIT(_pUnit)   IS_NEW_UNIT_ID(_pUnit->Id)
@@ -685,7 +690,7 @@ public:
     double        Wages;
     long          Troops[ATT_UNDECLARED+1];
 
-    long          guiUnit;  // will be used by GUI only
+    //long          guiUnit;  // will be used by GUI only
     int           guiColor; // will be used by GUI only
 
     int           TotalMovementCost; // Used for calculating routes

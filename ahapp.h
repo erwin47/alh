@@ -352,7 +352,7 @@ private:
     CStr                 m_HexDescrSrc;
     CStr                 m_UnitDescrSrc;
     CStr                 m_MsgSrc;
-    long                 m_SelUnitIdx;
+    //long                 m_SelUnitIdx;
     int                  m_layout;
     BOOL                 m_DisableErrs;
     CBufColl             m_MoveModes;

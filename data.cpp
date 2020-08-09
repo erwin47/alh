@@ -268,7 +268,7 @@ CLand::CLand() : CBaseObject(), Units(32)
 {
     Flags=0;
     AlarmFlags=0;
-    guiUnit=0;
+    //guiUnit=0;
     pPlane=NULL;
     CoastBits=0;
     AtlaclientsLastTurnNo=0;

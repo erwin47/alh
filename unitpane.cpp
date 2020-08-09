@@ -82,6 +82,7 @@ CUnitPane::CUnitPane(wxWindow *parent, wxWindowID id)
     m_pUnits   = NULL;
     m_pCurLand = NULL;
     m_ColClicked = -1;
+
     is_filtered_ = false;
     ApplyFonts();
 }
@@ -130,12 +131,24 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
 {
     int               i;
     CUnit           * pUnit;
-    eSelMode          selmode = sel_by_no;
-    long              seldata = 0;
-    BOOL              FullUpdate = (pLand != m_pCurLand); // if not full mode, refresh new units only
-    wxListItem        info;
-    CBaseColl         ArrivingUnits;
+    //eSelMode          selmode = sel_by_no;
+    //long              seldata = 0;
+    //BOOL              FullUpdate = (pLand != m_pCurLand); // if not full mode, refresh new units only
+    //wxListItem        info;
+    //CBaseColl         ArrivingUnits;
     long              GuiColor;
+
+    CLand* prev_land = m_pCurLand;
+    m_pCurLand = pLand;
+    
+    selected_unit_id_ = -1;
+
+    if (prev_land == m_pCurLand)
+    {
+        pUnit = GetSelectedUnit();
+        if (pUnit != nullptr)
+            selected_unit_id_ = pUnit->Id;
+    }
 
     //because we don't update windows, except current unit's list
     //if (gpApp->getLayout() == AH_LAYOUT_1_WIN_ONE_DESCR)
@@ -146,14 +159,14 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
         m_pUnits->DeleteAll();//we shouldn't delete all, if we are already filtered, we just want to continue
                               //with list of units which we have
 
-    if (!FullUpdate)
+    /*if (!FullUpdate)
         for (i=GetItemCount()-1; i>=0; i--)
         {
             info.m_itemId = i;
             info.m_col    = 0;
             info.m_mask   = wxLIST_MASK_DATA;
             GetItem(info);
-        }
+        }*/
 
     if (!this->is_filtered_ && pLand)
     {
@@ -163,7 +176,7 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
             pUnit = (CUnit*)pLand->Units.At(i);
             if (pUnit && !filter(pUnit)) {
                 this->is_filtered_ = true;
-                FullUpdate = true;
+                //FullUpdate = true;
                 continue;
             }              
 
@@ -190,7 +203,7 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
 
             if (unit && !filter(unit)) {
                 this->is_filtered_ = true;
-                FullUpdate = true;
+                //FullUpdate = true;
                 return;
             }
                 
@@ -207,7 +220,7 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
 
             if (unit && !filter(unit)) {
                 this->is_filtered_ = true;
-                FullUpdate = true;//
+                //FullUpdate = true;//
                 return;
             }
 
@@ -219,20 +232,18 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
 
         m_pUnits->SetSortMode(m_SortKey, NUM_SORTS);
 
-        if (pLand->guiUnit)
-        {
-            seldata = pLand->guiUnit;
-            selmode = sel_by_id;
-        }
+        //if (pLand->guiUnit)
+        //{
+        //    seldata = pLand->guiUnit;
+        //    selmode = sel_by_id;
+        //}
     }
-    CLand* prev_land = m_pCurLand;
-    m_pCurLand = pLand;
-    
-
-    if (prev_land != pLand)
-        SetData(no_selection, seldata, FullUpdate);
-    else
-        SetData(selmode, seldata, FullUpdate);
+    //if (prev_land != pLand) {
+    //    selected_unit_id_ = -1;
+        //SetData(no_selection, 0, true);
+    //}
+    SetData(sel_by_id, selected_unit_id_, true);
+        
 
     /*if (prev_land != pLand) {
         long item = this->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_FOCUSED);
@@ -260,11 +271,15 @@ void CUnitPane::SelectUnit(long UnitId)
         GetItem(info);
         if ((int)info.m_data==UnitId)
         {
+            selected_unit_id_ = UnitId;
             SetItemState(i, wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED, wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED);
             EnsureVisible(i);
         }
-        else
-            SetItemState(i, 0, wxLIST_STATE_SELECTED);
+        else {
+            selected_unit_id_ = -1;
+            SetItemState(i, 0, wxLIST_STATE_SELECTED);            
+        }
+            
     }
 }
 
@@ -349,16 +364,14 @@ void CUnitPane::ReloadHdr(const char * szConfigSectionHdr)
         for (i=x; i>=0; i--)
             DeleteColumn(i);
     }*/
-
     LoadUnitListHdr();
 
-    if (m_pCurLand && m_pCurLand->guiUnit)
-    {
-        seldata = m_pCurLand->guiUnit;
-        selmode = sel_by_id;
-    }
+    if (m_pCurLand && selected_unit_id_ > 0)
+        SetData(sel_by_id, selected_unit_id_, true);
+    else 
+        SetData(sel_by_no, 0, true);
 
-    SetData(selmode, seldata, TRUE);
+    
 }
 
 //--------------------------------------------------------------------------
@@ -395,6 +408,10 @@ void CUnitPane::SaveUnitListHdr()
 
 void CUnitPane::OnSelected(wxListEvent& event)
 {
+    if (is_selection_automatic_)
+        is_selection_automatic_ = false;
+        return;
+
     CUnitOrderEditPane* pOrders;
     CUnit      * pUnit = GetUnit(event.m_itemIndex);
     bool         changed = false;
@@ -402,8 +419,9 @@ void CUnitPane::OnSelected(wxListEvent& event)
 
     if (pUnit)
     {
-        if (m_pCurLand)
-            m_pCurLand->guiUnit = pUnit->Id;
+        selected_unit_id_ = pUnit->Id;
+//        if (m_pCurLand)
+//            m_pCurLand->guiUnit = pUnit->Id;
 
         gpApp->OnUnitHexSelectionChange(event.m_itemIndex);
         Update(m_pCurLand);
@@ -455,6 +473,19 @@ void CUnitPane::SelectPrevUnit()
         if (pUnit)
             SelectUnit(pUnit->Id);
     }
+}
+
+CUnit* CUnitPane::GetSelectedUnit() 
+{
+    long idx = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    if (idx >= 0)
+    {
+        CUnit* unit = GetUnit(idx);
+        selected_unit_id_ = unit->Id;
+        return unit;
+    }
+    selected_unit_id_ = -1;
+    return nullptr;
 }
 
 //--------------------------------------------------------------------------
@@ -574,15 +605,11 @@ void CUnitPane::OnRClick(wxListEvent& event)
 
 void CUnitPane::OnPopupMenuTeach (wxCommandEvent& event)
 {
-    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    CUnit      * pUnit = GetUnit(idx);
     CUnitOrderEditPane  * pOrders;
 
+    CUnit      * pUnit = GetSelectedUnit();
     if (pUnit)
     {
-                if (m_pCurLand)
-            m_pCurLand->guiUnit = pUnit->Id;
-
         gpApp->SetOrdersChanged(gpApp->m_pAtlantis->GenOrdersTeach(pUnit)
                                || gpApp->GetOrdersChanged());
         Update(m_pCurLand);
@@ -593,17 +620,11 @@ void CUnitPane::OnPopupMenuTeach (wxCommandEvent& event)
 
 void CUnitPane::OnPopupMenuSplit(wxCommandEvent& event)
 {
-    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    CUnit      * pUnit = GetUnit(idx);
+    CUnit* pUnit = GetSelectedUnit();
     CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
-        if (m_pCurLand)
-            m_pCurLand->guiUnit = pUnit->Id;
-
-        // do it here
-
         CUnitSplitDlg dlg(this, pUnit);
         if (wxID_OK == dlg.ShowModal()) // it will modify unit's orders
             gpApp->SetOrdersChanged(TRUE);
@@ -614,18 +635,14 @@ void CUnitPane::OnPopupMenuSplit(wxCommandEvent& event)
 
 void CUnitPane::OnPopupMenuCreateNew(wxCommandEvent& event)
 {
-    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    if (idx == -1)
-        return;
-
-    CUnit* pUnit = GetUnit(idx);
+    CUnit* pUnit = GetSelectedUnit();
     CLand* pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
     CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
-        if (m_pCurLand)
-            m_pCurLand->guiUnit = pUnit->Id;
+        //if (m_pCurLand)
+        //    m_pCurLand->guiUnit = pUnit->Id;
 
         //gpApp->m_pAtlantis->RunLandOrders(pLand, TurnSequence::SQ_FIRST, TurnSequence::SQ_GIVE);
         CCreateNewUnit dlg(this, pUnit, pLand);
@@ -800,15 +817,11 @@ bool CUnitPane::CreateScout(CUnit * pUnit, ScoutType scoutType)
 
 void CUnitPane::OnPopupMenuScoutSimple(wxCommandEvent& event)
 {
-    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    CUnit      * pUnit = GetUnit(idx);
+    CUnit* pUnit = GetSelectedUnit();
     CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
-        if (m_pCurLand)
-            m_pCurLand->guiUnit = pUnit->Id;
-
         if (CreateScout(pUnit, SCOUT_SIMPLE))
             Update(m_pCurLand);
     }
@@ -818,15 +831,11 @@ void CUnitPane::OnPopupMenuScoutSimple(wxCommandEvent& event)
 
 void CUnitPane::OnPopupMenuScoutMove(wxCommandEvent& event)
 {
-    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    CUnit      * pUnit = GetUnit(idx);
+    CUnit* pUnit = GetSelectedUnit();
     CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
-        if (m_pCurLand)
-            m_pCurLand->guiUnit = pUnit->Id;
-
         if (CreateScout(pUnit, SCOUT_MOVE))
             Update(m_pCurLand);
     }
@@ -836,15 +845,11 @@ void CUnitPane::OnPopupMenuScoutMove(wxCommandEvent& event)
 
 void CUnitPane::OnPopupMenuScoutObserver(wxCommandEvent& event)
 {
-    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    CUnit      * pUnit = GetUnit(idx);
+    CUnit* pUnit = GetSelectedUnit();
     CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
-        if (m_pCurLand)
-            m_pCurLand->guiUnit = pUnit->Id;
-
         if (CreateScout(pUnit, SCOUT_OBSERVER))
             Update(m_pCurLand);
     }
@@ -854,15 +859,11 @@ void CUnitPane::OnPopupMenuScoutObserver(wxCommandEvent& event)
 
 void CUnitPane::OnPopupMenuScoutStealth(wxCommandEvent& event)
 {
-    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    CUnit      * pUnit = GetUnit(idx);
+    CUnit* pUnit = GetSelectedUnit();
     CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
-        if (m_pCurLand)
-            m_pCurLand->guiUnit = pUnit->Id;
-
         if (CreateScout(pUnit, SCOUT_STEALTH))
             Update(m_pCurLand);
     }
@@ -872,15 +873,11 @@ void CUnitPane::OnPopupMenuScoutStealth(wxCommandEvent& event)
 
 void CUnitPane::OnPopupMenuScoutGuard(wxCommandEvent& event)
 {
-    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    CUnit      * pUnit = GetUnit(idx);
+    CUnit* pUnit = GetSelectedUnit();
     CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
-        if (m_pCurLand)
-            m_pCurLand->guiUnit = pUnit->Id;
-
         if (CreateScout(pUnit, SCOUT_GUARD))
             Update(m_pCurLand);
     }
@@ -890,15 +887,11 @@ void CUnitPane::OnPopupMenuScoutGuard(wxCommandEvent& event)
 
 void CUnitPane::OnPopupMenuShareSilv  (wxCommandEvent& event)
 {
-    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    CUnit      * pUnit = GetUnit(idx);
+    CUnit* pUnit = GetSelectedUnit();
     CUnitOrderEditPane  * pOrders;
 
     if (pUnit)
     {
-        if (m_pCurLand)
-            m_pCurLand->guiUnit = pUnit->Id;
-
         gpApp->SetOrdersChanged(gpApp->m_pAtlantis->ShareSilver(pUnit)
                                || gpApp->GetOrdersChanged());
         Update(m_pCurLand);
@@ -910,16 +903,12 @@ void CUnitPane::OnPopupMenuShareSilv  (wxCommandEvent& event)
 
 void CUnitPane::OnPopupMenuGiveEverything (wxCommandEvent& event)
 {
-    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    CUnit      * pUnit = GetUnit(idx);
+    CUnit* pUnit = GetSelectedUnit();
     CUnitOrderEditPane  * pOrders;
     wxString     N;
 
     if (pUnit)
     {
-        if (m_pCurLand)
-            m_pCurLand->guiUnit = pUnit->Id;
-
         N = wxGetTextFromUser(wxT("Give everything to unit"), wxT("Confirm"));
 
         gpApp->SetOrdersChanged(gpApp->m_pAtlantis->GenGiveEverything(pUnit, N.mb_str())
@@ -933,17 +922,13 @@ void CUnitPane::OnPopupMenuGiveEverything (wxCommandEvent& event)
 
 void CUnitPane::OnPopupMenuDiscardJunk(wxCommandEvent& WXUNUSED(event))
 {
-    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    CUnit      * pUnit = GetUnit(idx);
+    CUnit* pUnit = GetSelectedUnit();
     CUnitOrderEditPane  * pOrders;
 
     // For new units: delete the entire unit
     // For normal units: issue orders to give away all useless items
     if (pUnit)
     {
-        if (m_pCurLand)
-            m_pCurLand->guiUnit = pUnit->Id;
-
         if (IS_NEW_UNIT(pUnit))
         {
             CLand * pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
@@ -962,8 +947,7 @@ void CUnitPane::OnPopupMenuDiscardJunk(wxCommandEvent& WXUNUSED(event))
 
 void CUnitPane::OnPopupMenuDetectSpies(wxCommandEvent& WXUNUSED(event))
 {
-    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    CUnit      * pUnit = GetUnit(idx);
+    CUnit* pUnit = GetSelectedUnit();
     CUnitOrderEditPane  * pOrders;
     BOOL         DoCheck;
 
@@ -973,9 +957,6 @@ void CUnitPane::OnPopupMenuDetectSpies(wxCommandEvent& WXUNUSED(event))
         if (DoCheck &&
             wxYES != wxMessageBox(wxT("Really generate orders for spy detection?  It might freeze the program on Linux!"), wxT("Confirm"), wxYES_NO, NULL))
             return;
-
-        if (m_pCurLand)
-            m_pCurLand->guiUnit = pUnit->Id;
 
         gpApp->SetOrdersChanged(gpApp->m_pAtlantis->DetectSpies(pUnit,
                                                                 atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_SPY_DETECT_LO)),
