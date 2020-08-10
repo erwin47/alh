@@ -273,8 +273,8 @@ public:
 
     void                 CreateAccelerator();
 
-    BOOL                 GetOrdersChanged(){return m_OrdersAreChanged;};
-    void                 SetOrdersChanged(BOOL Changed);
+    inline bool          orders_changed() const { return orders_changed_flag_;  }
+    void                 orders_changed(bool Changed);
     void                 StdRedirectReadMore(BOOL FromStdout, CStr & sData);
     void                 CheckRedirectedOutputFiles();
     void                 RerunOrders();
@@ -359,7 +359,7 @@ private:
     CWeightsColl         m_ItemWeights;
     CConfigFile          m_Config[CONFIG_FILE_COUNT];
     CStringSortColl      m_ConfigSectionsState;
-    BOOL                 m_OrdersAreChanged;
+    bool                 orders_changed_flag_;
     CStr                 m_sTitle;
     CHashStrToLong       m_OrderHash;
     CHashStrToLong       m_TradeItemsHash;

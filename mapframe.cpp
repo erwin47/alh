@@ -920,11 +920,12 @@ void CMapFrame::OnWindowEditors(wxCommandEvent& event)
 
 void CMapFrame::OnApplyAutoorders(wxCommandEvent& event)
 {
-    gpApp->SetOrdersChanged(gpApp->m_pAtlantis->ApplyDefaultOrders(TRUE) //(BOOL)atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_DEFAULT_EMPTY_ONLY)))
-                            || gpApp->GetOrdersChanged());
+    //should set it just of Apply really modified at least one order
+    gpApp->orders_changed(gpApp->m_pAtlantis->ApplyDefaultOrders(TRUE) //(BOOL)atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_DEFAULT_EMPTY_ONLY)))
+                            || gpApp->orders_changed());
 
     CUnitPane * p = (CUnitPane*)gpApp->m_Panes[AH_PANE_UNITS_HEX];
-    if (p)
+    if (p && gpApp->orders_changed())
         p->Update(p->m_pCurLand);
 
 }

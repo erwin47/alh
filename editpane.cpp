@@ -287,6 +287,7 @@ CUnit* CUnitOrderEditPane::change_representing_unit(CUnit* unit)
         unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
         unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));
         unit_->orders_.is_modified_ = true;
+        gpApp->orders_changed(true);
         m_pEditor->DiscardEdits();
     }
     unit_ = unit;

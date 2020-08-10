@@ -369,6 +369,7 @@ protected:
 
     template<orders::Type TYPE> void RunOrder_AOComments(CLand* land);
     void         RunOrder_AONames          (CLand* land);
+    void         RunCaravanAutomoveOrderGeneration(CLand* land);
     //void         RunOrder_Study            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Name             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     BOOL         FindTargetsForSend        (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char *& params, CUnit *& pUnit2, CLand *& pLand2);

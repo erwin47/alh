@@ -486,9 +486,7 @@ void CUnitPaneFltr::OnPopupMenuIssueOrders(wxCommandEvent& event)
 
     if (LandIds.Count()>0)
     {
-        gpApp->SetOrdersChanged(TRUE);
-/*        gpApp->m_pAtlantis->RunOrders(m_pCurLand);
-        Update(m_pCurLand);*/
+        gpApp->orders_changed(true);
         for (i=0; i<LandIds.Count(); i++)
         {
             pLand = gpApp->m_pAtlantis->GetLand((long)LandIds.At(i));
@@ -498,7 +496,6 @@ void CUnitPaneFltr::OnPopupMenuIssueOrders(wxCommandEvent& event)
         if (pUnitPane)
             pUnitPane->Update(pUnitPane->m_pCurLand);
     }
-
     LandIds.DeleteAll();
 }
 

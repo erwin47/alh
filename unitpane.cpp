@@ -611,9 +611,10 @@ void CUnitPane::OnPopupMenuTeach (wxCommandEvent& event)
     CUnit      * pUnit = GetSelectedUnit();
     if (pUnit)
     {
-        gpApp->SetOrdersChanged(gpApp->m_pAtlantis->GenOrdersTeach(pUnit)
-                               || gpApp->GetOrdersChanged());
-        Update(m_pCurLand);
+        gpApp->orders_changed(gpApp->m_pAtlantis->GenOrdersTeach(pUnit)
+                               || gpApp->orders_changed());
+        if (gpApp->orders_changed())
+            Update(m_pCurLand);
     }
 }
 
@@ -628,7 +629,7 @@ void CUnitPane::OnPopupMenuSplit(wxCommandEvent& event)
     {
         CUnitSplitDlg dlg(this, pUnit);
         if (wxID_OK == dlg.ShowModal()) // it will modify unit's orders
-            gpApp->SetOrdersChanged(TRUE);
+            gpApp->orders_changed(true);
 
         Update(m_pCurLand);
     }
@@ -648,7 +649,7 @@ void CUnitPane::OnPopupMenuCreateNew(wxCommandEvent& event)
         //gpApp->m_pAtlantis->RunLandOrders(pLand, TurnSequence::SQ_FIRST, TurnSequence::SQ_GIVE);
         CCreateNewUnit dlg(this, pUnit, pLand);
         if (wxID_OK == dlg.ShowModal()) // it will modify unit's orders
-            gpApp->SetOrdersChanged(TRUE);
+            gpApp->orders_changed(true);
 
         gpApp->m_pAtlantis->RunLandOrders(pLand);
         Update(m_pCurLand);
@@ -708,11 +709,11 @@ void CUnitPane::OnPopupMenuReceiveItems(wxCommandEvent& event)
     CLand* pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
 
     CReceiveDlg dlg(this, pUnit, pLand);
-    if (wxID_OK == dlg.ShowModal()) // it will modify unit's orders
-        gpApp->SetOrdersChanged(TRUE);
-
-    gpApp->m_pAtlantis->RunLandOrders(pLand);
-    Update(m_pCurLand);
+    if (wxID_OK == dlg.ShowModal()) {
+        gpApp->orders_changed(true);
+        gpApp->m_pAtlantis->RunLandOrders(pLand);
+        Update(m_pCurLand);
+    }
 }
 
 //--------------------------------------------------------------------------
@@ -811,7 +812,7 @@ bool CUnitPane::CreateScout(CUnit * pUnit, ScoutType scoutType)
     if (m_pCurLand)
         gpApp->m_pAtlantis->RunOrders(m_pCurLand);
 
-    gpApp->SetOrdersChanged(TRUE);
+    gpApp->orders_changed(true);
 
     return true;
 }
@@ -893,9 +894,11 @@ void CUnitPane::OnPopupMenuShareSilv  (wxCommandEvent& event)
 
     if (pUnit)
     {
-        gpApp->SetOrdersChanged(gpApp->m_pAtlantis->ShareSilver(pUnit)
-                               || gpApp->GetOrdersChanged());
-        Update(m_pCurLand);
+        if (gpApp->m_pAtlantis->ShareSilver(pUnit))
+        {
+            gpApp->orders_changed(true);
+            Update(m_pCurLand);
+        }
     }
 }
 
@@ -911,12 +914,12 @@ void CUnitPane::OnPopupMenuGiveEverything (wxCommandEvent& event)
     if (pUnit)
     {
         N = wxGetTextFromUser(wxT("Give everything to unit"), wxT("Confirm"));
-
-        gpApp->SetOrdersChanged(gpApp->m_pAtlantis->GenGiveEverything(pUnit, N.mb_str())
-                               || gpApp->GetOrdersChanged());
-        Update(m_pCurLand);
+        if (gpApp->m_pAtlantis->GenGiveEverything(pUnit, N.mb_str()))
+        {
+            gpApp->orders_changed(true);
+            Update(m_pCurLand);
+        }
     }
-
 }
 
 //--------------------------------------------------------------------------
@@ -935,12 +938,14 @@ void CUnitPane::OnPopupMenuDiscardJunk(wxCommandEvent& WXUNUSED(event))
             CLand * pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
             pLand->RemoveUnit(pUnit);
             delete pUnit;
-            gpApp->SetOrdersChanged(true);
+            gpApp->orders_changed(true);
+            Update(m_pCurLand);
         }
-        else
-            gpApp->SetOrdersChanged(gpApp->m_pAtlantis->DiscardJunkItems(pUnit, gpApp->GetConfig(SZ_SECT_UNITPROP_GROUPS, PRP_JUNK_ITEMS))
-                               || gpApp->GetOrdersChanged());
-        Update(m_pCurLand);
+        else if (gpApp->m_pAtlantis->DiscardJunkItems(pUnit, gpApp->GetConfig(SZ_SECT_UNITPROP_GROUPS, PRP_JUNK_ITEMS)))
+        {
+            gpApp->orders_changed(true);
+            Update(m_pCurLand);
+        }
     }
 }
 
@@ -950,21 +955,23 @@ void CUnitPane::OnPopupMenuDetectSpies(wxCommandEvent& WXUNUSED(event))
 {
     CUnit* pUnit = GetSelectedUnit();
     CUnitOrderEditPane  * pOrders;
-    BOOL         DoCheck;
+    bool DoCheck;
 
     if (pUnit)
     {
-        DoCheck = atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_SPY_DETECT_WARNING));
+        DoCheck = atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_SPY_DETECT_WARNING)) > 0;
         if (DoCheck &&
             wxYES != wxMessageBox(wxT("Really generate orders for spy detection?  It might freeze the program on Linux!"), wxT("Confirm"), wxYES_NO, NULL))
             return;
 
-        gpApp->SetOrdersChanged(gpApp->m_pAtlantis->DetectSpies(pUnit,
-                                                                atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_SPY_DETECT_LO)),
-                                                                atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_SPY_DETECT_HI)),
-                                                                atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_SPY_DETECT_AMT)))
-                               || gpApp->GetOrdersChanged());
-        Update(m_pCurLand);
+        if (gpApp->m_pAtlantis->DetectSpies(pUnit,
+                                            atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_SPY_DETECT_LO)),
+                                            atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_SPY_DETECT_HI)),
+                                            atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_SPY_DETECT_AMT))))
+        {
+            gpApp->orders_changed(true);
+            Update(m_pCurLand);          
+        }        
     }
 }
 
@@ -1117,7 +1124,7 @@ void CUnitPane::OnPopupMenuIssueOrders(wxCommandEvent& event)
 
     if (Changed)
     {
-        gpApp->SetOrdersChanged(TRUE);
+        gpApp->orders_changed(true);
         gpApp->m_pAtlantis->RunOrders(m_pCurLand);
         Update(m_pCurLand);
     }

@@ -897,7 +897,8 @@ namespace orders
 
                 unit->Orders.Empty();
                 unit->Orders << orders::parser::compose_string(unit->orders_).c_str();
-                parser::recalculate_hash(unit->orders_);  
+                parser::recalculate_hash(unit->orders_);
+                gpApp->orders_changed(true);
                 return true;
             }
             return false;
@@ -918,6 +919,7 @@ namespace orders
             if (unit->Orders.GetLength() > 0)
                 unit->Orders << EOL_SCR;                
             parser::compose_string(unit->Orders, order);
+            gpApp->orders_changed(true);
             remove_empty_lines(unit);
         }
         
@@ -944,8 +946,9 @@ namespace orders
         void add_order_to_unit(std::string order_line, CUnit* unit)
         {
             std::shared_ptr<orders::Order> order = orders::parser::parse_line_to_order(order_line);
-            if (order != nullptr)
+            if (order != nullptr) {
                 add_order_to_unit(order, unit);
+            }                
         }
 
         std::vector<std::shared_ptr<Order>> retrieve_orders_by_type(orders::Type type, const UnitOrders& unit_orders)

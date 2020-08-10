@@ -220,7 +220,7 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
                     if (unit->Flags & UNIT_FLAG_STUDYING         )  ss << 'S';
                     if (unit_control::flags::is_teaching(unit)   )  ss << 'T';        
                     if (unit_control::flags::is_working(unit)    )  ss << 'W';
-                    if (unit->Flags & UNIT_FLAG_MOVING           )  ss << 'M';  
+                    if (unit_control::flags::is_moving(unit)     )  ss << 'M';  
                     ss << '|';
                     if (unit->Flags & UNIT_FLAG_GUARDING         )  ss << 'g';
                     if (unit->Flags & UNIT_FLAG_AVOIDING         )  ss << 'a';

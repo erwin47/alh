@@ -72,7 +72,7 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 - Movement: movement stop in case of movement is calculated for current region initially. That resolved some bugs based on movement logic.
 - Fixed bug with Movement Phase calculation.
 - Teaching: takes into account units, coming from other regions.
-
+- Autoorders generation: for caravans, autonaming, moved to the beginning of order parsing.
 
 ### Jul 26 2020
 - Autocommands: `$ne` now doesn't mean ignore order, but just supress order. We assume that if order will be partly parsed and any existing mechanism of prediction or analysis will start working incorrectly, its by intention of the user. Furthermore, order duplications and some other cases may be insensitive to `$ne` currently.
@@ -133,7 +133,6 @@ With enabled feature any unit with order `@name unit ""` will automatically get 
 `REG[MITH]` -- allows search for hexes where it is possible to produce `MITH` (0 -- means that the hex was checked, but item wasn't found, -1 -- no info)
 `SELL_AMOUNT[MITH]`, `SELL_PRICE[MITH]`, `BUY_AMOUNT[MITH]`, `BUY_PRICE[MITH]` -- generally duplicate old interface
 
-
 ### Jun 22 2020
 - internal: prod detail performance optimization
 - internal: units_seq_ of region is now a std collection
@@ -143,7 +142,6 @@ With enabled feature any unit with order `@name unit ""` will automatically get 
 - MSVC compatibility problem: removed `ERROR` enumeration name
 - starting bugfix: Gate parsing doesn't lead to crush anymore.
 - Region economy: added shared resources production statistics (it takes into account resources which will come to region with units, having `share 1` flag)
-
 
 ### May 31 2020
 - check tax & trade: added more statistic info.

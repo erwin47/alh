@@ -4692,7 +4692,7 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
     for (auto& error : errors)
     {
         OrderError(error.type_, pLand, error.unit_, error.order_, error.message_);
-    }        
+    }
 
     BOOL changed = FALSE;
     for (const auto& stud : students)
@@ -4760,6 +4760,7 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
             }
         }
     }
+
     RunLandOrders(pLand); // just in case...
     return changed;
 }
@@ -5142,8 +5143,11 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                     OrderError("error", pLand, unit, order, order->comment_ + ": " + order->original_string_);
                 }
             });
-            RunOrder_AOComments<orders::Type::O_COMMENT>(pLand);
-            
+            CheckOrder_LandMonthlong(pLand);
+            //Automatic Orders Generation place during run of the orders
+            RunOrder_AOComments<orders::Type::O_COMMENT>(pLand);//
+            RunOrder_AONames(pLand);                  //generate/update autonames (internal & external)
+            RunCaravanAutomoveOrderGeneration(pLand); //generate caravan automatic move orders
             CheckOrder_LandMonthlong(pLand);
         }
 
@@ -5211,6 +5215,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         if (sequence == TurnSequence::SQ_MOVE) {
             RunOrder_AOComments<orders::Type::O_MOVE>(pLand);
             RunOrder_AOComments<orders::Type::O_ADVANCE>(pLand);
+
             RunOrder_LandMove(pLand);
         }
         if (sequence == TurnSequence::SQ_TEACH) {}
@@ -5243,7 +5248,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         }
         if (sequence == TurnSequence::SQ_MAINTENANCE) 
         {
-            RunOrder_AONames(pLand);
+            //RunOrder_AONames(pLand);
         }
         if (sequence == TurnSequence::SQ_LAST) {
             long region_balance = pLand->current_state_.economy_.initial_amount_ +
@@ -5266,8 +5271,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             pUnitMaster = NULL;
             bool isSimCmd = false;
             CLand* destination_land = nullptr;
-            if (pUnit->caravan_info_ != nullptr)
-                destination_land = pUnit->caravan_info_->goal_land_;
+            //if (pUnit->caravan_info_ != nullptr)
+            //    destination_land = pUnit->caravan_info_->goal_land_;
 
             LandIdToCoord(pLand->Id, X, Y, Z);
             LocA3 = NO_LOCATION;
@@ -5646,21 +5651,12 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                 {
                     if (route.Length() > 66)
                     {
-                        // only supply first move
                         RoutePlanner::GetFirstMove(route);
                     }
 
                     route.Replace("_ ", "", true);
-                    //RunOrder_Move(Line, ErrorLine, skiperror, pUnit, pLand, (const char *)route.ToUTF8(), X, Y, LocA3, O_MOVE);
-                    //pUnit->CalcWeightsAndMovement();
                     route = wxString::Format("MOVE%s", route);
-                    //auto order = orders::parser::parse_line_to_order((const char *)route.ToUTF8());
                     orders::control::add_order_to_unit((const char *)route.ToUTF8(), pUnit);
-
-                    //pUnit->Orders.TrimRight(TRIM_ALL);
-                    //pUnit->Orders << EOL_SCR;
-                    //pUnit->Orders << (const char *)route.ToUTF8();
-                    //Line = (const char *)route.ToUTF8();
                 }
             }
             //if (TurnSequence::SQ_MAX-1==sequence)
@@ -6260,6 +6256,40 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
         }
     });
 }
+
+void CAtlaParser::RunCaravanAutomoveOrderGeneration(CLand* land)
+{
+    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        if (!unit->IsOurs || 
+            unit_control::flags::is_moving(unit) ||
+            unit->caravan_info_ == nullptr ||
+            unit->caravan_info_->goal_land_ == nullptr)
+            return;
+
+        int movementMode;
+        bool noCross;
+        wxString Log;
+        GetMovementMode(unit, movementMode, noCross, O_MOVE);
+        wxString route = RoutePlanner::GetRoute(land, unit->caravan_info_->goal_land_, movementMode, RoutePlanner::ROUTE_MARKUP_TURN, noCross, Log);
+        if (Log.size() > 0)
+        {
+            m_sOrderErrors << "For UNIT: " << unit->Id;
+            m_sOrderErrors << Log.c_str();
+        }
+        if (!route.IsEmpty())
+        {
+            if (route.Length() > 66)
+            {
+                RoutePlanner::GetFirstMove(route);
+            }
+
+            route.Replace("_ ", "", true);
+            route = wxString::Format("MOVE%s", route);
+            orders::control::add_order_to_unit((const char *)route.ToUTF8(), unit);
+        }
+    });
+}
+
 template<orders::Type TYPE> void CAtlaParser::RunOrder_AOComments(CLand* land)
 {
     //std::map<long, std::chrono::microseconds> time_points;

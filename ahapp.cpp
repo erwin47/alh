@@ -75,7 +75,7 @@ CAhApp::CAhApp() : m_HexDescrSrc    (128),
                    m_MagicSkillsHash(  6)
 {
     m_FirstLoad         = TRUE;
-    m_OrdersAreChanged  = FALSE;
+    orders_changed_flag_  = false;
     m_CommentsChanged   = FALSE;
     m_UpgradeLandFlags  = FALSE;
     m_DiscardChanges    = FALSE;
@@ -1439,7 +1439,7 @@ void CAhApp::SetMapFrameTitle()
         S << ")";
     }
 
-    if (m_OrdersAreChanged)
+    if (orders_changed())
         S << " [modified]";
     if (pMapFrame)
         pMapFrame->SetTitle(wxString::FromAscii(S.GetData()));
@@ -1447,9 +1447,9 @@ void CAhApp::SetMapFrameTitle()
 
 //-------------------------------------------------------------------------
 
-void CAhApp::SetOrdersChanged(BOOL Changed)
+void CAhApp::orders_changed(bool changed)
 {
-    m_OrdersAreChanged = Changed;
+    orders_changed_flag_ = changed;
 
     SetMapFrameTitle();
 }
@@ -1479,7 +1479,7 @@ int CAhApp::SaveOrders(BOOL UsingExistingName)
     }
 
     if (ERR_OK==err)
-        SetOrdersChanged(FALSE);
+        orders_changed(false);
 
     return err;
 }
@@ -2539,7 +2539,7 @@ void CAhApp::PreLoadReport()
     SaveUnitFlags();
     if (m_CommentsChanged)
         SaveComments();
-    if (GetOrdersChanged())
+    if (orders_changed())
         SaveOrders(TRUE);
 
     if (ERR_OK==m_pAtlantis->m_ParseErr)
@@ -2763,7 +2763,7 @@ int  CAhApp::LoadReport  (const char * FNameIn, BOOL Join)
                 wxMessageBox(wxT("Wrong turn in the report"), wxT("Error"));
                 break;
         }
-        SetOrdersChanged(FALSE);
+        orders_changed(false);
         m_CommentsChanged = FALSE;
         if ( ERR_OK==err && m_pAtlantis->m_YearMon != 0 && m_pAtlantis->m_CrntFactionId != 0 )
         {
@@ -3108,7 +3108,7 @@ void CAhApp::SwitchToYearMon(long YearMon)
     CStr          S, S2;
 
     PreLoadReport();
-    if (GetOrdersChanged())
+    if (orders_changed())
         return;
     pDummy->m_YearMon = YearMon;
     if (m_Reports.Search(pDummy, i))
@@ -3622,7 +3622,7 @@ bool CAhApp::OnUnitHexSelectionChange(long idx)
     CUnitOrderEditPane   * pOrders;
     CEditPane   * pComments;
     CUnit       * pUnit;
-    bool return_value = false;//! signals if we rerun orders
+    bool return_value = false;//! signal that order was manually modified
 
     //m_SelUnitIdx = idx;
     pUnit        = GetSelectedUnit(); // depends on m_SelUnitIdx
@@ -3726,7 +3726,7 @@ void CAhApp::LoadOrders()
             
 
         LoadOrders(S.GetData());
-        SetOrdersChanged(FALSE);
+        orders_changed(false);
     }
 }
 
@@ -3755,7 +3755,7 @@ BOOL CAhApp::CanCloseApp()
     if (m_CommentsChanged)
         SaveComments();
 
-    return ( m_DiscardChanges || !GetOrdersChanged() || ERR_OK==SaveOrders(TRUE));
+    return ( m_DiscardChanges || !orders_changed() || ERR_OK==SaveOrders(TRUE));
 }
 
 //--------------------------------------------------------------------------
