@@ -178,7 +178,7 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
                 this->is_filtered_ = true;
                 //FullUpdate = true;
                 continue;
-            }              
+            }
 
             if (pUnit && pUnit->movements_.size() > 0 || pUnit->movement_stop_ == pLand->Id)
                 already_listed_units.insert(pUnit->Id);

@@ -580,3 +580,155 @@ void CHexFilterDlg::OnButton(wxCommandEvent& event)
     }
 }
 
+#include "data_control.h"
+
+CHexFilterAutologicDlg::CHexFilterAutologicDlg(wxWindow *parent, const std::map<std::string, std::string>& examples)
+            :CResizableDlg(parent, wxT("Find Hexes Autologic"), "HEX_FILTER_AUTOLOGIC_DLG"), examples_(examples)
+{
+    topsizer_ = new wxBoxSizer( wxVERTICAL );
+    long layers = game_control::get_game_config_val<long>("HEX_FILTER_AUTOLOGIC_DLG", "AMOUNT");
+    layers = std::max<long>(5, layers);
+
+    // Example part
+    example_box_ = new wxComboBox(this, -1);
+    example_description_ = new wxStaticText(this, -1, wxT("Manual modification of [HEX_FILTER_AUTOLOGIC_DLG] `AMOUNT` in settings\n allows to set up any amount of rows for current window"));
+    example_box_->Append(wxT(""));
+    for (const auto& pair: examples_)
+    {
+        example_box_->Append(pair.first);
+    }
+    example_box_->Bind(wxEVT_COMBOBOX, &CHexFilterAutologicDlg::OnExampleChosen, this); 
+    wxBoxSizer* example_sizer = new wxBoxSizer( wxVERTICAL );
+    example_sizer->Add(new wxStaticText(this, -1, wxT("Function examples:")), 0, wxALL);
+    example_sizer->Add(example_box_, 0, wxALL | wxEXPAND);
+    example_sizer->Add(example_description_, 1, wxALL | wxEXPAND);
+    example_sizer->AddSpacer(20);
+    topsizer_->Add(example_sizer, 0, wxALL | wxEXPAND);
+
+    //Configuration part
+    topsizer_->Add(new wxStaticText(this, -1, wxT("Filters:")), 0, wxALL);
+    descriptions_.resize(layers);
+    fields_.resize(layers);
+    result_field_.resize(layers);
+    buttons_.resize(layers);
+    for (long i = 0; i < layers; ++i)
+    {
+        std::string descr = "FIELD"+std::to_string(i)+"_DESCR";
+        std::string filter = "FIELD"+std::to_string(i)+"_FILTER";
+        std::string res_filter = "FIELD"+std::to_string(i)+"_RESULT_FILTER";
+        descr = game_control::get_game_config_val<std::string>("HEX_FILTER_AUTOLOGIC_DLG", descr.c_str());
+        filter = game_control::get_game_config_val<std::string>("HEX_FILTER_AUTOLOGIC_DLG", filter.c_str());
+        res_filter = game_control::get_game_config_val<std::string>("HEX_FILTER_AUTOLOGIC_DLG", res_filter.c_str());
+
+        wxBoxSizer* evaluation_sizer = new wxBoxSizer( wxHORIZONTAL );
+        wxBoxSizer* field_sizer = new wxBoxSizer( wxVERTICAL );
+        descriptions_[i] = new wxTextCtrl(this, -1, descr.c_str(), wxDefaultPosition);
+        fields_[i] = new wxTextCtrl(this, -1, filter.c_str(), wxDefaultPosition, wxSize(225,50), wxTE_MULTILINE);
+        result_field_[i] = new wxTextCtrl(this, -1, res_filter.c_str(), wxDefaultPosition);
+        wxBoxSizer* result_filter_sizer = new wxBoxSizer( wxHORIZONTAL );
+        result_filter_sizer->Add(new wxStaticText(this, -1, wxT("Filter result: ")), 0, wxALL);
+        result_filter_sizer->Add(result_field_[i], 1, wxALL);
+        wxBoxSizer* description_sizer = new wxBoxSizer( wxHORIZONTAL );
+        description_sizer->Add(new wxStaticText(this, -1, wxT("Name: ")), 0, wxALL);
+        description_sizer->Add(descriptions_[i], 1, wxALL);
+
+
+        if (i == 0)
+            fields_[i]->SetFocus();
+        field_sizer->Add(description_sizer, 0, wxALL | wxEXPAND);
+        field_sizer->Add(fields_[i], 1, wxALL | wxEXPAND);
+        field_sizer->Add(result_filter_sizer, 0, wxALL | wxEXPAND);
+
+        buttons_[i] = new wxButton(this, wxID_OK, wxT("Apply To Map"));
+        buttons_[i]->Bind(wxEVT_BUTTON, &CHexFilterAutologicDlg::OnApply, this);
+        evaluation_sizer->Add(field_sizer, 1, wxALL | wxEXPAND);
+        evaluation_sizer->Add(buttons_[i], 0, wxALIGN_CENTER | wxALL);
+        topsizer_->Add(evaluation_sizer, 1, wxALL | wxEXPAND);
+    }
+    wxBoxSizer* button_sizer = new wxBoxSizer(wxHORIZONTAL);
+    wxButton* button = new wxButton(this, wxID_NO, wxT("Clear Map"));
+    button->Bind(wxEVT_BUTTON, &CHexFilterAutologicDlg::OnClear, this);
+    button_sizer->Add(button, 1, wxALIGN_CENTER | wxALL);
+    button = new wxButton(this, wxID_CANCEL, wxT("Cancel"));
+    button->Bind(wxEVT_BUTTON, &CHexFilterAutologicDlg::OnCancel, this);
+    button_sizer->Add(button, 1, wxALIGN_CENTER | wxALL);
+    button = new wxButton(this, wxID_ABOUT, wxT("Help"));
+    button->Bind(wxEVT_BUTTON, &CHexFilterAutologicDlg::OnHelp, this);
+    button_sizer->Add(button, 1, wxALIGN_CENTER | wxALL);
+
+    topsizer_->Add(button_sizer, 0, wxALIGN_CENTER | wxALL);
+
+    SetAutoLayout( TRUE );     // tell dialog to use sizer
+    SetSizer( topsizer_ );      // actually set the sizer
+    topsizer_->Fit( this );            // set size to minimum size as calculated by the sizer
+    topsizer_->SetSizeHints( this );   // set size hints to honour mininum size}        
+    CResizableDlg::SetPos();
+}
+
+CHexFilterAutologicDlg::~CHexFilterAutologicDlg()
+{
+    for (size_t i = 0; i < fields_.size(); ++i)
+    {
+        std::string descr = "FIELD"+std::to_string(i)+"_DESCR";
+        std::string filter = "FIELD"+std::to_string(i)+"_FILTER";
+        std::string res_filter = "FIELD"+std::to_string(i)+"_RESULT_FILTER";
+        gpApp->SetConfig("HEX_FILTER_AUTOLOGIC_DLG", descr.c_str(), descriptions_[i]->GetValue().mb_str());
+        gpApp->SetConfig("HEX_FILTER_AUTOLOGIC_DLG", filter.c_str(), fields_[i]->GetValue().mb_str());
+        gpApp->SetConfig("HEX_FILTER_AUTOLOGIC_DLG", res_filter.c_str(), result_field_[i]->GetValue().mb_str());
+    }
+
+}
+
+void CHexFilterAutologicDlg::OnApply(wxCommandEvent& event)
+{
+    wxObject * object = event.GetEventObject();
+    result_.clear();
+    result_filter_.clear();
+    for (long i = 0; i < buttons_.size(); ++i)
+    {
+        if (object == buttons_[i])
+        {
+            result_ = fields_[i]->GetValue().mb_str();
+            result_filter_ = result_field_[i]->GetValue().mb_str();
+            break;
+        }
+    }
+    StoreSize();    
+    EndModal(wxID_OK);
+}
+
+void CHexFilterAutologicDlg::OnClear(wxCommandEvent& event)
+{
+    result_.clear();
+    result_filter_.clear();
+    StoreSize();
+    EndModal(wxID_NO);
+}
+
+void CHexFilterAutologicDlg::OnCancel(wxCommandEvent& event)
+{
+    StoreSize();
+    EndModal(wxID_CANCEL);
+}
+
+void CHexFilterAutologicDlg::OnHelp(wxCommandEvent& event)
+{
+    wxMessageBox(wxT("Use examples of functions with `&&` and `||` to generate your filter.\nUse `Filter result` to filter out resulting amount. Example body of `Filter result`:\n    ` < 50` -- to print out just results with amount < 50"));
+    return;
+}
+void CHexFilterAutologicDlg::OnExampleChosen(wxCommandEvent& event)
+{
+    std::string chosen_function = example_box_->GetValue().ToStdString();
+    examples_[chosen_function];
+    example_description_->SetLabel(examples_[chosen_function].c_str());
+}
+/*
+void CHexFilterAutologicDlg::OnAddRow(wxCommandEvent& event)
+{
+
+}
+
+void CHexFilterAutologicDlg::OnRemRow(wxCommandEvent& event)
+{
+
+}*/

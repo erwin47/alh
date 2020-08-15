@@ -216,7 +216,7 @@ void CEditPane::SetReadOnly(BOOL ReadOnly)
 
 void CEditPane::OnKillFocus(wxFocusEvent& event)
 {
-
+    test_ = 5;
 }
 
 //--------------------------------------------------------------------
@@ -293,6 +293,11 @@ CUnit* CUnitOrderEditPane::change_representing_unit(CUnit* unit)
     unit_ = unit;
     m_pEditor->ChangeValue(unit_ ? wxString::FromUTF8(unit_->Orders.GetData()) : wxT(""));
     return prev_unit;
+}
+
+void CUnitOrderEditPane::OnKillFocus(wxFocusEvent& event)
+{
+    test_ = 25;
 }
 
 

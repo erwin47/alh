@@ -67,6 +67,13 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 * new units moving to current hex from other hex has same number as local new units, which leads to losing ability to choose one of them.
 
 ## Changelog:
+### Aug 16 2020
+- Messages and Errors: all region's coordinates by default are double-clickable
+- Give: fixed bug with giving unit's order modifications
+- Autologic: added function `SPEED[]`, `FACTION[]`, `REG_NAME[]` (last for filtering regions by name for quests)
+- Autologic: added Land & Unit support.
+- Region Filter Dialog: added instead of old filtering form. Based on Autologic.
+
 ### Aug 10 2020
 - Selection of units: new region selection discards any selection. Selection of the same region discards filter, if was, but doesn't discard selection. Removed recursion.
 - Movement: movement stop in case of movement is calculated for current region initially. That resolved some bugs based on movement logic.

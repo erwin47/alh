@@ -43,6 +43,7 @@ public:
     void         SetHeader(const std::string& new_header);
 
     wxTextCtrl   * m_pEditor;
+    int test_;
 
 
 protected :
@@ -71,7 +72,7 @@ public:
     CUnit*       change_representing_unit(CUnit* unit);
 
     void OnOrderModified(wxCommandEvent& event);
-    //virtual void         OnKillFocus(wxFocusEvent& event);
+    virtual void         OnKillFocus(wxFocusEvent& event);
 };
 
 #endif

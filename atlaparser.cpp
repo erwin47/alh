@@ -4403,7 +4403,7 @@ void CAtlaParser::OrderError(const std::string& type, CLand* land, CUnit* unit,
     {
         CStr         land_name_cstr;
         ComposeLandStrCoord(land, land_name_cstr);
-        land_name = std::string(land_name_cstr.GetData(), land_name_cstr.GetLength()) + " ";
+        land_name = "("+std::string(land_name_cstr.GetData(), land_name_cstr.GetLength()) + ") ";
         land->current_state_.run_orders_errors_.push_back({type, unit, Msg});
     }
 
@@ -5146,7 +5146,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             CheckOrder_LandMonthlong(pLand);
             //Automatic Orders Generation place during run of the orders
             RunOrder_AOComments<orders::Type::O_COMMENT>(pLand);//
-            RunOrder_AONames(pLand);                  //generate/update autonames (internal & external)
             RunCaravanAutomoveOrderGeneration(pLand); //generate caravan automatic move orders
             CheckOrder_LandMonthlong(pLand);
         }
@@ -5248,7 +5247,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         }
         if (sequence == TurnSequence::SQ_MAINTENANCE) 
         {
-            //RunOrder_AONames(pLand);
+            RunOrder_AONames(pLand);
         }
         if (sequence == TurnSequence::SQ_LAST) {
             long region_balance = pLand->current_state_.economy_.initial_amount_ +
@@ -6371,17 +6370,15 @@ template<orders::Type TYPE> void CAtlaParser::RunOrder_AOComments(CLand* land)
                 OrderError("Warning", land, unit, nullptr, "    will evaluate condition and if its TRUE, then the entire order will be uncommented. If its FALSE, then the entire order will be commented. It is possible to use form `$COND_d` to get debug info (all the evaluations will be printed out)");
                 OrderError("Warning", land, unit, nullptr, "$WARN <condition>");
                 OrderError("Warning", land, unit, nullptr, "    will evaluate condition and if its TRUE, then there will be generated warning.  It is possible to use form `$WARN_d` to get debug info (all the evaluations will be printed out)");
+                OrderError("Warning", land, unit, nullptr, "$HELP - this command.");
+                OrderError("Warning", land, unit, nullptr, "");
                 OrderError("Warning", land, unit, nullptr, "<condition> - is the key to understand the system. It consist of statements united by logical `&&` and `||`. Each statement is evaluated, so eventually the condition will have the value: true or false.");
                 OrderError("Warning", land, unit, nullptr, "<condition> - each statement have starts with function. If function returns boolean (like `LOC[15,25]`), then its the statement itself. If function returns number (like `ITEM[MITH]`]), then it has one of next operands: `>`, `<`, `==`, `>=`, `<=`, `!=`, and then a number.");
                 OrderError("Warning", land, unit, nullptr, "List of possible functions:");
-                OrderError("Warning", land, unit, nullptr, "ITEM[X] -- returns amount of item X in unit");
-                OrderError("Warning", land, unit, nullptr, "SKILL[X] -- returns skill level of X of unit");
-                OrderError("Warning", land, unit, nullptr, "LOC[X,Y,Z] -- returns true if unit is in region with coordinates X,Y,Z. Z may be omitted for 1st lvl.");
-                OrderError("Warning", land, unit, nullptr, "SELL[X] -- returns amount of items X, selling by the region");
-                OrderError("Warning", land, unit, nullptr, "WANTED[X] -- returns amount of items X, buying by the region");
-                OrderError("Warning", land, unit, nullptr, "RESOURCE[X] -- returns amount of items X, available to be produced by the region");
-                OrderError("Warning", land, unit, nullptr, "SPEED[] -- returns speed of the unit");
-                OrderError("Warning", land, unit, nullptr, "$HELP - this command.");
+                for (const auto& pair : autologic::function_descriptions())
+                {
+                    OrderError("Warning", land, unit, nullptr, pair.first + " -- " + pair.second);
+                }
 
 
             }
@@ -6856,7 +6853,7 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
                     OrderError("Error", land, unit, give_order, "give: transfer unit to yourself: "+give_order->original_string_);
                 else {
                     unit->impact_description_.push_back("give: transfer unit to faction "+std::to_string(target_unit->FactionId));
-                    unit->IsOurs = false;
+                    //unit->IsOurs = false;
                 }                    
                 continue;
             }

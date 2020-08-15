@@ -113,7 +113,7 @@ public:
     BOOL     HexIsSelected(CLand * pLand);
     BOOL     HaveSelection();
     void     RemoveRectangle();
-    void     MarkFoundHexes(CHexFilterDlg * pFilter);
+    void     MarkFoundHexes(const std::string& filter, const std::string& result_filter);
     void     UnMarkFoundHexes();
     void     FindHexes();
 

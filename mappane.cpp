@@ -49,6 +49,7 @@
 #include "flagsdlg.h"
 #include "hexfilterdlg.h"
 #include "data_control.h"
+#include "autologic.h"
 
 #include <math.h>
 
@@ -3624,15 +3625,12 @@ void CMapPane::CenterClick(wxPoint point)
 
 //--------------------------------------------------------------------------
 
-void CMapPane::MarkFoundHexes(CHexFilterDlg * pFilter)
+void CMapPane::MarkFoundHexes(const std::string& filter, const std::string& result_filter)
 {
     CLand          * pLand;
     CPlane         * pPlane;
 //    CStruct        * pStruct;
     CStr             LandList(64), sCoord(32), Msg;
-
-    if (!pFilter)
-        return;
 
     for (size_t n=0; n<gpApp->m_pAtlantis->m_Planes.Count(); n++)
     {
@@ -3641,38 +3639,32 @@ void CMapPane::MarkFoundHexes(CHexFilterDlg * pFilter)
         {
             pLand = (CLand*)pPlane->Lands.At(i);
 
-            bool res = true;
-            std::string out_text;
-            for (size_t  j = 0; j < HEX_SIMPLE_FLTR_COUNT; ++j)
-            {
-                std::string property = pFilter->m_cbProperty[j]->GetValue().ToStdString();
-                std::string value = pFilter->m_tcValue[j]->GetValue().ToStdString();
-                
-                eCompareOp CompareOp = NOP;
-                for (size_t k=GT; k<NOP; k++)
-                    if (0==stricmp(HEX_FILTER_OPERATION[k], pFilter->m_cbCompare[j]->GetValue().mb_str()))
-                    {
-                        CompareOp = (eCompareOp)k;
-                        break;
-                    }
+            long amount(0);
 
-                if (property.empty())
-                    continue;
-
-                std::string out;
-                res = res && game_control::evaluateLandByFilter(pLand, property, 
-                                                                       CompareOp,
-                                                                       value, 
-                                                                       out);
-                if (out_text.empty())
-                    out_text = out; //store just first out text
-            }
-            if (res)
+            std::vector<unit_control::UnitError> errors;
+            if (autologic::evaluate_land_statement(pLand, amount, filter, errors))
             {
-                gpApp->m_pAtlantis->ComposeLandStrCoord(pLand, sCoord);
-                LandList << pLand->TerrainType << " (" << sCoord << ")" << EOL_SCR;
-                pLand->text_for_region_search_ = out_text;
-                pLand->Flags |= LAND_LOCATED_LAND;
+                if (result_filter.empty())
+                {
+                    gpApp->m_pAtlantis->ComposeLandStrCoord(pLand, sCoord);
+                    LandList << pLand->TerrainType << " (" << sCoord << ")" << EOL_SCR;
+                    if (autologic::curtail<long>(amount))
+                        pLand->text_for_region_search_ = std::to_string(amount)+"k";
+                    else
+                        pLand->text_for_region_search_ = std::to_string(amount);
+
+                    pLand->Flags |= LAND_LOCATED_LAND;                
+                }
+                else if (autologic::evaluate_amount_filter(amount, result_filter))
+                {//it requires to filter out resulting amount
+                    gpApp->m_pAtlantis->ComposeLandStrCoord(pLand, sCoord);
+                    LandList << pLand->TerrainType << " (" << sCoord << ")" << EOL_SCR;
+                    if (autologic::curtail<long>(amount))
+                        pLand->text_for_region_search_ = std::to_string(amount)+"k";
+                    else
+                        pLand->text_for_region_search_ = std::to_string(amount);
+                    pLand->Flags |= LAND_LOCATED_LAND;                
+                }
             }
         }
     }
@@ -3710,12 +3702,18 @@ void CMapPane::UnMarkFoundHexes()
 
 void CMapPane::FindHexes()
 {
-    CHexFilterDlg dlg(gpApp->m_Panes[AH_PANE_MAP], SZ_SECT_WND_HEX_FLTR);
-
-    UnMarkFoundHexes(); // yes, we need a way to just clean the old marks!
-    if (wxID_OK == dlg.ShowModal())
-        MarkFoundHexes(&dlg);
-    Refresh(FALSE);
+    CHexFilterAutologicDlg dlg(gpApp->m_Panes[AH_PANE_MAP], autologic::function_descriptions());
+    auto dlg_res = dlg.ShowModal();
+    if (dlg_res == wxID_OK)
+    {
+        UnMarkFoundHexes();
+        MarkFoundHexes(dlg.get_result(), dlg.get_result_filter());
+    }
+    else if (dlg_res == wxID_NO)
+    {
+        UnMarkFoundHexes();
+    }
+    Refresh(FALSE);    
 }
 
 //--------------------------------------------------------------------------

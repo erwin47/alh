@@ -82,5 +82,50 @@ private:
     DECLARE_EVENT_TABLE();
 };
 
+//===================
+
+
+class CHexFilterAutologicDlg : public CResizableDlg
+{
+    //example part
+    wxComboBox*                 example_box_;
+    wxStaticText*               example_description_;
+    std::map<std::string, std::string>  examples_;//function, description
+
+    //user defined part
+    std::vector<wxTextCtrl*>    descriptions_;
+    std::vector<wxTextCtrl*>    fields_;
+    std::vector<wxTextCtrl*>    result_field_;
+    std::vector<wxButton*>      buttons_;
+
+    //bottom part
+    wxButton*                   clear_button_;
+    wxButton*                   cancel_button_; 
+
+    std::string                 result_;
+    std::string                 result_filter_;
+
+    wxBoxSizer*                 topsizer_;
+
+    //void add_row();
+    //void remove_row();
+    
+public:
+    CHexFilterAutologicDlg(wxWindow *parent, const std::map<std::string, std::string>& examples);
+    ~CHexFilterAutologicDlg();
+
+    void OnApply(wxCommandEvent& event);
+    void OnClear(wxCommandEvent& event);
+    void OnCancel(wxCommandEvent& event);
+    void OnHelp(wxCommandEvent& event);
+    void OnExampleChosen(wxCommandEvent& event);
+    
+    // it needs to create specific panel to be able to add items dynamically
+    //void OnAddRow(wxCommandEvent& event);
+    //void OnRemRow(wxCommandEvent& event);
+
+    inline const std::string& get_result() const {  return result_;  }
+    inline const std::string& get_result_filter() const {  return result_filter_;  }
+};
 
 #endif
