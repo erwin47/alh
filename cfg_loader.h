@@ -4,7 +4,13 @@
 #include <vector>
 #include <map>
 #include <string>
+
+#ifdef _WIN32
+#include <string.h> 
+#else
 #include <strings.h>
+#endif
+
 #include <algorithm>
 #include "compat.h"
 

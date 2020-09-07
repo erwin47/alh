@@ -104,9 +104,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 option(USE_PYTHON "Python library" OFF)
 
-find_package(wxWidgets REQUIRED)
+set(default_build_type "Release")
+if(NOT CMAKE_BUILD_TYPE)
+  message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
+  set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
+      STRING "Choose the type of build." FORCE)
+endif()
 
-message("wxWidgets: ${wxWidgets_USE_FILE}")
+if(MSVC)
+    add_definitions(/MP)
+endif()
+
+if(MSVC AND NOT WXSOURCE)
+    include(${CMAKE_SOURCE_DIR}/winmsvc.cmake)
+else()
+    find_package(wxWidgets REQUIRED COMPONENTS net core base)
+endif()
 
 configure_file(config.h.in config.h)
 
@@ -121,7 +134,9 @@ if(USE_PYTHON)
     message("Python: ${PYTHON_INCLUDE_DIRS}")
 endif()
 
-include(${wxWidgets_USE_FILE})
+if(NOT MSVC OR WXSOURCE)
+    include(${wxWidgets_USE_FILE})
+endif()
 
 # add the executable
 if(WIN32)
