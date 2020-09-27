@@ -107,6 +107,7 @@ private:
     void OnFilterByItem(wxCommandEvent& event);
     void OnShowLandEconomy(wxCommandEvent& event); 
     void OnShowLandWarehouse(wxCommandEvent& event); 
+    void OnShowLandEnemyWarehouse(wxCommandEvent& event); 
     void OnShowLandAutoOrders(wxCommandEvent& event); 
     void OnShowLandMovePhases(wxCommandEvent& event); 
 

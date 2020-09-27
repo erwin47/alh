@@ -42,6 +42,7 @@ set(AH_CPP
     "${PROJECT_SOURCE_DIR}/order_parser.cpp"
     "${PROJECT_SOURCE_DIR}/autologic.cpp"
     "${PROJECT_SOURCE_DIR}/autonaming.cpp"
+    "${PROJECT_SOURCE_DIR}/unit_to_pane_control.cpp"
    )
 
 set(AH_HEADERS
@@ -91,6 +92,7 @@ set(AH_HEADERS
     "${PROJECT_SOURCE_DIR}/order_parser.h"
     "${PROJECT_SOURCE_DIR}/autologic.h"
     "${PROJECT_SOURCE_DIR}/autonaming.h"
+    "${PROJECT_SOURCE_DIR}/unit_to_pane_control.h"
    )
 
 # specify the C++ standard

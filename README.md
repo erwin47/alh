@@ -67,6 +67,12 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 * new units moving to current hex from other hex has same number as local new units, which leads to losing ability to choose one of them.
 
 ## Changelog:
+### Sep 27 2020
+- enemy Warehouse by `Alt + W`
+- bug: loading report with new info about 0 resources is represented correctly
+- Teach: no automatical teaching to upcoming units if they were just created (server doesn't allow it)
+- New Unit: automatically generated ID takes into accout region coordinates, so two `NEW X` units in the same region can be correctly handled.
+
 ### Aug 16 2020
 - Messages and Errors: all region's coordinates by default are double-clickable
 - Give: fixed bug with giving unit's order modifications

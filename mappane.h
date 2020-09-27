@@ -25,6 +25,8 @@ class CLand;
 class CPlane;
 class CCollection;
 
+#include <functional>
+
 #define SHOW_COORD   0x0001
 #define SHOW_NAMES   0x0002
 
@@ -141,10 +143,12 @@ public:
 
     void      OnPopupEconomy     (wxCommandEvent & event);
     void      OnPopupWarehouse   (wxCommandEvent & event);
+    void      OnPopupEnemyWarehouse(wxCommandEvent & event);
     void      OnPopupShowAutoOrders(wxCommandEvent & event);
     void      OnPopupMovePhases  (wxCommandEvent & event);
 
 protected:
+    void      getWarehouse(std::stringstream& output, std::function<bool(CUnit*)> filter);
 
     void      WinToAtla(int   WinX, int   WinY, long & AtlaX, long & AtlaY);
     void      AtlaToWin(int & WinX, int & WinY, long   AtlaX, long   AtlaY);

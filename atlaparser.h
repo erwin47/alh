@@ -203,7 +203,7 @@ public:
     void       RunLandOrders(CLand * pLand, TurnSequence beg_step = TurnSequence::SQ_FIRST, TurnSequence stop_step = TurnSequence::SQ_LAST);
     BOOL       ShareSilver(CUnit * pMainUnit);
     BOOL       GenOrdersTeach(CUnit * pMainUnit);
-    BOOL       GenGiveEverything(CUnit * pFrom, const char * To);
+    BOOL       GenGiveEverything(CLand* land, CUnit * pFrom, const char * To);
     BOOL       DiscardJunkItems(CUnit * pUnit, const char * junk);
     BOOL       DetectSpies(CUnit * pUnit, long lonum, long hinum, long amount);
     BOOL       ApplyDefaultOrders(BOOL EmptyOnly);
@@ -326,7 +326,7 @@ protected:
     void         AnalyzeBattle_SummarizeUnits(CBaseColl & Units, CStr & Details);
     void         SetShaftLinks();
     void         ApplySailingEvents();
-    BOOL         GetTargetUnitId(const char *& p, long FactionId, long & nId);
+    BOOL         GetTargetUnitId(long x, long y, long z, const char *& p, long FactionId, long & nId);
     int          ParseOneImportantEvent(CStr & EventLine);
     int          ParseImportantEvents();
 
@@ -340,7 +340,6 @@ protected:
     void         GenericErr(int Severity, const char * Msg);
     
     void         OrderErrFinalize();
-    void         OrderProcess_Teach(BOOL skiperror, CUnit * pUnit);
 
     // Order handlers and helpers
     //void         RunOrder_Teach            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL TeachCheckGlb);

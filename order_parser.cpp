@@ -585,7 +585,7 @@ namespace orders
                 return true;
             }
 
-            bool parse_teaching(const std::shared_ptr<orders::Order>& order, long faction_id, std::vector<long>& students)
+            bool parse_teaching(const std::shared_ptr<orders::Order>& order, long x, long y, long z, long faction_id, std::vector<long>& students)
             {
                 std::vector<std::string>::iterator it_beg = order->words_order_.begin();
                 if (it_beg == order->words_order_.end() || 
@@ -608,7 +608,7 @@ namespace orders
                         if (target_faction_id == 0)
                             target_faction_id = faction_id;
 
-                        students.push_back(NEW_UNIT_ID(abs(target_id), target_faction_id));
+                        students.push_back(NEW_UNIT_ID(x, y, z, target_faction_id, abs(target_id)));
                     } 
                     else
                     {

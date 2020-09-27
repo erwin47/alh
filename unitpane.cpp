@@ -42,6 +42,8 @@
 #include "createnewunitdlg.h"
 #include "receivedlg.h"
 
+#include "unit_to_pane_control.h"
+
 
 BEGIN_EVENT_TABLE(CUnitPane, wxListCtrl)
     EVT_LIST_ITEM_SELECTED   (list_units_hex, CUnitPane::OnSelected)
@@ -125,6 +127,15 @@ void CUnitPane::Done()
 
 //--------------------------------------------------------------------------
 
+void CUnitPane::UpdateCells() 
+{
+    bool is_bold;
+    long text_color;
+    long cell_color;
+    unit_control::unitpane_control::get_property<unit_control::unitpane_control::unitpane_columns::UPC_MEN>(nullptr, is_bold, text_color, cell_color); 
+
+}
+
 bool default_unit_filter(CUnit* unit) {   return true;  }
 
 void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
@@ -137,6 +148,8 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
     //wxListItem        info;
     //CBaseColl         ArrivingUnits;
     long              GuiColor;
+
+
 
     CLand* prev_land = m_pCurLand;
     m_pCurLand = pLand;
@@ -242,8 +255,8 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
     //    selected_unit_id_ = -1;
         //SetData(no_selection, 0, true);
     //}
-    SetData(sel_by_id, selected_unit_id_, prev_land != m_pCurLand);
-        
+    SetData(sel_by_id, selected_unit_id_, prev_land != m_pCurLand || this->is_filtered_);
+    UpdateCells();
 
     /*if (prev_land != pLand) {
         long item = this->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_FOCUSED);
@@ -637,12 +650,12 @@ void CUnitPane::OnPopupMenuSplit(wxCommandEvent& event)
 
 void CUnitPane::OnPopupMenuCreateNew(wxCommandEvent& event)
 {
-    CUnit* pUnit = GetSelectedUnit();
-    CLand* pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
+    CUnit* pUnit = GetSelectedUnit();    
     CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
+        CLand* pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
         //if (m_pCurLand)
         //    m_pCurLand->guiUnit = pUnit->Id;
 
@@ -914,7 +927,7 @@ void CUnitPane::OnPopupMenuGiveEverything (wxCommandEvent& event)
     if (pUnit)
     {
         N = wxGetTextFromUser(wxT("Give everything to unit"), wxT("Confirm"));
-        if (gpApp->m_pAtlantis->GenGiveEverything(pUnit, N.mb_str()))
+        if (gpApp->m_pAtlantis->GenGiveEverything(m_pCurLand, pUnit, N.mb_str()))
         {
             gpApp->orders_changed(true);
             Update(m_pCurLand);

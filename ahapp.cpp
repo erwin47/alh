@@ -450,7 +450,7 @@ int CAhApp::OnExit()
 
 void CAhApp::CreateAccelerator()
 {
-    static wxAcceleratorEntry entries[12];
+    static wxAcceleratorEntry entries[13];
     entries[0].Set(wxACCEL_CTRL,  (int)'S',     menu_SaveOrders);
     entries[1].Set(wxACCEL_CTRL,  (int)'N',     accel_NextUnit );
     entries[2].Set(wxACCEL_CTRL,  (int)'P',     accel_PrevUnit );
@@ -461,10 +461,11 @@ void CAhApp::CreateAccelerator()
     entries[7].Set(wxACCEL_CTRL,  (int)'G',     accel_FilterByItem );
     entries[8].Set(wxACCEL_CTRL,  (int)'E',     accel_ShowLandEconomy );
     entries[9].Set(wxACCEL_CTRL,  (int)'W',     accel_ShowLandWarehouse );
-    entries[10].Set(wxACCEL_CTRL,  (int)'A',     accel_ShowLandAutoOrders );
-    entries[11].Set(wxACCEL_CTRL, (int)'M',     accel_ShowLandMovePhases );
+    entries[10].Set(wxACCEL_ALT,  (int)'W',     accel_ShowLandEnemyWarehouse );
+    entries[11].Set(wxACCEL_CTRL,  (int)'A',     accel_ShowLandAutoOrders );
+    entries[12].Set(wxACCEL_CTRL, (int)'M',     accel_ShowLandMovePhases );
 
-    m_pAccel = new wxAcceleratorTable(12, entries);
+    m_pAccel = new wxAcceleratorTable(13, entries);
 }
 
 //-------------------------------------------------------------------------

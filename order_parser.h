@@ -134,7 +134,7 @@ namespace orders
             //except = -1 -- give target_id amount item
             //target_id < 0 -- NEW ID
             //target_faction_id == 0 -- not specified
-            bool parse_teaching(const std::shared_ptr<orders::Order>& order, long faction_id, std::vector<long>& students);
+            bool parse_teaching(const std::shared_ptr<orders::Order>& order, long x, long y, long z, long faction_id, std::vector<long>& students);
             bool parse_give(const std::shared_ptr<orders::Order>& order, long& target_id, 
                             long& target_faction_id, long& amount, std::string& item, long& except);
             bool parse_produce(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount);

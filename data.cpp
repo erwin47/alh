@@ -447,13 +447,6 @@ void CLand::ResetUnitsAndStructs()
         pUnit->ResetNormalProperties();
         pUnit->movements_.clear();
         pUnit->movement_stop_ = 0;
-        if (pUnit->pMoveA3Points)
-        {
-            delete pUnit->pMoveA3Points;
-            pUnit->pMoveA3Points = NULL;
-        }
-        if (pUnit->pStudents)
-            pUnit->pStudents->DeleteAll(); // probably deleting it would not be very usefull
     }
 
     affections_.clear_affected(this);
@@ -775,8 +768,6 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
     FactionId     = 0;
     pFaction      = NULL;
     LandId        = 0;
-    pMoveA3Points = NULL;
-    pStudents     = NULL;
     Flags         = 0;
     FlagsOrg      = 0;
     silver_initial_.amount_ = 0;
@@ -795,13 +786,6 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
 
 CUnit::~CUnit()
 {
-    if (pMoveA3Points)
-        delete pMoveA3Points;
-    if (pStudents)
-    {
-        pStudents->DeleteAll();
-        delete pStudents;
-    }
 }
 
 //-------------------------------------------------------------

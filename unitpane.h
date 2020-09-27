@@ -56,6 +56,8 @@ public:
     TPropertyHolderColl * m_pUnits;
     CLand               * m_pCurLand;
 
+    void UpdateCells();
+
     long         selected_unit_id_;//! 
     bool         is_filtered_;//! is used for Ctrl+G interface filtering out units by a chosen rule
 

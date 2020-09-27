@@ -4185,7 +4185,9 @@ CUnit * CAtlaParser::SplitUnit(CUnit * pOrigUnit, long newId)
     int           idx;
     CUnit       * pUnitNew;
 
-    Dummy.Id = NEW_UNIT_ID(newId, pOrigUnit->FactionId);
+    long x, y, z;
+    land_control::get_land_coordinates(pOrigUnit->LandId, x, y, z);
+    Dummy.Id = NEW_UNIT_ID(x, y, z, pOrigUnit->FactionId, newId);
 
     CLand * pLand = GetLand(pOrigUnit->LandId);
     wxASSERT(pLand);
@@ -4536,7 +4538,7 @@ BOOL CAtlaParser::ShareSilver(CUnit * pMainUnit)
 
 //-------------------------------------------------------------
 
-BOOL CAtlaParser::GenGiveEverything(CUnit * pFrom, const char * To)
+BOOL CAtlaParser::GenGiveEverything(CLand* land, CUnit * pFrom, const char * To)
 {
     CLand             * pLand = NULL;
     int                 no;
@@ -4563,7 +4565,9 @@ BOOL CAtlaParser::GenGiveEverything(CUnit * pFrom, const char * To)
             break;
 
         p  = To;
-        if (!GetTargetUnitId(p, pFrom->FactionId, n1))
+        long x, y, z;
+        land_control::get_land_coordinates(land->Id, x, y, z);
+        if (!GetTargetUnitId(x, y, z, p, pFrom->FactionId, n1))
         {
             S << "Invalid unit id " << To;
             OrderError("Error", pLand, pFrom, nullptr, S.GetData());
@@ -4670,10 +4674,7 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
     if (!pLand)
         return FALSE;
 
-    const char* val = gpApp->GetConfig(SZ_SECT_COMMON, "PEASANT_CAN_TEACH");
-    int peasant_can_teach = 0;
-    if (val != NULL)
-        peasant_can_teach = atoi(val);
+    static long peasant_can_teach = game_control::get_game_config_val<long>(SZ_SECT_COMMON, "PEASANT_CAN_TEACH");
 
     EValueType          type;
     const void        * value;
@@ -4697,6 +4698,9 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
     BOOL changed = FALSE;
     for (const auto& stud : students)
     {
+        if (IS_NEW_UNIT_ID(stud.first) && stud.second.unit_->LandId != pLand->Id)
+            continue; //can't teach new created units from other regions
+
         //student have room for teachers
         if ((stud.second.days_of_teaching_ < 30) && //there are days of teaching, and there is a room for it
             (stud.second.max_days_ - stud.second.cur_days_ - stud.second.days_of_teaching_ - (long)30 > 0))
@@ -4709,13 +4713,6 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
             long teacher_skill_days = unit_control::get_current_skill_days(pMainUnit, skill);
             long teacher_skill_lvl = skills_control::get_skill_lvl_from_days(teacher_skill_days);
             
-            //why does it return true for skills which this unit doesn't have??
-            //skill.append(PRP_SKILL_POSTFIX);
-            //pMainUnit->GetProperty(skill.c_str(), type, (const void *&)teacher_skill_lvl, eNormal);
-
-            //long teachers_amount;
-            //pMainUnit->GetProperty(PRP_MEN, type, (const void *&)teachers_amount, eNormal);
-
             long student_skill_lvl = this->SkillDaysToLevel(stud.second.cur_days_);
             if (study_lvl_goal != -1 && study_lvl_goal <= student_skill_lvl)
                 continue;
@@ -4894,11 +4891,10 @@ const char * CAtlaParser::ReadPropertyName(const char * src, CStr & Name)
 
 //-------------------------------------------------------------
 
-BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
+BOOL CAtlaParser::GetTargetUnitId(long x, long y, long z, const char *& p, long FactionId, long & nId)
 {
     CStr                N1(32), N(32), X, Y;
     char                ch;
-
 
     p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
     if (0==stricmp("FACTION", N1.GetData()))
@@ -4915,7 +4911,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
             return FALSE;
 
         if ( atol(gpDataHelper->GetConfString(SZ_SECT_COMMON, SZ_KEY_CHECK_NEW_UNIT_FACTION)))
-            nId = NEW_UNIT_ID(atol(Y.GetData()), atol(X.GetData()));
+            nId = NEW_UNIT_ID(x, y, z, atol(X.GetData()), atol(Y.GetData()));
         else
             nId = 0;
         return TRUE;
@@ -4925,7 +4921,7 @@ BOOL CAtlaParser::GetTargetUnitId(const char *& p, long FactionId, long & nId)
         p = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
         if (!N1.IsInteger())
             return FALSE;
-        nId = NEW_UNIT_ID(atol(N1.GetData()), FactionId);
+        nId = NEW_UNIT_ID(x, y, z, FactionId, atol(N1.GetData()));
         return TRUE;
     }
 
@@ -5429,7 +5425,9 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
                     case O_FORM:
                         p        = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-                        n1       = NEW_UNIT_ID(atol(N1.GetData()), pUnit->FactionId);
+                        long x, y, z;
+                        land_control::get_land_coordinates(pLand->Id, x, y, z);
+                        n1       = NEW_UNIT_ID(x, y, z, pUnit->FactionId, atol(N1.GetData()));
                         Dummy.Id = n1;
 
                         if (TurnSequence::SQ_FORM==sequence)
@@ -5492,9 +5490,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                                 }
                                 else
                                     continue;
-
-                            //if  (TurnSequence::SQ_TEACH==sequence)  // have to call it here or new units teaching will not be calculated
-                            //    OrderProcess_Teach(skiperror, pUnit);
 
                             pUnit       = pUnitMaster;
                             pUnitMaster = NULL;
@@ -5624,12 +5619,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                     pUnit->Orders << Line << EOL_SCR;
 
             } // commands loop
-
-            //if(TurnSequence::SQ_TEACH==sequence)  // we have to collect all the students, then teach
-            //{
-            //    OrderProcess_Teach(skiperror, pUnit);
-            //}
-                
 
             if (TurnSequence::SQ_MOVE==sequence)
             {
@@ -6826,10 +6815,12 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
 
             if (target_id < 0)//NEW X
             {
+                long x, y, z;
+                land_control::get_land_coordinates(land->Id, x, y, z);
                 if (target_faction_id == 0)//faction wasn't specified
-                    target_id = NEW_UNIT_ID(abs(target_id), unit->FactionId);
+                    target_id = NEW_UNIT_ID(x, y, z, unit->FactionId, abs(target_id));
                 else
-                    target_id = NEW_UNIT_ID(abs(target_id), target_faction_id);
+                    target_id = NEW_UNIT_ID(x, y, z, target_faction_id, abs(target_id));
             }
 
             CUnit* target_unit = nullptr;
@@ -6927,6 +6918,9 @@ BOOL CAtlaParser::FindTargetsForSend(CStr & Line, CStr & ErrorLine, BOOL skiperr
     */
     do
     {
+        long x, y, z;
+        land_control::get_land_coordinates(pLand->Id, x, y, z);
+
         params = SkipSpaces(S1.GetToken(params, " \t", ch, TRIM_ALL));
         if (0==stricmp("DIRECTION", S1.GetData()))
         {
@@ -6950,7 +6944,7 @@ BOOL CAtlaParser::FindTargetsForSend(CStr & Line, CStr & ErrorLine, BOOL skiperr
             if (0==strnicmp("UNIT", params, 4))
             {
                 params = SkipSpaces(S1.GetToken(params, " \t", ch, TRIM_ALL));
-                if (!GetTargetUnitId(params, pUnit->FactionId, target_id))
+                if (!GetTargetUnitId(x, y, z, params, pUnit->FactionId, target_id))
                     SHOW_WARN_CONTINUE(" - Invalid unit Id");
                 if (target_id==pUnit->Id)
                     SHOW_WARN_CONTINUE(" - Giving to yourself");
@@ -6965,7 +6959,7 @@ BOOL CAtlaParser::FindTargetsForSend(CStr & Line, CStr & ErrorLine, BOOL skiperr
         }
         else if (0==stricmp("UNIT", S1.GetData()))
         {
-            if (!GetTargetUnitId(params, pUnit->FactionId, target_id))
+            if (!GetTargetUnitId(x, y, z, params, pUnit->FactionId, target_id))
                 SHOW_WARN_CONTINUE(" - Invalid unit Id");
             if (target_id==pUnit->Id)
                 SHOW_WARN_CONTINUE(" - Giving to yourself");
@@ -7053,7 +7047,9 @@ void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
         if (0!=stricmp("FROM", Item.GetData()))
             SHOW_WARN_CONTINUE(" - Invalid TARGET command");
 
-        if (!GetTargetUnitId(params, pUnit->FactionId, n1))
+        long x, y, z;
+        land_control::get_land_coordinates(pLand->Id, x, y, z);
+        if (!GetTargetUnitId(x, y, z, params, pUnit->FactionId, n1))
             SHOW_WARN_CONTINUE(" - Invalid unit id");
         if (n1==pUnit->Id)
         {
@@ -7443,7 +7439,9 @@ void CAtlaParser::RunOrder_Promote(CStr & Line, CStr & ErrorLine, BOOL skiperror
 
     do
     {
-        if (!GetTargetUnitId(params, pUnit->FactionId, n1))
+        long x, y, z;
+        land_control::get_land_coordinates(pLand->Id, x, y, z);      
+        if (!GetTargetUnitId(x, y, z, params, pUnit->FactionId, n1))
             SHOW_WARN_CONTINUE(" - Invalid unit Id");
 
         Dummy.Id = n1;
@@ -8061,70 +8059,6 @@ void CAtlaParser::RunOrder_LandSail(CLand* land)
 
 //-------------------------------------------------------------
 
-void CAtlaParser::OrderProcess_Teach(BOOL skiperror, CUnit * pUnit)
-{
-    /*
-    long          nstud = 0; // students count
-    long          n1, n2;
-    CUnit       * pUnit2;
-    double        teach;
-    CStr          ErrorLine(32);
-    CStr          Line;
-    EValueType    type;
-    int           i;
-    const char  * leadership;
-
-    do
-    {
-        if ( pUnit->pStudents && (pUnit->pStudents->Count() > 0)  )
-        {
-            if (!pUnit->StudyingSkill.IsEmpty())
-            {
-                BOOL ItsOk = FALSE;
-                // is it a freaking hero?
-                if (m_ArcadiaSkills &&
-                    pUnit->GetProperty(PRP_LEADER, type, (const void *&)leadership, eNormal) &&
-                    eCharPtr==type &&
-                    0 == stricmp(leadership, SZ_HERO))
-                    ItsOk = TRUE;
-
-                if (!ItsOk)
-                    SHOW_WARN_CONTINUE(" - can not teach and study at the same time");
-            }
-
-            for (i=0; i<pUnit->pStudents->Count(); i++)
-            {
-
-                pUnit2 = (CUnit*)pUnit->pStudents->At(i);
-                if (!pUnit2->GetProperty(PRP_MEN, type, (const void *&)n2, eNormal) )
-                    n2 = 0; // should not happen
-                nstud += n2;
-            }
-            if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)n1, eNormal) )
-                n1 = 0; // unlikely, too
-
-            // n1 - number of teachers
-            // nstud - number of students
-
-            if (nstud>0 && n1>0)
-            {
-                pUnit ->Teaching = (double)nstud/n1;
-                teach = (double)n1*STUDENTS_PER_TEACHER/nstud*30;
-
-                for (i=0; i<pUnit->pStudents->Count(); i++)
-                {
-                    pUnit2           = (CUnit*)pUnit->pStudents->At(i);
-                    pUnit2->Teaching += teach;
-                }
-            }
-        }
-    }
-    while (FALSE);*/
-}
-
-//-------------------------------------------------------------
-
-
 #include <iostream>
 
 void CAtlaParser::RunOrders(CLand * pLand, TurnSequence start_step, TurnSequence stop_step)
@@ -8480,7 +8414,7 @@ void CAtlaParser::LookupAdvancedResourceVisibility(CUnit * pUnit, CLand * pLand)
                                 pProd->amount_    = 0;
                                 pProd->code_name_ = Dummy.code_name_;
                                 pLand->Products.Insert(pProd);
-                                land_control::add_resource(pLand->current_state_, *pProd);
+                                land_control::add_resource(pLand->initial_state_, *pProd);
                             }
                         }
                 }

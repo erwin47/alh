@@ -239,19 +239,30 @@ enum {
     ATT_UNDECLARED
 };
 
+//#define NEW_UNIT_ID(_n, _FactId) ((_FactId << 16) | _n)
 
-/* it looks like there is no need for the new unit id to be related to land id
-#define NEW_UNIT_ID(pLand,n) (-pLand->Id*100 - n)
-*/
-#define NEW_UNIT_ID(_n, _FactId) ((_FactId << 16) | _n)
+static long compose_new_unit_id(long x, long y, long z, long Fid, long id) {
+    assert(x < UINT16_MAX / 16);
+    assert(y < UINT16_MAX / 16);
+    assert(z < UINT8_MAX);
+    assert(Fid < UINT16_MAX);
+    assert(id < UINT16_MAX);
+    return ((z << 56) | (y << 44) | (x << 32) | (Fid << 16) | id);
+}
 
-//assuming that x, y, z, FactId are below 4000, number is below 64k*16
-#define NEW_UNIT_ID_PRO(_x, _y, _z, _FactId, _n) ((_z << 56) | (_y << 44) | (_x << 32) | (_FactId << 20) | _n)
-#define REVERSE_NEW_UNIT_ID_PRO(_n) (_n & 0xFFFFF)
+//assuming that x, y, z, FactId are below 4000, number is below 64k*256
+//z -- 8 bytes
+//y & x -- 12 bytes each
+//faction id -- 16 bytes
+//new unit id -- 16 bytes
+#define NEW_UNIT_ID(_x, _y, _z, _FactId, _n) compose_new_unit_id(_x, _y, _z, _FactId, _n)
 
 #define REVERSE_NEW_UNIT_ID(_n) (_n & 0xFFFF)
 #define IS_NEW_UNIT_ID(_Id)   ((_Id & 0xFFFF0000) != 0)
 #define IS_NEW_UNIT(_pUnit)   IS_NEW_UNIT_ID(_pUnit->Id)
+#define GET_X_FROM_UNIT_ID(_Id) ((_Id >> 32) & 0xFFF)
+#define GET_Y_FROM_UNIT_ID(_Id) ((_Id >> 44) & 0xFFF)
+#define GET_Z_FROM_UNIT_ID(_Id) ((_Id >> 56) & 0xF)
 
 typedef enum { North=0, Northeast,   Southeast,   South,   Southwest,   Northwest, Center }   eDirection;
 
@@ -468,9 +479,6 @@ public:
     CStr            Errors;
     CStr            Events;
     CStr            ProducingItem;
-    //CLongColl     * pMovement; // Collection of ids of hexes to move through
-    CLongColl     * pMoveA3Points; // Collection of Arcadia III locations for movement
-    CBaseCollById * pStudents;
 
     unsigned long   Flags;
     unsigned long   FlagsOrg;

@@ -180,7 +180,7 @@ void CReceiveDlg::init_item_types_combobox()
         plural += " (" + std::to_string(item.amount_) + ")";
         long_to_short_item_names_[plural] = item.code_name_;        
         combobox_item_types_->Append(plural);
-    }        
+    }
 }
 
 std::string CReceiveDlg::compose_take_order(CUnit* from_whom, long amount, const std::string& item)
@@ -344,6 +344,7 @@ void CReceiveDlg::OnAdd          (wxCommandEvent& event)
 
 void CReceiveDlg::OnCancel       (wxCommandEvent& event)
 {
+    gpApp->m_pAtlantis->RunOrders(land_);  
     StoreSize();
     EndModal(wxID_CANCEL);
 }

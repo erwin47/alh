@@ -128,6 +128,7 @@ enum
     accel_FilterByItem      ,
     accel_ShowLandEconomy   ,
     accel_ShowLandWarehouse ,
+    accel_ShowLandEnemyWarehouse,//non locals
     accel_ShowLandAutoOrders,
     accel_ShowLandMovePhases,
 

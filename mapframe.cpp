@@ -149,6 +149,7 @@ BEGIN_EVENT_TABLE(CMapFrame, CAhFrame)
     EVT_MENU   (accel_FilterByItem        , CMapFrame::OnFilterByItem          )
     EVT_MENU   (accel_ShowLandEconomy     , CMapFrame::OnShowLandEconomy       )
     EVT_MENU   (accel_ShowLandWarehouse   , CMapFrame::OnShowLandWarehouse     )
+    EVT_MENU   (accel_ShowLandEnemyWarehouse, CMapFrame::OnShowLandEnemyWarehouse   )
     EVT_MENU   (accel_ShowLandAutoOrders  , CMapFrame::OnShowLandAutoOrders    )
     EVT_MENU   (accel_ShowLandMovePhases  , CMapFrame::OnShowLandMovePhases    )
 
@@ -1106,6 +1107,12 @@ void CMapFrame::OnShowLandWarehouse(wxCommandEvent& event)
 {
     if (m_Panes[AH_PANE_MAP])
         ((CMapPane*)m_Panes[AH_PANE_MAP])->OnPopupWarehouse(event);
+}
+
+void CMapFrame::OnShowLandEnemyWarehouse(wxCommandEvent& event)
+{
+    if (m_Panes[AH_PANE_MAP])
+        ((CMapPane*)m_Panes[AH_PANE_MAP])->OnPopupEnemyWarehouse(event);
 }
 
 void CMapFrame::OnShowLandAutoOrders(wxCommandEvent& event) 

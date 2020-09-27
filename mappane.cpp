@@ -2934,29 +2934,11 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
     long           HexId;
     int            wx0, wy0;
     int            wx_a(0), wy_a(0), wx0_a(0), wy0_a(0);
-    BOOL           Arcadia3Sail = FALSE;
     CStruct      * pStruct;
     CLand        * pLand;
     EValueType     type;
     long           n1;
     int            LocA3;
-
-    if (pUnit->movements_.size() > 0 && pUnit->pMoveA3Points && pUnit->pMoveA3Points->Count() == pUnit->movements_.size())
-        Arcadia3Sail = TRUE;
-
-    if (Arcadia3Sail && pUnit->GetProperty(PRP_STRUCT_ID, type, (const void *&)n1) && eLong==type)
-    {
-        pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
-        if (pLand)
-        {
-            pStruct  = land_control::get_struct(pLand, n1);
-            if (pStruct && NO_LOCATION != pStruct->Location)
-            {
-                wx_a = wx; wy_a = wy;
-                AdjustForA3Location(wx_a, wy_a, pStruct->Location);
-            }
-        }
-    }
 
     if (pUnit->movements_.size() == 0)
         return;
@@ -3030,32 +3012,15 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
         wx += (m_HexSize * 3 / 2)*(XDraw-X);
         wy += m_HexHalfHeight*(YDraw-Y);
 
-        if (Arcadia3Sail)
-        {
-            LocA3 = (long)pUnit->pMoveA3Points->At(i);
-            wx_a = wx; wy_a = wy;
-            AdjustForA3Location(wx_a, wy_a, LocA3);
-        }
-
-
         if (Z == pPlane->Id)
         {
-            if (Arcadia3Sail)
-            {
-                pDC->DrawLine(wx0_a, wy0_a, wx_a, wy_a);
-                if (i == pUnit->movements_.size()-1)
-                    DrawTrackArrow(pDC, wx0_a, wy0_a, wx_a, wy_a);
-            }
-            else
-            {
-                pDC->DrawLine(wx0, wy0, wx, wy);
-                prev_coord_x = wx0;
-                prev_coord_y = wy0;
-                last_coord_x = wx;
-                last_coord_y = wy;
-                if (i == pUnit->movements_.size()-1)
-                    DrawTrackArrow(pDC, wx0, wy0, wx, wy);
-            }
+            pDC->DrawLine(wx0, wy0, wx, wy);
+            prev_coord_x = wx0;
+            prev_coord_y = wy0;
+            last_coord_x = wx;
+            last_coord_y = wy;
+            if (i == pUnit->movements_.size()-1)
+                DrawTrackArrow(pDC, wx0, wy0, wx, wy);
         }
         if (Z1 == pPlane->Id && Z != pPlane->Id)
         {
@@ -3865,12 +3830,13 @@ void CMapPane::OnPopupRunAutoOrders(wxCommandEvent & event)
     gpApp->m_pAtlantis->RunLandOrders(pCurLand, TurnSequence::SQ_FIRST, TurnSequence::SQ_GIVE);
 
     gpApp->m_pAtlantis->ApplyLandDefaultOrders(pCurLand);
+    gpApp->m_pAtlantis->RunLandOrders(pCurLand);
 }
 
-void fill_item_category_state_report(CLand* land, const char* category_mask, std::map<std::string, long[3]>& items_category)
+void fill_item_category_state_report(CLand* land, const char* category_mask, std::map<std::string, long[3]>& items_category, std::function<bool(CUnit*)>& filter)
 {
     land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-        if (!unit->IsOurs)
+        if (!filter(unit))
             return;
 
         auto category_items = unit_control::get_all_items_by_mask(unit, category_mask);
@@ -3918,7 +3884,7 @@ void item_category_state_out(std::stringstream& out, const char* category_name, 
     }
 }
 
-void CMapPane::OnPopupWarehouse   (wxCommandEvent & event)
+void CMapPane::getWarehouse(std::stringstream& output, std::function<bool(CUnit*)> filter)
 {
     CLand  * pLand = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
     if (!pLand)
@@ -3930,17 +3896,20 @@ void CMapPane::OnPopupWarehouse   (wxCommandEvent & event)
     std::map<std::string, long[3]> mounts;
     std::map<std::string, long[3]> trade_items;    
 
-    fill_item_category_state_report(pLand, PRP_RESOURCES, resources);
-    fill_item_category_state_report(pLand, PRP_ARMORS, equipment);
-    fill_item_category_state_report(pLand, PRP_WEAPONS, equipment);
-    fill_item_category_state_report(pLand, PRP_BOWS, equipment);
-    fill_item_category_state_report(pLand, PRP_SHIELDS, equipment);
-    fill_item_category_state_report(pLand, PRP_MAG_ITEMS, magic_items);
-    fill_item_category_state_report(pLand, PRP_MOUNTS, mounts);
-    fill_item_category_state_report(pLand, PRP_FLYING_MOUNTS, mounts);
-    fill_item_category_state_report(pLand, PRP_TRADE_ITEMS, trade_items);
+    fill_item_category_state_report(pLand, PRP_RESOURCES, resources, filter);
+    fill_item_category_state_report(pLand, PRP_ARMORS, equipment, filter);
+    fill_item_category_state_report(pLand, PRP_WEAPONS, equipment, filter);
+    fill_item_category_state_report(pLand, PRP_BOWS, equipment, filter);
+    fill_item_category_state_report(pLand, PRP_SHIELDS, equipment, filter);
+    fill_item_category_state_report(pLand, PRP_MAG_ITEMS, magic_items, filter);
+    fill_item_category_state_report(pLand, PRP_MOUNTS, mounts, filter);
+    fill_item_category_state_report(pLand, PRP_FLYING_MOUNTS, mounts, filter);
+    fill_item_category_state_report(pLand, PRP_TRADE_ITEMS, trade_items, filter);
 
     land_control::moving::perform_on_each_incoming_unit(pLand, [&](CUnit* unit) {
+        if (!filter(unit))
+            return;
+
         auto category_items = unit_control::get_all_items_by_mask(unit, PRP_RESOURCES);
         for (const auto& item : category_items)
             resources[item.code_name_][1] += item.amount_;
@@ -3970,7 +3939,6 @@ void CMapPane::OnPopupWarehouse   (wxCommandEvent & event)
             trade_items[item.code_name_][1] += item.amount_;
     });
 
-    std::stringstream output;
     item_category_state_out(output, "Resources", resources);
     output << std::endl;
     item_category_state_out(output, "Equipment", equipment);
@@ -3986,7 +3954,36 @@ void CMapPane::OnPopupWarehouse   (wxCommandEvent & event)
     if (pEditPane != nullptr) {
         pEditPane->SetHeader("Warehouse");
         pEditPane->SetSource(output.str(), nullptr);
+    }  
+
+}
+
+void CMapPane::OnPopupWarehouse   (wxCommandEvent & event)
+{
+    std::stringstream output;
+    getWarehouse(output, [&](CUnit* unit) {
+        return unit->IsOurs;
+    });
+
+    CEditPane* pEditPane = (CEditPane*)gpApp->m_Panes[AH_PANE_MAP_DESCR];
+    if (pEditPane != nullptr) {
+        pEditPane->SetHeader("Warehouse");
+        pEditPane->SetSource(output.str(), nullptr);
     }    
+}
+
+void CMapPane::OnPopupEnemyWarehouse(wxCommandEvent & event)
+{
+    std::stringstream output;
+    getWarehouse(output, [&](CUnit* unit) {
+        return !unit->IsOurs;
+    });
+
+    CEditPane* pEditPane = (CEditPane*)gpApp->m_Panes[AH_PANE_MAP_DESCR];
+    if (pEditPane != nullptr) {
+        pEditPane->SetHeader("Enemy Warehouse");
+        pEditPane->SetSource(output.str(), nullptr);
+    }  
 }
 
 void CMapPane::OnPopupShowAutoOrders(wxCommandEvent & event)

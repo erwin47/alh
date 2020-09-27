@@ -2224,7 +2224,9 @@ namespace land_control
             auto teaching_orders = orders::control::retrieve_orders_by_type(orders::Type::O_TEACH, unit->orders_);
             for (const auto& ord : teaching_orders)
             {
-                if (!orders::parser::specific::parse_teaching(ord, unit->FactionId, studs))
+                long x, y, z;
+                land_control::get_land_coordinates(land->Id, x, y, z);//for new unit's numbers
+                if (!orders::parser::specific::parse_teaching(ord, x, y, z, unit->FactionId, studs))
                     errors.push_back({"Error", unit, ord, "teach: couldn't parse order: "+ord->original_string_});
             }
 
