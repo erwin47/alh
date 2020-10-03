@@ -36,11 +36,11 @@ class CReceiveDlg : public CResizableDlg
     wxCheckBox* order_repeating_;
     wxCheckBox* use_order_take_;
 
-    std::map<std::string, ItemUnitPair> unit_name_to_unit_;
-    std::map<std::string, std::string> long_to_short_item_names_;
+    std::map<std::string, ItemUnitPair> unit_name_to_unit_;//for units in unit combobox
+    std::map<std::string, std::string> plural_to_code_;//for items in item combobox
 
     const std::string FROM_ALL_ = "-=FROM ALL=-";
-    std::map<std::string, std::vector<std::string>> groups_; 
+    std::map<std::string, std::vector<std::string>> groups_;
 
 public:
     CReceiveDlg(wxWindow *parent, CUnit * pUnit, CLand* pLand);
@@ -48,7 +48,6 @@ public:
 
 private:
     void init_item_types_combobox();
-    std::string compose_take_order(CUnit* from_whom, long amount, const std::string& item);
     void perform_take(CUnit* giving_one, CUnit* receiving_one, long amount, const std::string& item_code_name);
     void perform_give(CUnit* giving_one, CUnit* receiving_one, long amount, const std::string& item_code_name);
 

@@ -7,33 +7,41 @@
 #include "data_control.h"
 //#include "ah_control.h"
 
-std::set<CItem> get_item_types_list(CUnit* unit, CLand* land)
+std::map<std::string, long> get_item_types_list(CUnit* issuer_unit, CLand* land)
 {
-    //getting units belonging to current faction
-    std::vector<CUnit*> other_units;
-    land_control::get_units_if(land, other_units, [&unit](CUnit* cur_unit) {
-        return cur_unit->IsOurs && cur_unit->Id != unit->Id && !IS_NEW_UNIT(cur_unit);
-    });
+    std::map<std::string, long> ret;
+    land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        if (!unit->IsOurs || issuer_unit->Id == unit->Id || IS_NEW_UNIT(unit))
+            return;
 
-    //getting set of unique by ShortName products
-    std::set<CItem> item_types_list;
-    for (CUnit* cur_unit : other_units)
-    {
-        std::set<CItem> cur_products = unit_control::get_all_items(cur_unit);
+        std::set<CItem> cur_products = unit_control::get_all_items(unit);
         for (const CItem& prod : cur_products) {
-            CItem item = prod;
-            std::set<CItem>::iterator it = item_types_list.find(prod);
-            if (it != item_types_list.end() && item.amount_ > 0) {
-                item.amount_ += it->amount_;
-                item_types_list.erase(it);
-            }
-            if (item.amount_ > 0)
-                item_types_list.insert(item);
+            ret[prod.code_name_] += prod.amount_;
         }
-    }
-    return item_types_list;
+    });
+    return ret;
 }
 
+std::map<std::string, std::vector<std::string>> get_group_items()
+{
+    std::map<std::string, std::vector<std::string>> ret;
+    std::vector<std::string> group_records = game_control::get_game_config<std::string>(RECEIVE_DLG_SETTINGS, SZ_RECDLG_GROUPS);
+    for (std::string& group : group_records)
+    {
+        std::vector<std::string> group_values = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, group.c_str());
+        if (group_values.size() > 0)
+        {
+            //fix out if name wasn't a codename, but short or long name
+            for (std::string& group_value : group_values)
+            {
+                std::string name, plural;
+                gpApp->ResolveAliasItems(group_value, group_value, name, plural);        
+            }
+            ret[group] = group_values;
+        }
+    }
+    return ret;  
+}
 
 CReceiveDlg::CReceiveDlg(wxWindow *parent, CUnit * pUnit, CLand* pLand) : 
     CResizableDlg( parent, wxT("Receive order"), RECEIVE_DLG_SETTINGS ), 
@@ -55,22 +63,7 @@ CReceiveDlg::CReceiveDlg(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     itemssizer->Add(order_repeating_, 0, wxALL);
     itemssizer->Add(use_order_take_, 0, wxALL);
 
-    //!TODO: verify that vector consist of codenames, not longnames
-    std::vector<std::string> group_records = game_control::get_game_config<std::string>(RECEIVE_DLG_SETTINGS, SZ_RECDLG_GROUPS);
-    for (auto& group : group_records)
-    {
-        std::vector<std::string> group_values = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, group.c_str());
-        if (group_values.size() > 0)
-        {
-            //fix out if name wasn't a codename, but short or long name
-            for (std::string& group_value : group_values)
-            {
-                std::string name, plural;
-                gpApp->ResolveAliasItems(group_value, group_value, name, plural);        
-            }
-            groups_[group] = group_values;
-        }
-    }
+    groups_ = get_group_items();
 
     init_item_types_combobox();
 
@@ -133,14 +126,13 @@ CReceiveDlg::~CReceiveDlg()
 
 void CReceiveDlg::init_item_types_combobox()
 {
-    long_to_short_item_names_.clear();
+    plural_to_code_.clear();
     combobox_item_types_->Clear();
-    //gpApp->m_pAtlantis->RunLandOrders(land_, TurnSequence::SQ_GIVE_PRE);
-    std::set<CItem> items = get_item_types_list(unit_, land_);
+    std::map<std::string, long> items = get_item_types_list(unit_, land_);
 
-    gpApp->m_pAtlantis->RunLandOrders(land_, TurnSequence::SQ_FIRST, TurnSequence::SQ_GIVE);
+    gpApp->m_pAtlantis->RunLandOrders(land_, TurnSequence::SQ_FIRST, TurnSequence::SQ_SELL);
 
-    //Groups
+    //Group items
     for (const auto& group : groups_)
     {
         //verify if we have a unit with an item belonging to a group
@@ -155,35 +147,34 @@ void CReceiveDlg::init_item_types_combobox()
             continue;//no units with an item from a group -> skip the group
 
         std::string long_name = "=[" + group.first + "]=";
-        long_to_short_item_names_[long_name] = group.first;
+        plural_to_code_[long_name] = group.first;
         combobox_item_types_->Append(long_name);        
     }
 
     //Silver to be on top, as the most common
-    CItem silv;
-    silv.code_name_ = "SILV";
-    if (items.find(silv) != items.end())
+    if (items.find("SILV") != items.end())
     {
         std::string codename, name, plural;
-        gpApp->ResolveAliasItems(silv.code_name_, codename, name, plural);
+        gpApp->ResolveAliasItems("SILV", codename, name, plural);
 
-        plural += " (" + std::to_string(items.find(silv)->amount_) + ")";
-        long_to_short_item_names_[plural] = silv.code_name_;
+        plural += " (" + std::to_string(items["SILV"]) + ")";
+        plural_to_code_[plural] = "SILV";
         combobox_item_types_->Append(plural);
-        items.erase(silv);
+        items.erase("SILV");
     }
 
-    for (const CItem& item : items)
+    //the rest items
+    for (const auto& pair_item : items)
     {
         std::string codename, name, plural;
-        gpApp->ResolveAliasItems(item.code_name_, codename, name, plural);
-        plural += " (" + std::to_string(item.amount_) + ")";
-        long_to_short_item_names_[plural] = item.code_name_;        
+        gpApp->ResolveAliasItems(pair_item.first, codename, name, plural);
+        plural += " (" + std::to_string(pair_item.second) + ")";
+        plural_to_code_[plural] = pair_item.first;
         combobox_item_types_->Append(plural);
     }
 }
 
-std::string CReceiveDlg::compose_take_order(CUnit* from_whom, long amount, const std::string& item)
+std::string compose_take_order(CUnit* from_whom, long amount, const std::string& item)
 {
     std::stringstream order;
     order << "take from ";
@@ -194,8 +185,6 @@ std::string CReceiveDlg::compose_take_order(CUnit* from_whom, long amount, const
     order << " " << amount << " " << item;
     return order.str();
 }
-
-
 
 std::string weight_to_represent(long weight, long capacity)
 {
@@ -258,17 +247,17 @@ void CReceiveDlg::OnItemChosen(wxCommandEvent& event)
     std::string long_name_item = combobox_item_types_->GetValue().ToStdString();
     std::vector<std::string> unit_names;
     unit_name_to_unit_.clear();
-    if (groups_.find(long_to_short_item_names_[long_name_item]) != groups_.end())
+    if (groups_.find(plural_to_code_[long_name_item]) != groups_.end())
     {
         std::vector<std::string> current_unit_names;
-        for (const auto& item_name : groups_[long_to_short_item_names_[long_name_item]])
+        for (const auto& item_name : groups_[plural_to_code_[long_name_item]])
         {
             current_unit_names = get_units_with_item(item_name, unit_, land_);
             unit_names.insert(unit_names.end(), current_unit_names.begin(), current_unit_names.end());
         }
     }
     else
-        unit_names = get_units_with_item(long_to_short_item_names_[long_name_item], unit_, land_);
+        unit_names = get_units_with_item(plural_to_code_[long_name_item], unit_, land_);
 
     combobox_units_->Clear();
     combobox_units_->Append(FROM_ALL_);
@@ -305,15 +294,66 @@ void CReceiveDlg::OnOk           (wxCommandEvent& event)
     if (giver_name.empty())
         return;
 
+    if (unit_name_to_unit_.size() == 0)
+        return;
+
     if (giver_name == FROM_ALL_)
     {
-        for (const auto& pair : unit_name_to_unit_)
-        {
-            if (use_order_take_->GetValue())
-                perform_take(pair.second.unit_, unit_, pair.second.amount_, pair.second.item_code_);
-            else
-                perform_give(pair.second.unit_, unit_, pair.second.amount_, pair.second.item_code_);
-        }
+        std::vector<std::string> items;
+        std::string long_name_item = combobox_item_types_->GetValue().ToStdString();
+        if (groups_.find(plural_to_code_[long_name_item]) != groups_.end())
+            items = groups_[plural_to_code_[long_name_item]];
+        else
+            items.push_back(plural_to_code_[long_name_item]);
+
+        land_control::perform_on_each_unit(land_, [&](CUnit* unit) {
+            if (!unit->IsOurs || unit->Id == unit_->Id || IS_NEW_UNIT(unit))
+                return;
+
+            std::string rem_pattern = ";!receive_dlg_orders_removal";
+            for (const auto& item : items)
+            {
+                if (unit_control::get_item_amount(unit, item, true) == 0)
+                    continue;
+
+                //clear GIVE orders
+                auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_GIVE, unit->orders_);
+                for (auto& order : orders)
+                {
+                    for (const auto& word : order->words_order_) {
+                        if (word == item) {
+                            order->comment_ = rem_pattern;
+                            break;
+                        }
+                    }
+                }
+
+                //clear TAKE orders
+                orders = orders::control::retrieve_orders_by_type(orders::Type::O_TAKE, unit->orders_);
+                for (auto& order : orders)
+                {
+                    for (const auto& word : order->words_order_) {
+                        if (word == item) {
+                            order->comment_ = rem_pattern;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            orders::control::remove_orders_by_comment(unit, rem_pattern);
+
+            for (const auto& item : items)
+            {
+                if (unit_control::get_item_amount(unit, item, true) <= 0)
+                    continue;
+
+                if (use_order_take_->GetValue())
+                    perform_take(unit, unit_, unit_control::get_item_amount(unit, item, true), item);
+                else
+                    perform_give(unit, unit_, unit_control::get_item_amount(unit, item, true), item);
+            }
+        });
     }
     else 
     {
@@ -366,13 +406,13 @@ CItemChooseDlg::CItemChooseDlg(wxWindow *parent, CUnit * unit, CLand* land) :
     listbox_items_->Bind(wxEVT_LISTBOX_DCLICK, &CItemChooseDlg::OnOk, this);
     itemssizer->Add(listbox_items_, 1, wxALL | wxEXPAND);
 
-    std::set<CItem> items = get_item_types_list(unit, land);
-    for (const CItem& item : items)
+    std::map<std::string, long> items = get_item_types_list(unit, land);
+    for (const auto& item_pair : items)
     {
         std::string codename, name, plural;
-        gpApp->ResolveAliasItems(item.code_name_, codename, name, plural);
-        plural += " (" + std::to_string(item.amount_) + ")";
-        plural_to_code_[plural] = item.code_name_;        
+        gpApp->ResolveAliasItems(item_pair.first, codename, name, plural);
+        plural += " (" + std::to_string(item_pair.second) + ")";
+        plural_to_code_[plural] = item_pair.first;
         listbox_items_->Append(plural);
     }
 

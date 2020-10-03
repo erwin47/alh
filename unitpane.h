@@ -84,6 +84,9 @@ public:
     void OnPopupMenuCreateNew         (wxCommandEvent& event);
     void OnPopupMenuReceiveItems      (wxCommandEvent& event);
     void OnPopupFilterByItems         (wxCommandEvent& event);
+    void OnPopupSellAll               (wxCommandEvent& event);
+    void OnPopupShareAsCaravan        (wxCommandEvent& event);
+    void OnPopupPaintCaravanRoadmap   (wxCommandEvent& event);
     void OnPopupMenuDiscardJunk       (wxCommandEvent& event);
     void OnPopupMenuDetectSpies       (wxCommandEvent& event);
     void OnPopupMenuGiveEverything    (wxCommandEvent& event);

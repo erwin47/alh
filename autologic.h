@@ -13,6 +13,8 @@ namespace autologic
         UNIT_SKILL,
         UNIT_SPEED,
         UNIT_FACTION,
+        UNIT_AO_NEED,
+        UNIT_AO_SOURCE,
         REGION_NAME,
         REGION_LOCATION,
         REGION_SELL_AMOUNT,

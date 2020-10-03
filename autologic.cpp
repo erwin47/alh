@@ -57,6 +57,10 @@ namespace autologic
             return Command::UNIT_SPEED;
         else if (strnicmp(beg, "FACTION", sizeof("FACTION")-1) == 0)
             return Command::UNIT_FACTION;
+        else if (strnicmp(beg, "AO_NEED", sizeof("AO_NEED")-1) == 0)
+            return Command::UNIT_AO_NEED;
+        else if (strnicmp(beg, "AO_SOURCE", sizeof("AO_SOURCE")-1) == 0)
+            return Command::UNIT_AO_SOURCE;
         else if (strnicmp(beg, "REG_NAME", sizeof("REG_NAME")-1) == 0)
             return Command::REGION_NAME;
         else if (strnicmp(beg, "LOC", sizeof("LOC")-1) == 0)
@@ -274,7 +278,54 @@ namespace autologic
                 errors.push_back({"Debug", unit, nullptr, "Faction: "+std::to_string(unit->FactionId) + 
                     "; op: " + to_string(operation) + "; val: "+val + " == " + (result ? "TRUE" : "FALSE")});
                 return result;
-            }            
+            }    
+            case Command::UNIT_AO_NEED: {
+                if (unit == nullptr) {
+                    errors.push_back({"Debug", nullptr, nullptr, "Command was evaluated as Command::UNIT_AO_NEED with no unit provided"});
+                    return false;
+                }
+
+                errors.push_back({"Debug", unit, nullptr, "Command was evaluated as Command::UNIT_AO_NEED"});
+                std::vector<orders::AutoSource> sources;
+                std::vector<orders::AutoRequirement> needs;
+                orders::autoorders_caravan::parser::get_unit_sources_and_needs(unit, sources, needs);
+                result = false;
+                for (const auto& need : needs)
+                {
+                    if (need.name_ == arg)
+                    {
+                        result = evaluate_operation(need.priority_, operation, atol(val.c_str()));
+                        errors.push_back({"Debug", unit, nullptr, "NEED [" + arg + "] is " + std::to_string(need.priority_) +
+                            "; op: " + to_string(operation) + "; val: "+val + " == " + (result ? "TRUE" : "FALSE")});
+                        break;
+                    }
+                }
+                return result;
+            }               
+            case Command::UNIT_AO_SOURCE: {
+                if (unit == nullptr) {
+                    errors.push_back({"Debug", nullptr, nullptr, "Command was evaluated as Command::UNIT_AO_SOURCE with no unit provided"});
+                    return false;
+                }
+
+                errors.push_back({"Debug", unit, nullptr, "Command was evaluated as Command::UNIT_AO_SOURCE"});
+                std::vector<orders::AutoSource> sources;
+                std::vector<orders::AutoRequirement> needs;
+                orders::autoorders_caravan::parser::get_unit_sources_and_needs(unit, sources, needs);
+                result = false;
+                for (const auto& source : sources)
+                {
+                    if (source.name_ == arg)
+                    {
+                        result = evaluate_operation(source.priority_, operation, atol(val.c_str()));
+                        errors.push_back({"Debug", unit, nullptr, "SOURCE[" + arg + "] is " + std::to_string(source.priority_) +
+                            "; op: " + to_string(operation) + "; val: "+val + " == " + (result ? "TRUE" : "FALSE")});
+                        break;
+                    }
+                }
+                return result;
+            }               
+
             case Command::REGION_NAME: {
                 std::string reg_name = land->Name.GetData();
                 result = evaluate_operation<std::string>(reg_name, operation, val);
@@ -530,6 +581,42 @@ namespace autologic
                     amount += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
                 break;
             }
+            case Command::UNIT_AO_NEED:
+            {
+                for (CUnit* unit : units_fit_statement) {
+                    std::vector<orders::AutoSource> sources;
+                    std::vector<orders::AutoRequirement> needs;
+                    orders::autoorders_caravan::parser::get_unit_sources_and_needs(unit, sources, needs);
+                    amount = LONG_MAX;
+                    for (const auto& need : needs)
+                    {
+                        if (need.name_ == first_argument) {
+                            amount = std::min(amount, need.priority_);
+                            break;
+                        }
+                    }
+                    if (amount == LONG_MAX)
+                        amount = 0;
+                }
+                break;
+            }
+            case Command::UNIT_AO_SOURCE:
+            {
+                for (CUnit* unit : units_fit_statement) {
+                    std::vector<orders::AutoSource> sources;
+                    std::vector<orders::AutoRequirement> needs;
+                    orders::autoorders_caravan::parser::get_unit_sources_and_needs(unit, sources, needs);
+                    amount = 0;
+                    for (const auto& source : sources)
+                    {
+                        if (source.name_ == first_argument) {
+                            amount = std::max(amount, source.priority_);
+                            break;
+                        }
+                    }
+                }
+                break;
+            }            
             case Command::REGION_NAME:
                 amount = 1; break;
             case Command::REGION_LOCATION:
@@ -582,6 +669,8 @@ namespace autologic
           {"WANTED[MITH]>5", "True for region which buys more than 5 items of MITH"},
           {"WANTED_PRICE[MITH]>120", "True for region which buys MITH for price higher than 120"},
           {"RESOURCE[MITH]>7", "True for region where its possible to produce MITH more than 7 items"},
+          {"AO_NEED[MITH]>7", "True for region which has unit with Autoorder NEED of MITH with PRIORITY above 7"},
+          {"AO_SOURCE[MITH]>7", "True for region which has unit with Autoorder SOURCE of MITH with PRIORITY above 7"},
         };  
     }
 

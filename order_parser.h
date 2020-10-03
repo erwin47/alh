@@ -1,11 +1,12 @@
 #ifndef ALH_ORDER_PARSER_H
 #define ALH_ORDER_PARSER_H
 
-
+//#include "atlaparser.h"
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#include <iostream>
 //#include "data_control.h"
 
 //#include "data.h" - circled inclusions
@@ -126,6 +127,23 @@ namespace orders
     {
         std::shared_ptr<Order> parse_line_to_order(const std::string& line);
         UnitOrders parse_lines_to_orders(const std::string& orders);
+
+        template<typename T>
+        void compose_string(T& res, const std::shared_ptr<Order>& order)
+        {
+            if (order->original_string_.size() > 0)
+                res << order->original_string_.c_str() << "\n";
+            else 
+            {
+                for (const auto& word : order->words_order_)
+                    res << word.c_str() << " ";
+                
+                if (order->comment_.size() > 0)
+                    res << order->comment_.c_str();
+                res << "\n";
+            }
+        }
+
         std::string compose_string(const UnitOrders& orders);
 
         namespace specific
@@ -166,6 +184,7 @@ namespace orders
 
     struct CaravanInfo
     {
+        CaravanInfo() {}
         CaravanInfo(CaravanSpeed speed, std::vector<RegionInfo>&& regions, CLand* goal_land) 
             : speed_(speed), regions_(regions), goal_land_(goal_land)  { }
         CaravanSpeed speed_;
@@ -286,6 +305,13 @@ namespace orders
 
         //!distributes sources among needs according to priorities, returns true if added any change
         bool  distribute_autoorders(std::vector<orders::AutoSource>& sources, std::vector<orders::AutoRequirement>& needs);
+
+        namespace parser 
+        {
+            void get_unit_sources_and_needs(CUnit* unit, 
+                                  std::vector<AutoSource>& sources,
+                                  std::vector<AutoRequirement>& needs);
+        }
     }         
     
 };

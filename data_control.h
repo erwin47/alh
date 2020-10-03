@@ -384,6 +384,12 @@ namespace game_control
     template<typename T>
     std::vector<T> get_game_config(const char* section, const char* key)
     {
+        static std::unordered_map<std::string, std::unordered_map<std::string, std::vector<T>>> cache;
+        if (cache.find(section) != cache.end())
+        {
+            if (cache[section].find(key) != cache[section].end())
+                return cache[section][key];
+        }
         std::vector<T> ret;
         std::string value_string = get_gpapp_config(section, key);
         const char* beg = value_string.c_str();
@@ -405,6 +411,7 @@ namespace game_control
             ++runner;
             beg = runner;
         }
+        cache[section][key] = ret;
         return ret;
     }
 

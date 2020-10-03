@@ -37,21 +37,10 @@ Also there will be explicitely written if any of students is not studying anymor
 In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `REC_DLG_GROUPS` may be listed groups with which ReceiveDlg will work, as with items. For example, `REC_DLG_GROUPS = trade_items,food` mean, that in ReceiveDlg in drop up list there will be possibility to choose `trade_items` or `food`, and get list of all units having any items belonging to the group. Those entities (trade_items and food) have to be defined in section `UNIT_PROPERTY_GROUPS`.
 
 ### TODO
-* supress warnings for teaching units of other faction [done]
-* stop parsing empty lines as orders [done]
-* multiple warnings on the same issue. Each time when land orders processing finished.[done]
-* fix: clear unit selection on new region selection OR when new region is selected, it automatically "selects" a first unit, but to actually select it it needs to click somewhere and then on the unit: fix: it should be selected just by direct clicking on the unit.[done]
-* add ReceiveDlg amount of items in items drop-list [done]
-* warn if move ends on the water [done]
-* use modified flag to control when it needs to rerun the orders [done]
-* add ReceiveDlg check for type, and if its a mount -- print out free weight [done]
-* add recalculate orders event for case when: 1) orders were modified and 2) focus removed from order window [done]
-* order's replacement system: instead of delete and add, there should be option to actually modify existing order [done]
 * enable for users to choose a phase of calculations. [future]
 * fix issue with speed of turtles in the ocean [future]
 * new units not counted in production stats [non-reproducable]
 * TAX_RULES -- should have default values, as STRUCTURES.
-* region orders don't get updated unless selected unit changes
 * Layout 1 failure -- figure out why [non-reproducable]
 * Performance: `ResolveAlias` split to 2 new methods `AliasSkills` and `AliasGeneral`(for the rest weird aliases if they really exist)
 * Performance: `CalcWeightsAndMovement` replace by existing `unit_control::get_weights(unit, weights)` && `unit_control::get_move_state(unit)`
@@ -59,14 +48,25 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 * move to config settings for Warehouse categories
 * caravan autogenerate movement -> should be parsed
 * unit_pane doesn't represent skills of a new unit with given skilled peasants
-* land search -- save prev input
 * allowed multiple monthlong orders (not just teach) - or is it a feature to avoid mistakes?
-* in shared list of region items represented items of units that are going to come, but don't come this turn -- should be removed
-* sailing troops should be explicitly shown: at moving phase from initial reg and at end phase at end reg.
-* structures representation: ships mixed with buildings
-* new units moving to current hex from other hex has same number as local new units, which leads to losing ability to choose one of them.
+* add to hex filter possibility to show unit with specific orders/comments
+
 
 ## Changelog:
+### Oct 03 2020
+- Caravan: Paint Roadmap unit's menu to paint arrow over regions of the caravan. Useful for caravans which spread silver over many regions.
+- Region description: fixed issue with mixed ships & static buildings.
+- Autologic: added `AO_NEED[X]` & `AO_SOURCE[X]` to search for regions where item X is needed and where is sourced with which priority. Function returns lowest priority for `AO_NEED` & highest priority for `AO_SOURCE`.
+- Autoorders: added `EQUIP` command. `@;!EQUIP MSWO MARM MSHD P 12` will require listed items in amount of men in unit with specified priority (default is still 10). Also in combination with `STORE_ALL` is useful to collect spoils.
+- Autoorders: fixed bug with unresolved items.
+- Receive DLG: `FROM ALL` option became more brute: it will REMOVE all give & take orders, related to chosen item in the region. And then it will generate give/take order to get chosen item from any unit which have it.
+- Unit popup menu: Share as caravan: shares items of the unit as if its a caravan.
+
+### Sep 28 2020
+- UnitPane: added `Sell All` command, which allows to sell all possible items to the market.
+- Autoorders: `NEED`, `STORE`, `SOURCE` now can accept list of items in one command.
+- Autoorders: added `STORE_ALL` command, which allows to store any non-men or silv item, and source them with provided priority. `@;!STORE_ALL P 90` will generate request for ALL accessible sourced items with priority 90, except silver and men. It works as STORE, but for all such items. Is useful to generate general flow for all items.
+
 ### Sep 27 2020
 - enemy Warehouse by `Alt + W`
 - bug: loading report with new info about 0 resources is represented correctly

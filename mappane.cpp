@@ -2851,11 +2851,8 @@ void CMapPane::RedrawTracksForUnit(CPlane * pPlane, CUnit * pUnit, wxDC * pDC, B
         pDC->SetClippingRegion(0,0,rect.width,rect.height);
     }
 
-
     NormalizeCoordinates(pPlane, &rect);
     pDC->SetFont (*gpApp->m_Fonts[FONT_MAP_TEXT]);
-
-
 
     // Erase old tracks
     for (i=0; i<m_pTrackHexes->Count(); i++)

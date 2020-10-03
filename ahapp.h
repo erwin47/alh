@@ -308,6 +308,7 @@ public:
     wxAcceleratorTable * m_pAccel;
     long                 m_Brightness_Delta;
 
+    void                 RedrawTracks(std::vector<long>& points);
 
 private:
     void                 ForgetFrame(int no, BOOL frameclosed);

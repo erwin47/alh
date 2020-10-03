@@ -44,6 +44,7 @@
 
 #include "unit_to_pane_control.h"
 
+#include <vector>
 
 BEGIN_EVENT_TABLE(CUnitPane, wxListCtrl)
     EVT_LIST_ITEM_SELECTED   (list_units_hex, CUnitPane::OnSelected)
@@ -57,6 +58,9 @@ BEGIN_EVENT_TABLE(CUnitPane, wxListCtrl)
     EVT_MENU             (menu_Popup_Create_New    , CUnitPane::OnPopupMenuCreateNew      )
     EVT_MENU             (menu_Popup_ReceiveItems  , CUnitPane::OnPopupMenuReceiveItems   )
     EVT_MENU             (menu_Popup_FilterByItems , CUnitPane::OnPopupFilterByItems      )
+    EVT_MENU             (menu_Popup_SellAll       , CUnitPane::OnPopupSellAll            )
+    EVT_MENU             (menu_Popup_ShareAsCaravan, CUnitPane::OnPopupShareAsCaravan     )
+    EVT_MENU             (menu_Popup_PaintCaravanRoadmap, CUnitPane::OnPopupPaintCaravanRoadmap)
     EVT_MENU             (menu_Popup_DiscardJunk   , CUnitPane::OnPopupMenuDiscardJunk    )
     EVT_MENU             (menu_Popup_DetectSpies   , CUnitPane::OnPopupMenuDetectSpies    )
     EVT_MENU             (menu_Popup_GiveEverything, CUnitPane::OnPopupMenuGiveEverything )
@@ -588,6 +592,22 @@ void CUnitPane::OnRClick(wxListEvent& event)
                 menu.Append(menu_Popup_Teach         , wxT("Teach")             );
                 menu.Append(menu_Popup_ReceiveItems  , wxT("Receive (Ctrl+R)")             );
                 menu.Append(menu_Popup_FilterByItems  , wxT("Filter units (Ctrl+G)")  );
+                
+                CLand* land = land_control::get_land(pUnit->LandId);
+
+                if (land != nullptr && land->current_state_.wanted_.size() > 0)
+                {
+                    menu.Append(menu_Popup_SellAll  , wxT("Sell all")  );
+                }
+                menu.Append(menu_Popup_GiveEverything, wxT("Give All")   );
+
+                if (pUnit->caravan_info_ == nullptr) {
+                    menu.Append(menu_Popup_ShareAsCaravan  , wxT("Share as Caravan")  );
+                } else {
+                    menu.Append(menu_Popup_PaintCaravanRoadmap  , wxT("Paint Roadmap")  );
+                }
+                
+                    
                 if (IS_NEW_UNIT(pUnit))
                 {
                     menu.Append(menu_Popup_DiscardJunk   , wxT("Discard This Unit") );
@@ -595,7 +615,7 @@ void CUnitPane::OnRClick(wxListEvent& event)
                 if (!IS_NEW_UNIT(pUnit))
                 {
                     menu.Append(menu_Popup_DiscardJunk   , wxT("Discard junk items"));
-                    menu.Append(menu_Popup_GiveEverything, wxT("Give everything")   );
+
 
                     wxMenu * menuScouts = new wxMenu();
                     menuScouts->Append(menu_Popup_ScoutSimple , wxT("Scout"));
@@ -671,10 +691,7 @@ void CUnitPane::OnPopupMenuCreateNew(wxCommandEvent& event)
 
 void CUnitPane::OnPopupFilterByItems(wxCommandEvent& event)
 {
-    long idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    if (idx < 0)
-        return;
-    CUnit* pUnit = GetUnit(idx);
+    CUnit* pUnit = GetSelectedUnit();    
     if (!pUnit)
         return;
 
@@ -710,12 +727,112 @@ void CUnitPane::OnPopupFilterByItems(wxCommandEvent& event)
     //gpApp->m_pAtlantis->RunLandOrders(pLand);
 }
 
+void CUnitPane::OnPopupShareAsCaravan(wxCommandEvent& event)
+{
+    CUnit* unit = GetSelectedUnit();
+    if (!unit)
+        return;
+
+    CLand* land = gpApp->m_pAtlantis->GetLand(unit->LandId);
+    if (land == nullptr)
+        return;
+
+    std::vector<orders::AutoSource> sources, unit_sources;
+    std::vector<orders::AutoRequirement> needs, unit_needs;
+    orders::autoorders_caravan::get_land_autosources_and_autoneeds(land, sources, needs);
+    orders::autoorders_caravan::get_land_caravan_autosources_and_autoneeds(land, sources, needs);
+
+    //sort needs by priority (in case of equal priority, caravans should go last)
+    std::sort(needs.begin(), needs.end(), 
+        [](const orders::AutoRequirement& req1, const orders::AutoRequirement& req2) {
+            if (req1.priority_ == req2.priority_)
+            {
+                if (req1.unit_->caravan_info_ == nullptr && 
+                    req2.unit_->caravan_info_ != nullptr)
+                    return true;
+                return false;
+            }
+            return req1.priority_ < req2.priority_;
+    });
+
+    unit->caravan_info_ = std::make_shared<orders::CaravanInfo>();
+    orders::autoorders_caravan::parser::get_unit_sources_and_needs(unit, unit_sources, unit_needs);
+    orders::autoorders_caravan::distribute_autoorders(unit_sources, needs);
+    unit->caravan_info_ = nullptr;
+
+    gpApp->orders_changed(true);
+    gpApp->m_pAtlantis->RunLandOrders(land);
+    Update(m_pCurLand);
+
+}
+
+void CUnitPane::OnPopupPaintCaravanRoadmap(wxCommandEvent& event)
+{
+    CUnit* unit = GetSelectedUnit();
+    if (!unit || unit->caravan_info_ == nullptr)
+        return;
+
+    //search for position of current element
+    size_t pos(0), end_pos(unit->caravan_info_->regions_.size());
+    for (; pos < end_pos; ++pos) {
+        const orders::RegionInfo& ri = unit->caravan_info_->regions_[pos];
+        CLand* land = land_control::get_land(ri.x_, ri.y_, ri.z_);
+        if (land->Id == unit->LandId)
+            break;
+    }
+
+
+    std::vector<long> points;
+    points.reserve(unit->caravan_info_->regions_.size());
+    for (size_t i = 0; i < end_pos; ++i) {
+
+        const orders::RegionInfo& ri = unit->caravan_info_->regions_[(pos+i)%end_pos];
+        CLand* land = land_control::get_land(ri.x_, ri.y_, ri.z_);
+        points.push_back(land->Id);
+    }
+
+    gpApp->RedrawTracks(points);
+
+}
+
+
+void CUnitPane::OnPopupSellAll(wxCommandEvent& event)
+{
+    CUnit* unit = GetSelectedUnit();    
+    if (!unit)
+        return;
+
+    CLand* land = gpApp->m_pAtlantis->GetLand(unit->LandId);
+    if (land == nullptr)
+        return;
+
+    bool changed(false);
+    for (const auto& item : unit_control::get_all_items(unit)) {
+        if (land->current_state_.wanted_.find(item.code_name_) != land->current_state_.wanted_.end())
+        {
+            long amount_to_sell = std::min(item.amount_, 
+                                           land->current_state_.wanted_[item.code_name_].item_.amount_ - 
+                                           land->current_state_.sold_items_[item.code_name_]);
+            if (amount_to_sell > 0) 
+            {
+                std::string line = "SELL "+std::to_string(amount_to_sell) + " " + item.code_name_ + " ;auto";
+                orders::control::add_order_to_unit(line, unit);
+                changed = true;
+            }
+        }
+    }
+
+    if (changed)
+    {
+        gpApp->orders_changed(true);
+        gpApp->m_pAtlantis->RunLandOrders(land);
+        Update(m_pCurLand);
+    }
+}
+
 void CUnitPane::OnPopupMenuReceiveItems(wxCommandEvent& event)
 {
-    long         idx   = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    if (idx < 0)
-        return;
-    CUnit* pUnit = GetUnit(idx);
+    CUnit* pUnit = GetSelectedUnit();    
     if (!pUnit)
         return;
 

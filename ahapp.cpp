@@ -1584,6 +1584,28 @@ int  CAhApp::SaveOrders(const char * FNameOut, int FactionId)
 
 //-------------------------------------------------------------------------
 
+void CAhApp::RedrawTracks(std::vector<long>& points) {
+    //currently drawing tracks is sticked to CUnit object, which is a design problem, but
+    //it requires to rewrite & redesign all the painting system, which is complicated.
+    //so it's a trick: we create fake unit with filled fields to write a custom track.
+    if (points.size() < 2)
+        return;
+
+    std::shared_ptr<CUnit> unit = std::make_shared<CUnit>();
+    auto it = points.begin();
+    unit->LandId = *it;
+    ++it;
+    unit->movements_.insert(unit->movements_.begin(), it, points.end());
+    unit->movement_stop_ = points[points.size()-1];
+
+    CMapPane    * pMapPane  = (CMapPane* )m_Panes[AH_PANE_MAP];
+    if (!pMapPane)
+        return;
+
+    CPlane* pPlane = (CPlane*)m_pAtlantis->m_Planes.At(pMapPane->m_SelPlane);
+    pMapPane->RedrawTracksForUnit(pPlane, unit.get(), NULL, TRUE);
+}
+
 void CAhApp::RedrawTracks()
 {
     CUnit       * pUnit = GetSelectedUnit();
@@ -3493,22 +3515,33 @@ std::string CAhApp::land_description_editpane(CLand * pLand)
         reg_description.append(EOL_SCR);
     }
 
-    bool ships_part(false);
+    //static building part
+    bool exists_static_building = false;
     land_control::perform_on_each_struct(pLand, [&](CStruct* structure) {
-        if (!ships_part && struct_control::flags::is_ship(structure)) {
+        if (!struct_control::flags::is_ship(structure)) {
             // separation between buildings and ships
-            ships_part = true;
+            reg_description.append(structure->original_description_);
+            trim_inplace(reg_description);
             reg_description.append(EOL_SCR);
+            exists_static_building = true;
         }
-        reg_description.append(structure->original_description_);
-        trim_inplace(reg_description);
+    });
+
+    //separation for ships if static buildings exist
+    if (exists_static_building)
+        reg_description.append(EOL_SCR);
+
+    // ships part
+    land_control::perform_on_each_struct(pLand, [&](CStruct* structure) {
         if (struct_control::flags::is_ship(structure)) {
+            reg_description.append(structure->original_description_);
+            trim_inplace(reg_description);
             reg_description += " Forecast: Load[" + std::to_string(structure->occupied_capacity_) 
                             + "/" + std::to_string(structure->capacity_) + "], Power[" 
                             + std::to_string(structure->SailingPower) + "/" 
                             + std::to_string(structure->MinSailingPower) + "].";
+            reg_description.append(EOL_SCR);
         }
-        reg_description.append(EOL_SCR);
     });
     
     bool FlagsEmpty(true);
