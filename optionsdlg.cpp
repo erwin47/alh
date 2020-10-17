@@ -331,7 +331,7 @@ void COptionsDialog::OnOk    (wxCommandEvent& event)
         else if (m_pRadio2Win->GetValue())
             layout = AH_LAYOUT_2_WIN;
         else
-            layout = AH_LAYOUT_3_WIN;
+            layout = AH_LAYOUT_1_WIN_ONE_DESCR;
 
 //        if (m_pChk3WinLayout->GetValue() != (0!=atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_LAYOUT))))
         if (layout != atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_LAYOUT)))

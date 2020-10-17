@@ -53,6 +53,15 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 
 
 ## Changelog:
+### Oct 17 2020
+- Config: added comments, which will be stored.
+- Config property: added `leaders` for men, who are leaders (not hardcoded `LEAD`/`HERO`)
+- Config: load/save, internal mechanic reworked.
+- Terrain type WATER: optimized
+- Create New Form: added additional custom orders window.
+- Create New Form: added possibility to set up STUDY lvl.
+- default layout is 4
+
 ### Oct 03 2020
 - Caravan: Paint Roadmap unit's menu to paint arrow over regions of the caravan. Useful for caravans which spread silver over many regions.
 - Region description: fixed issue with mixed ships & static buildings.

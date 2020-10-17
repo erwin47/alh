@@ -2441,11 +2441,6 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
                             //peasants of current unit:
                             pUnit->men_initial_.insert({n1, codename});
 
-                            //So, is it a leader?
-                            //if (S1.FindSubStr(SZ_LEADER) >=0 )
-                                //SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_LEADER, eBoth);
-                            //if (S1.FindSubStr(SZ_HERO) >=0 )
-                                //SetUnitProperty(pUnit, PRP_LEADER, eCharPtr, SZ_HERO, eBoth);
                         } 
                         else if (codename == PRP_SILVER)
                         {
@@ -7344,10 +7339,6 @@ void CAtlaParser::RunOrder_LandBuy(CLand * land)
         //Modification of state
         if (gpDataHelper->IsMan(buyer.item_name_.c_str()))
         {
-            //if (unit_control::get_item_amount(buyer.unit_, "LEAD") > 0)
-            //{
-            //    SetUnitProperty(buyer.unit_, PRP_LEADER, eCharPtr, SZ_LEADER, eNormal);
-            //}
             unit_control::modify_man_from_market(buyer.unit_, buyer.item_name_, buyer.items_amount_, buyer.market_price_);
         }
         else

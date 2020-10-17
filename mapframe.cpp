@@ -458,6 +458,9 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
 
             x = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_WIDTH_0));
             y = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_HEIGHT_0));
+            //magic number bug: if y belongs to [643-653, then the client stucks]
+            if (y > 642 && y < 654)
+                y = 666;
 
             if (wide)
             {

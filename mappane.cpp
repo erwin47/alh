@@ -905,7 +905,7 @@ void CMapPane::DrawEdgeStructures(wxDC * pDC, CLand * pLand, wxPoint * point, in
             {
             case EDGE_SHAPE_BORDER:
                 // parallel
-                if(pLand->Flags&LAND_IS_WATER) break;
+                if(land_control::is_water(pLand)) break;
                 
                 switch (pEdge->Location)
                 {
@@ -1031,7 +1031,7 @@ void CMapPane::DrawEdgeStructures(wxDC * pDC, CLand * pLand, wxPoint * point, in
                 break;
             case EDGE_SHAPE_ANCHOR:
                 // Anchor - only in water-type regions
-                if(0==(pLand->Flags&LAND_IS_WATER)) break;
+                if(!land_control::is_water(pLand)) break;
                 switch (pEdge->Location)
                 {
                 case North:
@@ -1085,7 +1085,7 @@ void CMapPane::DrawEdgeStructures(wxDC * pDC, CLand * pLand, wxPoint * point, in
                 break;
             case EDGE_SHAPE_ROCKS:
                 // Rocks - only in water-type regions
-                if(0==(pLand->Flags&LAND_IS_WATER)) break;
+                if(!land_control::is_water(pLand)) break;
                 switch (pEdge->Location)
                 {
                     case North:

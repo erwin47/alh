@@ -807,7 +807,6 @@ public:
     std::shared_ptr<TProdDetails> GetProdDetails(const char * item);
     BOOL         ImmediateProdCheck();
     BOOL         CanSeeAdvResources(const char * skillname, const char * terrain, CLongColl & Levels, CBufColl & Resources);
-    BOOL         ShowMoveWarnings  ();
     BOOL         IsRawMagicSkill   (const char * skillname);
     int          GetAttitudeForFaction(int id);
     void         SetAttitudeForFaction(int id, int attitude);

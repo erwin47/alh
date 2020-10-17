@@ -127,27 +127,36 @@ bool CAhApp::OnInit()
 
     gpApp = this;
 
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_DEF_ORDERS       ));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_ORDERS           ));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_REPORTS          ));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_LAND_FLAGS       ));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_LAND_VISITED     ));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_SKILLS           ));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_ITEMS            ));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_OBJECTS          ));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_PASSWORDS        ));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_UNIT_TRACKING    ));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_FOLDERS          ));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_DO_NOT_SHOW_THESE));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_TROPIC_ZONE      ));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_PLANE_SIZE       ));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_UNIT_FLAGS       ));
+    state_sections_.insert(SZ_SECT_DEF_ORDERS       );
+    state_sections_.insert(SZ_SECT_ORDERS           );
+    state_sections_.insert(SZ_SECT_REPORTS          );
+    state_sections_.insert(SZ_SECT_LAND_FLAGS       );
+    state_sections_.insert(SZ_SECT_LAND_VISITED     );
+    state_sections_.insert(SZ_SECT_SKILLS           );
+    state_sections_.insert(SZ_SECT_ITEMS            );
+    state_sections_.insert(SZ_SECT_OBJECTS          );
+    state_sections_.insert(SZ_SECT_PASSWORDS        );
+    state_sections_.insert(SZ_SECT_UNIT_TRACKING    );
+    state_sections_.insert(SZ_SECT_FOLDERS          );
+    state_sections_.insert(SZ_SECT_DO_NOT_SHOW_THESE);
+    state_sections_.insert(SZ_SECT_TROPIC_ZONE      );
+    state_sections_.insert(SZ_SECT_PLANE_SIZE       );
+    state_sections_.insert(SZ_SECT_UNIT_FLAGS       );
 
 
-    m_Config[CONFIG_FILE_CONFIG].Load(SZ_CONFIG_FILE);
-    m_Config[CONFIG_FILE_STATE ].Load(SZ_CONFIG_STATE_FILE);
+    config_[CONFIG_FILE_CONFIG].load(SZ_CONFIG_FILE);
+/* test of config
+    config_[CONFIG_FILE_CONFIG].save("test.txt");
+    config::Config test_cfg;
+    test_cfg.load("test.txt");
+    if (test_cfg == config_[CONFIG_FILE_CONFIG] && config_[CONFIG_FILE_CONFIG] == test_cfg) 
+    {
+      int i = 5;
+    }
+*/
+    config_[CONFIG_FILE_STATE].load(SZ_CONFIG_STATE_FILE);
 
-    UpgradeConfigFiles();
+    //UpgradeConfigFiles();
 
     m_layout = atol(GetConfig(SZ_SECT_COMMON, SZ_KEY_LAYOUT));
     if (m_layout<0)
@@ -215,18 +224,6 @@ bool CAhApp::OnInit()
 
     //m_Attitudes.FreeAll();
     SetAttitudeForFaction(0, ATT_NEUTRAL);
-
-    // Water terrain types
-    //m_WaterTerrainNames = CStringSortColl(); no need for that
-    p = SkipSpaces(GetConfig(SZ_SECT_COMMON, SZ_KEY_WATER_TERRAINS));
-    int idx;
-    while (p && *p)
-    {
-        p = SkipSpaces(S.GetToken(p, ','));
-        if (!S.IsEmpty() && !m_WaterTerrainNames.Search((void *)S.ToLower(), idx))
-            m_WaterTerrainNames.Insert(strdup(S.ToLower()));
-    }
-
 
     // Load order hash
     m_OrderHash.Insert("advance"    ,     (void*)O_ADVANCE    );
@@ -412,8 +409,8 @@ int CAhApp::OnExit()
 
     if (!m_DiscardChanges)
     {
-        m_Config[CONFIG_FILE_CONFIG].Save(SZ_CONFIG_FILE);
-        m_Config[CONFIG_FILE_STATE ].Save(SZ_CONFIG_STATE_FILE);
+        config_[CONFIG_FILE_CONFIG].save(SZ_CONFIG_FILE);
+        config_[CONFIG_FILE_STATE].save(SZ_CONFIG_STATE_FILE);
 
         if (ERR_OK==m_pAtlantis->m_ParseErr)
             SaveHistory(SZ_HISTORY_FILE);
@@ -435,10 +432,8 @@ int CAhApp::OnExit()
 
     m_MoveModes.FreeAll();
     m_ItemWeights.FreeAll();
-    m_ConfigSectionsState.FreeAll();
     m_OrderHash.FreeAll();
     m_Attitudes.FreeAll();
-    m_WaterTerrainNames.FreeAll();
 
     StdRedirectDone();
 
@@ -623,7 +618,7 @@ void CAhApp::OpenEditsFrame()
 }
 
 //-------------------------------------------------------------------------
-
+/*
 void CAhApp::UpgradeConfigFiles()
 {
     CStr         Section;
@@ -720,9 +715,9 @@ void CAhApp::UpgradeConfigFiles()
         m_Config[CONFIG_FILE_CONFIG].SetByName(SZ_SECT_COLORS, SZ_KEY_MAP_ROAD_BAD_OLD, "");
     }
 }
-
+*/
 //-------------------------------------------------------------------------
-
+/*
 void CAhApp::MoveSectionEntries(int fileno, const char * src, const char * dest)
 {
     const char * szName;
@@ -748,10 +743,10 @@ void CAhApp::MoveSectionEntries(int fileno, const char * src, const char * dest)
 
     Names.FreeAll();
     Values.FreeAll();
-}
+}*/
 
 //-------------------------------------------------------------------------
-
+/*
 void CAhApp::UpgradeConfigByFactionId()
 {
     int          fileno, idx;
@@ -764,6 +759,9 @@ void CAhApp::UpgradeConfigByFactionId()
         // Upgrade order files
         ComposeConfigOrdersSection(Section, m_pAtlantis->m_CrntFactionId);
         fileno  = GetConfigFileNo(SZ_SECT_ORDERS);
+
+        config_[fileno][Section] = 
+
         idx     = m_Config[fileno].GetFirstInSection(SZ_SECT_ORDERS, szName, szValue);
         while (idx>=0)
         {
@@ -783,7 +781,7 @@ void CAhApp::UpgradeConfigByFactionId()
             SetConfig(SZ_SECT_COMMON   , SZ_KEY_PWD_OLD, (const char *)NULL);
         }
     }
-}
+}*/
 
 //-------------------------------------------------------------------------
 
@@ -799,7 +797,7 @@ int CAhApp::GetConfigFileNo(const char * szSection)
 {
     int x;
 
-    if (m_ConfigSectionsState.Search((void*)szSection, x) ||
+    if (state_sections_.find(szSection) != state_sections_.end() ||
         0==strnicmp(SZ_SECT_ORDERS, szSection, sizeof(SZ_SECT_ORDERS)-1) ) // orders section is composite starting from 2.1.6
         return CONFIG_FILE_STATE;
     else
@@ -808,46 +806,43 @@ int CAhApp::GetConfigFileNo(const char * szSection)
 
 //-------------------------------------------------------------------------
 
-const char * CAhApp::GetConfig(const char * szSection, const char * szName)
+const char * CAhApp::GetConfig(const char* section, const char* param_name)
 {
-    const char * p;
+    
     int          i;
-    int          fileno = GetConfigFileNo(szSection);
+    int          fileno = GetConfigFileNo(section);
 
-    p = m_Config[fileno].GetByName(szSection, szName);
-    if (NULL==p)
+    const char* ret = config_[fileno].get(section, param_name, "");
+
+    if (ret == NULL)
     {
         for (i=0; i<DefaultConfigSize; i++)
-            if ( (0==stricmp(szSection, DefaultConfig[i].szSection)) &&
-                 (0==stricmp(szName,    DefaultConfig[i].szName))  )
+            if ( (0==stricmp(section, DefaultConfig[i].szSection)) &&
+                 (0==stricmp(param_name,    DefaultConfig[i].szName))  ) 
             {
-                p = DefaultConfig[i].szValue;
-                break;
+                config_[fileno].set(section, param_name, DefaultConfig[i].szValue);
+                return DefaultConfig[i].szValue;
             }
-        m_Config[fileno].SetByName(szSection, szName, p?p:" ");
     }
-    if (NULL==p)
-        p = "";
-    return p;
+    if (ret == NULL)
+        return "";
 }
 
 //-------------------------------------------------------------------------
 
-void CAhApp::SetConfig(const char * szSection, const char * szName, const char * szNewValue)
+void CAhApp::SetConfig(const char* section, const char* param, const char* value)
 {
-    int  fileno = GetConfigFileNo(szSection);
-    m_Config[fileno].SetByName(szSection, szName, szNewValue);
+    int  fileno = GetConfigFileNo(section);
+    config_[fileno].set(section, param, value);
 }
 
 //-------------------------------------------------------------------------
 
-void CAhApp::SetConfig(const char * szSection, const char * szName, long lNewValue)
+void CAhApp::SetConfig(const char * section, const char * param, long value)
 {
     char   buf[64];
-    int    fileno = GetConfigFileNo(szSection);
-
-    sprintf(buf, "%ld", lNewValue);
-    m_Config[fileno].SetByName(szSection, szName, buf);
+    int    fileno = GetConfigFileNo(section);
+    config_[fileno].set(section, param, value);
 }
 
 
@@ -859,17 +854,20 @@ int  CAhApp::GetSectionFirst(const char * szSection, const char *& szName, const
     int i;
     int fileno = GetConfigFileNo(szSection);
 
-    idx = m_Config[fileno].GetFirstInSection(szSection, szName, szValue);
-    if (idx < 0)
+    if (config_[fileno].pair_begin(szSection) == config_[fileno].pair_end(szSection))
     {
         for (i=0; i<DefaultConfigSize; i++)
             if (0==stricmp(szSection, DefaultConfig[i].szSection))
-                m_Config[fileno].SetByName(szSection, DefaultConfig[i].szName, DefaultConfig[i].szValue);
-
-        idx = m_Config[fileno].GetFirstInSection(szSection, szName, szValue);
+                config_[fileno].set(szSection, DefaultConfig[i].szName, DefaultConfig[i].szValue);
     }
 
-    return idx;
+    auto pb = config_[fileno].pair_begin(szSection);
+    if (pb == config_[fileno].pair_end(szSection))
+        return -1;
+
+    szName = pb->first.c_str();
+    szValue = pb->second.c_str();
+    return 0;
 }
 
 //-------------------------------------------------------------------------
@@ -877,7 +875,15 @@ int  CAhApp::GetSectionFirst(const char * szSection, const char *& szName, const
 int  CAhApp::GetSectionNext (int idx, const char * szSection, const char *& szName, const char *& szValue)
 {
     int   fileno = GetConfigFileNo(szSection);
-    return m_Config[fileno].GetNextInSection (idx, szSection, szName, szValue);
+    auto it = config_[fileno].pair_begin(szSection);
+    std::advance(it, ++idx);
+    if (it != config_[fileno].pair_end(szSection))
+    {
+        szName = it->first.c_str();
+        szValue = it->second.c_str();
+        return idx;
+    }
+    return -1;        
 }
 
 //-------------------------------------------------------------------------
@@ -885,21 +891,35 @@ int  CAhApp::GetSectionNext (int idx, const char * szSection, const char *& szNa
 void  CAhApp::RemoveSection(const char * szSection)
 {
     int fileno = GetConfigFileNo(szSection);
-    m_Config[fileno].RemoveSection(szSection);
+    config_[fileno].delete_section(szSection);
 }
 
 //-------------------------------------------------------------------------
 
 const char * CAhApp::GetNextSectionName(int fileno, const char * szStart)
 {
-    const char * szNextSection = NULL;
-
     if (fileno!=CONFIG_FILE_STATE && fileno!=CONFIG_FILE_CONFIG)
-        return NULL;
+        return nullptr;
 
-    m_Config[fileno].GetNextSection(szStart, szNextSection);
+    if (szStart == nullptr)
+        return config_[fileno].section_begin()->first.c_str();
 
-    return szNextSection;
+    auto it = std::lower_bound(config_[fileno].section_begin(), 
+                               config_[fileno].section_end(), 
+                               szStart,
+                               [&](std::pair<std::string, std::map<std::string, std::string>> it1, //config::Config::sect_iterator& it1, 
+                                   std::string phrase) {  //config::Config::sect_iterator& it2) {
+        return it1.first < phrase;
+    });
+
+    if (it == config_[fileno].section_end() || it->first != szStart)
+        return nullptr;
+
+    ++it;
+    if (it != config_[fileno].section_end())
+        return it->first.c_str();
+
+    return nullptr;
 }
 
 //-------------------------------------------------------------------------
@@ -972,7 +992,11 @@ const char * CAhApp::ResolveAlias(const char * alias)
         return local_cache[alias].c_str();
     }
 
-    const char * p = SkipSpaces(GetConfig(SZ_SECT_ALIAS, alias));
+    int          fileno = GetConfigFileNo(SZ_SECT_ALIAS);
+    const char * p = config_[fileno].get_case_insensitive(SZ_SECT_ALIAS, alias, alias);
+
+
+    //const char * p = SkipSpaces(GetConfig(SZ_SECT_ALIAS, alias));
     if (p && *p) {
         local_cache[alias] = p;
         return p;
@@ -1573,8 +1597,8 @@ int  CAhApp::SaveOrders(const char * FNameOut, int FactionId)
     }
 
     // Save config, too
-    m_Config[CONFIG_FILE_CONFIG].Save(SZ_CONFIG_FILE);
-    m_Config[CONFIG_FILE_STATE ].Save(SZ_CONFIG_STATE_FILE);
+    config_[CONFIG_FILE_CONFIG].save(SZ_CONFIG_FILE);
+    config_[CONFIG_FILE_STATE ].save(SZ_CONFIG_STATE_FILE);
 
     if (ERR_OK==m_pAtlantis->m_ParseErr)
         SaveHistory(SZ_HISTORY_FILE);
@@ -1988,6 +2012,25 @@ void CAhApp::LoadLandFlags()
 
 //-------------------------------------------------------------------------
 
+bool CAhApp::terrain_type_water(CLand* land)
+{
+    static std::unordered_map<std::string, bool> cache;
+    if (cache.find(land->TerrainType.GetData()) != cache.end())
+        return cache[land->TerrainType.GetData()];
+    
+    auto vec = game_control::get_game_config<std::string>(SZ_SECT_COMMON, SZ_KEY_WATER_TERRAINS);
+    for (auto& type : vec)
+    {
+        if (stricmp(land->TerrainType.GetData(), type.c_str()) == 0) 
+        {
+            cache.insert({land->TerrainType.GetData(), true});
+            return true;
+        }
+    }
+    cache.insert({land->TerrainType.GetData(), false});
+    return false;
+}
+
 void CAhApp::UpdateEdgeStructs()
 {
     int          i, n, k;
@@ -2006,7 +2049,7 @@ void CAhApp::UpdateEdgeStructs()
             pLand = (CLand*)pPlane->Lands.At(i);
             if(!pLand) continue;
             // set the Water-Type flag
-            if(m_WaterTerrainNames.Search((void *) pLand->TerrainType.ToLower(), k))
+            if(terrain_type_water(pLand))
             {
                 pLand->Flags |= LAND_IS_WATER;
             }
@@ -2035,12 +2078,9 @@ void CAhApp::UpdateEdgeStructs()
                             }
                         }
                         // set CoastBits
-                        if(m_WaterTerrainNames.Search((void *) adj_land->TerrainType.ToLower(), k))
-                        {
-                            if(!(pLand->Flags & LAND_IS_WATER))
-                                adj_land->CoastBits |= ExitFlags[adj_dir];
-                        }
-                        else if(pLand->Flags&LAND_IS_WATER)
+                        if(terrain_type_water(adj_land) && !land_control::is_water(pLand))
+                            adj_land->CoastBits |= ExitFlags[adj_dir];
+                        else if(!terrain_type_water(adj_land) && land_control::is_water(pLand))
                         {
                             pLand->CoastBits |= ExitFlags[d];
                         }
@@ -2791,7 +2831,7 @@ int  CAhApp::LoadReport  (const char * FNameIn, BOOL Join)
         if ( ERR_OK==err && m_pAtlantis->m_YearMon != 0 && m_pAtlantis->m_CrntFactionId != 0 )
         {
             m_ReportDates.Insert((void*)m_pAtlantis->m_YearMon);
-            UpgradeConfigByFactionId();
+            //UpgradeConfigByFactionId();
 
             if (atol(GetConfig(SZ_SECT_COMMON, SZ_KEY_PWD_READ)) && !m_pAtlantis->m_CrntFactionPwd.IsEmpty())
             {
@@ -5192,11 +5232,6 @@ void CGameDataHelper::SetPlayingFaction(long id)
     // set playing faction to ATT_FRIEND2
     gpApp->SetAttitudeForFaction(id, ATT_FRIEND2);
     gpApp->SetConfig(SZ_SECT_ATTITUDES, SZ_ATT_PLAYER_ID, id);
-}
-
-BOOL CGameDataHelper::ShowMoveWarnings()
-{
-    return atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_CHECK_MOVE_MODE));
 }
 
 BOOL CGameDataHelper::IsRawMagicSkill(const char * skillname)

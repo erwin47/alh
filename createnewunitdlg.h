@@ -31,6 +31,7 @@ class CCreateNewUnit : public CResizableDlg
     //study section
     wxCheckBox* flag_check_study_;
     wxComboBox* combobox_skills_;
+    wxComboBox* combobox_skill_lvl_;
     wxCheckBox* flag_study_repeating_;
 
     //receive silver section
@@ -47,6 +48,9 @@ class CCreateNewUnit : public CResizableDlg
     wxStaticText* expenses_studying_; 
     wxStaticText* expenses_maintenance_; 
     wxStaticText* expenses_all_;
+
+    //additional order session
+    wxTextCtrl* additional_orders_;
 
     //flags section
     wxCheckBox* flag_behind_;
@@ -91,6 +95,9 @@ private:
     void InitializeExpences();
     wxBoxSizer* ExpensesToForm();
 
+    void InitializeAdditionalOrders();
+    wxBoxSizer* AdditionalOrdersToForm();
+
     void InitializeFlags(CUnit* unit);
     wxBoxSizer* FlagsToForm();
 
@@ -103,6 +110,8 @@ private:
     void onAnySpinUpdate(wxSpinEvent& event);
     void onAnyComboBoxUpdate(wxCommandEvent& event);
     void onGiveAllButton(wxCommandEvent & event);
+
+    void onStudyCheckBoxUpdate(wxCommandEvent& event);
 
     DECLARE_EVENT_TABLE()
 };

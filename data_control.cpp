@@ -323,15 +323,16 @@ namespace unit_control
 
     }
 
+    //! assuming its impossible to have mixed unit of leaders & peasants
     bool is_leader(CUnit* unit)
     {
-        for (auto& item : unit->men_)
+        static std::vector<std::string> leaders = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, "leaders");
+        for (const auto& lead : leaders)
         {
-            if (stricmp(item.code_name_.c_str(), "LEAD") != 0 &&
-                stricmp(item.code_name_.c_str(), "HERO") != 0)
-                return false;
+            if (unit->men_.find({0, lead}) != unit->men_.end())
+                return true;
         }
-        return unit->men_.size() > 0;
+        return false;
     }
 
 
@@ -1099,8 +1100,7 @@ namespace land_control
 
     bool is_water(CLand* land)
     {
-        return (stricmp(land->TerrainType.GetData(), "ocean") == 0 ||
-                stricmp(land->TerrainType.GetData(), "lake") == 0);      
+        return land->Flags & LAND_IS_WATER;
     }
 
     bool is_bad_weather(CLand* land, int month)

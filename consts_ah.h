@@ -453,9 +453,6 @@ enum
 #define SZ_ATTR_STRUCT_TRAVEL            "TRAVEL"
 #define SZ_ATTR_STRUCT_USUAL_SPEED       "USUAL_SPEED"
 
-#define SZ_LEADER                        "leader"
-#define SZ_HERO                          "hero"
-
 #define SZ_ATT_PLAYER_ID                 "PLAYER_FACTION_ID"
 #define SZ_ATT_APPLY_ON_JOIN             "APPLY_ATTITUDES_ON_JOIN"
 #define SZ_ATT_FRIEND1                   "TRUSTED_ATTITUDES"

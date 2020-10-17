@@ -8,11 +8,16 @@
 #include <algorithm>
 #include <cctype>
 
+#define STUDY_REPEAT_CHKBOX 1
+#define STUDY_ENABLE_CHKBOX 2
+
 BEGIN_EVENT_TABLE(CCreateNewUnit, wxDialog)
     EVT_BUTTON  (wxID_CANCEL  ,  CCreateNewUnit::OnCancel)
     EVT_BUTTON  (wxID_OK      ,  CCreateNewUnit::OnOk)
     EVT_SPINCTRL(-1           ,  CCreateNewUnit::onAnySpinUpdate)
     EVT_COMBOBOX(-1           ,  CCreateNewUnit::onAnyComboBoxUpdate)
+    EVT_CHECKBOX(STUDY_ENABLE_CHKBOX,  CCreateNewUnit::onStudyCheckBoxUpdate)
+    EVT_CHECKBOX(STUDY_REPEAT_CHKBOX,  CCreateNewUnit::onStudyCheckBoxUpdate)
     EVT_CHECKBOX(-1           ,  CCreateNewUnit::onAnyComboBoxUpdate)
 END_EVENT_TABLE()
 
@@ -33,20 +38,25 @@ CCreateNewUnit::CCreateNewUnit(wxWindow *parent, CUnit * pUnit, CLand* pLand) :
     wxBoxSizer* maintenance_sizer = MaintenanceToForm();
     InitializeExpences();
     wxBoxSizer* unit_expenses_sizer = ExpensesToForm();
+    InitializeAdditionalOrders();
+    wxBoxSizer* additional_order_sizer = AdditionalOrdersToForm();
+
 
     wxBoxSizer* unitsizer = new wxBoxSizer( wxVERTICAL );
     unitsizer->Add(unit_names_sizer, 0, 0);
-    unitsizer->Add(new wxStaticLine(this), 0, 0);
+    //unitsizer->Add(new wxStaticLine(this), 0, 0);
     unitsizer->Add(unit_buy_sizer, 0, wxALL);
-    unitsizer->Add(new wxStaticLine(this), 1, 0);
+    //unitsizer->Add(new wxStaticLine(this), 1, 0);
     unitsizer->Add(unit_study_sizer, 0, wxALL);
-    unitsizer->Add(new wxStaticLine(this), 1, 0);
+    //unitsizer->Add(new wxStaticLine(this), 1, 0);
     unitsizer->Add(unit_silver_sizer, 0, wxALL);
-    unitsizer->Add(new wxStaticLine(this), 1, 0);
+    //unitsizer->Add(new wxStaticLine(this), 1, 0);
     unitsizer->Add(maintenance_sizer, 0, wxALL);
-    unitsizer->Add(new wxStaticLine(this), 1, 0);
+    //unitsizer->Add(new wxStaticLine(this), 1, 0);
     unitsizer->Add(unit_expenses_sizer, 0, wxALL);
-    unitsizer->Add(new wxStaticLine(this), 1, 0);
+    //unitsizer->Add(new wxStaticLine(this), 1, 0);
+    unitsizer->Add(additional_order_sizer, 1, wxALL | wxEXPAND);
+    //unitsizer->Add(new wxStaticLine(this), 1, 0);
 
     InitializeFlags(unit_);
     wxBoxSizer* flagsizer = FlagsToForm();
@@ -169,7 +179,8 @@ wxBoxSizer* CCreateNewUnit::BuyItemsToForm()
 
 void CCreateNewUnit::InitializeStudy()
 {
-    flag_check_study_ = new wxCheckBox(this, -1, "");
+    flag_check_study_ = new wxCheckBox(this, STUDY_ENABLE_CHKBOX, "");
+
     combobox_skills_ = new wxComboBox(this, -1, wxT("studying"), wxDefaultPosition, wxDefaultSize, 0, NULL);
 
     std::vector<Skill> skills;
@@ -181,7 +192,14 @@ void CCreateNewUnit::InitializeStudy()
     if (combobox_skills_->GetCount() > 0)
         combobox_skills_->SetSelection(0);
 
-    flag_study_repeating_ = new wxCheckBox(this, -1, "repeating");;
+    combobox_skill_lvl_ = new wxComboBox(this, -1, wxT("lvl"), wxDefaultPosition, wxDefaultSize, 0, NULL);
+    combobox_skill_lvl_->Append("---");
+    for (unsigned i = 0; i < 5; ++i)
+        combobox_skill_lvl_->Append(std::to_string(i+1));
+    combobox_skill_lvl_->SetSelection(0);
+    combobox_skill_lvl_->Disable();
+
+    flag_study_repeating_ = new wxCheckBox(this, STUDY_REPEAT_CHKBOX, "repeating");;
 }
 
 wxBoxSizer* CCreateNewUnit::StudyToForm()
@@ -191,6 +209,7 @@ wxBoxSizer* CCreateNewUnit::StudyToForm()
     temp_sizer = new wxBoxSizer( wxHORIZONTAL );
     temp_sizer->Add(flag_check_study_, 0, wxALL);
     temp_sizer->Add(combobox_skills_, 1, wxALL);
+    temp_sizer->Add(combobox_skill_lvl_, 0, wxALL);
     unit_study_sizer->Add(temp_sizer, 0, wxALL);
     temp_sizer = new wxBoxSizer( wxHORIZONTAL );
     temp_sizer->Add(flag_study_repeating_, 0, wxALL);
@@ -292,6 +311,19 @@ wxBoxSizer* CCreateNewUnit::ExpensesToForm()
     temp_sizer->Add(expenses_all_, 0, wxALL);
     unit_expenses_sizer->Add(temp_sizer, 0, wxALL);
     return unit_expenses_sizer;
+}
+
+void CCreateNewUnit::InitializeAdditionalOrders()
+{
+    additional_orders_ = new wxTextCtrl(this, -1, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE); 
+}//wxTE_MULTILINE
+
+wxBoxSizer* CCreateNewUnit::AdditionalOrdersToForm()
+{
+    wxBoxSizer* additional_order_sizer = new wxBoxSizer( wxVERTICAL );
+    additional_order_sizer->Add(new wxStaticText(this, -1, wxT("Additional orders (not affect expences):")), 0, wxALL);
+    additional_order_sizer->Add(additional_orders_, 1, wxALL | wxEXPAND);
+    return additional_order_sizer;
 }
 
 void CCreateNewUnit::InitializeFlags(CUnit* unit)
@@ -413,11 +445,12 @@ void CCreateNewUnit::UpdateExpences()
             std::string name, plural;
             gpApp->ResolveAliasItems(item.code_name_, item.code_name_, name, plural);
             //actually I'd prefer to not know which section is it, needs to be refactored
-            if (name.find(SZ_LEADER) != std::string::npos || 
-                name.find(SZ_HERO) != std::string::npos)                
-                upkeep_amount = spin_buy_units_amount_->GetValue() * game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_LEADER);
-            else
+
+            static std::vector<std::string> leaders = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, "leaders");
+            if (std::find(leaders.begin(), leaders.end(), name) == leaders.end())
                 upkeep_amount = spin_buy_units_amount_->GetValue() * game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT);
+            else
+                upkeep_amount = spin_buy_units_amount_->GetValue() * game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_LEADER);
         }
         long maintenance_expences = spin_maintenance_turns_->GetValue() * upkeep_amount;
         
@@ -515,10 +548,17 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
 
     if (flag_check_study_->IsChecked())
     {
+        std::string lvl = std::string(combobox_skill_lvl_->GetValue().mb_str());
+
         if (flag_study_repeating_->IsChecked())
-            unit_order << "@";
-        unit_order << "study \"" << combobox_skills_->GetValue() << "\"" << std::endl;
+            unit_order << "@study \""<< combobox_skills_->GetValue() << "\"" << std::endl;
+        else if (lvl != "---")
+            unit_order << "study \"" << combobox_skills_->GetValue() << "\" " << lvl << std::endl;
     }
+
+    std::string add_orders = std::string(additional_orders_->GetValue().mb_str());
+    if (add_orders.size() > 0)
+        unit_order << add_orders;
 
     unit_->Orders.TrimRight(TRIM_ALL);
     if (!unit_->Orders.IsEmpty() && (unit_->Orders.GetData()[unit_->Orders.GetLength()-1] != '\n'))
@@ -573,3 +613,15 @@ void CCreateNewUnit::onGiveAllButton(wxCommandEvent & event)
         spin_silver_amount_->SetValue(std::min(unit_silver_amount, expences));
     }
 }
+
+void CCreateNewUnit::onStudyCheckBoxUpdate(wxCommandEvent& event)
+{
+    if (!flag_check_study_->IsChecked())
+        combobox_skill_lvl_->Disable();
+    else if (flag_study_repeating_->IsChecked())
+        combobox_skill_lvl_->Disable();
+    else
+        combobox_skill_lvl_->Enable();
+}
+
+

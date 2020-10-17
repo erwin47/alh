@@ -1464,6 +1464,9 @@ namespace orders
                         utils::get_priority(runner, end, store_all_priority);
                         if (store_all_priority <= 0)
                             unit_control::order_message(unit, "Incorrect use of STORE_ALL:", "priority have to be set and positive");
+                        else {
+
+                        }
                     }
                     else if (order->comment_.find(";!STORE") != std::string::npos || order->comment_.find(";$STORE") != std::string::npos)
                     {
@@ -1545,6 +1548,10 @@ namespace orders
                     }
                     //add specific NEED ALL_ITEMS, will be handled later
                     utils::add_need(unit, "ALL_ITEMS", -1, store_all_priority, needs);
+
+                    // fill specified items with items, touched by STORE_ALL
+                    for (const auto& item : items_to_giveout)
+                        specified_items.insert(item.code_name_);
                 }
 
                 //CARAVAN RELATED SOURCES

@@ -28,6 +28,8 @@
 #include "collection.h"
 #include "cstr.h"
 
+#include "config.h"
+
 enum
 {
     AH_FRAME_MAP          =  0,
@@ -180,7 +182,7 @@ public:
     virtual bool         OnInit();
     virtual int          OnExit();
 
-
+    //config interface
     void                 SetConfig(const char * szSection, const char * szName, const char * szNewValue);
     void                 SetConfig(const char * szSection, const char * szName, long lNewValue);
     const char         * GetConfig(const char * szSection, const char * szName);
@@ -188,7 +190,7 @@ public:
     int                  GetSectionNext (int idx, const char * szSection, const char *& szName, const char *& szValue);
     void                 RemoveSection(const char * szSection);
     const char         * GetNextSectionName(int fileno, const char * szStart); // sorry, but fileno is needed here
-    void                 MoveSectionEntries(int fileno, const char * src, const char * dest);
+    //void                 MoveSectionEntries(int fileno, const char * src, const char * dest);
 
     void                 EditPaneDClicked(CEditPane * pPane);
 
@@ -324,6 +326,7 @@ private:
     void                 GetShortFactName(CStr & S, int FactionId);
     void                 SaveLandFlags();
     void                 LoadLandFlags();
+    bool                 terrain_type_water(CLand* land);
     void                 UpdateEdgeStructs();
     void                 LoadUnitFlags();
     void                 SaveUnitFlags();
@@ -334,8 +337,8 @@ private:
     void                 SwitchToYearMon(long YearMon);
 
     int                  GetConfigFileNo(const char * szSection);
-    void                 UpgradeConfigFiles();
-    void                 UpgradeConfigByFactionId();
+    //void                 UpgradeConfigFiles();
+    //void                 UpgradeConfigByFactionId();
     void                 ComposeConfigOrdersSection(CStr & Sect, int FactionId);
     BOOL                 GetExportHexOptions(CStr & FName, CStr & FMode, SAVE_HEX_OPTIONS & options, eHexIncl & HexIncl,
                                              bool & InclTurnNoAcl);
@@ -358,8 +361,10 @@ private:
     BOOL                 m_DisableErrs;
     CBufColl             m_MoveModes;
     CWeightsColl         m_ItemWeights;
-    CConfigFile          m_Config[CONFIG_FILE_COUNT];
-    CStringSortColl      m_ConfigSectionsState;
+    config::Config       config_[CONFIG_FILE_COUNT];
+    //CConfigFile          m_Config[CONFIG_FILE_COUNT];
+    //CStringSortColl      m_ConfigSectionsState;
+    std::set<std::string> state_sections_;
     bool                 orders_changed_flag_;
     CStr                 m_sTitle;
     CHashStrToLong       m_OrderHash;
@@ -370,8 +375,6 @@ private:
     int                  m_nStdoutLastPos;
     int                  m_nStderrLastPos;
     CBaseColl            m_Attitudes;
-    CStringSortColl      m_WaterTerrainNames;
-
 };
 
 //-------------------------------------------------------------------------------
