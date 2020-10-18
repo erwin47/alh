@@ -74,6 +74,7 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define PRP_GUI_COLOR                   "gui_color"
 #define PRP_MEN                         "men"
 #define PRP_SKILLS                      "skills"
+#define PRP_MONTHLONG_ACTION            "action_monthlong"
 #define PRP_MAG_SKILLS                  "mag_skills"
 #define PRP_STUFF                       "stuff"
 #define PRP_FOOD                        "foods"
@@ -462,6 +463,8 @@ public:
     long struct_id_;//!<struct to which it belongs (0 if none)
     long struct_id_initial_;//!<struct to which it belongs (0 if none)
 
+    std::string monthlong_descr_; //!< hint for flags
+
     //hex id where unit should stop (if movements_.size()>0 it must be positive):
     //it may be calculated stop position, or it will be the last hex id of movements_
     long              movement_stop_;
@@ -790,7 +793,7 @@ class CGameDataHelper
 {
 public:
     void         ReportError       (const char * msg, int msglen, BOOL orderrelated);
-    long         GetStudyCost      (const char * skill);
+    //long         GetStudyCost      (const char * skill);
     //bool         GetStructAttr     (const char * kind, long & MaxLoad, long & MinSailingPower, long& flags);
     const char * GetConfString     (const char * section, const char * param);
     BOOL         GetOrderId        (const char * order, long & id);

@@ -197,7 +197,7 @@ public:
     void                 FrameClosing(CAhFrame * pFrame);
 
     void                 ShowError (const char * msg, int msglen, BOOL ignore_disabled);
-    long                 GetStudyCost   (const char * skill);
+    //long                 GetStudyCost   (const char * skill);
     const char         * ResolveAlias   (const char * alias);
     //internal logic should work just with codename. Long name and plural -- for visual representation
     //returns true on success
@@ -312,6 +312,9 @@ public:
 
     void                 RedrawTracks(std::vector<long>& points);
 
+    config::Config       config_[CONFIG_FILE_COUNT];
+    int                  GetConfigFileNo(const char * szSection);
+
 private:
     void                 ForgetFrame(int no, BOOL frameclosed);
     int                  LoadOrders  (const char * FNameIn);
@@ -336,7 +339,6 @@ private:
     //void                 UpdateUnitPane(CLand * pLand);
     void                 SwitchToYearMon(long YearMon);
 
-    int                  GetConfigFileNo(const char * szSection);
     //void                 UpgradeConfigFiles();
     //void                 UpgradeConfigByFactionId();
     void                 ComposeConfigOrdersSection(CStr & Sect, int FactionId);
@@ -361,7 +363,6 @@ private:
     BOOL                 m_DisableErrs;
     CBufColl             m_MoveModes;
     CWeightsColl         m_ItemWeights;
-    config::Config       config_[CONFIG_FILE_COUNT];
     //CConfigFile          m_Config[CONFIG_FILE_COUNT];
     //CStringSortColl      m_ConfigSectionsState;
     std::set<std::string> state_sections_;

@@ -50,6 +50,7 @@
 #include "optionsdlg.h"
 #include "flagsdlg.h"
 #include "data_control.h"
+#include "ah_control.h"
 
 #ifdef __WXMAC_OSX__
 #include <unistd.h>
@@ -936,7 +937,12 @@ void CAhApp::ForgetFrame(int no, BOOL frameclosed)
             if (m_Frames[no]->m_Panes[i])
                 m_Panes[i] = NULL;
 
+        if (no == AH_FRAME_MSG)
+        {
+            m_Frames[no]->Destroy();
+        }
         m_Frames[no] = NULL;
+        
     }
 }
 
@@ -1078,7 +1084,7 @@ void CAhApp::SetAliasItems(const std::string& codename, const std::string& long_
 }
 
 //-------------------------------------------------------------------------
-
+/*
 long CAhApp::GetStudyCost(const char * skill)
 {
     long        n;
@@ -1087,8 +1093,11 @@ long CAhApp::GetStudyCost(const char * skill)
     p = ResolveAlias(skill);
     n = atol(GetConfig(SZ_SECT_STUDY_COST, p));
 
+    int fileno = GetConfigFileNo(SZ_SECT_STUDY_COST);
+    const char* ret = config_[fileno].get_case_insensitive<long>(SZ_SECT_STUDY_COST, skill, 0);
+
     return n;
-}
+}*/
 
 //-------------------------------------------------------------------------
 
@@ -5118,11 +5127,6 @@ void CAhApp::ViewMovedUnits()
 void  CGameDataHelper::ReportError(const char * msg, int msglen, BOOL orderrelated)
 {
     gpApp->ShowError(msg, msglen, !orderrelated);
-};
-
-long  CGameDataHelper::GetStudyCost(const char * skill)
-{
-    return gpApp->GetStudyCost(skill);
 };
 
 const char *  CGameDataHelper::ResolveAlias(const char * alias)

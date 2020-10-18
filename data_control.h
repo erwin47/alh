@@ -368,65 +368,6 @@ namespace land_control
 
 }
 
-namespace game_control
-{
-    struct NameAndAmount
-    {
-        std::string name_;
-        double amount_;
-    };
-
-    template<typename T>
-    T convert_to(const std::string& str);
-
-    std::string get_gpapp_config(const char* section, const char* key);
-
-    template<typename T>
-    std::vector<T> get_game_config(const char* section, const char* key)
-    {
-        static std::unordered_map<std::string, std::unordered_map<std::string, std::vector<T>>> cache;
-        if (cache.find(section) != cache.end())
-        {
-            if (cache[section].find(key) != cache[section].end())
-                return cache[section][key];
-        }
-        std::vector<T> ret;
-        std::string value_string = get_gpapp_config(section, key);
-        const char* beg = value_string.c_str();
-        const char* end = value_string.c_str() + value_string.size();
-        const char* runner = beg;
-        while(beg < end)
-        {
-            while (beg < end && !isalpha(*beg) && !isdigit(*beg))
-                ++beg;
-
-            if (beg == end)
-                break;
-                
-            runner = beg;
-            while (runner < end && *runner != ',')
-                ++runner;
-
-            ret.push_back(convert_to<T>(std::string(beg, runner)));
-            ++runner;
-            beg = runner;
-        }
-        cache[section][key] = ret;
-        return ret;
-    }
-
-    std::vector<std::pair<std::string, std::string>> get_all_configuration(const char* section);
-
-    template<typename T>
-    T get_game_config_val(const char* section, const char* key)
-    {
-        return convert_to<T>(get_gpapp_config(section, key));
-    }
-
-    bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag, SHIP_TRAVEL& travel, long& speed);
-
-}
-
 namespace struct_control
 {
     void parse_struct(const std::string& line, long& id, std::string& name, 

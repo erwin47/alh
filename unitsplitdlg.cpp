@@ -36,6 +36,7 @@
 
 #include "unitsplitdlg.h"
 #include "data_control.h"
+#include "ah_control.h"
 
 
 #define SPACER_GENERIC 5

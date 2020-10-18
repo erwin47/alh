@@ -213,15 +213,6 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
                 {
                     
                     std::stringstream ss;
-                    if (unit->Flags & UNIT_FLAG_PILLAGING        )  ss << "$$";
-                    if (unit->Flags & UNIT_FLAG_TAXING           )  ss << '$';
-                    if (unit->Flags & UNIT_FLAG_PRODUCING        )  ss << 'P';
-                    if (unit_control::flags::is_entertaining(unit)) ss << 'E';
-                    if (unit->Flags & UNIT_FLAG_STUDYING         )  ss << 'S';
-                    if (unit_control::flags::is_teaching(unit)   )  ss << 'T';        
-                    if (unit_control::flags::is_working(unit)    )  ss << 'W';
-                    if (unit_control::flags::is_moving(unit)     )  ss << 'M';  
-                    ss << '|';
                     if (unit->Flags & UNIT_FLAG_GUARDING         )  ss << 'g';
                     if (unit->Flags & UNIT_FLAG_AVOIDING         )  ss << 'a';
                     if (unit->Flags & UNIT_FLAG_BEHIND           )  ss << 'b';
@@ -241,6 +232,21 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
                     if (unit->Flags & UNIT_FLAG_SHARING )  ss << 'z';
                     wxString temp(ss.str());
                     info.SetText(temp);
+                }
+                else if (unit != nullptr && 
+                    stricmp(layoutitem->m_Name, PRP_MONTHLONG_ACTION) == 0)
+                {
+                    std::stringstream ss;
+                    if (unit_control::flags::is_pillaging(unit)  )  ss << "$$" << unit->monthlong_descr_;
+                    if (unit_control::flags::is_taxing(unit)     )  ss << '$' << unit->monthlong_descr_;
+                    if (unit->Flags & UNIT_FLAG_PRODUCING        )  ss << 'p' << unit->monthlong_descr_;
+                    if (unit_control::flags::is_entertaining(unit)) ss << 'E' << unit->monthlong_descr_;
+                    if (unit->Flags & UNIT_FLAG_STUDYING         )  ss << 'S' << unit->monthlong_descr_;
+                    if (unit_control::flags::is_teaching(unit)   )  ss << 'T' << unit->monthlong_descr_;        
+                    if (unit_control::flags::is_working(unit)    )  ss << 'W' << unit->monthlong_descr_;
+                    if (unit_control::flags::is_moving(unit)     )  ss << 'M' << unit->monthlong_descr_;
+                    wxString temp(ss.str());
+                    info.SetText(temp);                    
                 }
                 else if (dataitem->GetProperty(layoutitem->m_Name, valuetype, value ))
                 {

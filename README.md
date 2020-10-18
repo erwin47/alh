@@ -53,6 +53,11 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 
 
 ## Changelog:
+### Oct 18 2020
+- UnitPane: added action_monthlong field. Short record about monthlong order.
+- Weird bug: on close ALH it doesn't close MsgFrame. I didn't find why main frame stopped sending close event to the child window, so for a while it just have explicit call of it. Probably something based on new config reading/writing.
+- 
+
 ### Oct 17 2020
 - Config: added comments, which will be stored.
 - Config property: added `leaders` for men, who are leaders (not hardcoded `LEAD`/`HERO`)

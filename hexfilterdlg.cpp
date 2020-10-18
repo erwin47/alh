@@ -37,7 +37,7 @@
 #include "utildlgs.h"
 #include "hexfilterdlg.h"
 #include "mappane.h"
-
+#include "ah_control.h"
 
 
 #define SPACER_GENERIC 5

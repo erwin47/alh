@@ -5137,8 +5137,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             CheckOrder_LandMonthlong(pLand);
             //Automatic Orders Generation place during run of the orders
             RunOrder_AOComments<orders::Type::O_COMMENT>(pLand);//
-            RunCaravanAutomoveOrderGeneration(pLand); //generate caravan automatic move orders
-            CheckOrder_LandMonthlong(pLand);
+            //RunCaravanAutomoveOrderGeneration(pLand); //generate caravan automatic move orders
+            //CheckOrder_LandMonthlong(pLand);
         }
 
         if (sequence == TurnSequence::SQ_FORM)
@@ -5206,6 +5206,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             RunOrder_AOComments<orders::Type::O_MOVE>(pLand);
             RunOrder_AOComments<orders::Type::O_ADVANCE>(pLand);
 
+            RunCaravanAutomoveOrderGeneration(pLand); //generate caravan automatic move orders
             RunOrder_LandMove(pLand);
         }
         if (sequence == TurnSequence::SQ_TEACH) {}
@@ -5253,6 +5254,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             if (region_balance < 0) {
                 OrderError("Warning", pLand, nullptr, nullptr, "Region has silver balance below 0: "+std::to_string(region_balance)+" SILV");
             }
+
+            CheckOrder_LandMonthlong(pLand);
         }
 
         for (CUnit* pUnit : pLand->units_seq_)
@@ -5620,11 +5623,14 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                 if (unit_control::flags::is_moving(pUnit) || destination_land == nullptr)
                     continue;
 
-                int movementMode;
-                bool noCross;
                 wxString Log;
-                GetMovementMode(pUnit, movementMode, noCross, O_MOVE);
-                wxString route = RoutePlanner::GetRoute(pLand, destination_land, movementMode, RoutePlanner::ROUTE_MARKUP_TURN, noCross, Log);
+
+                unit_control::MoveMode movemode = unit_control::get_move_state(pUnit);
+                bool noCross = true;
+                if (!unit_control::flags::is_nocross(pUnit) && (movemode.swim_ == 1 || movemode.fly_ == 1))
+                    noCross = false;
+
+                wxString route = RoutePlanner::GetRoute(pLand, destination_land, movemode.speed_, RoutePlanner::ROUTE_MARKUP_TURN, noCross, Log);
                 if (Log.size() > 0)
                 {
                     m_sOrderErrors << "For UNIT: " << pUnit->Id;
@@ -5896,10 +5902,12 @@ void CAtlaParser::CheckOrder_LandMonthlong(CLand *land)
                     unit->Flags |= UNIT_FLAG_PRODUCING;
                     land->Flags |= LAND_TRADE_NEXT;
                 }                    
-                else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_TEACH))
+                else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_TEACH)) {
                     unit->Flags |= UNIT_FLAG_TEACHING;
-                else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_STUDY))
+                }   
+                else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_STUDY)) {
                     unit->Flags |= UNIT_FLAG_STUDYING;
+                }
                 else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_MOVE))
                     unit->Flags |= UNIT_FLAG_MOVING;
                 else if (orders::control::is_order_type(monthlong_orders.second[0], orders::Type::O_ADVANCE))
@@ -6104,6 +6112,10 @@ void CAtlaParser::RunOrder_LandStudyTeach(CLand* land)
         long room_for_teaching = std::max(stud.second.max_days_ - stud.second.cur_days_ - 30, (long)0);
         long space_for_teaching = std::min(room_for_teaching, (long)30);
         space_for_teaching = std::max(space_for_teaching - stud.second.days_of_teaching_, (long)0);                
+        stud.second.unit_->monthlong_descr_ = std::to_string(space_for_teaching);
+        while (stud.second.unit_->monthlong_descr_.size() < 4)
+            stud.second.unit_->monthlong_descr_.insert(0, " ");
+
         stud.second.unit_->SetProperty(PRP_TEACHING, eLong, (const void*)space_for_teaching, eNormal);
     }
 }
@@ -6249,11 +6261,13 @@ void CAtlaParser::RunCaravanAutomoveOrderGeneration(CLand* land)
             unit->caravan_info_->goal_land_ == nullptr)
             return;
 
-        int movementMode;
-        bool noCross;
         wxString Log;
-        GetMovementMode(unit, movementMode, noCross, O_MOVE);
-        wxString route = RoutePlanner::GetRoute(land, unit->caravan_info_->goal_land_, movementMode, RoutePlanner::ROUTE_MARKUP_TURN, noCross, Log);
+        unit_control::MoveMode movemode = unit_control::get_move_state(unit);
+        bool noCross = true;
+        if (!unit_control::flags::is_nocross(unit) && (movemode.swim_ == 1 || movemode.fly_ == 1))
+            noCross = false;
+
+        wxString route = RoutePlanner::GetRoute(land, unit->caravan_info_->goal_land_, movemode.speed_, RoutePlanner::ROUTE_MARKUP_TURN, noCross, Log);
         if (Log.size() > 0)
         {
             m_sOrderErrors << "For UNIT: " << unit->Id;
@@ -7477,42 +7491,6 @@ void CAtlaParser::RunOrder_Promote(CStr & Line, CStr & ErrorLine, BOOL skiperror
 }
 
 //-------------------------------------------------------------
-
-void CAtlaParser::GetMovementMode(CUnit * pUnit, int & movementMode, bool & noCross, long order) const
-{
-    EValueType          type;
-    const void        * value;
-
-    movementMode = 0;
-    noCross = true;
-
-    if (pUnit->GetProperty(PRP_MOVEMENT, type, value, eNormal) && eCharPtr==type)
-    {
-        const char * movementModeStr = (const char *)value;
-        if (strstr(movementModeStr, "Swim"))
-            noCross = false;
-
-        if (strstr(movementModeStr, "Fly"))
-        {
-            movementMode = 6;
-            noCross = unit_control::flags::is_nocross(pUnit);
-        }
-        else
-        if (strstr(movementModeStr, "Ride"))
-            movementMode = 4;
-        else
-        if (strstr(movementModeStr, "Walk"))
-            movementMode = 2;
-        else
-            movementMode = 2;
-    }
-
-    if (O_SAIL == order)
-    {
-        noCross = false;
-        movementMode = 4;
-    }
-}
 
 namespace moving
 {

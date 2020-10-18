@@ -8,161 +8,6 @@
 #include "ah_control.h"
 #include "autonaming.h"
 
-namespace game_control
-{
-    template<>
-    std::string convert_to<std::string>(const std::string& str)
-    {
-        return str;
-    }
-
-    template<>
-    NameAndAmount convert_to(const std::string& str)
-    {//TYPE X    
-        size_t separator = str.find(' ');
-        if (separator == std::string::npos)
-            return {str, 0};
-        
-        return {str.substr(0, str.find(' ')), atof(&str[str.find(' ')+1])};
-    }
-
-    template<>
-    long convert_to<long>(const std::string& str)
-    {
-        return atol(str.c_str());
-    }
-
-    template<>
-    double convert_to<double>(const std::string& str)
-    {
-        return atof(str.c_str());
-    }
-
-    template<typename T>
-    std::string convert_from(const T& t1)
-    {
-        return std::to_string(t1);
-    }
-
-    template<>
-    std::string convert_from<std::string>(const std::string& str)
-    {
-        return str;
-    }
-
-
-
-    std::string get_gpapp_config(const char* section, const char* key)
-    {
-        return gpApp->GetConfig(section, key);
-    }
-
-    std::vector<std::pair<std::string, std::string>> get_all_configuration(const char* section)
-    {
-        std::vector<std::pair<std::string, std::string>> ret;
-        const char  * szName;
-        const char  * szValue;      
-        int sectidx = gpApp->GetSectionFirst(section, szName, szValue);
-        while (sectidx >= 0)
-        {
-            std::pair<std::string, std::string> cur_pair = {std::string(szName), std::string(szValue)};
-            ret.emplace_back(cur_pair);
-            sectidx = gpApp->GetSectionNext(sectidx, section, szName, szValue);
-        }
-        return ret;
-    }
-
-    template<typename T>
-    bool doCompare(T v1, T v2, eCompareOp CompareOp)
-    {
-        switch (CompareOp)
-        {
-            case GT: return v1 > v2;
-            case GE: return v1 >= v2;
-            case EQ: return v1 == v2;
-            case LE: return v1 <= v2;
-            case LT: return v1 < v2;
-            case NE: return v1 != v2;
-            default: return false;
-        }
-    }
-
-    template<>
-    bool doCompare(std::string v1, std::string v2, eCompareOp CompareOp)
-    {
-        switch (CompareOp)
-        {
-            case GT: return stricmp(v1.c_str(), v2.c_str()) > 0;
-            case GE: return stricmp(v1.c_str(), v2.c_str()) >= 0;
-            case EQ: return stricmp(v1.c_str(), v2.c_str()) == 0;
-            case LE: return stricmp(v1.c_str(), v2.c_str()) <= 0;
-            case LT: return stricmp(v1.c_str(), v2.c_str()) < 0;
-            case NE: return stricmp(v1.c_str(), v2.c_str()) != 0;
-            default: return false;
-        }
-    }
-
-    bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag, SHIP_TRAVEL& travel, long& speed)
-    {
-        std::string codename, name, plural_name;
-        if (!gpApp->ResolveAliasItems(struct_type, codename, name, plural_name))
-            name = struct_type;
-
-        std::vector<std::string> struct_parameters = game_control::get_game_config<std::string>(SZ_SECT_STRUCTS, name.c_str());
-        if (struct_parameters.size() == 0 && name[name.size()-1] == 's')
-        {
-            std::string name_without_s = name.substr(0, name.size()-1);
-            struct_parameters = game_control::get_game_config<std::string>(SZ_SECT_STRUCTS, name_without_s.c_str());
-            if (struct_parameters.size() == 0)
-                return false;
-        }
-        for (const auto& param : struct_parameters)
-        {
-            if      (param == SZ_ATTR_STRUCT_MOBILE)    structFlag |= SA_MOBILE;
-            else if (param == SZ_ATTR_STRUCT_HIDDEN)    structFlag |= SA_HIDDEN ;
-            else if (param == SZ_ATTR_STRUCT_SHAFT)     structFlag |= SA_SHAFT  ;
-            else if (param == SZ_ATTR_STRUCT_GATE)      structFlag |= SA_GATE   ;
-            else if (param == SZ_ATTR_STRUCT_ROAD_N)    structFlag |= SA_ROAD_N ;
-            else if (param == SZ_ATTR_STRUCT_ROAD_NE)   structFlag |= SA_ROAD_NE;
-            else if (param == SZ_ATTR_STRUCT_ROAD_SE)   structFlag |= SA_ROAD_SE;
-            else if (param == SZ_ATTR_STRUCT_ROAD_S)    structFlag |= SA_ROAD_S ;
-            else if (param == SZ_ATTR_STRUCT_ROAD_SW)   structFlag |= SA_ROAD_SW;
-            else if (param == SZ_ATTR_STRUCT_ROAD_NW)   structFlag |= SA_ROAD_NW;
-            else
-            {
-                // Two-token attributes, MaxLoad & MinSailingPower & travel type & speed.
-                size_t separator = param.find(' ');
-                if (separator == std::string::npos)
-                {
-                    //TODO: print out the wrong setting
-                    continue;
-                }
-
-                std::string key = param.substr(0, separator);
-                if (key == SZ_ATTR_STRUCT_MAX_LOAD)
-                    capacity += atol(param.substr(separator+1).c_str());
-                if (key == SZ_ATTR_STRUCT_MIN_SAIL)
-                    sailPower += atol(param.substr(separator+1).c_str());
-                if (key == SZ_ATTR_STRUCT_TRAVEL) {
-                    std::string traveling = param.substr(separator+1);
-                    if (stricmp(traveling.c_str(), "FLY") == 0 && travel != SHIP_TRAVEL::SAIL)
-                        travel = SHIP_TRAVEL::FLY;
-                    else
-                        travel = SHIP_TRAVEL::SAIL;
-                }
-                if (key == SZ_ATTR_STRUCT_USUAL_SPEED) {
-                    speed = atol(param.substr(separator+1).c_str());
-                }
-            }
-        }
-
-        if (0 == stricmp(name.c_str(), STRUCT_GATE))
-            structFlag |= SA_GATE; // to compensate for legacy missing gate flag in the config
-        return true;        
-    }
-
-}
-
 namespace item_control
 {
     std::string codename(const std::string& name)
@@ -1717,6 +1562,10 @@ namespace land_control
                 continue;
             }
 
+            producer->monthlong_descr_ = item;
+            while(producer->monthlong_descr_.size() < 4)
+                producer->monthlong_descr_.insert(0, " ");
+
             std::shared_ptr<TProdDetails> prod_details = gpDataHelper->GetProdDetails(item.c_str());
             if (prod_details->skill_name_.empty() || prod_details->per_month_<=0)
             {//check details settings
@@ -2155,7 +2004,7 @@ namespace land_control
                     return;
                 }
 
-                long price = gpApp->GetStudyCost(studying_skill.c_str());
+                long price = game_control::get_study_cost(studying_skill);//gpApp->GetStudyCost(studying_skill.c_str());
                 if (price <= 0)
                 {
                     errors.push_back({"Error", unit, studying_order, "study: can not study " + studying_skill});
@@ -2304,6 +2153,10 @@ namespace land_control
                 message += ", amount = " + std::to_string(foreign_amount);
                 unit->impact_description_.push_back(message);
             }
+
+            unit->monthlong_descr_ = std::to_string(students_amount);
+            while (unit->monthlong_descr_.size() < 4)
+                unit->monthlong_descr_.insert(0, " ");
 
             unit->SetProperty(PRP_TEACHING, eLong, (const void*)students_amount, EPropertyType::eBoth);
             //we assume that studying is correct: teacher can teach, student can study and so on

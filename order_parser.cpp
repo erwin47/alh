@@ -1,6 +1,7 @@
 #include "order_parser.h"
 #include "ahapp.h"
 #include "data_control.h"
+#include "ah_control.h"
 #include "consts_ah.h"
 
 #include <algorithm>

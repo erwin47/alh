@@ -3,6 +3,7 @@ project(ah VERSION 1.0)
 
 set(AH_CPP
     "${PROJECT_SOURCE_DIR}/ahapp.cpp"
+    "${PROJECT_SOURCE_DIR}/ah_control.cpp"
     "${PROJECT_SOURCE_DIR}/ahframe.cpp"
     "${PROJECT_SOURCE_DIR}/atlaparser.cpp"
     "${PROJECT_SOURCE_DIR}/cfgfile.cpp"
