@@ -1,4 +1,5 @@
 #include "ah_control.h"
+#include "data_control.h"
 
 namespace game_control
 {
@@ -100,14 +101,17 @@ namespace game_control
         if (!gpApp->ResolveAliasItems(struct_type, codename, name, plural_name))
             name = struct_type;
 
-        std::vector<std::string> struct_parameters = game_control::get_game_config<std::string>(SZ_SECT_STRUCTS, name.c_str());
-        if (struct_parameters.size() == 0 && name[name.size()-1] == 's')
+        long fileno = gpApp->GetConfigFileNo(SZ_SECT_STRUCTS);
+        std::string struct_params = gpApp->config_[fileno].get_case_insensitive<std::string>(SZ_SECT_STRUCTS, name.c_str(), "");
+        if (struct_params.size() == 0)
         {
             std::string name_without_s = name.substr(0, name.size()-1);
-            struct_parameters = game_control::get_game_config<std::string>(SZ_SECT_STRUCTS, name_without_s.c_str());
-            if (struct_parameters.size() == 0)
+            struct_params = gpApp->config_[fileno].get_case_insensitive<std::string>(SZ_SECT_STRUCTS, name_without_s.c_str(), "");
+            if (struct_params.size() == 0)
                 return false;
         }
+
+        std::vector<std::string> struct_parameters = convert_to_vector<std::string>(struct_params);
         for (const auto& param : struct_parameters)
         {
             if      (param == SZ_ATTR_STRUCT_MOBILE)    structFlag |= SA_MOBILE;
@@ -163,5 +167,71 @@ namespace game_control
 
         return cache[skill];
     }
+
+    namespace specific
+    {
+        // returns men collection which are not leaders
+        std::set<std::string> men_peasants() {
+            std::set<std::string> ret;
+            std::vector<std::string> men_items = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, PRP_MEN);
+            std::vector<std::string> leader_items = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, PRP_MEN_LEADER);
+            for (const auto& race : men_items)
+            {
+                bool found(false);
+                for (const auto& lead : leader_items) 
+                {
+                    if (stricmp(lead.c_str(), race.c_str()) == 0) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                    ret.insert(race);
+            }
+            return ret;
+        }
+
+        CUnit* create_scout(CUnit* parent)
+        {
+            CLand* land = land_control::get_land(parent->LandId);
+            if (land == nullptr)
+                return nullptr;
+
+            std::string race_to_buy;
+            long race_price(-1);
+
+            static std::set<std::string> peasants = men_peasants();
+            for (const auto& sale : land->current_state_.for_sale_)
+            {
+                if (peasants.find(sale.first) != peasants.end())
+                {
+                    race_to_buy = sale.first;
+                    race_price = sale.second.price_;
+                    break;
+                }
+            }
+            if (race_to_buy.size() == 0) //no race to buy
+                return nullptr;
+
+            if (race_price > unit_control::get_item_amount(parent, PRP_SILVER)) //not enough silver
+                return nullptr;
+
+            int newUnitId = land->GetNextNewUnitNo();
+            CUnit* new_unit = gpApp->m_pAtlantis->SplitUnit(parent, newUnitId);
+
+            if (game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_AUTONAMING)) {
+                new_unit->Orders << "@name unit \"\"" << EOL_SCR;
+                new_unit->Orders << "@;; $c" << EOL_SCR;
+            } else {
+                new_unit->Orders << "@name unit \"Scout\"" << EOL_SCR;
+            }
+
+            new_unit->Orders << "buy 1 " << race_to_buy.c_str() << EOL_SCR;
+
+            auto order = orders::control::compose_give_order(new_unit, race_price, "SILV", "");
+            orders::control::add_order_to_unit(order, parent);
+            return new_unit;
+        }
+    }    
 
 }

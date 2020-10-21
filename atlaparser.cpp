@@ -5225,16 +5225,18 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             RunOrder_LandProduce(pLand);
         }
         if (sequence == TurnSequence::SQ_BUILD) {
+            RunOrder_AOComments<orders::Type::O_BUILD>(pLand);
             RunOrder_LandBuild(pLand);
         }
         if (sequence == TurnSequence::SQ_ENTERTAIN) 
         {
-            //m_EconomyShareAfterBuy
+            RunOrder_AOComments<orders::Type::O_ENTERTAIN>(pLand);
             RunOrder_LandEntertain(pLand, m_EconomyWork);
         }
 
         if (sequence == TurnSequence::SQ_WORK)
         {
+            RunOrder_AOComments<orders::Type::O_WORK>(pLand);
             RunOrder_LandWork(pLand, m_EconomyWork);
         }
         if (sequence == TurnSequence::SQ_MAINTENANCE) 
@@ -6343,6 +6345,19 @@ template<orders::Type TYPE> void CAtlaParser::RunOrder_AOComments(CLand* land)
                                 orders::control::comment_order_out(order, unit);
                         };
                         break;
+                    case orders::autoorders::LogicAction::DEL_COMMENT: {
+                            if (result)
+                                orders::control::uncomment_order(order, unit);
+                            else 
+                            {
+                                if (strnicmp(order->original_string_.c_str(), "@;", 2) != 0 &&
+                                    strnicmp(order->original_string_.c_str(), ";", 1) != 0)
+                                {
+                                    orders::control::remove_order(unit, order);
+                                }
+                            }
+                        };
+                        break;                        
                     case orders::autoorders::LogicAction::LOGIC_ERROR: {
                         if (result)
                             OrderError("Warning", land, unit, nullptr,  "autoorders: warning condition altered: " + order->comment_);
@@ -6366,6 +6381,8 @@ template<orders::Type TYPE> void CAtlaParser::RunOrder_AOComments(CLand* land)
                 OrderError("Warning", land, unit, nullptr, "    gives X items to the unit");
                 OrderError("Warning", land, unit, nullptr, "$COND <condition>");
                 OrderError("Warning", land, unit, nullptr, "    will evaluate condition and if its TRUE, then the entire order will be uncommented. If its FALSE, then the entire order will be commented. It is possible to use form `$COND_d` to get debug info (all the evaluations will be printed out)");
+                OrderError("Warning", land, unit, nullptr, "$CONDEL <condition>");
+                OrderError("Warning", land, unit, nullptr, "    same as COND, but will delete order if it was active and is going to be commented. It is possible to use form `$CONDEL_d` to get debug info (all the evaluations will be printed out)");
                 OrderError("Warning", land, unit, nullptr, "$WARN <condition>");
                 OrderError("Warning", land, unit, nullptr, "    will evaluate condition and if its TRUE, then there will be generated warning.  It is possible to use form `$WARN_d` to get debug info (all the evaluations will be printed out)");
                 OrderError("Warning", land, unit, nullptr, "$HELP - this command.");

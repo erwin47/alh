@@ -889,6 +889,7 @@ void CUnit::ResetNormalProperties()
     impact_description_.clear();
     caravan_info_ = nullptr;
     struct_id_ = struct_id_initial_;
+    monthlong_descr_.clear();
     
     /*if (struct_id_initial_ != 0)
     {

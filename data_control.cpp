@@ -171,7 +171,7 @@ namespace unit_control
     //! assuming its impossible to have mixed unit of leaders & peasants
     bool is_leader(CUnit* unit)
     {
-        static std::vector<std::string> leaders = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, "leaders");
+        static std::vector<std::string> leaders = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, PRP_MEN_LEADER);
         for (const auto& lead : leaders)
         {
             if (unit->men_.find({0, lead}) != unit->men_.end())
@@ -1386,48 +1386,6 @@ namespace land_control
         }
 
         std::vector<unit_control::UnitError> evaluation_errors;
-
-        /*result = true;
-        size_t pos = 0;
-        size_t or_op = statement.find("||");
-        while(or_op != std::string::npos)
-        {//parse each statement separated by "||" separately
-            std::string substatement = statement.substr(pos, or_op - pos);
-            size_t sub_beg = 0;
-            size_t and_op = substatement.find("&&");
-            while (and_op != std::string::npos)
-            {//each statement separated by "&&" should be evaluated
-                result = result && autologic::evaluate_statement(land, unit, substatement.substr(sub_beg, and_op-sub_beg), evaluation_errors);
-                if (!result)//false, no need evaluate other AND
-                    break;
-
-                sub_beg = and_op+2;
-                and_op = substatement.find("&&", sub_beg);
-            }
-
-            if (result)//evaluate last/only statement if up to now it's true
-                result = result && autologic::evaluate_statement(land, unit, substatement.substr(sub_beg), evaluation_errors);
-
-            //true, no need to evaluate other OR
-            if (result)
-                return action;
-
-            pos = or_op+2;
-            or_op = statement.find("||", pos);
-            result = true;//need to reset it for other statements separated by `||`
-        }
-
-        size_t and_op = statement.find("&&", pos);
-        while (and_op != std::string::npos)
-        {
-            result = result && autologic::evaluate_statement(land, unit, statement.substr(pos, and_op-pos), evaluation_errors);
-            if (!result)//false, no need evaluate other AND
-                return action;
-
-            pos = and_op+2;
-            and_op = statement.find("&&", pos);
-        }
-        result = result && autologic::evaluate_statement(land, unit, statement.substr(pos), evaluation_errors);*/
 
         result = autologic::evaluate_unit_statement(land, unit, statement, evaluation_errors);
         if (debug == false)

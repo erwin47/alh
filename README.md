@@ -53,10 +53,19 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 
 
 ## Changelog:
+### Oct 21 2020
+- renamed category for leaders to men_leaders. By default it has LEAD in it. All the leader related logic is applied to men of this group.
+- Create: Scout -- added specific category in ALH for this case `UNIT_CREATION`. Its possible to set up there any orders which will be a part of created scout. Also scout will automatically get money for its creation from parent unit.
+- Ship parsing: fixed bug, invented in previous commits.
+- Autologic: extended to more order phases.
+- Autologic: added `;!CONDEL` (condition + delete) variant. It works exactly the same as `;!COND`, but will remove order instead of commenting it out, if it was uncommented.
+- Create New Unit form: bugfix with skill choose, invented in previous commits.
+- monthlong action state cleanup - bugfix.
+
 ### Oct 18 2020
 - UnitPane: added action_monthlong field. Short record about monthlong order.
 - Weird bug: on close ALH it doesn't close MsgFrame. I didn't find why main frame stopped sending close event to the child window, so for a while it just have explicit call of it. Probably something based on new config reading/writing.
-- 
+- Fixed bug with monthlong orders analysis & generation of move orders for Caravans.
 
 ### Oct 17 2020
 - Config: added comments, which will be stored.

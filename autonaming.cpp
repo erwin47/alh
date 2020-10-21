@@ -288,7 +288,7 @@ namespace autonaming
         if (skill.size() > 0)
         {
             std::string lead_letter = skills_map[skill];
-            static std::vector<std::string> leaders = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, "leaders");
+            static std::vector<std::string> leaders = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, PRP_MEN_LEADER);
             for (const auto& lead_str : leaders) {
                 if (race == lead_str) {
                     lead_letter = "E";

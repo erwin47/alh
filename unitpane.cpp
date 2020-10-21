@@ -949,14 +949,25 @@ bool CUnitPane::CreateScout(CUnit * pUnit, ScoutType scoutType)
 
 void CUnitPane::OnPopupMenuScoutSimple(wxCommandEvent& event)
 {
-    CUnit* pUnit = GetSelectedUnit();
-    CUnitOrderEditPane  * pOrders;
+    CUnit* unit = GetSelectedUnit();
+    if (!unit || IS_NEW_UNIT(unit))
+        return;
 
-    if (pUnit && !IS_NEW_UNIT(pUnit))
-    {
-        if (CreateScout(pUnit, SCOUT_SIMPLE))
-            Update(m_pCurLand);
-    }
+    CUnit* new_unit = game_control::specific::create_scout(unit);
+    if (new_unit == nullptr)
+        return;
+
+    static std::vector<std::string> orders = game_control::get_game_config<std::string>(SZ_SECT_UNIT_CREATION, "Scout");
+    for (const auto& order : orders)
+        new_unit->Orders << order.c_str() << EOL_SCR;
+
+    CLand* land = land_control::get_land(unit->LandId);
+    if (land == nullptr)
+        return;
+
+    gpApp->m_pAtlantis->RunOrders(land);
+    gpApp->orders_changed(true);
+    Update(land);
 }
 
 //--------------------------------------------------------------------------

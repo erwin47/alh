@@ -19,22 +19,15 @@ namespace game_control
     std::string get_gpapp_config(const char* section, const char* key);
 
     template<typename T>
-    std::vector<T> get_game_config(const char* section, const char* key)
+    std::vector<T> convert_to_vector(const std::string& value_string) 
     {
-        static std::unordered_map<std::string, std::unordered_map<std::string, std::vector<T>>> cache;
-        if (cache.find(section) != cache.end())
-        {
-            if (cache[section].find(key) != cache[section].end())
-                return cache[section][key];
-        }
         std::vector<T> ret;
-        std::string value_string = get_gpapp_config(section, key);
         const char* beg = value_string.c_str();
         const char* end = value_string.c_str() + value_string.size();
         const char* runner = beg;
         while(beg < end)
         {
-            while (beg < end && !isalpha(*beg) && !isdigit(*beg))
+            while (beg < end && *beg == ' ')
                 ++beg;
 
             if (beg == end)
@@ -48,6 +41,21 @@ namespace game_control
             ++runner;
             beg = runner;
         }
+        return ret;
+    }
+
+    template<typename T>
+    std::vector<T> get_game_config(const char* section, const char* key)
+    {
+        static std::unordered_map<std::string, std::unordered_map<std::string, std::vector<T>>> cache;
+        if (cache.find(section) != cache.end())
+        {
+            if (cache[section].find(key) != cache[section].end())
+                return cache[section][key];
+        }
+        
+        std::string value_string = get_gpapp_config(section, key);
+        std::vector<T> ret = convert_to_vector<T>(value_string);
         cache[section][key] = ret;
         return ret;
     }
@@ -62,6 +70,11 @@ namespace game_control
 
     bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag, SHIP_TRAVEL& travel, long& speed);
     long get_study_cost(const std::string& skill);
+
+    namespace specific
+    {
+        CUnit* create_scout(CUnit* parent);
+    }
 }
 
 namespace skills_control

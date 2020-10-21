@@ -967,6 +967,19 @@ namespace orders
             return false;
         }
 
+        void remove_order(CUnit* unit, std::shared_ptr<Order>& del_order)
+        {
+            unit->orders_.orders_.erase(std::remove_if(unit->orders_.orders_.begin(), 
+                                                     unit->orders_.orders_.end(), 
+                                                       [&del_order](std::shared_ptr<Order> order) {
+                return del_order == order;
+            }), unit->orders_.orders_.end());            
+            parser::recalculate_hash(unit->orders_);
+
+            unit->Orders.Empty();
+            unit->Orders << orders::parser::compose_string(unit->orders_).c_str();            
+        }
+
         void remove_orders_by_comment(CUnit* unit, const std::string& pattern)
         {
             unit->orders_.orders_.erase(std::remove_if(unit->orders_.orders_.begin(), 
@@ -1096,7 +1109,24 @@ namespace orders
         bool parse_logic(const std::shared_ptr<Order>& order, LogicAction& action, std::string& statement, bool& debug)
         {
             debug = false;
-            size_t pos = std::min(order->comment_.find("$COND"), order->comment_.find("!COND"));
+
+            size_t pos = std::min(order->comment_.find("$CONDEL"), order->comment_.find("!CONDEL"));
+            if (pos != std::string::npos)
+            {
+                if (std::min(order->comment_.find("$CONDEL_D"), order->comment_.find("!CONDEL_D")) != std::string::npos)
+                {
+                    debug = true;
+                    statement = order->comment_.substr(pos+sizeof("$CONDEL_D"));
+                }
+                else
+                {
+                    statement = order->comment_.substr(pos+sizeof("$CONDEL"));
+                }                   
+                action = LogicAction::DEL_COMMENT;
+                return true;
+            }
+
+            pos = std::min(order->comment_.find("$COND"), order->comment_.find("!COND"));
             if (pos != std::string::npos)
             {
                 if (std::min(order->comment_.find("$COND_D"), order->comment_.find("!COND_D")) != std::string::npos)

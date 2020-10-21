@@ -446,7 +446,7 @@ void CCreateNewUnit::UpdateExpences()
             gpApp->ResolveAliasItems(item.code_name_, item.code_name_, name, plural);
             //actually I'd prefer to not know which section is it, needs to be refactored
 
-            static std::vector<std::string> leaders = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, "leaders");
+            static std::vector<std::string> leaders = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, PRP_MEN_LEADER);
             if (std::find(leaders.begin(), leaders.end(), name) == leaders.end())
                 upkeep_amount = spin_buy_units_amount_->GetValue() * game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT);
             else
@@ -554,6 +554,8 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
             unit_order << "@study \""<< combobox_skills_->GetValue() << "\"" << std::endl;
         else if (lvl != "---")
             unit_order << "study \"" << combobox_skills_->GetValue() << "\" " << lvl << std::endl;
+        else 
+            unit_order << "study \"" << combobox_skills_->GetValue() << "\"" << std::endl;
     }
 
     std::string add_orders = std::string(additional_orders_->GetValue().mb_str());

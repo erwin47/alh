@@ -219,6 +219,8 @@ namespace orders
         //! removes empty lines from unit's orders.
         void remove_empty_lines(CUnit* unit);
 
+        //! removes order
+        void remove_order(CUnit* unit, std::shared_ptr<Order>& order);
         //! removes orders with specified pattern in comments
         void remove_orders_by_comment(CUnit* unit, const std::string& pattern);
 
@@ -264,6 +266,7 @@ namespace orders
         enum class LogicAction {
             NONE,
             SWITCH_COMMENT,
+            DEL_COMMENT,
             LOGIC_ERROR
         };
 

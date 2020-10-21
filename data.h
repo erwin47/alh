@@ -73,6 +73,7 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 
 #define PRP_GUI_COLOR                   "gui_color"
 #define PRP_MEN                         "men"
+#define PRP_MEN_LEADER                  "men_leaders"
 #define PRP_SKILLS                      "skills"
 #define PRP_MONTHLONG_ACTION            "action_monthlong"
 #define PRP_MAG_SKILLS                  "mag_skills"
