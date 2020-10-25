@@ -369,6 +369,7 @@ void init_economy(CEconomy& res)
 {
     res.initial_amount_ = 0;
     res.buy_expenses_ = 0;
+    res.claim_income_ = 0;
     res.maintenance_ = 0;
     res.work_income_ = 0;
     res.moving_in_ = 0;

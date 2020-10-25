@@ -5,8 +5,10 @@
 #include <algorithm>
 #include <sstream>
 #include <cctype> //for std::tolower
+#include <numeric> //for accumulate
 #include "ah_control.h"
 #include "autonaming.h"
+
 
 namespace item_control
 {
@@ -199,11 +201,9 @@ namespace unit_control
 
     long get_upkeep(CUnit* unit) 
     {
-        long man_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-        if (is_leader(unit))
-            return man_amount*game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_LEADER);
-        else
-            return man_amount*game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT);
+        return std::accumulate(unit->men_.begin(), unit->men_.end(), (long)0, [](long& res, const CItem& item) {
+            return res + item.amount_ * game_control::get_item_upkeep(item.code_name_);
+        });
     }
 
     void get_weights(CUnit* unit, long weights[5])

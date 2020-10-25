@@ -571,6 +571,7 @@ struct CEconomy
     long moving_in_;
     long tax_income_;
     long sell_income_;
+    long claim_income_;
 };
 
 void init_economy(CEconomy& res);

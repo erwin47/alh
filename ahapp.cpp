@@ -3566,6 +3566,7 @@ std::string CAhApp::land_description_editpane(CLand * pLand)
 
     long final_amount =  pLand->current_state_.economy_.initial_amount_ +
                           pLand->current_state_.economy_.tax_income_ +
+                          pLand->current_state_.economy_.claim_income_ +
                           pLand->current_state_.economy_.sell_income_ + 
                           pLand->current_state_.economy_.work_income_ +
                             std::max(pLand->current_state_.economy_.moving_in_, (long)0) -

@@ -3769,12 +3769,13 @@ void CMapPane::OnPopupEconomy   (wxCommandEvent & event)
 
     std::stringstream ss;
     ss << "Initial amount:  "       << pLand->current_state_.economy_.initial_amount_ << std::endl;
-    ss << "    Claim:           +unknown" << std::endl;
+    ss << "    Claim:           +"  << pLand->current_state_.economy_.claim_income_ << std::endl;
     ss << "    Tax/pillage:     +"  << pLand->current_state_.economy_.tax_income_ << std::endl;
     ss << "    Sell income:     +"  << pLand->current_state_.economy_.sell_income_ << std::endl;
     ss << "    Buy expenses:    -"  << pLand->current_state_.economy_.buy_expenses_ << std::endl;
     ss << "Balance(intermediate):"         << pLand->current_state_.economy_.initial_amount_ +
                                        pLand->current_state_.economy_.tax_income_ +
+                                       pLand->current_state_.economy_.claim_income_ +
                                        pLand->current_state_.economy_.sell_income_ - 
                                        pLand->current_state_.economy_.buy_expenses_ << std::endl;
     ss << "    Moving in:       +"  << std::max(pLand->current_state_.economy_.moving_in_, (long)0) << std::endl;
@@ -3784,6 +3785,7 @@ void CMapPane::OnPopupEconomy   (wxCommandEvent & event)
     ss << "    Maintenance:     -"  << pLand->current_state_.economy_.maintenance_ << std::endl;
     ss << "Balance End:   " <<         pLand->current_state_.economy_.initial_amount_ +
                                        pLand->current_state_.economy_.tax_income_ +
+                                       pLand->current_state_.economy_.claim_income_ +
                                        pLand->current_state_.economy_.sell_income_ + 
                                        pLand->current_state_.economy_.work_income_ +
                                          std::max(pLand->current_state_.economy_.moving_in_, (long)0) -

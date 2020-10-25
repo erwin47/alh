@@ -5146,6 +5146,27 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         }
         if (sequence == TurnSequence::SQ_CLAIM)
         {
+            land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {    
+                if (orders::control::has_orders_with_type(orders::Type::O_CLAIM, unit->orders_))
+                {
+                    auto ord = orders::control::retrieve_orders_by_type(orders::Type::O_CLAIM, unit->orders_);
+                    if (ord.size() == 0)
+                        return;
+
+                    long amount;
+                    for (const auto& order : ord)
+                    {
+                        if (orders::parser::specific::parse_claim(order, amount))
+                        {
+                            unit_control::modify_silver(unit, amount, "claiming");
+                            pLand->current_state_.economy_.claim_income_ += amount;
+                        }                            
+                        else
+                            OrderError("Error", pLand, unit, order, "claim: couldn't parse order: "+order->original_string_);
+                    }
+                }
+            });
+            
             //RunOrder_AOComments(pLand, );
             RunOrder_LandFlags(pLand);
         }
@@ -5246,6 +5267,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         if (sequence == TurnSequence::SQ_LAST) {
             long region_balance = pLand->current_state_.economy_.initial_amount_ +
                                   pLand->current_state_.economy_.tax_income_ +
+                                  pLand->current_state_.economy_.claim_income_ +
                                   pLand->current_state_.economy_.sell_income_ + 
                                   pLand->current_state_.economy_.work_income_ +
                                   std::max(pLand->current_state_.economy_.moving_in_, (long)0) -
@@ -5503,16 +5525,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                         if (TurnSequence::SQ_CLAIM==sequence)
                             RunOrder_Name(Line, ErrorLine, skiperror, pUnit, pLand, p);
                         break;
-
-                    case O_CLAIM:
-                        if (TurnSequence::SQ_CLAIM==sequence)
-                        {
-                            p        = SkipSpaces(N1.GetToken(p, " \t", ch, TRIM_ALL));
-                            n1       = atol(N1.GetData());
-                            unit_control::modify_silver(pUnit, n1, "claiming");
-                        }
-                        break;
-
 
                     case O_LEAVE:
                         if (TurnSequence::SQ_LEAVE==sequence)
@@ -5963,20 +5975,9 @@ void CAtlaParser::RunOrder_LandEntertain(CLand *land, bool apply_changes)
 
 void CAtlaParser::RunOrder_Upkeep(CUnit * pUnit, int turns)
 {
-    EValueType          type;
-    long nmen;
-    int Maintainance;
-    const char * leadership;
-
-    if (pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal) && (nmen>0))
-    {
-        if (unit_control::is_leader(pUnit))
-            Maintainance = nmen * game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_LEADER);
-        else
-            Maintainance = nmen * game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT);
-
-        unit_control::modify_silver(pUnit, -Maintainance * turns, "upkeep");
-    }
+    long maintanance = unit_control::get_upkeep(pUnit);
+    if (maintanance > 0)
+        unit_control::modify_silver(pUnit, -maintanance * turns, "upkeep");
 }
 
 void CAtlaParser::RunOrder_Upkeep(CLand * pLand)

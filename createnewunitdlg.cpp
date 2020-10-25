@@ -439,19 +439,7 @@ void CCreateNewUnit::UpdateExpences()
         }
 
         //upkeep calculation        
-        long upkeep_amount = 0;
-        if (gpDataHelper->IsMan(item.code_name_.c_str()))
-        {
-            std::string name, plural;
-            gpApp->ResolveAliasItems(item.code_name_, item.code_name_, name, plural);
-            //actually I'd prefer to not know which section is it, needs to be refactored
-
-            static std::vector<std::string> leaders = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, PRP_MEN_LEADER);
-            if (std::find(leaders.begin(), leaders.end(), name) == leaders.end())
-                upkeep_amount = spin_buy_units_amount_->GetValue() * game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT);
-            else
-                upkeep_amount = spin_buy_units_amount_->GetValue() * game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_LEADER);
-        }
+        long upkeep_amount = spin_buy_units_amount_->GetValue() * game_control::get_item_upkeep(item.code_name_);
         long maintenance_expences = spin_maintenance_turns_->GetValue() * upkeep_amount;
         
         //summarize

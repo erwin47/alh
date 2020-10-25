@@ -1,5 +1,7 @@
 #include "ah_control.h"
 #include "data_control.h"
+#include <unordered_set>
+#include <numeric>
 
 namespace game_control
 {
@@ -155,6 +157,38 @@ namespace game_control
         if (0 == stricmp(name.c_str(), STRUCT_GATE))
             structFlag |= SA_GATE; // to compensate for legacy missing gate flag in the config
         return true;        
+    }
+
+    std::unordered_map<std::string, long> create_upkeep_map()
+    {
+        std::unordered_map<std::string, long> ret;
+        std::vector<std::pair<std::string, std::string>> specific_upkeep = game_control::get_all_configuration(SZ_SECT_SPECIFIC_UPKEEP);
+        for (const auto& upkeep : specific_upkeep)
+            ret[upkeep.first] = convert_to<long>(upkeep.second);
+        return ret;
+    }
+
+    std::unordered_set<std::string> vector_to(const std::vector<std::string>& vec)
+    {
+        return std::unordered_set<std::string>(vec.begin(), vec.end());
+    }
+
+    long get_item_upkeep(const std::string& item) 
+    {
+        static std::unordered_map<std::string, long> cache = create_upkeep_map();
+        if (cache.find(item) != cache.end())
+            return cache[item];
+
+        static std::unordered_set<std::string> leaders = vector_to(game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, PRP_MEN_LEADER));
+        static std::unordered_set<std::string> men = vector_to(game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, PRP_MEN));
+        if (leaders.find(item) != leaders.end())
+            cache[item] = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_LEADER);
+        else if (men.find(item) != men.end())
+            cache[item] = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_UPKEEP_PEASANT);
+        else
+            cache[item] = 0;
+
+        return cache[item];
     }
 
     long get_study_cost(const std::string& skill) 
