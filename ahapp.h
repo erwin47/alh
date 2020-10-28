@@ -28,7 +28,7 @@
 #include "collection.h"
 #include "cstr.h"
 
-#include "config.h"
+#include "cfg_loader.h"
 
 enum
 {

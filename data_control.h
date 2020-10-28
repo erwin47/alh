@@ -97,6 +97,12 @@ namespace unit_control
     long structure_id(const CUnit* unit);
     bool is_struct_owner(const CUnit* unit);
     void set_structure(CUnit* unit, long struct_id, bool owns);
+
+    //unit belongs to player faction
+    bool of_player(CUnit* unit);
+
+    //unit belongs to player or to one of joined report
+    bool of_local(CUnit* unit);
     
     long get_upkeep(CUnit* unit);
 

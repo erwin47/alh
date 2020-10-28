@@ -398,17 +398,16 @@ class CAttitude : public CBaseObject
 
 struct UnitState
 {
-    std::string name_;
-    std::string description_;
-    std::set<CItem> men_;
-    CItem           silver_;
-    std::set<CItem> items_;
+    std::string                 name_;
+    std::string                 description_;
+    std::set<CItem>             men_;
+    CItem                       silver_;
+    std::set<CItem>             items_;
     
     std::map<std::string, long> skills_;
 
-    long struct_id_;//!<struct to which it belongs (0 if none)
+    long                        struct_id_;//!<struct to which it belongs (0 if none)
 };
-
 
 class CUnit : public CBaseObject
 {

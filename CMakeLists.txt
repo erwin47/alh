@@ -44,7 +44,7 @@ set(AH_CPP
     "${PROJECT_SOURCE_DIR}/autologic.cpp"
     "${PROJECT_SOURCE_DIR}/autonaming.cpp"
     "${PROJECT_SOURCE_DIR}/unit_to_pane_control.cpp"
-    "${PROJECT_SOURCE_DIR}/config.cpp"
+    "${PROJECT_SOURCE_DIR}/cfg_loader.cpp"
    )
 
 set(AH_HEADERS
@@ -95,7 +95,7 @@ set(AH_HEADERS
     "${PROJECT_SOURCE_DIR}/autologic.h"
     "${PROJECT_SOURCE_DIR}/autonaming.h"
     "${PROJECT_SOURCE_DIR}/unit_to_pane_control.h"
-    "${PROJECT_SOURCE_DIR}/config.h"
+    "${PROJECT_SOURCE_DIR}/cfg_loader.h"
    )
 
 # specify the C++ standard

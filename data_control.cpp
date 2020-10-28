@@ -199,6 +199,19 @@ namespace unit_control
             unit->struct_id_ |= 0x00010000;
     }
 
+    //unit belongs to player faction
+    bool of_player(CUnit* unit) 
+    {  
+        static long fileno = gpApp->GetConfigFileNo(SZ_SECT_ATTITUDES);
+        return unit->FactionId == gpApp->config_[fileno].get(SZ_SECT_ATTITUDES, SZ_ATT_PLAYER_ID, 0);
+    }
+
+    //unit belongs to player or to one of joined report
+    bool of_local(CUnit* unit)
+    {
+        return unit->IsOurs;
+    }
+
     long get_upkeep(CUnit* unit) 
     {
         return std::accumulate(unit->men_.begin(), unit->men_.end(), (long)0, [](long& res, const CItem& item) {
@@ -1634,7 +1647,7 @@ namespace land_control
                 errors.push_back({"Error", unit, nullptr, " doesn't know skill ENTE to entertain"});
                 return;
             }
-            if (!unit->IsOurs)
+            if (!unit_control::of_player(unit))
                 other_factions_men += unit_control::get_item_amount_by_mask(unit, PRP_MEN) * skill_lvl;
             else
             {
@@ -1666,7 +1679,7 @@ namespace land_control
         land_control::perform_on_each_unit(land, [&](CUnit* unit) {
             if (unit_control::flags::is_working(unit))
             {
-                if (!unit->IsOurs)
+                if (!unit_control::of_player(unit))
                     other_factions_men += unit_control::get_item_amount_by_mask(unit, PRP_MEN);
                 else
                 {
@@ -1757,7 +1770,7 @@ namespace land_control
 
             if (unit_control::flags::is_pillaging(unit))
             {
-                if (!unit->IsOurs)
+                if (!unit_control::of_player(unit))
                     other_factions_men_pillage += taxing_man;
                 else if (taxing_man == 0)
                 {
@@ -1771,7 +1784,7 @@ namespace land_control
             }
             else if (unit_control::flags::is_taxing(unit))
             {
-                if (!unit->IsOurs)
+                if (!unit_control::of_player(unit))
                     other_factions_men_tax += taxing_man;
                 else if (taxing_man == 0)
                 {

@@ -5125,7 +5125,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                 }
 
                 //initial amount of silver
-                if (unit->IsOurs)
+                if (unit_control::of_player(unit))
                     pLand->current_state_.economy_.initial_amount_ += unit_control::get_item_amount(unit, PRP_SILVER);
 
                 std::vector<std::shared_ptr<orders::Order>> errors = orders::control::retrieve_orders_by_type(orders::Type::O_ERROR, unit->orders_);
@@ -5159,7 +5159,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                         if (orders::parser::specific::parse_claim(order, amount))
                         {
                             unit_control::modify_silver(unit, amount, "claiming");
-                            pLand->current_state_.economy_.claim_income_ += amount;
+                            if (unit_control::of_player(unit))
+                                pLand->current_state_.economy_.claim_income_ += amount;
                         }                            
                         else
                             OrderError("Error", pLand, unit, order, "claim: couldn't parse order: "+order->original_string_);
@@ -5700,7 +5701,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             //calculate silver for incoming units
 
             land_control::moving::perform_on_each_incoming_unit(pLand, [&](CUnit* unit) {
-                if (unit != NULL)
+                if (unit != NULL && unit_control::of_player(unit))
                 {
                     pLand->current_state_.economy_.maintenance_ += unit_control::get_upkeep(unit);
                     pLand->current_state_.economy_.moving_in_ += std::max(unit_control::get_item_amount(unit, PRP_SILVER), (long)0);//it have to be zero if its below 0
@@ -5712,7 +5713,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                     return;
 
                 long men_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-                if (men_amount > 0) 
+                if (men_amount > 0 && unit_control::of_player(unit)) 
                 {
                     //moving out
                     if (unit->movements_.size() > 0)
@@ -6088,7 +6089,8 @@ void CAtlaParser::RunOrder_LandStudyTeach(CLand* land)
 
     //Economy
     for (const auto& student : students_of_the_land)
-        land->current_state_.economy_.study_expenses_ += student.second.skill_price_ * student.second.man_amount_;
+        if (unit_control::of_player(student.second.unit_))
+            land->current_state_.economy_.study_expenses_ += student.second.skill_price_ * student.second.man_amount_;
 
     //teaching orders -- no need to wait for TurnSequence::Teach
     land_control::update_students_by_land_teachers(land, students_of_the_land, errors);
@@ -7361,10 +7363,10 @@ void CAtlaParser::RunOrder_LandBuy(CLand * land)
 
     for (const auto& buyer : buyers) 
     {
+        land->current_state_.bought_items_[buyer.item_name_] += buyer.items_amount_;
         //Economy
-        if (buyer.unit_->FactionId == player_faction_id)
+        if (unit_control::of_player(buyer.unit_))
         {
-            land->current_state_.bought_items_[buyer.item_name_] += buyer.items_amount_;
             land->current_state_.economy_.buy_expenses_ += buyer.items_amount_ * buyer.market_price_;
         }            
 
@@ -7415,13 +7417,14 @@ void CAtlaParser::RunOrder_LandSell(CLand * land)
     std::vector<land_control::Trader> sellers;
     std::vector<unit_control::UnitError> errors;
     land_control::get_land_sells(land, sellers, errors);
-    long player_faction_id = game_control::get_game_config_val<long>("ATTITUDES", "PLAYER_FACTION_ID");
+    //long player_faction_id = game_control::get_game_config_val<long>("ATTITUDES", "PLAYER_FACTION_ID");
 
-    for (const auto& seller : sellers) {
+    for (const auto& seller : sellers) 
+    {
+        land->current_state_.sold_items_[seller.item_name_] += seller.items_amount_;
         //Economy
-        if (seller.unit_->FactionId == player_faction_id)
+        if (unit_control::of_player(seller.unit_))
         {
-            land->current_state_.sold_items_[seller.item_name_] += seller.items_amount_;
             land->current_state_.economy_.sell_income_ += seller.items_amount_ * seller.market_price_;
         }            
 

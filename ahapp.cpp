@@ -5257,7 +5257,13 @@ void CGameDataHelper::SetPlayingFaction(long id)
 {
     // set playing faction to ATT_FRIEND2
     gpApp->SetAttitudeForFaction(id, ATT_FRIEND2);
-    gpApp->SetConfig(SZ_SECT_ATTITUDES, SZ_ATT_PLAYER_ID, id);
+
+    int fileno = gpApp->GetConfigFileNo(SZ_SECT_ATTITUDES);
+    long playing_faction_id = gpApp->config_[fileno].get(SZ_SECT_ATTITUDES, SZ_ATT_PLAYER_ID, 0);
+    if (playing_faction_id == 0)
+        gpApp->config_[fileno].set(SZ_SECT_ATTITUDES, SZ_ATT_PLAYER_ID, id);
+
+    //gpApp->SetConfig(SZ_SECT_ATTITUDES, SZ_ATT_PLAYER_ID, id);
 }
 
 BOOL CGameDataHelper::IsRawMagicSkill(const char * skillname)

@@ -53,6 +53,14 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 
 
 ## Changelog:
+### Oct 28 2020
+- fixed config.h bug.
+- Economy report: calculated just for local faction (loaded using "Load Report").
+
+### Oct 25 2020
+- Config: SPECIFIC_UPKEEP added. Its is possible to set positive or negative maintanence for any item or race, which has higher priority over peasant/leader upkeep settings.
+- Economy report: claim now is a part of calculations.
+
 ### Oct 21 2020
 - renamed category for leaders to men_leaders. By default it has LEAD in it. All the leader related logic is applied to men of this group.
 - Create: Scout -- added specific category in ALH for this case `UNIT_CREATION`. Its possible to set up there any orders which will be a part of created scout. Also scout will automatically get money for its creation from parent unit.
