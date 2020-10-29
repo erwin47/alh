@@ -571,6 +571,20 @@ struct CEconomy
     long tax_income_;
     long sell_income_;
     long claim_income_;
+
+    CEconomy& operator+=(const CEconomy& add) {
+        initial_amount_ += add.initial_amount_;
+        maintenance_ += add.maintenance_;
+        work_income_ += add.work_income_;
+        buy_expenses_ += add.buy_expenses_;
+        study_expenses_ += add.study_expenses_;
+        moving_out_ += add.moving_out_;
+        moving_in_ += add.moving_in_;
+        tax_income_ += add.tax_income_;
+        sell_income_ += add.sell_income_;
+        claim_income_ += add.claim_income_;
+        return *this;
+    }
 };
 
 void init_economy(CEconomy& res);

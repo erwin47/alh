@@ -53,6 +53,9 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 
 
 ## Changelog:
+### Oct 29 2020
+- TaxTrade report: added more info.
+
 ### Oct 28 2020
 - fixed config.h bug.
 - Economy report: calculated just for local faction (loaded using "Load Report").

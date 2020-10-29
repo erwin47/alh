@@ -242,11 +242,8 @@ bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const
     {
         pLandExit->TotalMovementCost = newMovementCost;
         pLandExit->ArrivedFromHexId = pLandCurrent->Id;
-        //pLandExit->MoveDirection = route_markers + moveCommand;
-
         route_markers += moveCommand; 
         pLandExit->MoveDirection = route_markers.mb_str();
-
         return true;
     }
     return false;

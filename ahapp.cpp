@@ -2422,26 +2422,33 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
 
 void CAhApp::CheckTaxTrade()
 {
-    CStr                sTax(64);
-    CStr                sTrade(64);
-    CStr                Report(64), S(64);
-    CStr                Details(256);
+    //CStr                sTax(64);
+    //CStr                sTrade(64);
+    //CStr                Report(64), S(64);
+    //CStr                Details(256);
 //    long                tax = 0;
 //    long                trade = 0;
     int                 n, i;
     CLand             * pLand;
     CPlane            * pPlane;
-    CTaxProdDetailsCollByFaction  Taxes;
-    //CTaxProdDetailsCollByFaction  Trades;
-    CTaxProdDetails              *pDetails;
+
+
+    //TODO: add possibility to make it for ANY chosen faction, currently most of the stats related to current faction
 
     struct FactionStats 
     {
         long trade_regions_amount_;
         long tax_regions_amount_;
-        long claim_requested_amount_;
-        std::string full_report_;
-        std::map<std::string, long> full_income_;
+        std::string trade_details_;
+        std::vector<std::string> stats_order_;
+        std::map<std::string, long> stats_;
+
+        void add_stat(const std::string& name, long val)
+        {
+            if (stats_.find(name) == stats_.end())
+                stats_order_.push_back(name);
+            stats_[name] += val;
+        }
     };
     std::map<long, FactionStats> output_stats;
     std::stringstream tax_description;
@@ -2460,31 +2467,53 @@ void CAhApp::CheckTaxTrade()
                 if (scoreboard.find(unit->FactionId) != scoreboard.end())
                     return;
 
-                if (unit_control::flags::is_taxing(unit) || unit_control::flags::is_pillaging(unit))
+                scoreboard.insert(unit->FactionId);//once for each faction
+
+                if (unit_control::of_player(unit))
                 {
-                    output_stats[unit->FactionId].full_income_["SILV"] += std::min(pLand->current_state_.tax_.requested_, pLand->current_state_.tax_.amount_);
-                    output_stats[unit->FactionId].full_income_["Taxing men"] += pLand->current_state_.tax_.requesters_amount_;
+                    output_stats[unit->FactionId].add_stat("Initial SILV", pLand->current_state_.economy_.initial_amount_);
+                    output_stats[unit->FactionId].add_stat("Claim", pLand->current_state_.economy_.claim_income_);
+                    output_stats[unit->FactionId].add_stat("Tax/Pillage", pLand->current_state_.economy_.tax_income_);
+                    output_stats[unit->FactionId].add_stat("Sell", pLand->current_state_.economy_.sell_income_);
+                    output_stats[unit->FactionId].add_stat("Buy", pLand->current_state_.economy_.buy_expenses_);
+                    output_stats[unit->FactionId].add_stat("Moving in", pLand->current_state_.economy_.moving_in_);
+                    output_stats[unit->FactionId].add_stat("Moving out", pLand->current_state_.economy_.moving_out_);
+                    output_stats[unit->FactionId].add_stat("Study", pLand->current_state_.economy_.study_expenses_);
+                    output_stats[unit->FactionId].add_stat("Work/Entertain", pLand->current_state_.economy_.work_income_);
+                    output_stats[unit->FactionId].add_stat("Maintenance", pLand->current_state_.economy_.maintenance_);
+                    output_stats[unit->FactionId].add_stat("Balance", pLand->current_state_.economy_.initial_amount_ +
+                                                                                  pLand->current_state_.economy_.claim_income_ + 
+                                                                                  pLand->current_state_.economy_.tax_income_ + 
+                                                                                  pLand->current_state_.economy_.sell_income_ - 
+                                                                                  pLand->current_state_.economy_.buy_expenses_ + 
+                                                                                  pLand->current_state_.economy_.moving_in_ - 
+                                                                                  pLand->current_state_.economy_.moving_out_ - 
+                                                                                  pLand->current_state_.economy_.study_expenses_ + 
+                                                                                  pLand->current_state_.economy_.work_income_ - 
+                                                                                  pLand->current_state_.economy_.maintenance_);
+
+                    std::vector<land_control::Trader> buyers;
+                    std::vector<unit_control::UnitError> errors;
+                    land_control::get_land_buys(pLand, buyers, errors);
+                    for (const auto& buyer : buyers)
+                    {
+                        output_stats[unit->FactionId].add_stat("Bought", 0);
+                        if (unit_control::of_player(buyer.unit_))
+                        {
+                            output_stats[unit->FactionId].add_stat("    "+buyer.item_name_, buyer.items_amount_);
+                            output_stats[unit->FactionId].add_stat("Bought", buyer.items_amount_);
+                        }
+                    }
+                }
+
+                if (pLand->current_state_.tax_.requesters_amount_ > 0)
+                {
+                    output_stats[unit->FactionId].add_stat("Taxing men", pLand->current_state_.tax_.requesters_amount_);
                     output_stats[unit->FactionId].tax_regions_amount_++;
-                    scoreboard.insert(unit->FactionId);
-                    return;
                 }
+                output_stats[unit->FactionId].add_stat("Working men", pLand->current_state_.work_.requesters_amount_);
+                output_stats[unit->FactionId].add_stat("Entertaining men", pLand->current_state_.entertain_.requesters_amount_);
             });
-
-            //get claim amount
-            land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {
-                long amount;
-                auto claim_orders = orders::control::retrieve_orders_by_type(orders::Type::O_CLAIM, unit->orders_);
-                for (const auto& ord : claim_orders)
-                {                    
-                    if (orders::parser::specific::parse_claim(ord, amount))
-                        output_stats[unit->FactionId].claim_requested_amount_ += amount;
-                    else
-                        m_pAtlantis->OrderError("Error", pLand, unit, ord, "claim: couldn't unparse");
-                }
-            });
-
-            if (pLand->Flags & LAND_TAX_NEXT)
-                CheckTaxDetails(pLand, Taxes);
 
             std::map<int, std::vector<std::string>> reg_report;
             if (GetTradeActivityDescription(pLand, reg_report))
@@ -2492,38 +2521,27 @@ void CAhApp::CheckTaxTrade()
                 for (auto& fact_rep : reg_report)
                 {
                     ++output_stats[fact_rep.first].trade_regions_amount_;
-                    output_stats[fact_rep.first].full_report_.append(land_control::land_full_name(pLand) + EOL_SCR);
+                    output_stats[fact_rep.first].trade_details_.append(land_control::land_full_name(pLand) + EOL_SCR);
                     for (auto& line : fact_rep.second)
                     {
-                        output_stats[fact_rep.first].full_report_.append(line + std::string(EOL_SCR));
+                        output_stats[fact_rep.first].trade_details_.append(line + std::string(EOL_SCR));
                     }
                 }
             }
         }
     }
-    Report.Empty();
-    for (i=0; i<Taxes.Count(); i++)
-    {
-        pDetails = (CTaxProdDetails*)Taxes.At(i);
-        Report << "Faction " << pDetails->FactionId << " : " << pDetails->HexCount << " TAX regions"   << EOL_SCR
-               << pDetails->Details << EOL_SCR  << EOL_SCR;
-    }
-
-    Taxes.FreeAll();
 
     for (auto& faction_stat : output_stats)
     {
         std::string header = "Faction: " + std::to_string(faction_stat.first) + EOL_SCR;
-        std::string claim_amount = "Requested unclaim: " + std::to_string(faction_stat.second.claim_requested_amount_) + EOL_SCR;
         std::string tax_amount = "Amount of tax regions: " + std::to_string(faction_stat.second.tax_regions_amount_) + EOL_SCR;
         std::string trade_amount = "Amount of trade regions: " + std::to_string(faction_stat.second.trade_regions_amount_)+ std::string(EOL_SCR);
-        std::string trade_detailed = faction_stat.second.full_report_ + EOL_SCR;
+        std::string trade_detailed = faction_stat.second.trade_details_ + EOL_SCR;
 
         ShowError(header.c_str(), header.size(), TRUE);
-        ShowError(claim_amount.c_str(), claim_amount.size(), TRUE);
         ShowError(tax_amount.c_str(), tax_amount.size(), TRUE);
         //ShowError("Income"+EOL_SCR, sizeof("Income")-1+sizeof(EOL_SCR), TRUE);
-        for (auto& stat : faction_stat.second.full_income_)
+        for (auto& stat : faction_stat.second.stats_)
         {
             std::string temp = "    " + stat.first + " " + std::to_string(stat.second) + EOL_SCR;
             ShowError(temp.c_str(), temp.size(), TRUE);
