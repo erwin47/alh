@@ -31,5 +31,4 @@ ah
 ah.stderr
 ah.stdout
 build/
-release/
-vcpkg/
+dist/

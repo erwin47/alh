@@ -11,7 +11,12 @@ jobs:
       - run: sudo apt update && sudo apt install libwxgtk3.0-gtk3-dev libwxgtk3.0-gtk3-0v5
       - run: mkdir build
       - run: cmake -DCMAKE_BUILD_TYPE=Release -Bbuild -DLINKING_TYPE=static .
-      - run: cmake --build .\build --config Release
+      - run: cmake --build ./build --config Release
+      - run: ./distribute.sh
+      - uses: actions/upload-artifact@v2
+        with:
+          name: alh-${{github.run_number}}-${{github.sha}}-linux
+          path: dist
   build_windows:
     runs-on: windows-latest
     steps:
@@ -19,9 +24,13 @@ jobs:
       - run: cmake --version
       - run: vcpkg version
       - run: vcpkg remove --outdated --recurse
-      # do not need to install dynamicaly linked version of wxWidgets as we are using only static here
-      # - run: vcpkg install --recurse --triplet x64-windows wxwidgets
       - run: vcpkg install --recurse --triplet x64-windows-static wxwidgets
       - run: vcpkg integrate install
       - run: cmake -DCMAKE_BUILD_TYPE=Release -Bbuild -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DLINKING_TYPE=static .
       - run: cmake --build .\build --config Release
+      - run: ./distribute.ps1
+      - uses: actions/upload-artifact@v2
+        with:
+          name: alh-${{github.run_number}}-${{github.sha}}-win
+          path: dist
+
