@@ -30,3 +30,5 @@ Makefile
 ah
 ah.stderr
 ah.stdout
+build/
+dist/

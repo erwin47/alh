@@ -2414,7 +2414,7 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
     }
     // Add a whiteline between different regions
     if (pFactionInfo)
-        pFactionInfo->Details << wxString::FromUTF8(EOL_SCR);
+        pFactionInfo->Details << EOL_SCR;
     AllFactions.DeleteAll();
 }
 
