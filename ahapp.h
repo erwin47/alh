@@ -314,6 +314,7 @@ public:
 
     config::Config       config_[CONFIG_FILE_COUNT];
     int                  GetConfigFileNo(const char * szSection);
+    bool                 terrain_type_water(CLand* land);    
 
 private:
     void                 ForgetFrame(int no, BOOL frameclosed);
@@ -329,7 +330,6 @@ private:
     void                 GetShortFactName(CStr & S, int FactionId);
     void                 SaveLandFlags();
     void                 LoadLandFlags();
-    bool                 terrain_type_water(CLand* land);
     void                 UpdateEdgeStructs();
     void                 LoadUnitFlags();
     void                 SaveUnitFlags();

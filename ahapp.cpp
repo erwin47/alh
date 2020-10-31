@@ -2469,19 +2469,27 @@ void CAhApp::CheckTaxTrade()
 
                 scoreboard.insert(unit->FactionId);//once for each faction
 
+                output_stats[unit->FactionId].add_stat("Taxing men", pLand->current_state_.tax_.requesters_amount_);
+                output_stats[unit->FactionId].add_stat("Working men", pLand->current_state_.work_.requesters_amount_);
+                output_stats[unit->FactionId].add_stat("Entertaining men", pLand->current_state_.entertain_.requesters_amount_);
+
+                if (pLand->current_state_.tax_.requesters_amount_ > 0)
+                    output_stats[unit->FactionId].tax_regions_amount_++;
+
                 if (unit_control::of_player(unit))
                 {
-                    output_stats[unit->FactionId].add_stat("Initial SILV", pLand->current_state_.economy_.initial_amount_);
-                    output_stats[unit->FactionId].add_stat("Claim", pLand->current_state_.economy_.claim_income_);
-                    output_stats[unit->FactionId].add_stat("Tax/Pillage", pLand->current_state_.economy_.tax_income_);
-                    output_stats[unit->FactionId].add_stat("Sell", pLand->current_state_.economy_.sell_income_);
-                    output_stats[unit->FactionId].add_stat("Buy", pLand->current_state_.economy_.buy_expenses_);
-                    output_stats[unit->FactionId].add_stat("Moving in", pLand->current_state_.economy_.moving_in_);
-                    output_stats[unit->FactionId].add_stat("Moving out", pLand->current_state_.economy_.moving_out_);
-                    output_stats[unit->FactionId].add_stat("Study", pLand->current_state_.economy_.study_expenses_);
-                    output_stats[unit->FactionId].add_stat("Work/Entertain", pLand->current_state_.economy_.work_income_);
-                    output_stats[unit->FactionId].add_stat("Maintenance", pLand->current_state_.economy_.maintenance_);
-                    output_stats[unit->FactionId].add_stat("Balance", pLand->current_state_.economy_.initial_amount_ +
+                    output_stats[unit->FactionId].add_stat("Economy:", 0);
+                    output_stats[unit->FactionId].add_stat("    Initial SILV", pLand->current_state_.economy_.initial_amount_);
+                    output_stats[unit->FactionId].add_stat("    Claim", pLand->current_state_.economy_.claim_income_);
+                    output_stats[unit->FactionId].add_stat("    Tax/Pillage", pLand->current_state_.economy_.tax_income_);
+                    output_stats[unit->FactionId].add_stat("    Sell", pLand->current_state_.economy_.sell_income_);
+                    output_stats[unit->FactionId].add_stat("    Buy", pLand->current_state_.economy_.buy_expenses_);
+                    output_stats[unit->FactionId].add_stat("    Moving in", pLand->current_state_.economy_.moving_in_);
+                    output_stats[unit->FactionId].add_stat("    Moving out", pLand->current_state_.economy_.moving_out_);
+                    output_stats[unit->FactionId].add_stat("    Study", pLand->current_state_.economy_.study_expenses_);
+                    output_stats[unit->FactionId].add_stat("    Work/Entertain", pLand->current_state_.economy_.work_income_);
+                    output_stats[unit->FactionId].add_stat("    Maintenance", pLand->current_state_.economy_.maintenance_);
+                    output_stats[unit->FactionId].add_stat("    Balance", pLand->current_state_.economy_.initial_amount_ +
                                                                                   pLand->current_state_.economy_.claim_income_ + 
                                                                                   pLand->current_state_.economy_.tax_income_ + 
                                                                                   pLand->current_state_.economy_.sell_income_ - 
@@ -2505,14 +2513,6 @@ void CAhApp::CheckTaxTrade()
                         }
                     }
                 }
-
-                if (pLand->current_state_.tax_.requesters_amount_ > 0)
-                {
-                    output_stats[unit->FactionId].add_stat("Taxing men", pLand->current_state_.tax_.requesters_amount_);
-                    output_stats[unit->FactionId].tax_regions_amount_++;
-                }
-                output_stats[unit->FactionId].add_stat("Working men", pLand->current_state_.work_.requesters_amount_);
-                output_stats[unit->FactionId].add_stat("Entertaining men", pLand->current_state_.entertain_.requesters_amount_);
             });
 
             std::map<int, std::vector<std::string>> reg_report;
@@ -2541,9 +2541,9 @@ void CAhApp::CheckTaxTrade()
         ShowError(header.c_str(), header.size(), TRUE);
         ShowError(tax_amount.c_str(), tax_amount.size(), TRUE);
         //ShowError("Income"+EOL_SCR, sizeof("Income")-1+sizeof(EOL_SCR), TRUE);
-        for (auto& stat : faction_stat.second.stats_)
+        for (auto& stat : faction_stat.second.stats_order_)
         {
-            std::string temp = "    " + stat.first + " " + std::to_string(stat.second) + EOL_SCR;
+            std::string temp = "    " + stat + " " + std::to_string(faction_stat.second.stats_[stat]) + EOL_SCR;
             ShowError(temp.c_str(), temp.size(), TRUE);
         }
         ShowError(trade_amount.c_str(), trade_amount.size(), TRUE);

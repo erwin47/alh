@@ -53,6 +53,11 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 
 
 ## Changelog:
+### Oct 31 2020
+- TaxTrade report: better looking info.
+- RoutePlanner: fixed bug of usage lead to division by zero
+- RoutePlanner: fixed bug, related to building a road excluding information about oceans during the startup of the client.
+
 ### Oct 29 2020
 - TaxTrade report: added more info.
 

@@ -1734,6 +1734,10 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
         pPlane->Lands.Insert(pLand);
     }
 
+    if(gpApp->terrain_type_water(pLand))
+    {
+        pLand->Flags |= LAND_IS_WATER;
+    }            
 
 
     TempDescr = FirstLine;
@@ -5235,6 +5239,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
 
         if (sequence == TurnSequence::SQ_STUDY)
         {//no need to parse sequentially
+            RunOrder_AOComments<orders::Type::O_TEACH>(pLand);
             RunOrder_AOComments<orders::Type::O_STUDY>(pLand);
             RunOrder_LandStudyTeach(pLand);
         }
@@ -6266,8 +6271,17 @@ void CAtlaParser::RunCaravanAutomoveOrderGeneration(CLand* land)
             unit->caravan_info_->goal_land_ == nullptr)
             return;
 
+        if (unit->Id == 2968)
+        {
+          int i = 5;
+        }
+
         wxString Log;
         unit_control::MoveMode movemode = unit_control::get_move_state(unit);
+        
+        if (movemode.speed_ <= 0)
+            return;
+        
         bool noCross = true;
         if (!unit_control::flags::is_nocross(unit) && (movemode.swim_ == 1 || movemode.fly_ == 1))
             noCross = false;

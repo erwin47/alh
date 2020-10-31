@@ -170,7 +170,11 @@ bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const
 {
     wxString route_markers;
     // Land Found, now determine whether this route is faster than the old route.
-    int oldTurn = (pLandCurrent->TotalMovementCost + movementMode - 1) / movementMode;
+
+    int oldTurn(0);
+    if (movementMode > 0)
+        oldTurn = (pLandCurrent->TotalMovementCost + movementMode - 1) / movementMode;
+        
     if (oldTurn == 0) oldTurn = 1;
     int currentMonth = (startMonth + oldTurn - 1) % 12;
 
