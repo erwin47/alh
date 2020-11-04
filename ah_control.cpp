@@ -191,6 +191,29 @@ namespace game_control
         return cache[item];
     }
 
+    void get_item_weight(const std::string& item, long weights[5])
+    {
+        struct weights_ {
+            long weights[5];
+        };
+        static std::unordered_map<std::string, weights_> cache;
+
+        if (cache.find(item) != cache.end())
+        {
+            weights_& w = cache[item];
+            for (unsigned i = 0; i < 5; ++i)
+                weights[i] = w.weights[i];
+            return;
+        }
+
+        std::vector<long> vec_weights = game_control::get_game_config<long>(SZ_SECT_WEIGHT_MOVE, item.c_str());
+        for (unsigned i = 0; i < 5 && i < vec_weights.size(); ++i)
+        {
+            weights[i] = vec_weights[i];
+            cache[item].weights[i] = vec_weights[i];
+        }
+    }
+
     long get_study_cost(const std::string& skill) 
     {
         static std::unordered_map<std::string, long> cache;

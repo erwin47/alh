@@ -40,7 +40,6 @@
 #include "unitpane.h"
 #include "unitfilterdlg.h"
 #include "unitpanefltr.h"
-#include "version.h"
 #include "flagsdlg.h"
 
 #ifdef HAVE_CONFIG_H
@@ -75,9 +74,6 @@
     #include "bitmaps/lastvisitturn.xpm"
     #include "bitmaps/findhex.xpm"
 #endif
-
-static const int AH_BuildNumber = 5;
-
 
 BEGIN_EVENT_TABLE(CMapFrame, CAhFrame)
 
@@ -600,10 +596,10 @@ void CMapFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
     sPyVersion = "is not supported";
 #endif
 
-    msg.Printf("Atlantis Little Helper version %s, build %d.\n\n%s.\n\nPython %s.\n\n"
+    msg.Printf("Atlantis Little Helper by Holden\nCompiled at %s %s.\n\n%s.\n\nPython %s.\n\n"
                "Please read doc/readme.html for more information.",
-               wxT(AH_VERSION),
-               AH_BuildNumber,
+               __DATE__,
+               __TIME__,
                wxVERSION_STRING,
                sPyVersion.GetData() );
 

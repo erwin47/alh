@@ -70,6 +70,7 @@ namespace game_control
 
     bool get_struct_attributes(const std::string& struct_type, long& capacity, long& sailPower, long& structFlag, SHIP_TRAVEL& travel, long& speed);
     long get_item_upkeep(const std::string& item);
+    void get_item_weight(const std::string& item, long weights[5]);
     long get_study_cost(const std::string& skill);
 
     namespace specific

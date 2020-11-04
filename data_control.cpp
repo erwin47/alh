@@ -221,9 +221,7 @@ namespace unit_control
 
     void get_weights(CUnit* unit, long weights[5])
     {
-        int *cur_weights;
-        const char **movenames;
-        int movecount;
+        long cur_weights[5];
 
         weights[0] = 0;//weight
         weights[1] = 0;//move
@@ -243,7 +241,7 @@ namespace unit_control
                 pullers_amount = item.amount_;
             if (std::find(wagon_list.begin(), wagon_list.end(), item.code_name_) != wagon_list.end())
                 wagons_amount = item.amount_;
-            gpApp->GetItemWeights(item.code_name_.c_str(), cur_weights, movenames, movecount);
+            game_control::get_item_weight(item.code_name_, cur_weights);
             weights[0] += cur_weights[0] * item.amount_;
             weights[1] += cur_weights[1] * item.amount_;
             weights[2] += cur_weights[2] * item.amount_;

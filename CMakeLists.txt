@@ -90,7 +90,6 @@ set(AH_HEADERS
     "${PROJECT_SOURCE_DIR}/unitpane.h"
     "${PROJECT_SOURCE_DIR}/unitsplitdlg.h"
     "${PROJECT_SOURCE_DIR}/utildlgs.h"
-    "${PROJECT_SOURCE_DIR}/version.h"
     "${PROJECT_SOURCE_DIR}/order_parser.h"
     "${PROJECT_SOURCE_DIR}/autologic.h"
     "${PROJECT_SOURCE_DIR}/autonaming.h"
