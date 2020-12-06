@@ -485,12 +485,12 @@ void CCreateNewUnit::UpdateAutoname()
     }
 }
 
-void CCreateNewUnit::OnCancel       (wxCommandEvent& event)
+void CCreateNewUnit::OnCancel       (wxCommandEvent& )
 {
     StoreSize();
     EndModal(wxID_CANCEL);
 }
-void CCreateNewUnit::OnOk           (wxCommandEvent& event)
+void CCreateNewUnit::OnOk           (wxCommandEvent& )
 {
     std::stringstream unit_order;
     unit_order << "behind " << (flag_behind_->IsChecked()? 1 : 0) << std::endl;
@@ -556,7 +556,7 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
 
     int new_unit_id = spin_new_num_alias_->GetValue();
     int recv_silver = spin_silver_amount_->GetValue();
-    for (size_t i=0; i<spin_copies_amount_->GetValue(); i++)
+    for (int i=0; i<spin_copies_amount_->GetValue(); i++)
     {
         CUnit * pUnitNew = gpApp->m_pAtlantis->SplitUnit(unit_, new_unit_id+i);
         if (pUnitNew)
@@ -579,18 +579,18 @@ void CCreateNewUnit::OnOk           (wxCommandEvent& event)
     StoreSize();
     EndModal(wxID_OK);
 }
-void CCreateNewUnit::onAnySpinUpdate(wxSpinEvent& event)
+void CCreateNewUnit::onAnySpinUpdate(wxSpinEvent& )
 {
     UpdateExpences();
     UpdateAutoname();
 }
-void CCreateNewUnit::onAnyComboBoxUpdate(wxCommandEvent& event)
+void CCreateNewUnit::onAnyComboBoxUpdate(wxCommandEvent& )
 {
     UpdateExpences();
     UpdateAutoname();
 }
 
-void CCreateNewUnit::onGiveAllButton(wxCommandEvent & event)
+void CCreateNewUnit::onGiveAllButton(wxCommandEvent & )
 {
     long expences;
     expenses_all_->GetLabel().ToLong(&expences);
@@ -604,7 +604,7 @@ void CCreateNewUnit::onGiveAllButton(wxCommandEvent & event)
     }
 }
 
-void CCreateNewUnit::onStudyCheckBoxUpdate(wxCommandEvent& event)
+void CCreateNewUnit::onStudyCheckBoxUpdate(wxCommandEvent& )
 {
     if (!flag_check_study_->IsChecked())
         combobox_skill_lvl_->Disable();

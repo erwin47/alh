@@ -168,11 +168,11 @@ enum class TurnSequence
        SQ_LAST
 };
 
-inline TurnSequence operator++(TurnSequence& x) {
+inline TurnSequence& operator++(TurnSequence& x) {
     return x = (TurnSequence)(std::underlying_type<TurnSequence>::type(x) + 1); 
 }
 
-inline TurnSequence operator--(TurnSequence& x) {
+inline TurnSequence& operator--(TurnSequence& x) {
     return x = (TurnSequence)(std::underlying_type<TurnSequence>::type(x) - 1); 
 }
 
@@ -180,11 +180,11 @@ inline TurnSequence operator*(TurnSequence c) {
     return c;
 }
 
-inline TurnSequence begin(TurnSequence r) {
+inline TurnSequence begin(TurnSequence ) {
     return TurnSequence::SQ_FIRST;
 }
 
-inline TurnSequence end(TurnSequence r) {
+inline TurnSequence end(TurnSequence ) {
     TurnSequence l=TurnSequence::SQ_LAST;
     return ++l;
 }
@@ -240,7 +240,7 @@ public:
     bool       IsBadWeatherHex(CLand * pLand, int month) const;
     int        GetMovementCost(int terrainCost, bool isBadWeather, bool hasRoad, int movementMode, bool noCross) const;
     
-    int               m_CrntFactionId;
+    int64_t           m_CrntFactionId;
     CStr              m_CrntFactionPwd;
     CLongColl         m_OurFactions;
     CBaseObject       m_Events;

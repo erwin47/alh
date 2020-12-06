@@ -72,7 +72,7 @@ namespace game_control
     long get_item_upkeep(const std::string& item);
     void get_item_weight(const std::string& item, long weights[5]);
     long get_study_cost(const std::string& skill);
-
+    
     namespace specific
     {
         CUnit* create_scout(CUnit* parent);
@@ -132,7 +132,7 @@ namespace skills_control
         return false;
     }    
 
-    static long get_skill_lvl_from_days(long days)
+    static inline long get_skill_lvl_from_days(long days)
     {
         long level = 0;
         long turns = days / 30;

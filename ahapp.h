@@ -213,7 +213,7 @@ public:
     const char *         GetWeatherLine (BOOL IsCurrent, BOOL IsGood, int Zone);
     std::shared_ptr<TProdDetails> GetProdDetails (const char * item);
     BOOL                 CanSeeAdvResources(const char * skillname, const char * terrain, CLongColl & Levels, CBufColl & Resources);
-    int                  GetAttitudeForFaction(int id);
+    int64_t              GetAttitudeForFaction(int id);
     void                 SetAttitudeForFaction(int id, int attitude);
     int                  getLayout() const; // it's not good to move it out, but UnitPane update actually controls other object
     // which it shouldn't control, and this control have to be aligned with layout.
@@ -238,7 +238,7 @@ public:
     BOOL                 CanSwitchToRep(eRepSeq whichrep, int & RepIdx);
 
     void                 OnMapSelectionChange();
-    bool                 OnUnitHexSelectionChange(long idx);
+    bool                 OnUnitHexSelectionChange();
 
     void                 OpenOptionsDlg();
     void                 OpenUnitFrame();
@@ -263,7 +263,6 @@ public:
     void                 CheckProduction();
     void                 CheckSailing();
     void                 CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & TaxDetails);
-    void                 CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & TradeDetails);
     bool                 GetTradeActivityDescription(CLand* land, std::map<int, std::vector<std::string>>& report);
     void                 CheckTaxTrade();
     void                 ExportHexes();
@@ -284,7 +283,7 @@ public:
     void                 SetAllLandUnitFlags();
 
     void                 GetUnitsMovingIntoHex(long HexId, std::vector<CUnit*>& stopped, std::vector<CUnit*>& ended_moveorder) const;
-    void                 ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane);
+    void                 ShowUnitsMovingIntoHex(long CurHexId);
     void                 AddTempHex(int X, int Y, int Plane);
     void                 DelTempHex(int X, int Y, int Plane);
 

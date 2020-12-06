@@ -184,7 +184,7 @@ namespace orders
 
     struct CaravanInfo
     {
-        CaravanInfo() {}
+        CaravanInfo() : speed_(CaravanSpeed::UNDEFINED), goal_land_(nullptr) {}
         CaravanInfo(CaravanSpeed speed, std::vector<RegionInfo>&& regions, CLand* goal_land) 
             : speed_(speed), regions_(regions), goal_land_(goal_land)  { }
         CaravanSpeed speed_;

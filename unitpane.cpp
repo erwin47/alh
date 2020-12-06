@@ -140,7 +140,7 @@ void CUnitPane::UpdateCells()
 
 }
 
-bool default_unit_filter(CUnit* unit) {   return true;  }
+bool default_unit_filter(CUnit* ) {   return true;  }
 
 void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
 {
@@ -197,7 +197,7 @@ void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
                 continue;
             }
 
-            if (pUnit && pUnit->movements_.size() > 0 || pUnit->movement_stop_ == pLand->Id)
+            if ((pUnit && pUnit->movements_.size() > 0) || (pUnit->movement_stop_ == pLand->Id))
                 already_listed_units.insert(pUnit->Id);
 
             if (pUnit && pUnit->has_error_) {//pUnit->Flags & UNIT_FLAG_HAS_ERROR) {
@@ -368,10 +368,6 @@ void CUnitPane::LoadUnitListHdr()
 
 void CUnitPane::ReloadHdr(const char * szConfigSectionHdr)
 {
-    eSelMode          selmode = sel_by_no;
-    long              seldata = 0;
-    int               i, x;
-
     m_sConfigSectionHdr = szConfigSectionHdr;
 
     DeleteAllItems();
@@ -426,22 +422,13 @@ void CUnitPane::SaveUnitListHdr()
 
 void CUnitPane::OnSelected(wxListEvent& event)
 {
-    //if (is_selection_automatic_) {
-    //    is_selection_automatic_ = false;
-    //    return;
-    //}
-
-    CUnitOrderEditPane* pOrders;
     CUnit      * pUnit = GetUnit(event.m_itemIndex);
-    bool         changed = false;
-    int          idx, i;
-
     if (pUnit)
     {
-        selected_unit_id_ = pUnit->Id;
+        //selected_unit_id_ = pUnit->Id;
 //        if (m_pCurLand)
 //            m_pCurLand->guiUnit = pUnit->Id;
-        if (gpApp->OnUnitHexSelectionChange(event.m_itemIndex))
+        if (gpApp->OnUnitHexSelectionChange())
             Update(m_pCurLand);
     }
 }
@@ -637,10 +624,8 @@ void CUnitPane::OnRClick(wxListEvent& event)
 
 //--------------------------------------------------------------------------
 
-void CUnitPane::OnPopupMenuTeach (wxCommandEvent& event)
+void CUnitPane::OnPopupMenuTeach (wxCommandEvent& )
 {
-    CUnitOrderEditPane  * pOrders;
-
     CUnit      * pUnit = GetSelectedUnit();
     if (pUnit)
     {
@@ -653,10 +638,9 @@ void CUnitPane::OnPopupMenuTeach (wxCommandEvent& event)
 
 //--------------------------------------------------------------------------
 
-void CUnitPane::OnPopupMenuSplit(wxCommandEvent& event)
+void CUnitPane::OnPopupMenuSplit(wxCommandEvent& )
 {
     CUnit* pUnit = GetSelectedUnit();
-    CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
@@ -668,10 +652,9 @@ void CUnitPane::OnPopupMenuSplit(wxCommandEvent& event)
     }
 }
 
-void CUnitPane::OnPopupMenuCreateNew(wxCommandEvent& event)
+void CUnitPane::OnPopupMenuCreateNew(wxCommandEvent& )
 {
     CUnit* pUnit = GetSelectedUnit();    
-    CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
@@ -689,7 +672,7 @@ void CUnitPane::OnPopupMenuCreateNew(wxCommandEvent& event)
     }
 }
 
-void CUnitPane::OnPopupFilterByItems(wxCommandEvent& event)
+void CUnitPane::OnPopupFilterByItems(wxCommandEvent& )
 {
     CUnit* pUnit = GetSelectedUnit();    
     if (!pUnit)
@@ -727,7 +710,7 @@ void CUnitPane::OnPopupFilterByItems(wxCommandEvent& event)
     //gpApp->m_pAtlantis->RunLandOrders(pLand);
 }
 
-void CUnitPane::OnPopupShareAsCaravan(wxCommandEvent& event)
+void CUnitPane::OnPopupShareAsCaravan(wxCommandEvent& )
 {
     CUnit* unit = GetSelectedUnit();
     if (!unit)
@@ -766,7 +749,7 @@ void CUnitPane::OnPopupShareAsCaravan(wxCommandEvent& event)
 
 }
 
-void CUnitPane::OnPopupPaintCaravanRoadmap(wxCommandEvent& event)
+void CUnitPane::OnPopupPaintCaravanRoadmap(wxCommandEvent& )
 {
     CUnit* unit = GetSelectedUnit();
     if (!unit || unit->caravan_info_ == nullptr)
@@ -796,7 +779,7 @@ void CUnitPane::OnPopupPaintCaravanRoadmap(wxCommandEvent& event)
 }
 
 
-void CUnitPane::OnPopupSellAll(wxCommandEvent& event)
+void CUnitPane::OnPopupSellAll(wxCommandEvent& )
 {
     CUnit* unit = GetSelectedUnit();    
     if (!unit)
@@ -830,7 +813,7 @@ void CUnitPane::OnPopupSellAll(wxCommandEvent& event)
     }
 }
 
-void CUnitPane::OnPopupMenuReceiveItems(wxCommandEvent& event)
+void CUnitPane::OnPopupMenuReceiveItems(wxCommandEvent& )
 {
     CUnit* pUnit = GetSelectedUnit();    
     if (!pUnit)
@@ -947,7 +930,7 @@ bool CUnitPane::CreateScout(CUnit * pUnit, ScoutType scoutType)
     return true;
 }
 
-void CUnitPane::OnPopupMenuScoutSimple(wxCommandEvent& event)
+void CUnitPane::OnPopupMenuScoutSimple(wxCommandEvent& )
 {
     CUnit* unit = GetSelectedUnit();
     if (!unit || IS_NEW_UNIT(unit))
@@ -972,10 +955,9 @@ void CUnitPane::OnPopupMenuScoutSimple(wxCommandEvent& event)
 
 //--------------------------------------------------------------------------
 
-void CUnitPane::OnPopupMenuScoutMove(wxCommandEvent& event)
+void CUnitPane::OnPopupMenuScoutMove(wxCommandEvent& )
 {
     CUnit* pUnit = GetSelectedUnit();
-    CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
@@ -986,10 +968,9 @@ void CUnitPane::OnPopupMenuScoutMove(wxCommandEvent& event)
 
 //--------------------------------------------------------------------------
 
-void CUnitPane::OnPopupMenuScoutObserver(wxCommandEvent& event)
+void CUnitPane::OnPopupMenuScoutObserver(wxCommandEvent& )
 {
     CUnit* pUnit = GetSelectedUnit();
-    CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
@@ -1000,10 +981,9 @@ void CUnitPane::OnPopupMenuScoutObserver(wxCommandEvent& event)
 
 //--------------------------------------------------------------------------
 
-void CUnitPane::OnPopupMenuScoutStealth(wxCommandEvent& event)
+void CUnitPane::OnPopupMenuScoutStealth(wxCommandEvent& )
 {
     CUnit* pUnit = GetSelectedUnit();
-    CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
@@ -1014,10 +994,9 @@ void CUnitPane::OnPopupMenuScoutStealth(wxCommandEvent& event)
 
 //--------------------------------------------------------------------------
 
-void CUnitPane::OnPopupMenuScoutGuard(wxCommandEvent& event)
+void CUnitPane::OnPopupMenuScoutGuard(wxCommandEvent& )
 {
     CUnit* pUnit = GetSelectedUnit();
-    CUnitOrderEditPane  * pOrders;
 
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
@@ -1028,10 +1007,9 @@ void CUnitPane::OnPopupMenuScoutGuard(wxCommandEvent& event)
 
 //--------------------------------------------------------------------------
 
-void CUnitPane::OnPopupMenuShareSilv  (wxCommandEvent& event)
+void CUnitPane::OnPopupMenuShareSilv  (wxCommandEvent& )
 {
     CUnit* pUnit = GetSelectedUnit();
-    CUnitOrderEditPane  * pOrders;
 
     if (pUnit)
     {
@@ -1046,10 +1024,9 @@ void CUnitPane::OnPopupMenuShareSilv  (wxCommandEvent& event)
 
 //--------------------------------------------------------------------------
 
-void CUnitPane::OnPopupMenuGiveEverything (wxCommandEvent& event)
+void CUnitPane::OnPopupMenuGiveEverything (wxCommandEvent& )
 {
     CUnit* pUnit = GetSelectedUnit();
-    CUnitOrderEditPane  * pOrders;
     wxString     N;
 
     if (pUnit)
@@ -1068,7 +1045,6 @@ void CUnitPane::OnPopupMenuGiveEverything (wxCommandEvent& event)
 void CUnitPane::OnPopupMenuDiscardJunk(wxCommandEvent& WXUNUSED(event))
 {
     CUnit* pUnit = GetSelectedUnit();
-    CUnitOrderEditPane  * pOrders;
 
     // For new units: delete the entire unit
     // For normal units: issue orders to give away all useless items
@@ -1095,7 +1071,6 @@ void CUnitPane::OnPopupMenuDiscardJunk(wxCommandEvent& WXUNUSED(event))
 void CUnitPane::OnPopupMenuDetectSpies(wxCommandEvent& WXUNUSED(event))
 {
     CUnit* pUnit = GetSelectedUnit();
-    CUnitOrderEditPane  * pOrders;
     bool DoCheck;
 
     if (pUnit)
@@ -1234,11 +1209,10 @@ void CUnitPane::OnPopupMenuUnitFlags (wxCommandEvent& WXUNUSED(event))
 
 //--------------------------------------------------------------------------
 
-void CUnitPane::OnPopupMenuIssueOrders(wxCommandEvent& event)
+void CUnitPane::OnPopupMenuIssueOrders(wxCommandEvent& )
 {
     long         idx;
     CUnit      * pUnit;
-    CUnitOrderEditPane  * pOrders;
     BOOL         Changed = FALSE;
     CGetTextDlg  dlg(this, "Order", "Orders for the selected units");
 

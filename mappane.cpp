@@ -1164,9 +1164,6 @@ void CMapPane::DrawUnitColumn(wxDC * pDC, int x0, int y0, int height)
 void CMapPane::DrawRoads(wxDC * pDC, CLand * pLand, int x0, int y0)
 {
     int           x2, y2;
-    int           i;
-    CStruct     * pStruct;
-    BOOL          BadRoad;
 
     if (pLand && (pLand->Flags&LAND_STR_ROAD_N))
     {
@@ -2927,21 +2924,15 @@ void CMapPane::RedrawTracksForUnit(CPlane * pPlane, CUnit * pUnit, wxDC * pDC, B
 
 void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, CUnit * pUnit, size_t movement_step, CPlane * pPlane,int copyno)
 {
-    int            i, X1, Y1, Z1;
+    int            X1, Y1, Z1;
     long           HexId;
     int            wx0, wy0;
-    int            wx_a(0), wy_a(0), wx0_a(0), wy0_a(0);
-    CStruct      * pStruct;
-    CLand        * pLand;
-    EValueType     type;
-    long           n1;
-    int            LocA3;
 
     if (pUnit->movements_.size() == 0)
         return;
 
-    int prev_coord_x, prev_coord_y, last_coord_x, last_coord_y;
-    for (long i = movement_step; i < pUnit->movements_.size(); ++i)
+    int prev_coord_x(0), prev_coord_y(0), last_coord_x(0), last_coord_y(0);
+    for (size_t i = movement_step; i < pUnit->movements_.size(); ++i)
     {
         if (movement_step > 0 && i == movement_step)
         {//track the path from the middle of it: start from black rectangle
@@ -2953,8 +2944,8 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
         wx0 = wx;
         wy0 = wy;
 
-        wx0_a = wx_a;
-        wy0_a = wy_a;
+        //wx0_a = wx_a;
+        //wy0_a = wy_a;
 
         HexId = pUnit->movements_[i];
         LandIdToCoord(HexId, X1, Y1, Z1);
@@ -3421,10 +3412,10 @@ BOOL CMapPane::HexIsSelected(CLand * pLand)
     LandIdToCoord(pLand->Id, x,y,z);
     GetHexCenter(x,y, wx, wy);
     if (
-        (m_Rect_x1 < m_Rect_x2 && wx > m_Rect_x1 && wx < m_Rect_x2 ||
-         m_Rect_x1 > m_Rect_x2 && wx < m_Rect_x1 && wx > m_Rect_x2)   &&
-        (m_Rect_y1 < m_Rect_y2 && wy > m_Rect_y1 && wy < m_Rect_y2 ||
-         m_Rect_y1 > m_Rect_y2 && wy < m_Rect_y1 && wy > m_Rect_y2)
+        ((m_Rect_x1 < m_Rect_x2 && wx > m_Rect_x1 && wx < m_Rect_x2) ||
+         (m_Rect_x1 > m_Rect_x2 && wx < m_Rect_x1 && wx > m_Rect_x2))   &&
+        ((m_Rect_y1 < m_Rect_y2 && wy > m_Rect_y1 && wy < m_Rect_y2) ||
+         (m_Rect_y1 > m_Rect_y2 && wy < m_Rect_y1 && wy > m_Rect_y2))
          )
         return TRUE;
     else
@@ -3594,10 +3585,10 @@ void CMapPane::MarkFoundHexes(const std::string& filter, const std::string& resu
 //    CStruct        * pStruct;
     CStr             LandList(64), sCoord(32), Msg;
 
-    for (size_t n=0; n<gpApp->m_pAtlantis->m_Planes.Count(); n++)
+    for (int n=0; n<gpApp->m_pAtlantis->m_Planes.Count(); n++)
     {
         pPlane = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(n);
-        for (size_t i=0; i<pPlane->Lands.Count(); i++)
+        for (int i=0; i<pPlane->Lands.Count(); i++)
         {
             pLand = (CLand*)pPlane->Lands.At(i);
 
@@ -3721,7 +3712,7 @@ void CMapPane::OnPopupMenuFlag(wxCommandEvent& WXUNUSED(event))
 
 //--------------------------------------------------------------------------
 
-void CMapPane::OnPopupMenuBattles(wxCommandEvent & event)
+void CMapPane::OnPopupMenuBattles(wxCommandEvent & )
 {
     int       i;
     long      id;
@@ -3742,13 +3733,11 @@ void CMapPane::OnPopupMenuBattles(wxCommandEvent & event)
 
 //--------------------------------------------------------------------------
 
-void CMapPane::OnPopupWhoMovesHere(wxCommandEvent & event)
+void CMapPane::OnPopupWhoMovesHere(wxCommandEvent &)
 {
     CLand  * pCurLand;
-    CPlane * pCurPlane;
     long     HexId;
 
-    pCurPlane = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(m_SelPlane);
     pCurLand  = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
 
     if (pCurLand)
@@ -3756,12 +3745,12 @@ void CMapPane::OnPopupWhoMovesHere(wxCommandEvent & event)
     else
         HexId = LandCoordToId(m_SelHexX, m_SelHexY, m_SelPlane);
 
-    gpApp->ShowUnitsMovingIntoHex(HexId, pCurPlane);
+    gpApp->ShowUnitsMovingIntoHex(HexId);
 }
 
 //--------------------------------------------------------------------------
 
-void CMapPane::OnPopupEconomy   (wxCommandEvent & event)
+void CMapPane::OnPopupEconomy   (wxCommandEvent & )
 {
     CLand  * pLand = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
     if (!pLand)
@@ -3801,7 +3790,7 @@ void CMapPane::OnPopupEconomy   (wxCommandEvent & event)
     }
 }
 
-void CMapPane::OnPopupClearAutoOrders(wxCommandEvent & event)
+void CMapPane::OnPopupClearAutoOrders(wxCommandEvent & )
 {
     CLand  * pCurLand;
     pCurLand  = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
@@ -3814,7 +3803,7 @@ void CMapPane::OnPopupClearAutoOrders(wxCommandEvent & event)
     });
 }
 
-void CMapPane::OnPopupRunAutoOrders(wxCommandEvent & event)
+void CMapPane::OnPopupRunAutoOrders(wxCommandEvent & )
 {
     CLand  * pCurLand;
     pCurLand  = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
@@ -3957,7 +3946,7 @@ void CMapPane::getWarehouse(std::stringstream& output, std::function<bool(CUnit*
 
 }
 
-void CMapPane::OnPopupWarehouse   (wxCommandEvent & event)
+void CMapPane::OnPopupWarehouse   (wxCommandEvent & )
 {
     std::stringstream output;
     getWarehouse(output, [&](CUnit* unit) {
@@ -3971,7 +3960,7 @@ void CMapPane::OnPopupWarehouse   (wxCommandEvent & event)
     }    
 }
 
-void CMapPane::OnPopupEnemyWarehouse(wxCommandEvent & event)
+void CMapPane::OnPopupEnemyWarehouse(wxCommandEvent & )
 {
     std::stringstream output;
     getWarehouse(output, [&](CUnit* unit) {
@@ -3985,7 +3974,7 @@ void CMapPane::OnPopupEnemyWarehouse(wxCommandEvent & event)
     }  
 }
 
-void CMapPane::OnPopupShowAutoOrders(wxCommandEvent & event)
+void CMapPane::OnPopupShowAutoOrders(wxCommandEvent & )
 {
     CLand* land = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
     if (land == nullptr)
@@ -4093,7 +4082,7 @@ void CMapPane::OnPopupShowAutoOrders(wxCommandEvent & event)
     }    
 }
 
-void CMapPane::OnPopupMovePhases(wxCommandEvent & event)
+void CMapPane::OnPopupMovePhases(wxCommandEvent& )
 {
     CLand* cur_land = gpApp->m_pAtlantis->GetLand(m_SelHexX, m_SelHexY, m_SelPlane, TRUE);
     if (cur_land == nullptr)
@@ -4151,7 +4140,7 @@ void CMapPane::OnPopupMovePhases(wxCommandEvent & event)
                 }
                 if (in_the_reg >= 0)
                 {//if end up in the region, register on all phases between entering phase and last phase
-                    for (long k = in_the_reg; k < result_phases.size(); ++k)
+                    for (size_t k = in_the_reg; k < result_phases.size(); ++k)
                         result_phases[k].push_back(unit);
                 }                
             });
@@ -4177,7 +4166,7 @@ void CMapPane::OnPopupMovePhases(wxCommandEvent & event)
 }    
 //--------------------------------------------------------------------------
 
-void CMapPane::OnPopupNewHex(wxCommandEvent & event)
+void CMapPane::OnPopupNewHex(wxCommandEvent& )
 {
     CPlane * pPlane   = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(m_SelPlane);
     gpApp->AddTempHex(m_SelHexX, m_SelHexY, m_SelPlane);
@@ -4188,7 +4177,7 @@ void CMapPane::OnPopupNewHex(wxCommandEvent & event)
 //--------------------------------------------------------------------------
 
 
-void CMapPane::OnPopupDeleteHex(wxCommandEvent & event)
+void CMapPane::OnPopupDeleteHex(wxCommandEvent & )
 {
     CPlane * pPlane   = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(m_SelPlane);
     gpApp->DelTempHex(m_SelHexX, m_SelHexY, m_SelPlane);
@@ -4197,7 +4186,7 @@ void CMapPane::OnPopupDeleteHex(wxCommandEvent & event)
 
 //--------------------------------------------------------------------------
 
-void CMapPane::OnPopupDistanceRing(wxCommandEvent & event)
+void CMapPane::OnPopupDistanceRing(wxCommandEvent & )
 {
     m_RingRadius = wxGetNumberFromUser( wxT("Ring radius should be no more than 16,\nCancel removes the ring."),
                                         wxT("Enter ring radius"),
@@ -4221,7 +4210,7 @@ void CMapPane::OnPopupDistanceRing(wxCommandEvent & event)
 
 //--------------------------------------------------------------------------
 
-void CMapPane::OnEraseBackground(wxEraseEvent& event)
+void CMapPane::OnEraseBackground(wxEraseEvent& )
 {
 }
 

@@ -423,7 +423,7 @@ void COptionsDialog::OnCancel(wxCommandEvent& event)
 
 //--------------------------------------------------------------------------
 
-void COptionsDialog::OnFont    (wxCommandEvent& event)
+void COptionsDialog::OnFont    (wxCommandEvent& )
 {
     long fontidx;
 
@@ -466,7 +466,7 @@ void COptionsDialog::OnFont    (wxCommandEvent& event)
 
 //--------------------------------------------------------------------------
 
-void COptionsDialog::OnColor    (wxCommandEvent& event)
+void COptionsDialog::OnColor    (wxCommandEvent& )
 {
     wxColour     colour;
     wxColourData data;
@@ -499,14 +499,14 @@ void COptionsDialog::OnColor    (wxCommandEvent& event)
 
 //--------------------------------------------------------------------------
 
-void COptionsDialog::OnFaction(wxCommandEvent& event)
+void COptionsDialog::OnFaction(wxCommandEvent& )
 {
     m_pTxtPassword->SetValue( wxString::FromAscii(gpApp->GetConfig(SZ_SECT_PASSWORDS, m_pComboFactions->GetStringSelection().mb_str())));
 }
 
 //--------------------------------------------------------------------------
 
-void COptionsDialog::OnPassword(wxCommandEvent& event)
+void COptionsDialog::OnPassword(wxCommandEvent& )
 {
     gpApp->SetConfig(SZ_SECT_PASSWORDS, m_pComboFactions->GetStringSelection().mb_str(), m_pTxtPassword->GetValue().mb_str());
 }

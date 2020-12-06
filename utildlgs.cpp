@@ -265,7 +265,7 @@ void CShowDescriptionListDlg::SaveAs()
 
 //--------------------------------------------------------------------------
 
-void CShowDescriptionListDlg::OnLBDClick(wxCommandEvent & event)
+void CShowDescriptionListDlg::OnLBDClick(wxCommandEvent & )
 {
     CBaseObject  * pObj;
 
@@ -280,7 +280,7 @@ void CShowDescriptionListDlg::OnLBDClick(wxCommandEvent & event)
 
 //--------------------------------------------------------------------------
 
-void CShowDescriptionListDlg::OnLBSelect(wxCommandEvent & event)
+void CShowDescriptionListDlg::OnLBSelect(wxCommandEvent & )
 {
     CBaseObject  * pObj;
     CStr           S;

@@ -171,7 +171,7 @@ void CUnitFrame::Done(BOOL SetClosedFlag)
 //--------------------------------------------------------------------
 
 
-void CUnitFrame::OnCloseWindow(wxCloseEvent& event)
+void CUnitFrame::OnCloseWindow(wxCloseEvent& )
 {
     gpApp->FrameClosing(this);
     Destroy();

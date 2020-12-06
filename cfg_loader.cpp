@@ -73,6 +73,7 @@ namespace config {
                 continue;
             }
         }
+        return true;
     }
 
     bool Config::save(const char* file)  

@@ -600,11 +600,13 @@ void CAhApp::OpenUnitFrameFltr(BOOL PopUpSettings)
         CUnitPaneFltr   * pUnitPaneF = (CUnitPaneFltr*)m_Panes [AH_PANE_UNITS_FILTER];
         wxCommandEvent    event;
 
-        if (pUnitPaneF)
+        if (pUnitPaneF) 
+        {
             if  (PopUpSettings)
                 pUnitPaneF->OnPopupMenuFilter(event);
             else
                 pUnitPaneF->Update(NULL);
+        }
     }
     else
         m_Frames[AH_FRAME_UNITS_FLTR]->Raise();
@@ -817,8 +819,6 @@ void CAhApp::ComposeConfigOrdersSection(CStr & Sect, int FactionId)
 
 int CAhApp::GetConfigFileNo(const char * szSection)
 {
-    int x;
-
     if (state_sections_.find(szSection) != state_sections_.end() ||
         0==strnicmp(SZ_SECT_ORDERS, szSection, sizeof(SZ_SECT_ORDERS)-1) ) // orders section is composite starting from 2.1.6
         return CONFIG_FILE_STATE;
@@ -835,19 +835,20 @@ const char * CAhApp::GetConfig(const char* section, const char* param_name)
     int          fileno = GetConfigFileNo(section);
 
     const char* ret = config_[fileno].get(section, param_name, "");
-
     if (ret == NULL)
     {
-        for (i=0; i<DefaultConfigSize; i++)
+        for (i=0; i<DefaultConfigSize; i++) 
+        {
             if ( (0==stricmp(section, DefaultConfig[i].szSection)) &&
                  (0==stricmp(param_name,    DefaultConfig[i].szName))  ) 
             {
                 config_[fileno].set(section, param_name, DefaultConfig[i].szValue);
                 return DefaultConfig[i].szValue;
             }
+        }
+        ret = "";
     }
-    if (ret == NULL)
-        return "";
+    return ret;
 }
 
 //-------------------------------------------------------------------------
@@ -862,7 +863,6 @@ void CAhApp::SetConfig(const char* section, const char* param, const char* value
 
 void CAhApp::SetConfig(const char * section, const char * param, long value)
 {
-    char   buf[64];
     int    fileno = GetConfigFileNo(section);
     config_[fileno].set(section, param, value);
 }
@@ -872,13 +872,11 @@ void CAhApp::SetConfig(const char * section, const char * param, long value)
 
 int  CAhApp::GetSectionFirst(const char * szSection, const char *& szName, const char *& szValue)
 {
-    int idx;
-    int i;
     int fileno = GetConfigFileNo(szSection);
 
     if (config_[fileno].pair_begin(szSection) == config_[fileno].pair_end(szSection))
     {
-        for (i=0; i<DefaultConfigSize; i++)
+        for (int i=0; i<DefaultConfigSize; ++i)
             if (0==stricmp(szSection, DefaultConfig[i].szSection))
                 config_[fileno].set(szSection, DefaultConfig[i].szName, DefaultConfig[i].szValue);
     }
@@ -1377,7 +1375,7 @@ BOOL CAhApp::CanSeeAdvResources(const char * skillname, const char * terrain, CL
 
 //-------------------------------------------------------------------------
 
-int CAhApp::GetAttitudeForFaction(int id)
+int64_t CAhApp::GetAttitudeForFaction(int id)
 {
     int player_id = atol( GetConfig(SZ_SECT_ATTITUDES, SZ_ATT_PLAYER_ID));
     if(id == player_id) return ATT_FRIEND2;
@@ -1774,7 +1772,6 @@ void DecodeConfigLine(CStr & dest, const char * src)
 
 void CAhApp::LoadComments()
 {
-    int           i;
     char          buf[32];
     CStr          S;
 
@@ -1794,8 +1791,6 @@ void CAhApp::LoadComments()
 
 void CAhApp::SaveComments()
 {
-    int           i;
-    CUnit       * pUnit;
     char          buf[32];
     CStr          S;
     const char  * p;
@@ -1822,7 +1817,7 @@ void CAhApp::SaveComments()
 
 void CAhApp::LoadUnitFlags()
 {
-    int           i, x;
+    int           x;
     char          buf[32];
     CStr          S;
 
@@ -1844,8 +1839,6 @@ void CAhApp::LoadUnitFlags()
 
 void CAhApp::SaveUnitFlags()
 {
-    int           i;
-    CUnit       * pUnit;
     char          buf[32];
     CStr          S;
 
@@ -1867,7 +1860,6 @@ void CAhApp::SetAllLandUnitFlags()
     CUnitPane  * pUnitPane = (CUnitPane*)m_Panes[AH_PANE_UNITS_HEX];
     CPlane     * pPlane;
     CLand      * pLand;
-    CUnit      * pUnit;
     int          i, n, f, x;
     int          rc;
 
@@ -2304,120 +2296,6 @@ bool CAhApp::GetTradeActivityDescription(CLand* land, std::map<int, std::vector<
     return ret_val;
 }
 
-void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & TradeDetails)
-{
-    int             x, k;
-    CUnit         * pUnit;
-    EValueType      type;
-    long            men, lvl, tool, canproduce;
-    CStr            sCoord, Skill;
-    CItem      * pProd;
-    CTaxProdDetails * pFactionInfo = NULL;
-    CTaxProdDetails   Dummy;
-    int               idx;
-    CTaxProdDetailsCollByFaction Factions;
-    CTaxProdDetailsCollByFaction AllFactions;
-    wxString        OneLine;
-
-    for (k=0; k<pLand->Products.Count(); k++)
-    {
-        pProd = (CItem*)pLand->Products.At(k);
-        if (0==pProd->amount_)
-            continue;
-        std::shared_ptr<TProdDetails> details = GetProdDetails(pProd->code_name_.c_str());
-        Skill.Empty();
-        Skill << details->skill_name_.c_str() << PRP_SKILL_POSTFIX;
-
-        for (x=0; x<pLand->Units.Count(); x++)
-        {
-            pUnit = (CUnit*)pLand->Units.At(x);
-            if (pUnit->Flags & UNIT_FLAG_PRODUCING)
-            {
-                Dummy.FactionId = pUnit->FactionId;
-                if (TradeDetails.Search(&Dummy, idx))
-                    pFactionInfo = (CTaxProdDetails*)TradeDetails.At(idx);
-                else
-                {
-                    pFactionInfo = new CTaxProdDetails;
-                    pFactionInfo->FactionId = pUnit->FactionId;
-                    TradeDetails.Insert(pFactionInfo);
-                }
-                if (Factions.Insert(pFactionInfo))
-                    pFactionInfo->amount = pProd->amount_;
-                if (AllFactions.Insert(pFactionInfo) )
-                    pFactionInfo->HexCount++;
-
-                if ( 0==stricmp(pUnit->ProducingItem.GetData(), pProd->code_name_.c_str()))
-                {
-                    if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)men, eNormal) || eLong!=type)
-                        continue;
-
-                    // check skill level
-                    if (!pUnit->GetProperty(Skill.GetData(), type, (const void *&)lvl, eNormal) || (eLong!=type) )
-                        continue;
-
-                    if (!details->tool_name_.empty())
-                        if (!pUnit->GetProperty(details->tool_name_.c_str(), type, (const void *&)tool, eNormal) || eLong!=type )
-                            tool = 0;
-                    if (tool > men)
-                        tool = men;
-
-                    canproduce = (long)((((double)men)*lvl + tool*details->tool_plus_) / details->per_month_);
-                    pFactionInfo->amount -= canproduce;
-                }
-            }
-        }
-
-        for (int iFac=0; iFac<Factions.Count(); ++iFac)
-        {
-            pFactionInfo = (CTaxProdDetails*)Factions.At(iFac);
-
-            m_pAtlantis->ComposeLandStrCoord(pLand, sCoord);
-            OneLine.Empty();
-            OneLine << wxString::FromUTF8(pLand->TerrainType.GetData()) << wxT(" (") << wxString::FromUTF8(sCoord.GetData()) << wxT(") ");
-            if (!pLand->CityName.IsEmpty())
-                OneLine << wxString::FromUTF8(pLand->CityName.GetData()) << wxT(" ");
-
-            const int nettoProduction = -pFactionInfo->amount;
-            wxString prodBalance = wxString::Format("%d", nettoProduction);
-            if (nettoProduction >= 0 && nettoProduction <= 3)
-                prodBalance = "=";
-
-            wxCoord x, y;
-            wxClientDC myDC(m_Frames[AH_FRAME_MAP]);
-            myDC.GetTextExtent(prodBalance, &x, &y, NULL, NULL, (m_Fonts[FONT_ERR_DLG]));
-            const int prodBalanceWidth = x;
-
-            do
-            {
-                OneLine.Append(wxT(" "));
-                myDC.GetTextExtent(OneLine.GetData(), &x, &y, NULL, NULL, (m_Fonts[FONT_ERR_DLG]));
-            }
-            while (x < 245 - prodBalanceWidth);
-
-            OneLine << prodBalance << " " << wxString::FromUTF8(pProd->code_name_.c_str());
-
-            do
-            {
-                OneLine.Append(wxT(" "));
-                myDC.GetTextExtent(OneLine, &x, &y, NULL, NULL, (m_Fonts[FONT_ERR_DLG]));
-            }
-            while (x < 295);
-
-            const int percentage = 100 * (pProd->amount_ - pFactionInfo->amount) / (pProd->amount_);
-            const int myProductionCapacity = pProd->amount_ - pFactionInfo->amount;
-
-            OneLine << " (" << percentage << "%), " << myProductionCapacity << wxT("/") << pProd->amount_ << wxT(".") << wxString::FromUTF8(EOL_SCR);
-            pFactionInfo->Details << OneLine.ToUTF8();
-        }
-        Factions.DeleteAll();
-    }
-    // Add a whiteline between different regions
-    if (pFactionInfo)
-        pFactionInfo->Details << EOL_SCR;
-    AllFactions.DeleteAll();
-}
-
 //-------------------------------------------------------------------------
 
 void CAhApp::CheckTaxTrade()
@@ -2437,17 +2315,19 @@ void CAhApp::CheckTaxTrade()
 
     struct FactionStats 
     {
-        long trade_regions_amount_;
-        long tax_regions_amount_;
+        FactionStats() : trade_details_(), stats_() {};
+        //long trade_regions_amount_;
+        //long tax_regions_amount_;
         std::string trade_details_;
-        std::vector<std::string> stats_order_;
-        std::map<std::string, long> stats_;
+        //std::vector<std::string> stats_order_;
+        std::map<std::string, std::map<std::string, long>> stats_;
 
-        void add_stat(const std::string& name, long val)
+        void add_stat(const std::string& category, const std::string& name, long val)
         {
-            if (stats_.find(name) == stats_.end())
-                stats_order_.push_back(name);
-            stats_[name] += val;
+            if (category.empty()) 
+                stats_["General"][name] += val;
+            else
+                stats_[category][name] += val;
         }
     };
     std::map<long, FactionStats> output_stats;
@@ -2469,27 +2349,26 @@ void CAhApp::CheckTaxTrade()
 
                 scoreboard.insert(unit->FactionId);//once for each faction
 
-                output_stats[unit->FactionId].add_stat("Taxing men", pLand->current_state_.tax_.requesters_amount_);
-                output_stats[unit->FactionId].add_stat("Working men", pLand->current_state_.work_.requesters_amount_);
-                output_stats[unit->FactionId].add_stat("Entertaining men", pLand->current_state_.entertain_.requesters_amount_);
+                output_stats[unit->FactionId].add_stat("", "Taxing men", pLand->current_state_.tax_.requesters_amount_);
+                output_stats[unit->FactionId].add_stat("", "Working men", pLand->current_state_.work_.requesters_amount_);
+                output_stats[unit->FactionId].add_stat("", "Entertaining men", pLand->current_state_.entertain_.requesters_amount_);
 
                 if (pLand->current_state_.tax_.requesters_amount_ > 0)
-                    output_stats[unit->FactionId].tax_regions_amount_++;
+                    output_stats[unit->FactionId].add_stat("", "Taxing regions", 1);
 
                 if (unit_control::of_player(unit))
                 {
-                    output_stats[unit->FactionId].add_stat("Economy:", 0);
-                    output_stats[unit->FactionId].add_stat("    Initial SILV", pLand->current_state_.economy_.initial_amount_);
-                    output_stats[unit->FactionId].add_stat("    Claim", pLand->current_state_.economy_.claim_income_);
-                    output_stats[unit->FactionId].add_stat("    Tax/Pillage", pLand->current_state_.economy_.tax_income_);
-                    output_stats[unit->FactionId].add_stat("    Sell", pLand->current_state_.economy_.sell_income_);
-                    output_stats[unit->FactionId].add_stat("    Buy", pLand->current_state_.economy_.buy_expenses_);
-                    output_stats[unit->FactionId].add_stat("    Moving in", pLand->current_state_.economy_.moving_in_);
-                    output_stats[unit->FactionId].add_stat("    Moving out", pLand->current_state_.economy_.moving_out_);
-                    output_stats[unit->FactionId].add_stat("    Study", pLand->current_state_.economy_.study_expenses_);
-                    output_stats[unit->FactionId].add_stat("    Work/Entertain", pLand->current_state_.economy_.work_income_);
-                    output_stats[unit->FactionId].add_stat("    Maintenance", pLand->current_state_.economy_.maintenance_);
-                    output_stats[unit->FactionId].add_stat("    Balance", pLand->current_state_.economy_.initial_amount_ +
+                    output_stats[unit->FactionId].add_stat("Economy", "01. Initial SILV", pLand->current_state_.economy_.initial_amount_);
+                    output_stats[unit->FactionId].add_stat("Economy", "02. Claim", pLand->current_state_.economy_.claim_income_);
+                    output_stats[unit->FactionId].add_stat("Economy", "03. Tax/Pillage", pLand->current_state_.economy_.tax_income_);
+                    output_stats[unit->FactionId].add_stat("Economy", "04. Sell", pLand->current_state_.economy_.sell_income_);
+                    output_stats[unit->FactionId].add_stat("Economy", "05. Buy", pLand->current_state_.economy_.buy_expenses_);
+                    output_stats[unit->FactionId].add_stat("Economy", "06. Moving in", pLand->current_state_.economy_.moving_in_);
+                    output_stats[unit->FactionId].add_stat("Economy", "07. Moving out", pLand->current_state_.economy_.moving_out_);
+                    output_stats[unit->FactionId].add_stat("Economy", "08. Study", pLand->current_state_.economy_.study_expenses_);
+                    output_stats[unit->FactionId].add_stat("Economy", "09. Work/Entertain", pLand->current_state_.economy_.work_income_);
+                    output_stats[unit->FactionId].add_stat("Economy", "10. Maintenance", pLand->current_state_.economy_.maintenance_);
+                    output_stats[unit->FactionId].add_stat("Economy", "11. Balance", pLand->current_state_.economy_.initial_amount_ +
                                                                                   pLand->current_state_.economy_.claim_income_ + 
                                                                                   pLand->current_state_.economy_.tax_income_ + 
                                                                                   pLand->current_state_.economy_.sell_income_ - 
@@ -2500,18 +2379,41 @@ void CAhApp::CheckTaxTrade()
                                                                                   pLand->current_state_.economy_.work_income_ - 
                                                                                   pLand->current_state_.economy_.maintenance_);
 
+                    //pLand->current_state_.produced_items_
+
                     std::vector<land_control::Trader> buyers;
                     std::vector<unit_control::UnitError> errors;
                     land_control::get_land_buys(pLand, buyers, errors);
                     for (const auto& buyer : buyers)
                     {
-                        output_stats[unit->FactionId].add_stat("Bought", 0);
                         if (unit_control::of_player(buyer.unit_))
                         {
-                            output_stats[unit->FactionId].add_stat("    "+buyer.item_name_, buyer.items_amount_);
-                            output_stats[unit->FactionId].add_stat("Bought", buyer.items_amount_);
+                            output_stats[unit->FactionId].add_stat("Buy", buyer.item_name_, buyer.items_amount_);
+                            
+                            if (item_control::is_men(buyer.item_name_))
+                                output_stats[unit->FactionId].add_stat("Buy", "men", buyer.items_amount_);
+                            if (item_control::is_trade(buyer.item_name_))
+                                output_stats[unit->FactionId].add_stat("Buy", "trade items", buyer.items_amount_);
                         }
                     }
+
+                    std::vector<land_control::ProduceItem> producers;
+                    land_control::get_land_producers(pLand, producers, errors);
+                    for (const auto& producer : producers)
+                    {
+                        long req_amount(0);
+                        for (const auto& unit_pair : producer.units_)
+                            if (unit_control::of_player(unit_pair.first))
+                                req_amount += unit_pair.second;
+
+                        if (producer.is_craft_) 
+                            output_stats[unit->FactionId].add_stat("Craft", producer.item_name_, req_amount);
+                        else
+                        {
+                            long land_amount = land_control::get_resource(pLand->current_state_, producer.item_name_);
+                            output_stats[unit->FactionId].add_stat("Produce", producer.item_name_, std::min(land_amount, req_amount));
+                        }
+                    }                    
                 }
             });
 
@@ -2520,7 +2422,7 @@ void CAhApp::CheckTaxTrade()
             {
                 for (auto& fact_rep : reg_report)
                 {
-                    ++output_stats[fact_rep.first].trade_regions_amount_;
+                    output_stats[fact_rep.first].add_stat("", "Production/Trade region", 1);
                     output_stats[fact_rep.first].trade_details_.append(land_control::land_full_name(pLand) + EOL_SCR);
                     for (auto& line : fact_rep.second)
                     {
@@ -2534,19 +2436,40 @@ void CAhApp::CheckTaxTrade()
     for (auto& faction_stat : output_stats)
     {
         std::string header = "Faction: " + std::to_string(faction_stat.first) + EOL_SCR;
-        std::string tax_amount = "Amount of tax regions: " + std::to_string(faction_stat.second.tax_regions_amount_) + EOL_SCR;
-        std::string trade_amount = "Amount of trade regions: " + std::to_string(faction_stat.second.trade_regions_amount_)+ std::string(EOL_SCR);
         std::string trade_detailed = faction_stat.second.trade_details_ + EOL_SCR;
 
         ShowError(header.c_str(), header.size(), TRUE);
-        ShowError(tax_amount.c_str(), tax_amount.size(), TRUE);
-        //ShowError("Income"+EOL_SCR, sizeof("Income")-1+sizeof(EOL_SCR), TRUE);
-        for (auto& stat : faction_stat.second.stats_order_)
+
+        std::vector<std::string> categories_order = {
+            "General",
+            "Economy",
+            "Buy",
+            "Produce",
+            "Craft"
+        };
+
+        //known ordered categories
+        for (auto& category : categories_order)
         {
-            std::string temp = "    " + stat + " " + std::to_string(faction_stat.second.stats_[stat]) + EOL_SCR;
+            std::string temp = "    " + category + EOL_SCR;
+            for (auto& stat : faction_stat.second.stats_[category])
+            {
+                temp += "        " + stat.first + " " + std::to_string(stat.second) + EOL_SCR;
+            }
             ShowError(temp.c_str(), temp.size(), TRUE);
+            faction_stat.second.stats_.erase(category);
         }
-        ShowError(trade_amount.c_str(), trade_amount.size(), TRUE);
+
+        //the rest
+        for (auto& category : faction_stat.second.stats_)
+        {
+            std::string temp = "    " + category.first + EOL_SCR;
+            for (auto& stat : category.second)
+            {
+                temp += "        " + stat.first + " " + std::to_string(stat.second) + EOL_SCR;
+            }
+            ShowError(temp.c_str(), temp.size(), TRUE);
+        }        
         ShowError(trade_detailed.c_str(), trade_detailed.size(), TRUE);
 
 
@@ -2671,7 +2594,6 @@ void CAhApp::PostLoadReport()
     long              year, mon;
     const char      * szName;
     const char      * szValue;
-    CUnit           * pUnit;
     CPlane          * pPlane;
     CShortNamedObj  * pItem;
     CFaction          DummyFaction;
@@ -2996,7 +2918,7 @@ void CAhApp::SelectTempUnit(CUnit * pUnit)
     CUnitOrderEditPane   * pOrders      = (CUnitOrderEditPane*)m_Panes[AH_PANE_UNIT_COMMANDS];
     CEditPane   * pComments    = (CEditPane*)m_Panes[AH_PANE_UNIT_COMMENTS];
 
-    OnUnitHexSelectionChange(-1); // unselect
+    OnUnitHexSelectionChange(); // unselect ?? -- not unselecting
     m_UnitDescrSrc.Empty();
 
     if (pUnit)
@@ -3735,7 +3657,7 @@ void CAhApp::OnMapSelectionChange()
 //-------------------------------------------------------------------------
 
 
-bool CAhApp::OnUnitHexSelectionChange(long idx)
+bool CAhApp::OnUnitHexSelectionChange()
 {
     // It can be called as a result of selecting a hex on the map!
 
@@ -4527,9 +4449,7 @@ void CAhApp::CheckMonthLongOrders()
 void CAhApp::GetUnitsMovingIntoHex(long HexId, std::vector<CUnit*>& stopped, std::vector<CUnit*>& ended_moveorder) const
 {
     CLand          * pLand;
-    CUnit          * pUnit;
-    int              nl, nu, np;
-    int             unitHexId;
+    int              nl, np;
 
     for (np=0; np<m_pAtlantis->m_Planes.Count(); np++)
     {
@@ -4554,10 +4474,8 @@ void CAhApp::GetUnitsMovingIntoHex(long HexId, std::vector<CUnit*>& stopped, std
     }
 }
 
-void CAhApp::ShowUnitsMovingIntoHex(long CurHexId, CPlane * pCurPlane)
+void CAhApp::ShowUnitsMovingIntoHex(long CurHexId)
 {
-    CUnit          * pUnit;
-    int              i;
     CUnitPaneFltr  * pUnitPaneF = NULL;
     CStr             UnitText(128), S(16);
 
@@ -4825,6 +4743,7 @@ void CAhApp::ExportHexes()
 
     if ( GetExportHexOptions(sName, sData, options, HexIncl, InclTurnNoAcl) &&
          Dest.Open(sName.GetData(), sData.GetData()) )
+    {
         if (HexCurrent==HexIncl)
         {
             pPlane   = (CPlane*)m_pAtlantis->m_Planes.At(pMapPane->m_SelPlane);
@@ -4843,6 +4762,7 @@ void CAhApp::ExportHexes()
 
             Hexes.DeleteAll();
         }
+    }
     Dest.Close();
 }
 
@@ -5261,7 +5181,7 @@ BOOL CGameDataHelper::CanSeeAdvResources(const char * skillname, const char * te
     return gpApp->CanSeeAdvResources(skillname, terrain, Levels, Resources);
 }
 
-int CGameDataHelper::GetAttitudeForFaction(int id)
+int64_t CGameDataHelper::GetAttitudeForFaction(int id)
 {
     return gpApp->GetAttitudeForFaction(id);
 }

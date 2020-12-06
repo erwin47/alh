@@ -36,6 +36,7 @@ class CUnitPane: public CListPane
 {
 public:
     CUnitPane(wxWindow *parent, wxWindowID id = list_units_hex);
+    virtual ~CUnitPane() {}
     virtual void Init(CAhFrame * pParentFrame, const char * szConfigSection, const char * szConfigSectionHdr);
     virtual void Done();
     void         Update(CLand * pLand, std::function<bool(CUnit* unit)> filter = default_unit_filter);

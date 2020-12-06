@@ -243,7 +243,7 @@ enum {
 
 //#define NEW_UNIT_ID(_n, _FactId) ((_FactId << 16) | _n)
 
-static long compose_new_unit_id(long x, long y, long z, long Fid, long id) {
+static inline long compose_new_unit_id(long x, long y, long z, long Fid, long id) {
     assert(x < UINT16_MAX / 16);
     assert(y < UINT16_MAX / 16);
     assert(z < UINT8_MAX);
@@ -376,7 +376,7 @@ protected:
 class CFaction : public CBaseObject
 {
 public:
-    CFaction() : CBaseObject() {UnclaimedSilver=0;};
+    CFaction() : CBaseObject(), UnclaimedSilver(0) {UnclaimedSilver=0;};
     long UnclaimedSilver;
 
     virtual void DebugPrint(CStr & sDest);
@@ -387,6 +387,7 @@ public:
 class CAttitude : public CBaseObject
 {
     public:
+        CAttitude() : FactionId(0), Stance(0) {}
         int FactionId;
         int Stance;
         void    SetStance(int new_stance);
@@ -510,8 +511,8 @@ enum class SHIP_TRAVEL {
 class CStruct : public CBaseObject
 {
 public:
-    CStruct() : CBaseObject(), LandId(0), OwnerUnitId(0), Attr(0), occupied_capacity_(0),
-                                SailingPower(0), capacity_(0), MinSailingPower(0)
+    CStruct() : CBaseObject(), LandId(0), OwnerUnitId(0), Attr(0), SailingPower(0), 
+                                MinSailingPower(0), occupied_capacity_(0), capacity_(0)
     {}
     virtual void ResetNormalProperties();
     long LandId;
@@ -826,7 +827,7 @@ public:
     BOOL         ImmediateProdCheck();
     BOOL         CanSeeAdvResources(const char * skillname, const char * terrain, CLongColl & Levels, CBufColl & Resources);
     BOOL         IsRawMagicSkill   (const char * skillname);
-    int          GetAttitudeForFaction(int id);
+    int64_t      GetAttitudeForFaction(int id);
     void         SetAttitudeForFaction(int id, int attitude);
     void         SetPlayingFaction (long id);
     BOOL         IsWagon           (const char * item);

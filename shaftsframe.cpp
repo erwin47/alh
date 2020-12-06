@@ -24,7 +24,7 @@ BEGIN_EVENT_TABLE(ShaftsFrame,wxFrame)
     EVT_CLOSE  (              ShaftsFrame::OnCloseWindow)
 END_EVENT_TABLE()
 
-ShaftsFrame::ShaftsFrame(wxWindow* parent,wxWindowID id) : CAhFrame(parent, "Connect Shafts", wxDEFAULT_FRAME_STYLE)
+ShaftsFrame::ShaftsFrame(wxWindow* parent,wxWindowID ) : CAhFrame(parent, "Connect Shafts", wxDEFAULT_FRAME_STYLE)
 {
 	SetClientSize(wxSize(475,225));
 	TextCtrlHex1 = new wxTextCtrl(this, ID_TEXTCTRL1, wxEmptyString, wxPoint(56,24), wxSize(384,21), 0, wxDefaultValidator, _T("ID_TEXTCTRL1"));
@@ -54,7 +54,7 @@ ShaftsFrame::~ShaftsFrame()
     Destroy();
 }
 
-const char * ShaftsFrame::GetConfigSection(int layout)
+const char * ShaftsFrame::GetConfigSection(int )
 {
     return SZ_SECT_WND_SHAFTS;
 }
@@ -88,7 +88,7 @@ void ShaftsFrame::UpdateSelect(wxChoice * choice, CLand * pLand)
     }
 }
 
-void ShaftsFrame::OnTextCtrlUpdate(wxCommandEvent& event)
+void ShaftsFrame::OnTextCtrlUpdate(wxCommandEvent& )
 {
     CLand * pLandHex1 = gpApp->m_pAtlantis->GetLandFlexible(TextCtrlHex1->GetValue());
     if (gpApp->m_pAtlantis->GetLandFlexible(StaticTextHex1->GetLabel()) != pLandHex1)
@@ -118,7 +118,7 @@ void ShaftsFrame::OnTextCtrlUpdate(wxCommandEvent& event)
     }
 }
 
-void ShaftsFrame::OnButtonConnectShaftClick(wxCommandEvent& event)
+void ShaftsFrame::OnButtonConnectShaftClick(wxCommandEvent& )
 {
     CLand * pLandHex1 = gpApp->m_pAtlantis->GetLandFlexible(TextCtrlHex1->GetValue());
     CLand * pLandHex2 = gpApp->m_pAtlantis->GetLandFlexible(TextCtrlHex2->GetValue());

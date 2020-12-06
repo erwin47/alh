@@ -135,33 +135,33 @@ namespace orders
         {orders::Type::O_PRODUCE, [](const std::vector<std::string>&) {  return true;  } },
         {orders::Type::O_PROMOTE, [](const std::vector<std::string>&) {  return true;  } },
         {orders::Type::O_QUIT, [](const std::vector<std::string>&) {  return true;  } },
-        {orders::Type::O_RESTART, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_REVEAL, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_SAIL, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_SELL, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_SHARE, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_SHOW, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_SPOILS, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_STEAL, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_STUDY, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_TAX, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_TEACH, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_WEAPON, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_WITHDRAW, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_WORK, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_RECRUIT, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_TYPE, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_LABEL, [](const std::vector<std::string>& words) {  return true;  } },
+        {orders::Type::O_RESTART, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_REVEAL, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_SAIL, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_SELL, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_SHARE, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_SHOW, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_SPOILS, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_STEAL, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_STUDY, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_TAX, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_TEACH, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_WEAPON, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_WITHDRAW, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_WORK, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_RECRUIT, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_TYPE, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_LABEL, [](const std::vector<std::string>& ) {  return true;  } },
 // must be in this sequence! {"", orders::Type::O_ENDXXX == {"", orders::Type::O_XXX+1
-        {orders::Type::O_TURN, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_ENDTURN, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_TEMPLATE, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_ENDTEMPLATE, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_ALL, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_ENDALL, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_COMMENT, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_COMMENT_AUTONAME, [](const std::vector<std::string>& words) {  return true;  } },
-        {orders::Type::O_ERROR, [](const std::vector<std::string>& words) {  return true;  } }
+        {orders::Type::O_TURN, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_ENDTURN, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_TEMPLATE, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_ENDTEMPLATE, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_ALL, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_ENDALL, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_COMMENT, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_COMMENT_AUTONAME, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_ERROR, [](const std::vector<std::string>& ) {  return true;  } }
     };
 
 
@@ -458,7 +458,6 @@ namespace orders
             const char* begin = orders.c_str();
             const char* end = begin + orders.size();
             const char* runner = begin;
-            int inside_turn_endturn = 0;
             while(runner < end)
             {
                 if (*runner == '\n')
@@ -1086,24 +1085,38 @@ namespace orders
 
         bool parse_get(const std::shared_ptr<Order>& order, long& amount, std::string& item)
         {
-            std::vector<std::string> words;
-            orders::utils::parse_order_line(order->comment_.substr(2), words);
-            if (words.size() != 3)
-                return false;
+            size_t pos = std::min(order->comment_.find(";$GET"), order->comment_.find(";!GET"));
+            if (pos != std::string::npos)
+            {
+                std::string statement = trim(order->comment_.substr(pos+sizeof(";$GET")));
+                const char* beg = statement.c_str();
+                const char* runner = beg;
+                const char* end = beg + statement.size();
 
-            if (stricmp(words[0].c_str(), "get") != 0)
-                return false;
+                //extract number
+                amount = 0;
+                while (*runner >= '0' && *runner <= '9' && runner < end)
+                {
+                    amount = (*runner - '0') + amount*10;
+                    ++runner;
+                }
 
-            amount = atol(words[1].c_str());
-            if (amount == 0 && words[1].size() != 1 && words[1][0] != '0')
-                return false;
+                //didn't find a number
+                if (runner == beg)
+                    return false;
 
-            std::string codename, name, plural;
-            if (gpApp->ResolveAliasItems(words[2], codename, name, plural))
-                item = codename;
-            else
-                item = words[2];
-            return true;
+                //to next word
+                while (*runner == ' ' && runner < end)
+                    ++runner;
+
+                std::string codename, name, plural;
+                if (gpApp->ResolveAliasItems(runner, codename, name, plural))
+                    item = codename;
+                else
+                    item = runner;
+                return true;
+            }
+            return false;
         }
 
         bool parse_logic(const std::shared_ptr<Order>& order, LogicAction& action, std::string& statement, bool& debug)
@@ -1350,31 +1363,31 @@ namespace orders
                 void add_need(CUnit* unit, const std::string& codename, long unit_req, long priority, std::vector<AutoRequirement>& needs)
                 {
                     if (unit_req == -1)//no need to calculate amount, because -1 means "ALL"
-                        needs.emplace_back(AutoRequirement{codename, -1, priority, unit});
+                        needs.emplace_back(AutoRequirement{codename, -1, priority, unit, nullptr});
                     else if (unit_req >= 0)
                     {
                         long to_request = unit_req - unit_control::get_item_amount(unit, codename);
                         if (to_request > 0)
-                            needs.emplace_back(AutoRequirement{codename, to_request, priority, unit});
+                            needs.emplace_back(AutoRequirement{codename, to_request, priority, unit, nullptr});
                     }            
                 }
 
                 void add_need_mount(CUnit* unit, const std::string& codename, long unit_req, long priority, std::vector<AutoRequirement>& needs)
                 {
                     if (unit_req == -1)//no need to calculate amount, because -1 means "ALL"
-                        needs.emplace_back(AutoRequirement{codename, -1, priority, unit});
+                        needs.emplace_back(AutoRequirement{codename, -1, priority, unit, nullptr});
                     else if (unit_req >= 0)
                     {
                         long to_request = unit_req - unit_control::get_item_amount(unit, codename);
                         if (to_request > 0)
-                            needs.emplace_back(AutoRequirement{codename, to_request, priority, unit});
+                            needs.emplace_back(AutoRequirement{codename, to_request, priority, unit, nullptr});
                     }            
                 }
 
                 void add_needreg(CUnit* unit, const std::string& codename, long unit_req, long priority, std::vector<AutoRequirement>& needs)
                 {
                     if (unit_req == -1)//no need to calculate amount, because -1 means "ALL"
-                        needs.emplace_back(AutoRequirement{codename, -1, priority, unit});
+                        needs.emplace_back(AutoRequirement{codename, -1, priority, unit, nullptr});
                     else if (unit_req >= 0)
                     {
                         CLand* land = land_control::get_land(unit->LandId);
@@ -1387,7 +1400,7 @@ namespace orders
                             }); 
                             long to_request = unit_req - existing_amount;
                             if (to_request > 0)
-                                needs.emplace_back(AutoRequirement{codename, to_request, priority, unit});
+                                needs.emplace_back(AutoRequirement{codename, to_request, priority, unit, nullptr});
                         }
                     }            
                 }
@@ -1619,7 +1632,7 @@ namespace orders
         std::shared_ptr<CaravanInfo> get_caravan_info(UnitOrders& unit_orders)
         {
             //CaravanInfo retCI = std::make_shared<CaravanInfo>();
-            CaravanSpeed speed;
+            CaravanSpeed speed(CaravanSpeed::UNDEFINED);
             std::vector<RegionInfo> regions;
             CLand* goal_region = nullptr;
             auto order_comments = orders::control::retrieve_orders_by_type(orders::Type::O_COMMENT, unit_orders);

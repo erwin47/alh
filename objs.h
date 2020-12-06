@@ -164,7 +164,7 @@ public:
     TObject() {};
     virtual ~TObject() {};
 
-    virtual BOOL HandleEvent(TEvent * event) {return FALSE;};
+    virtual BOOL HandleEvent(TEvent * ) {return FALSE;};
 };
 
 //-------------------------------------------------------------------

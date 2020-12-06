@@ -46,6 +46,13 @@ namespace item_control
     std::string codename(const std::string& name);
 
     int weight(const std::string& item_code);
+
+    bool is_men(const std::string& item);
+    bool is_trade(const std::string& item);
+    bool is_artifact(const std::string& item);
+    bool is_weapon(const std::string& item);
+    bool is_armor(const std::string& item);
+    bool is_mount(const std::string& item);
 }
 
 namespace unit_control
@@ -199,6 +206,8 @@ namespace land_control
     void add_resource(LandState& state, const CItem& item);
     long get_resource(LandState& state, const std::string& item_code);
     void set_produced_items(LandState& state, const std::string& item_code, long amount, long attempt_amount);
+
+    void update_observable_resources(CLand* land, CUnit* unit);
 
     CStruct* get_struct(CLand* land, long struct_id);
     long get_struct_weight(CLand* land, long struct_id);

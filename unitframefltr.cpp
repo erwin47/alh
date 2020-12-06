@@ -55,7 +55,7 @@ CUnitFrameFltr::CUnitFrameFltr(wxWindow * parent)
 
 //--------------------------------------------------------------------
 
-const char * CUnitFrameFltr::GetConfigSection(int layout)
+const char * CUnitFrameFltr::GetConfigSection(int )
 {
     // we do not depend on layout
     return SZ_SECT_WND_UNITS_FLTR;
@@ -97,7 +97,7 @@ void CUnitFrameFltr::Done(BOOL SetClosedFlag)
 //--------------------------------------------------------------------
 
 
-void CUnitFrameFltr::OnCloseWindow(wxCloseEvent& event)
+void CUnitFrameFltr::OnCloseWindow(wxCloseEvent& )
 {
     gpApp->FrameClosing(this);
     Destroy();

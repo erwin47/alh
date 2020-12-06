@@ -183,7 +183,7 @@ void CUnitSplitDlg::ScanProperties()
 
 //--------------------------------------------------------------------------
 
-void CUnitSplitDlg::OnOk(wxCommandEvent& event)
+void CUnitSplitDlg::OnOk(wxCommandEvent& )
 {
     CLand * pLand;
     int     id,i,idx;
@@ -234,7 +234,7 @@ void CUnitSplitDlg::OnOk(wxCommandEvent& event)
 
 //--------------------------------------------------------------------------
 
-void CUnitSplitDlg::OnCancel(wxCommandEvent& event)
+void CUnitSplitDlg::OnCancel(wxCommandEvent& )
 {
     StoreSize();
     EndModal(wxID_CANCEL);

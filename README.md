@@ -53,6 +53,12 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 
 
 ## Changelog:
+### Dec 06 2020
+- CMake: added -Wall, -Wextra and other useful flags for compilation.
+- Refactoring: get rid of unused variables, a lot of syntax fixes, a lot of logical unrecognized bugs.
+- FactionStats: more stats at "Check Tax & Trade".
+- Observable resource logic: updated.
+- Autologic: $OWNER flag (ownership of a building)
 ### Oct 31 2020
 - TaxTrade report: better looking info.
 - RoutePlanner: fixed bug of usage lead to division by zero

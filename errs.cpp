@@ -21,7 +21,7 @@
 #include "errs.h"
 #include <stdio.h>
 
-void LogError(const char * fname, int lineno, int level, const char * msg)
+void LogError(const char * fname, int lineno, int , const char * msg)
 {
     fprintf(stderr, "Error, file %s, line %d: %s\n", fname, lineno, msg);    
 }

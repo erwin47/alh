@@ -145,7 +145,7 @@ void CEditsFrame::Done(BOOL SetClosedFlag)
 //--------------------------------------------------------------------
 
 
-void CEditsFrame::OnCloseWindow(wxCloseEvent& event)
+void CEditsFrame::OnCloseWindow(wxCloseEvent& )
 {
     gpApp->FrameClosing(this);
     Destroy();

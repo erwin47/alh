@@ -100,6 +100,11 @@ set(AH_HEADERS
 # specify the C++ standard
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+# -Wconversion
+# -Wcast-qual
+SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wextra -Woverloaded-virtual -Wfloat-equal -ftrapv -Wpointer-arith -Wuninitialized -Winit-self -Wno-unused-parameter")
+set(CMAKE_CXX_FLAGS_DEBUG_INIT "-fstrong-eval-order -Wcomma-subscript -fstack-protector-all")
+set(CMAKE_CXX_FLAGS_RELEASE_INIT "-fstrong-eval-order -Wcomma-subscript")
 
 option(USE_PYTHON "Python library" OFF)
 

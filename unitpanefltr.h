@@ -28,7 +28,7 @@ class CUnitPaneFltr: public CUnitPane
 {
 public:
     CUnitPaneFltr(wxWindow *parent, wxWindowID id = list_units_hex_fltr);
-    void         Update(CUnitFilterDlg * pFilter);
+    void         UpdateFltr(CUnitFilterDlg * pFilter);
     virtual void Done();
 
 

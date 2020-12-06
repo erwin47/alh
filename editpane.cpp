@@ -77,7 +77,7 @@ void CEditorForPane::OnKillFocus(wxFocusEvent& event)
     event.Skip();
 }
 
-void CEditorForPane::OnMouseEvent(wxMouseEvent& event)
+void CEditorForPane::OnMouseEvent(wxMouseEvent& )
 {
     // maybe it can be handled in the parent control, but just to be sure
     m_pParent->OnMouseDClick();
@@ -214,7 +214,7 @@ void CEditPane::SetReadOnly(BOOL ReadOnly)
 
 //--------------------------------------------------------------------
 
-void CEditPane::OnKillFocus(wxFocusEvent& event)
+void CEditPane::OnKillFocus(wxFocusEvent& )
 {
     test_ = 5;
 }
@@ -254,7 +254,7 @@ CUnitOrderEditPane::CUnitOrderEditPane(wxWindow *parent, const wxString &header,
 
 }
 
-void CUnitOrderEditPane::OnOrderModified(wxCommandEvent& event)
+void CUnitOrderEditPane::OnOrderModified(wxCommandEvent& )
 {//EVT_KILL_FOCUS
  /*   if (unit_ != NULL && m_pEditor->IsModified())
     {
@@ -295,7 +295,7 @@ CUnit* CUnitOrderEditPane::change_representing_unit(CUnit* unit)
     return prev_unit;
 }
 
-void CUnitOrderEditPane::OnKillFocus(wxFocusEvent& event)
+void CUnitOrderEditPane::OnKillFocus(wxFocusEvent& )
 {
     test_ = 25;
 }

@@ -326,7 +326,6 @@ BOOL CLand::AddUnit(CUnit * pUnit)
 void CLand::RemoveUnit(CUnit * pUnit)
 {
     int i;
-    CUnit * p;
 
     if (Units.Search(pUnit, i))
     {
@@ -909,7 +908,7 @@ void CUnit::ResetNormalProperties()
 
 //-------------------------------------------------------------
 
-void CUnit::AddWeight(int nitems, int * weights, const char ** movenames, int nweights)
+void CUnit::AddWeight(int nitems, int * weights, const char ** , int nweights)
 {
     int  i;
     int  NW = std::min(nweights, MOVE_MODE_MAX);

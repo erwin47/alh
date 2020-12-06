@@ -153,7 +153,7 @@ void CAhFrame::SetPane(int no, wxWindow * pane)
 
 //--------------------------------------------------------------------------
 
-void CAhFrame::OnSaveOrders(wxCommandEvent& WXUNUSED(event))
+void CAhFrame::OnSaveOrders(wxCommandEvent& )
 {
     gpApp->SaveOrders(TRUE);
 }
@@ -161,21 +161,21 @@ void CAhFrame::OnSaveOrders(wxCommandEvent& WXUNUSED(event))
 
 //--------------------------------------------------------------------------
 
-void CAhFrame::OnNextUnit(wxCommandEvent& event)
+void CAhFrame::OnNextUnit(wxCommandEvent& )
 {
     gpApp->SelectNextUnit();
 }
 
 //--------------------------------------------------------------------------
 
-void CAhFrame::OnPrevUnit(wxCommandEvent& event)
+void CAhFrame::OnPrevUnit(wxCommandEvent& )
 {
     gpApp->SelectPrevUnit();
 }
 
 //--------------------------------------------------------------------------
 
-void CAhFrame::OnUnitList(wxCommandEvent& event)
+void CAhFrame::OnUnitList(wxCommandEvent& )
 {
     gpApp->SelectUnitsPane();
 }
@@ -183,7 +183,7 @@ void CAhFrame::OnUnitList(wxCommandEvent& event)
 //--------------------------------------------------------------------------
 
 
-void CAhFrame::OnOrders(wxCommandEvent& event)
+void CAhFrame::OnOrders(wxCommandEvent& )
 {
     gpApp->SelectOrdersPane();
 }

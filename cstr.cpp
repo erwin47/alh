@@ -77,10 +77,12 @@ const char * stristr( const char * string, const char * image )
     {
         string = strpbrk(string, first);
         if (string)
+        {
             if (0==strnicmp(string, image, imagelen))
                 return string;
             else
                 string++;
+        }
     }
 
     return NULL;
@@ -441,7 +443,7 @@ char * CStr::GetInteger(const char * Src, BOOL & Valid)
         Src++;
     }
 
-    Valid = m_nStrLen > 1 || m_nStrLen == 1 && *m_pData != '-';
+    Valid = m_nStrLen > 1 || (m_nStrLen == 1 && *m_pData != '-');
 
     return (char*)Src;
 }
@@ -456,7 +458,7 @@ char * CStr::GetDouble(const char * Src, BOOL & Valid)
 
     while (Src)
     {
-        if ( (*Src>='0') && (*Src<='9') || (*Src=='.') )
+        if ( (*Src>='0' && *Src<='9') || (*Src=='.') )
             AddCh(*Src);
         else
             if ( ('-'==*Src) && (0==GetLength()) )
@@ -466,7 +468,7 @@ char * CStr::GetDouble(const char * Src, BOOL & Valid)
         Src++;
     }
 
-    Valid = m_nStrLen > 1 || m_nStrLen == 1 && *m_pData != '-' && *m_pData != '.';
+    Valid = m_nStrLen > 1 || (m_nStrLen == 1 && *m_pData != '-' && *m_pData != '.');
 
     return (char*)Src;
 }
@@ -482,7 +484,7 @@ BOOL CStr::IsInteger()
 
     while (*p)
     {
-        if ( *p>='0' && *p<='9' || 0==pos && '-'==*p)
+        if (( *p>='0' && *p<='9' )||( 0==pos && '-'==*p))
             Ok = TRUE;
         else
             return FALSE;
@@ -729,11 +731,15 @@ void CStr::Normalize()
     TrimLeft(TRIM_ALL);
 
     for (i=m_nStrLen-1; i>0; i--)
+    {
         if (m_pData[i] <= ' ')
+        {
             if (m_pData[i-1] <= ' ')
                 DelCh(i);
             else
                 m_pData[i] = ' ';
+        }
+    }
 }
 
 //--------------------------------------------------------------------------

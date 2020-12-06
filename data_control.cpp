@@ -8,6 +8,7 @@
 #include <numeric> //for accumulate
 #include "ah_control.h"
 #include "autonaming.h"
+#include <unordered_set>
 
 
 namespace item_control
@@ -25,6 +26,45 @@ namespace item_control
         std::vector<long> vars = game_control::get_game_config<long>(SZ_SECT_WEIGHT_MOVE, item_code.c_str());
         return vars[0];
     }
+
+    std::unordered_set<std::string> vector_to(const std::vector<std::string>& vec)
+    {
+        return std::unordered_set<std::string>(vec.begin(), vec.end());
+    }
+
+    bool is_men(const std::string& item) 
+    {
+        static std::unordered_set<std::string> dict = vector_to(game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, PRP_MEN));
+        return dict.find(item) != dict.end();
+    }
+    bool is_trade(const std::string& item)
+    {
+        static std::unordered_set<std::string> dict = vector_to(game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, PRP_TRADE_ITEMS));
+        return dict.find(item) != dict.end();
+    }
+
+    bool is_artifact(const std::string& item)
+    {
+        static std::unordered_set<std::string> dict = vector_to(game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, PRP_MAG_ITEMS));
+        return dict.find(item) != dict.end();
+    }
+
+    bool is_weapon(const std::string& item)
+    {
+        static std::unordered_set<std::string> dict = vector_to(game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, PRP_WEAPONS));
+        return dict.find(item) != dict.end();
+    }    
+    bool is_armor(const std::string& item)
+    {
+        static std::unordered_set<std::string> dict = vector_to(game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, PRP_ARMORS));
+        return dict.find(item) != dict.end();
+    }
+
+    bool is_mount(const std::string& item)
+    {
+        static std::unordered_set<std::string> dict = vector_to(game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, PRP_MOUNTS));
+        return dict.find(item) != dict.end();
+    }    
 
     CItem get_by_code(const std::set<CItem>& items, const std::string& code_name)
     {
@@ -932,7 +972,7 @@ namespace land_control
     {
         CBaseObject Dummy;
         Dummy.Name = plane_name;
-        for (size_t i=0; i<gpApp->m_pAtlantis->m_Planes.Count(); i++)
+        for (int i=0; i<gpApp->m_pAtlantis->m_Planes.Count(); i++)
         {
             CPlane* pPlane = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(i);
             if (stricmp(pPlane->Name.GetData(), plane_name) == 0)
@@ -952,6 +992,44 @@ namespace land_control
             }
         }
         state.resources_.emplace_back(item);
+    }
+
+    std::unordered_map<std::string, std::pair<std::string, long>> create_skill_resource_cache()
+    {
+        std::unordered_map<std::string, std::pair<std::string, long>> cache_res_skill;//<resource, <skill, lvl>>
+        std::vector<std::pair<std::string, std::string>> skill_res_config = game_control::get_all_configuration(SZ_SECT_RESOURCE_SKILL);
+        for (const auto& pair : skill_res_config)
+        {
+            auto vec = game_control::convert_to_vector<game_control::NameAndAmount>(pair.second);
+            for (const game_control::NameAndAmount& na : vec)
+                cache_res_skill[na.name_] = {pair.first, na.amount_};
+        }
+        return cache_res_skill;
+    }
+
+    void update_observable_resources(CLand* land, CUnit* unit)
+    {
+        //<resource, <skill, lvl>>
+        static std::unordered_map<std::string, std::pair<std::string, long>> cache_skills = create_skill_resource_cache();
+        //<terrain_type, vector<resource>>
+        static std::unordered_map<std::string, std::vector<std::string>> cache_resources;
+
+        std::string terrain_type = std::string(land->TerrainType.GetData(),land->TerrainType.GetLength());
+
+        if (cache_resources.find(terrain_type) == cache_resources.end())
+            cache_resources[terrain_type] = game_control::get_game_config<std::string>(SZ_SECT_RESOURCE_LAND, terrain_type.c_str());
+
+        for (const std::string& res : cache_resources[terrain_type])
+        {
+            if (cache_skills.find(res) != cache_skills.end())
+            {
+                long skill_days = unit_control::get_current_skill_days(unit, cache_skills[res].first);
+                long skill_lvl = skills_control::get_skill_lvl_from_days(skill_days);
+                if (skill_lvl >= cache_skills[res].second)
+                    if (land_control::get_resource(land->initial_state_, res) == 0)
+                        land_control::add_resource(land->initial_state_, {0, res});
+            }
+        }
     }
 
     bool is_water(CLand* land)
@@ -1012,6 +1090,7 @@ namespace land_control
             case South     : road0 = SA_ROAD_S;  road1 = SA_ROAD_N;     break;
             case Southwest : road0 = SA_ROAD_SW; road1 = SA_ROAD_NE;    break;
             case Northwest : road0 = SA_ROAD_NW; road1 = SA_ROAD_SE;    break;
+            case Center    : return false; //no road to center.
         }
 
         
@@ -1213,7 +1292,7 @@ namespace land_control
 
 
     template<orders::Type TYPE>
-    void affect_other_flags(CUnit* unit)  {  return;  }
+    void affect_other_flags(CUnit* )  {  return;  }
     template<>
     void affect_other_flags<orders::Type::O_AVOID>(CUnit* unit)
     {
@@ -1664,7 +1743,7 @@ namespace land_control
         distribute_silver(out.units_, out.man_amount_, out.expected_income_, "from entertain", apply_changes);
     }
 
-    void get_land_workers(CLand* land, Incomers& out, std::vector<unit_control::UnitError>& errors, bool apply_changes)
+    void get_land_workers(CLand* land, Incomers& out, std::vector<unit_control::UnitError>& , bool apply_changes)
     {
         out.expected_income_ = 0;
         out.man_amount_ = 0;
@@ -1696,12 +1775,54 @@ namespace land_control
         distribute_silver(out.units_, out.man_amount_, out.expected_income_, "from work", apply_changes);
     }
 
+    long get_taxers_amount(CUnit* unit, std::shared_ptr<orders::Order> order, std::vector<unit_control::UnitError>& errors)
+    {
+        //men in unit
+        long man_in_unit = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
+        if (man_in_unit == 0)
+        {
+            errors.push_back({"Error", unit, order, "tax: no man to tax"});
+            return 0;
+        }
+
+        //check for skill, allowing tax by itself
+        static auto tax_skills = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, SZ_KEY_SKILL_TAX);
+        if (tax_skills.size() == 0)
+            errors.push_back({"Warning", unit, order, "tax: SKILL_TAX of TAX_RULES is empty"});
+
+        for (const auto& tax_skill : tax_skills)
+        {
+            if (unit_control::get_current_skill_days(unit, tax_skill) >= 30)
+                return man_in_unit;
+        }
+
+        //check for items allowing to tax by themselves
+        static auto tax_items = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, SZ_KEY_NO_SKILL_TAX);
+        long items_allowing_tax_wothout_skill(0);
+        for (const auto& tax_item : tax_items)
+            items_allowing_tax_wothout_skill += unit_control::get_item_amount(unit, tax_item);
+        
+        //check fpr pair of skill & item which allow to tax
+        static auto tax_skills_list = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, SZ_KEY_TAX_SKILL_LIST);
+        long items_allowing_tax_with_presented_skills(0);
+        for (const auto& cur_skill : tax_skills_list)
+        {
+            if (unit_control::get_current_skill_days(unit, cur_skill) < 30)
+                continue;
+
+            auto cur_skills_items = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, cur_skill.c_str());
+            for (const auto& cur_skills_item : cur_skills_items)
+                items_allowing_tax_with_presented_skills += unit_control::get_item_amount(unit, cur_skills_item);
+        }
+        return std::min(man_in_unit, items_allowing_tax_wothout_skill + items_allowing_tax_with_presented_skills);
+    }
+
     void get_land_taxers(CLand* land, Incomers& out, std::vector<unit_control::UnitError>& errors, bool apply_changes)
     {
-        if (land->Flags & LAND_TAX_NEXT == 0)
+        if ((land->Flags & LAND_TAX_NEXT) == 0)
             return;
 
-        long tax_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER);
+        static long tax_per_man = game_control::get_game_config_val<long>(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER);
 
         out.expected_income_ = 0;
         out.man_amount_ = 0;
@@ -1721,58 +1842,27 @@ namespace land_control
         long other_factions_men_pillage(0);
 
         land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+            //needs to be redone, so it would use actual orders instead of flags, and it will 
+            //be possible to check if order has supress error flag
             if (!unit_control::flags::is_taxing(unit) && !unit_control::flags::is_pillaging(unit))
                 return;
 
-            long man_in_unit = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-            if (man_in_unit == 0)
-            {
-                errors.push_back({"Error", unit, nullptr, "tax: no man to tax"});
-                return;
-            }
-
-            //find how many people really can tax/pillage
-            long taxing_man(0);
-            auto tax_skills = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, SZ_KEY_SKILL_TAX);
-            for (const auto& tax_skill : tax_skills)
-            {
-                if (unit_control::get_current_skill_days(unit, tax_skill) >= 30)
-                {
-                    taxing_man = man_in_unit;
-                    break;
-                }                    
-            }
-            if (taxing_man == 0)
-            {//need to check items allowing to tax by themselves or with a specific skill
-                auto tax_items = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, SZ_KEY_NO_SKILL_TAX);
-                long items_allowing_tax_wothout_skill(0);
-                for (const auto& tax_item : tax_items)
-                    items_allowing_tax_wothout_skill += unit_control::get_item_amount(unit, tax_item);
-                
-                //add all items which allow taxing ability to a peasant by themselves
-                //taxing_man += std::min(man_in_unit, items_allowing_tax_wothout_skill);
-
-                auto tax_skills_list = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, SZ_KEY_TAX_SKILL_LIST);
-                long items_allowing_tax_with_presented_skills(0);
-                for (const auto& cur_skill : tax_skills_list)
-                {
-                    if (unit_control::get_current_skill_days(unit, cur_skill) < 30)
-                        continue;
-
-                    auto cur_skills_items = game_control::get_game_config<std::string>(SZ_SECT_TAX_RULES, cur_skill.c_str());
-                    for (const auto& cur_skills_item : cur_skills_items)
-                        items_allowing_tax_with_presented_skills += unit_control::get_item_amount(unit, cur_skills_item);
-                }
-                taxing_man = std::min(man_in_unit, items_allowing_tax_wothout_skill + items_allowing_tax_with_presented_skills);
-            }
-
             if (unit_control::flags::is_pillaging(unit))
             {
+                auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_PILLAGE, unit->orders_);
+                if (orders.size() == 0)
+                {
+                    errors.push_back({"Error", unit, nullptr, " has pillaging flag, but doesn't have pillaging order"});
+                    return;
+                }
+
+                //find how many people really can tax/pillage
+                long taxing_man = get_taxers_amount(unit, orders[0], errors);
                 if (!unit_control::of_player(unit))
                     other_factions_men_pillage += taxing_man;
                 else if (taxing_man == 0)
                 {
-                    errors.push_back({"Error", unit, nullptr, " can't pillage, see TAX_RULES settings"});
+                    errors.push_back({"Error", unit, orders[0], " can't pillage, see TAX_RULES settings"});
                 }
                 else
                 {
@@ -1782,11 +1872,18 @@ namespace land_control
             }
             else if (unit_control::flags::is_taxing(unit))
             {
+                auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_TAX, unit->orders_);
+                std::shared_ptr<orders::Order> order(nullptr);
+                if (orders.size() > 0)//else -- autotax flag
+                    order = orders[0];
+
+                //find how many people really can tax/pillage
+                long taxing_man = get_taxers_amount(unit, order, errors);              
                 if (!unit_control::of_player(unit))
                     other_factions_men_tax += taxing_man;
                 else if (taxing_man == 0)
                 {
-                    errors.push_back({"Error", unit, nullptr, " can't tax, see TAX_RULES settings"});
+                    errors.push_back({"Error", unit, order, " can't tax, see TAX_RULES settings"});
                 }
                 else
                 {
@@ -1812,7 +1909,12 @@ namespace land_control
             {
                 for (auto& pillager : pillage.units_)
                 {
-                    errors.push_back({"Error", pillager.first, nullptr, " pillage, but not enough pillagers, needs: "+
+                    auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_PILLAGE, pillager.first->orders_);
+                    std::shared_ptr<orders::Order> order(nullptr);
+                    if (orders.size() > 0)//else -- nullptr
+                        order = orders[0];
+
+                    errors.push_back({"Error", pillager.first, order, " pillage, but not enough pillagers, needs: "+
                             std::to_string(required_pillagers)+", but has: "+std::to_string(pillage.man_amount_ + other_factions_men_pillage)});
                 }
                 pillage.expected_income_ = 0;
@@ -1824,8 +1926,15 @@ namespace land_control
         {
             if (pillage.expected_income_ > 0) 
             {//pillage already succeed
-                for (auto& unit : tax.units_)
-                    errors.push_back({"Error", unit.first, nullptr, " - is trying to tax, while region is pillaged!"});
+                for (auto& taxer : tax.units_)
+                {
+                    auto orders = orders::control::retrieve_orders_by_type(orders::Type::O_TAX, taxer.first->orders_);
+                    std::shared_ptr<orders::Order> order(nullptr);
+                    if (orders.size() > 0)//else -- nullptr
+                        order = orders[0];                  
+
+                    errors.push_back({"Error", taxer.first, order, " - is trying to tax, while region is pillaged!"});
+                }
             }
             else
             {

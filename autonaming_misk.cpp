@@ -256,7 +256,7 @@ namespace autonaming
         std::string skills_line;
         std::string highest_skill;
         long highest_lvl(-1);
-        if (orders::control::has_orders_with_type(orders::Type::O_COMMENT_AUTONAME, unit->orders_))
+        if (orders::control::has_orders_with_type(orders::Type::O_COMMENT_AUTONAME, unit->orders_));
         {
             auto name_orders = orders::control::retrieve_orders_by_type(orders::Type::O_COMMENT_AUTONAME, unit->orders_);
             if (name_orders.size() > 0)
@@ -376,17 +376,17 @@ namespace autonaming
     std::map<std::string, std::map<SquadTypes, std::string>> race_name_generators = {
         {
             "GBLN", {
-                { SquadTypes::Bowmen, "Arrowshooters" },
-                { SquadTypes::Crossbowmen, "Boltshooters" },
-                { SquadTypes::Worker, "Hunkies" },
-                { SquadTypes::Scout, "Sneaker" },
-                { SquadTypes::Transport, "Pushcarters" },
+                { SquadTypes::Bowmen, "Goblin Archers" },
+                { SquadTypes::Crossbowmen, "Goblins Crossbowmen" },
+                { SquadTypes::Worker, "Peons" },
+                { SquadTypes::Scout, "Peon" },
+                { SquadTypes::Transport, "Peons" },
 
-                { SquadTypes::Guardsmen, "Gartt" },
-                { SquadTypes::HeavyWarrior, "Gustyboiz" },
+                { SquadTypes::Guardsmen, "Gortt" },
+                { SquadTypes::HeavyWarrior, "Gostiboiz" },
                 { SquadTypes::Warrior, "Doughboiz" },
-                { SquadTypes::WeakEquipment, "Braet" },
-                { SquadTypes::StrongEquipment, "Ourmd" },                 
+                { SquadTypes::WeakEquipment, "Brat" },
+                { SquadTypes::StrongEquipment, "Ormd" },                 
                 { SquadTypes::AmountHuge, "Horde" },
                 { SquadTypes::AmountSmall, "Bunch" },
 
@@ -394,39 +394,115 @@ namespace autonaming
             }
         },
         {
-            "GNOL", {
-                { SquadTypes::Bowmen, "Gnoll Bowmen" },
-                { SquadTypes::Crossbowmen, "Gnoll Boltsmen" },
-                { SquadTypes::Worker, "Gnolls" },
-                { SquadTypes::Scout, "Gnoll" },
-                { SquadTypes::Transport, "Gnolls Cartpushers" },
+            "KOBO", {
+                { SquadTypes::Bowmen, "Kobold Archers" },
+                { SquadTypes::Crossbowmen, "Kobold Crossbowmen" },
+                { SquadTypes::Worker, "Peons" },
+                { SquadTypes::Scout, "Peon" },
+                { SquadTypes::Transport, "Peons" },
 
-                { SquadTypes::Guardsmen, "Watchdogs" },
+                { SquadTypes::Guardsmen, "Gortt" },
+                { SquadTypes::HeavyWarrior, "Gostiboiz" },
+                { SquadTypes::Warrior, "Doughboiz" },
+                { SquadTypes::WeakEquipment, "Brat" },
+                { SquadTypes::StrongEquipment, "Ormd" },                 
+                { SquadTypes::AmountHuge, "Horde" },
+                { SquadTypes::AmountSmall, "Bunch" },
+
+                { SquadTypes::Sailors, "Sailors" }
+            }
+        },        
+        {
+            "HGOB", {
+                { SquadTypes::Bowmen, "HobArchers" },
+                { SquadTypes::Crossbowmen, "HobCrossbowmen" },
+                { SquadTypes::Worker, "Peons" },
+                { SquadTypes::Scout, "Peon" },
+                { SquadTypes::Transport, "Peons" },
+
+                { SquadTypes::Guardsmen, "Hobgortt" },
+                { SquadTypes::HeavyWarrior, "Gostiboiz" },
+                { SquadTypes::Warrior, "Doughboiz" },
+                { SquadTypes::WeakEquipment, "Brat" },
+                { SquadTypes::StrongEquipment, "Ormd" },                 
+                { SquadTypes::AmountHuge, "Horde" },
+                { SquadTypes::AmountSmall, "Bunch" },
+
+                { SquadTypes::Sailors, "Gobsailors" }
+            }
+        },
+        {
+            "OGER", {
+                { SquadTypes::Bowmen, "Stick-ragers" },
+                { SquadTypes::Crossbowmen, "Stick-ragers" },
+                { SquadTypes::Worker, "Punches" },
+                { SquadTypes::Scout, "Punch" },
+                { SquadTypes::Transport, "Punches" },
+
+                { SquadTypes::Guardsmen, "Ogre Guard" },
+                { SquadTypes::HeavyWarrior, "Heavy Ogres" },
+                { SquadTypes::Warrior, "Ogres" },
+                { SquadTypes::WeakEquipment, "Raged" },
+                { SquadTypes::StrongEquipment, "Elite" },                 
+                { SquadTypes::AmountHuge, "Horde" },
+                { SquadTypes::AmountSmall, "Bunch" },
+
+                { SquadTypes::Sailors, "Ogresailors" }
+            }
+        },
+        {
+            "MINO", {
+                { SquadTypes::Bowmen, "Stick-ragers" },
+                { SquadTypes::Crossbowmen, "Stick-ragers" },
+                { SquadTypes::Worker, "Punches" },
+                { SquadTypes::Scout, "Punch" },
+                { SquadTypes::Transport, "Punches" },
+
+                { SquadTypes::Guardsmen, "Minotaur Guard" },
+                { SquadTypes::HeavyWarrior, "Heavy Minotaurs" },
+                { SquadTypes::Warrior, "Minotaurs" },
+                { SquadTypes::WeakEquipment, "Raged" },
+                { SquadTypes::StrongEquipment, "Elite" },                 
+                { SquadTypes::AmountHuge, "Horde" },
+                { SquadTypes::AmountSmall, "Bunch" },
+
+                { SquadTypes::Sailors, "Minosailors" }
+            }
+        },                     
+        {
+            "GNOL", {
+                { SquadTypes::Bowmen, "Gnoll Archers" },
+                { SquadTypes::Crossbowmen, "Gnoll Crossbowmen" },
+                { SquadTypes::Worker, "Peons" },
+                { SquadTypes::Scout, "Peon" },
+                { SquadTypes::Transport, "Peons" },
+
+                { SquadTypes::Guardsmen, "WatchDogs" },
                 { SquadTypes::HeavyWarrior, "Yeenoghu Fangs" },
-                { SquadTypes::Warrior, "Hyenas" },
-                { SquadTypes::WeakEquipment, "Paw" },
+                { SquadTypes::Warrior, "Fangs" },
+                { SquadTypes::WeakEquipment, "Pawed" },
                 { SquadTypes::StrongEquipment, "Spotted" },                 
-                { SquadTypes::AmountHuge, "Flock" },
-                { SquadTypes::AmountSmall, "Group" },
+                { SquadTypes::AmountHuge, "Horde" },
+                { SquadTypes::AmountSmall, "Bunch" },
 
                 { SquadTypes::Sailors, "Sailors" }
             }
         },
         {
             "ORC", {
-                { SquadTypes::Bowmen, "Orcish Archers" },
-                { SquadTypes::Crossbowmen, "Orcish Boltsmen" },
+                { SquadTypes::Bowmen, "Orc Archers" },
+                { SquadTypes::Crossbowmen, "Orc Crossbowmen" },
                 { SquadTypes::Worker, "Peons" },
                 { SquadTypes::Scout, "Peon" },
-                { SquadTypes::Transport, "Roaming Peons" },
+                { SquadTypes::Transport, "Peons" },
 
-                { SquadTypes::Guardsmen, "Gruntguard" },
-                { SquadTypes::HeavyWarrior, "Grunts" },
-                { SquadTypes::Warrior, "Skulls" },
+                { SquadTypes::Guardsmen, "Gruntgart" },
+                { SquadTypes::HeavyWarrior, "Skulled Grunts" },
+                { SquadTypes::Warrior, "Grunts" },
                 { SquadTypes::WeakEquipment, "Ragged" },
                 { SquadTypes::StrongEquipment, "Ironclad" },
                 { SquadTypes::AmountHuge, "Horde" },
-                { SquadTypes::AmountSmall, "Pack" },
+                { SquadTypes::AmountSmall, "Bunch" },
                 { SquadTypes::Sailors, "Sailors" }
             }
         },
@@ -522,17 +598,17 @@ namespace autonaming
         },
         {
             "UDWA", {
-                { SquadTypes::Bowmen, "Dwarfish Archers" },
-                { SquadTypes::Crossbowmen, "Dwarfish Crossbowmen" },
+                { SquadTypes::Bowmen, "Dwarf Archers" },
+                { SquadTypes::Crossbowmen, "Dwarf Crossbowmen" },
                 { SquadTypes::Worker, "Peasants" },
-                { SquadTypes::Scout, "Under Dwarf" },
-                { SquadTypes::Transport, "Appraisers" },
+                { SquadTypes::Scout, "Peasant" },
+                { SquadTypes::Transport, "Peasants" },
 
-                { SquadTypes::Guardsmen, "Dwarfish Guard" },
+                { SquadTypes::Guardsmen, "Dwarf Guard" },
                 { SquadTypes::HeavyWarrior, "Longbeard Lords" },
                 { SquadTypes::Warrior, "Longbeards" },
                 { SquadTypes::WeakEquipment, "Nimble" },
-                { SquadTypes::StrongEquipment, "Mithril" },
+                { SquadTypes::StrongEquipment, "Heavy" },
                 { SquadTypes::AmountHuge, "Hird" },
                 { SquadTypes::AmountSmall, "Squad" },
                 { SquadTypes::Sailors, "Sailors" }
@@ -579,7 +655,7 @@ namespace autonaming
                 { SquadTypes::Bowmen, "Archers" },
                 { SquadTypes::Crossbowmen, "Crossbowmen" },
                 { SquadTypes::Worker, "Peasants" },
-                { SquadTypes::Scout, "Human" },
+                { SquadTypes::Scout, "Peasant" },
                 { SquadTypes::Transport, "Peasants" },
 
                 { SquadTypes::Guardsmen, "Guard" },
@@ -597,7 +673,7 @@ namespace autonaming
                 { SquadTypes::Bowmen, "Swamp Archers" },
                 { SquadTypes::Crossbowmen, "Swamp Crossbowmen" },
                 { SquadTypes::Worker, "Swamp Peasants" },
-                { SquadTypes::Scout, "Lizard" },
+                { SquadTypes::Scout, "Peasant" },
                 { SquadTypes::Transport, "Swamp Peasants" },
 
                 { SquadTypes::Guardsmen, "Oceanguard" },

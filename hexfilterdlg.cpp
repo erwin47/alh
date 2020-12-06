@@ -684,7 +684,7 @@ void CHexFilterAutologicDlg::OnApply(wxCommandEvent& event)
     wxObject * object = event.GetEventObject();
     result_.clear();
     result_filter_.clear();
-    for (long i = 0; i < buttons_.size(); ++i)
+    for (size_t i = 0; i < buttons_.size(); ++i)
     {
         if (object == buttons_[i])
         {
@@ -697,7 +697,7 @@ void CHexFilterAutologicDlg::OnApply(wxCommandEvent& event)
     EndModal(wxID_OK);
 }
 
-void CHexFilterAutologicDlg::OnClear(wxCommandEvent& event)
+void CHexFilterAutologicDlg::OnClear(wxCommandEvent& )
 {
     result_.clear();
     result_filter_.clear();
@@ -705,18 +705,18 @@ void CHexFilterAutologicDlg::OnClear(wxCommandEvent& event)
     EndModal(wxID_NO);
 }
 
-void CHexFilterAutologicDlg::OnCancel(wxCommandEvent& event)
+void CHexFilterAutologicDlg::OnCancel(wxCommandEvent& )
 {
     StoreSize();
     EndModal(wxID_CANCEL);
 }
 
-void CHexFilterAutologicDlg::OnHelp(wxCommandEvent& event)
+void CHexFilterAutologicDlg::OnHelp(wxCommandEvent& )
 {
     wxMessageBox(wxT("Use examples of functions with `&&` and `||` to generate your filter.\nUse `Filter result` to filter out resulting amount. Example body of `Filter result`:\n    ` < 50` -- to print out just results with amount < 50"));
     return;
 }
-void CHexFilterAutologicDlg::OnExampleChosen(wxCommandEvent& event)
+void CHexFilterAutologicDlg::OnExampleChosen(wxCommandEvent& )
 {
     std::string chosen_function = example_box_->GetValue().ToStdString();
     examples_[chosen_function];

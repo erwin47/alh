@@ -71,7 +71,7 @@ class CListPane : public wxListCtrl//wxListView//wxListCtrl
 {
 public:
     CListPane(wxWindow *parent, wxWindowID id, long style=wxLC_REPORT|wxLC_SINGLE_SEL);
-    ~CListPane();
+    virtual ~CListPane();
 
     void SetLayout();
     void SetData(eSelMode selmode, long seldata, BOOL FullUpdate);

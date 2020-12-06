@@ -66,14 +66,14 @@ void CMsgFrame::Init(int layout, const char * szConfigSection)
 
 //--------------------------------------------------------------------
 
-void CMsgFrame::OnEscape(wxCommandEvent& event)
+void CMsgFrame::OnEscape(wxCommandEvent& )
 {
     wxWindow::Close();
 }
 
 //--------------------------------------------------------------------
 
-void CMsgFrame::OnCloseWindow(wxCloseEvent& event)
+void CMsgFrame::OnCloseWindow(wxCloseEvent& )
 {
     gpApp->FrameClosing(this);
     Destroy();

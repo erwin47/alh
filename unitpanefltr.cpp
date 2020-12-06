@@ -88,7 +88,7 @@ void CUnitPaneFltr::Done()
 
 //--------------------------------------------------------------------------
 
-void CUnitPaneFltr::Update(CUnitFilterDlg * pFilter)
+void CUnitPaneFltr::UpdateFltr(CUnitFilterDlg * pFilter)
 {
     CStr             Property[UNIT_SIMPLE_FLTR_COUNT];
     CStr             Compare [UNIT_SIMPLE_FLTR_COUNT];
@@ -178,6 +178,7 @@ void CUnitPaneFltr::Update(CUnitFilterDlg * pFilter)
 
     // should we run Python?
     if (!ShowGoneUnits && TrackingGroup.IsEmpty())
+    {
         if (pFilter)
         {
             bUsePython = TrackingGroup.IsEmpty() && pFilter->m_rbUsePython->GetValue();
@@ -189,6 +190,7 @@ void CUnitPaneFltr::Update(CUnitFilterDlg * pFilter)
             bUsePython = (0==stricmp(S.GetData(), SZ_KEY_UNIT_FLTR_SOURCE_PYTHON));
             sPythonText= gpApp->GetConfig(sConfSect.GetData(), SZ_KEY_UNIT_FLTR_PYTHON_CODE);
         }
+    }
 
     if (bUsePython)
     {
@@ -408,7 +410,7 @@ void CUnitPaneFltr::OnIdle(wxIdleEvent& event)
 
 //--------------------------------------------------------------------------
 
-void CUnitPaneFltr::OnPopupMenuSetSort  (wxCommandEvent& event)
+void CUnitPaneFltr::OnPopupMenuSetSort  (wxCommandEvent& )
 {
     m_ColClicked = m_ColClickedFltr;
 }
@@ -435,12 +437,12 @@ void CUnitPaneFltr::OnRClick(wxListEvent& event)
 
 //--------------------------------------------------------------------------
 
-void CUnitPaneFltr::OnPopupMenuFilter  (wxCommandEvent& event)
+void CUnitPaneFltr::OnPopupMenuFilter  (wxCommandEvent& )
 {
     CUnitFilterDlg dlg(m_pParent, m_sConfigSection.GetData());
 
     if (wxID_OK == dlg.ShowModal())
-        Update(&dlg);
+        UpdateFltr(&dlg);
     else
     {
         CMapPane * pMapPane = (CMapPane* )gpApp->m_Panes[AH_PANE_MAP];
@@ -452,11 +454,10 @@ void CUnitPaneFltr::OnPopupMenuFilter  (wxCommandEvent& event)
 //--------------------------------------------------------------------------
 
 
-void CUnitPaneFltr::OnPopupMenuIssueOrders(wxCommandEvent& event)
+void CUnitPaneFltr::OnPopupMenuIssueOrders(wxCommandEvent& )
 {
     long           idx;
     CUnit        * pUnit;
-    CUnitOrderEditPane    * pOrders;
     CGetTextDlg    dlg(this, "Order", "Orders for the selected units");
     CLongSortColl  LandIds;
     int            i;

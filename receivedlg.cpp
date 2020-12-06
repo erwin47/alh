@@ -242,7 +242,7 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
     return unit_names;
 }
 
-void CReceiveDlg::OnItemChosen(wxCommandEvent& event)
+void CReceiveDlg::OnItemChosen(wxCommandEvent& )
 {
     std::string long_name_item = combobox_item_types_->GetValue().ToStdString();
     std::vector<std::string> unit_names;
@@ -265,7 +265,7 @@ void CReceiveDlg::OnItemChosen(wxCommandEvent& event)
         combobox_units_->Append(unit_name);
 }
 
-void CReceiveDlg::OnMax          (wxCommandEvent& event)
+void CReceiveDlg::OnMax          (wxCommandEvent& )
 {
     std::string giver_name = combobox_units_->GetValue().ToStdString();
     if (unit_name_to_unit_.find(giver_name) == unit_name_to_unit_.end())
@@ -288,7 +288,7 @@ void CReceiveDlg::perform_take(CUnit* giving_one, CUnit* receiving_one, long amo
     orders::control::add_order_to_unit(order, receiving_one);
 }
 
-void CReceiveDlg::OnOk           (wxCommandEvent& event)
+void CReceiveDlg::OnOk           (wxCommandEvent& )
 {
     std::string giver_name = combobox_units_->GetValue().ToStdString();
     if (giver_name.empty())
@@ -377,12 +377,12 @@ void CReceiveDlg::OnOk           (wxCommandEvent& event)
     EndModal(wxID_OK);
 }
 
-void CReceiveDlg::OnAdd          (wxCommandEvent& event)
+void CReceiveDlg::OnAdd          (wxCommandEvent& )
 {
 
 }
 
-void CReceiveDlg::OnCancel       (wxCommandEvent& event)
+void CReceiveDlg::OnCancel       (wxCommandEvent& )
 {
     gpApp->m_pAtlantis->RunOrders(land_);  
     StoreSize();
@@ -446,12 +446,12 @@ CItemChooseDlg::~CItemChooseDlg()
 
 }
 
-void CItemChooseDlg::OnItemChosen   (wxCommandEvent& event)
+void CItemChooseDlg::OnItemChosen   (wxCommandEvent& )
 {
     return;
 }
 
-void CItemChooseDlg::OnOk           (wxCommandEvent& event)
+void CItemChooseDlg::OnOk           (wxCommandEvent& )
 {
     int selected_item = listbox_items_->GetSelection();
     if (selected_item == wxNOT_FOUND) {
@@ -465,7 +465,7 @@ void CItemChooseDlg::OnOk           (wxCommandEvent& event)
     EndModal(wxID_OK);
 }
 
-void CItemChooseDlg::OnCancel       (wxCommandEvent& event)
+void CItemChooseDlg::OnCancel       (wxCommandEvent& )
 {
     EndModal(wxID_CANCEL);
 }

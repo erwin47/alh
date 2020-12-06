@@ -1063,7 +1063,7 @@ void CMapFrame::OnListCol(wxCommandEvent& event)
 
 //--------------------------------------------------------------------
 
-void CMapFrame::OnFlagNames(wxCommandEvent& event)
+void CMapFrame::OnFlagNames(wxCommandEvent& )
 {
     CUnitFlagsDlg dlg(this, eNames, 0);
 
@@ -1075,7 +1075,7 @@ void CMapFrame::OnFlagNames(wxCommandEvent& event)
 
 //--------------------------------------------------------------------
 
-void CMapFrame::OnFlagsAllSet(wxCommandEvent& event)
+void CMapFrame::OnFlagsAllSet(wxCommandEvent& )
 {
     gpApp->SetAllLandUnitFlags();
 }

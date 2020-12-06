@@ -15,6 +15,16 @@
 #include "stdhdr.h"
 #include "data_control.h"
 
+/*
+void route_generator(CLand* start, CLand* end, const unit_control::MoveMode& movemode, const bool& nocross)
+{
+    std::unordered_map<CLand*, long> movement_price;//land, price in steps*terrain complexity
+    movement_price.insert({start, 0});
+
+    for (movement_price.count(end))
+}*/
+
+
 wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, ROUTE_MARKUP markup, bool nocross, wxString& Log)
 {
     extern const char * Directions[]; // Definition is in atlaparser.cpp

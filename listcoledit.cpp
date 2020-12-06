@@ -432,7 +432,7 @@ void CListHeaderEditDlg::OnButton(wxCommandEvent& event)
 
 //--------------------------------------------------------------------------
 
-void  CListHeaderEditDlg::OnSetNameChange(wxCommandEvent& event)
+void  CListHeaderEditDlg::OnSetNameChange(wxCommandEvent& )
 {
     if (m_IsSaving)
         return;
@@ -442,7 +442,7 @@ void  CListHeaderEditDlg::OnSetNameChange(wxCommandEvent& event)
 
 //--------------------------------------------------------------------------
 
-void  CListHeaderEditDlg::OnSetNameSelect(wxCommandEvent& event)
+void  CListHeaderEditDlg::OnSetNameSelect(wxCommandEvent& )
 {
     if (m_IsSaving)
         return;

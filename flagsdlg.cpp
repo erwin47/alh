@@ -189,7 +189,7 @@ CUnitFlagsDlg::~CUnitFlagsDlg()
 
 //--------------------------------------------------------------------------
 
-void CUnitFlagsDlg::OnOk(wxCommandEvent& event)
+void CUnitFlagsDlg::OnOk(wxCommandEvent& )
 {
     int i, x;
     CStr sKey;
@@ -223,7 +223,7 @@ void CUnitFlagsDlg::OnOk(wxCommandEvent& event)
 
 //--------------------------------------------------------------------------
 
-void CUnitFlagsDlg::OnCancel(wxCommandEvent& event)
+void CUnitFlagsDlg::OnCancel(wxCommandEvent& )
 {
     StoreSize();
     EndModal(wxID_CANCEL);

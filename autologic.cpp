@@ -17,7 +17,6 @@ namespace autologic
             pos = cur+separator.size();
             cur = str.find(separator, pos);
         }
-        size_t end_point = str.find('.', pos);
         chunks.push_back(trim(str.substr(pos)));
     }
 
@@ -451,7 +450,7 @@ namespace autologic
     {
         autologic::Command command;
         std::string arg;
-        autologic::Operation operation;
+        autologic::Operation operation(autologic::Operation::NONE);
         std::string val;              
         if (autologic::parse_statement("[]"+filter, command, arg, operation, val))
         {
@@ -631,6 +630,8 @@ namespace autologic
                 amount = land_control::get_wanted(land->current_state_, first_argument).price_; break;
             case Command::REGION_RESOURCE:
                 amount = land_control::get_resource(land->current_state_, first_argument); break;
+            case Command::NONE: 
+                break;
         }
         return result;
     }
