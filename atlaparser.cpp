@@ -5624,7 +5624,7 @@ int CAtlaParser::CountMenWithFlag(CLand * pLand, int unitFlag) const
     CUnit * pUnit;
     long nmen;
     int headCount = 0;
-    int skill;
+    long skill;
 
     for (int unitidx=0; unitidx<pLand->UnitsSeq.Count(); ++unitidx)
     {
@@ -5655,9 +5655,9 @@ void CAtlaParser::DistributeSilver(CLand * pLand, int unitFlag, int silver, int 
     CUnit * pUnit;
     long nmen;
 
-    int unitSilver;
-    int unitReceives;
-    int skill;
+    long unitSilver;
+    long unitReceives;
+    long skill;
 
     if (menCount == 0)
         return;
