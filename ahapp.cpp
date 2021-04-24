@@ -68,6 +68,7 @@ CAhApp::CAhApp() : m_HexDescrSrc    (128),
                    m_OrderHash      (  3),
                    m_TradeItemsHash (  2),
                    m_MenHash        (  2),
+                   m_LeadersHash    (  2),
                    m_MaxSkillHash   (  6),
                    m_MagicSkillsHash(  6)
 {
@@ -310,6 +311,16 @@ bool CAhApp::OnInit()
             m_MenHash.Insert(S.GetData(), (void*)-1);
     }
 
+    // Leaders hash
+    p = SkipSpaces(GetConfig(SZ_SECT_UNITPROP_GROUPS,  PRP_LEADERMEN));
+    while (p && *p)
+    {
+        const void * data;
+        p = SkipSpaces(S.GetToken(p, ','));
+        if (!S.IsEmpty() && !m_LeadersHash.Locate(S.GetData(), data))
+            m_LeadersHash.Insert(S.GetData(), (void*)-1);
+    }
+
     // Magic skills hash
     p = SkipSpaces(GetConfig(SZ_SECT_UNITPROP_GROUPS,  PRP_MAG_SKILLS));
     while (p && *p)
@@ -412,6 +423,7 @@ int CAhApp::OnExit()
 
     m_TradeItemsHash.FreeAll();
     m_MenHash.FreeAll();
+    m_LeadersHash.FreeAll();
     m_MaxSkillHash.FreeAll();
     m_MagicSkillsHash.FreeAll();
 
@@ -1156,6 +1168,15 @@ BOOL CAhApp::IsMan(const char * item)
     const void * data = NULL;
 
     return m_MenHash.Locate(item, data);
+}
+
+//-------------------------------------------------------------------------
+
+BOOL CAhApp::IsLeader(const char * item)
+{
+    const void * data = NULL;
+
+    return m_LeadersHash.Locate(item, data);
 }
 
 //-------------------------------------------------------------------------
@@ -5002,6 +5023,11 @@ BOOL CGameDataHelper::IsTradeItem(const char * item)
 BOOL CGameDataHelper::IsMan(const char * item)
 {
     return gpApp->IsMan(item);
+}
+
+BOOL CGameDataHelper::IsLeader(const char * item)
+{
+    return gpApp->IsLeader(item);
 }
 
 const char * CGameDataHelper::GetWeatherLine(BOOL IsCurrent, BOOL IsGood, int Zone)

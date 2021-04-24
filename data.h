@@ -67,6 +67,7 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 
 #define PRP_GUI_COLOR                   "gui_color"
 #define PRP_MEN                         "men"
+#define PRP_LEADERMEN                   "leadermen"
 #define PRP_SKILLS                      "skills"
 #define PRP_MAG_SKILLS                  "mag_skills"
 #define PRP_STUFF                       "stuff"
@@ -578,6 +579,7 @@ public:
     BOOL         GetOrderId        (const char * order, long & id);
     BOOL         IsTradeItem       (const char * item);
     BOOL         IsMan             (const char * item);
+    BOOL         IsLeader          (const char * item);
     const char * GetWeatherLine    (BOOL IsCurrent, BOOL IsGood, int Zone);
     const char * ResolveAlias      (const char * alias);
     BOOL         GetItemWeights    (const char * item, int *& weights, const char **& movenames, int & movecount );
