@@ -47,6 +47,8 @@
 #include "listcoledit.h"
 #include "optionsdlg.h"
 #include "flagsdlg.h"
+#include "routeplanner.h"
+
 
 #ifdef __WXMAC_OSX__
 #include <unistd.h>
@@ -119,6 +121,7 @@ bool CAhApp::OnInit()
 
     gpApp = this;
 
+    // The sections below will appear in ah.st.cfg. The other sections will be in ah.cfg.
     m_ConfigSectionsState.Insert(strdup(SZ_SECT_DEF_ORDERS       ));
     m_ConfigSectionsState.Insert(strdup(SZ_SECT_ORDERS           ));
     m_ConfigSectionsState.Insert(strdup(SZ_SECT_REPORTS          ));
@@ -132,7 +135,6 @@ bool CAhApp::OnInit()
     m_ConfigSectionsState.Insert(strdup(SZ_SECT_FOLDERS          ));
     m_ConfigSectionsState.Insert(strdup(SZ_SECT_DO_NOT_SHOW_THESE));
     m_ConfigSectionsState.Insert(strdup(SZ_SECT_TROPIC_ZONE      ));
-    m_ConfigSectionsState.Insert(strdup(SZ_SECT_PLANE_SIZE       ));
     m_ConfigSectionsState.Insert(strdup(SZ_SECT_UNIT_FLAGS       ));
 
 
@@ -204,6 +206,7 @@ bool CAhApp::OnInit()
 
 
     InitMoveModes();
+    InitMovementSpeed();
 
     //m_Attitudes.FreeAll();
     SetAttitudeForFaction(0, ATT_NEUTRAL);
@@ -614,32 +617,33 @@ void CAhApp::UpgradeConfigFiles()
     const char * szName;
     const char * szValue;
     BOOL         Ok = TRUE;
-    int          fileno, idx, i;
     CStr         ConfigKey;
 
     // move the sections
-    Ok = m_Config[CONFIG_FILE_CONFIG].GetNextSection("", szNextSection);
-    while (Ok)
+    for (int currentConfigFile = 0; currentConfigFile < 2; ++currentConfigFile)
     {
-        Section = szNextSection;
-        fileno    = GetConfigFileNo(Section.GetData());
-
-        if (CONFIG_FILE_CONFIG != fileno)
+        Ok = m_Config[currentConfigFile].GetNextSection("", szNextSection);
+        while (Ok)
         {
-            // move to the appropriate file
-            idx = m_Config[CONFIG_FILE_CONFIG].GetFirstInSection(Section.GetData(), szName, szValue);
-            while (idx>=0)
+            Section = szNextSection;
+            const int fileno = GetConfigFileNo(Section.GetData());
+
+            if (currentConfigFile != fileno)
             {
-                m_Config[fileno].SetByName(Section.GetData(), szName, szValue);
-                idx = m_Config[CONFIG_FILE_CONFIG].GetNextInSection(idx, Section.GetData(), szName, szValue);
+                // move to the appropriate file
+                int idx = m_Config[currentConfigFile].GetFirstInSection(Section.GetData(), szName, szValue);
+                while (idx >= 0)
+                {
+                    m_Config[fileno].SetByName(Section.GetData(), szName, szValue);
+                    idx = m_Config[currentConfigFile].GetNextInSection(idx, Section.GetData(), szName, szValue);
+                }
+                m_Config[currentConfigFile].RemoveSection(Section.GetData());
+
+                // and it means land flags has to be moved, too
+                m_UpgradeLandFlags = true;
             }
-            m_Config[CONFIG_FILE_CONFIG].RemoveSection(Section.GetData());
-
-            // and it means land flags has to be moved, too
-            m_UpgradeLandFlags = TRUE;
+            Ok = m_Config[currentConfigFile].GetNextSection(Section.GetData(), szNextSection);
         }
-
-        Ok = m_Config[CONFIG_FILE_CONFIG].GetNextSection(Section.GetData(), szNextSection);
     }
 
     // unit lists columns
@@ -657,7 +661,7 @@ void CAhApp::UpgradeConfigFiles()
     Section.Empty();
     Section  << SZ_SECT_UNIT_FILTER << "Default";
     Ok = FALSE;
-    for (i=0; i<UNIT_SIMPLE_FLTR_COUNT; i++)
+    for (int i=0; i<UNIT_SIMPLE_FLTR_COUNT; i++)
     {
         ConfigKey.Format("%s%d", SZ_KEY_UNIT_FLTR_PROPERTY, i);
         szValue = SkipSpaces(gpApp->GetConfig(SZ_SECT_WND_UNITS_FLTR, ConfigKey.GetData()));
@@ -1096,7 +1100,7 @@ BOOL CAhApp::GetItemWeights(const char * item, int *& weights, const char **& mo
     if (!Ok)
     {
         CStr S;
-        bool skipit;
+        bool skipit = false;
         if (!IsASkillRelatedProperty(item))
         {
             for (i=0; i<STD_UNIT_PROPS_COUNT; i++)
@@ -2123,9 +2127,7 @@ void CAhApp::WriteMagesCSV()
 
 void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & TaxDetails)
 {
-    int               x;
     CUnit           * pUnit;
-//    long              tax = pLand->Taxable;
     EValueType        type;
     long              men;
     CStr              sCoord;
@@ -2135,7 +2137,7 @@ void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & Ta
     CTaxProdDetailsCollByFaction Factions;
     wxString          OneLine;
 
-    for (x=0; x<pLand->Units.Count(); x++)
+    for (int x=0; x<pLand->Units.Count(); x++)
     {
         pUnit = (CUnit*)pLand->Units.At(x);
         if (pUnit->Flags & UNIT_FLAG_TAXING)
@@ -2200,7 +2202,7 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
     int             x, k;
     CUnit         * pUnit;
     EValueType      type;
-    long            men, lvl, tool, canproduce;
+    long            men, lvl, canproduce;
     CStr            sCoord, Skill;
     CProduct      * pProd;
     TProdDetails    details;
@@ -2248,6 +2250,7 @@ void CAhApp::CheckTradeDetails(CLand  * pLand, CTaxProdDetailsCollByFaction & Tr
                     if (!pUnit->GetProperty(Skill.GetData(), type, (const void *&)lvl, eNormal) || (eLong!=type) )
                         continue;
 
+                    long tool = 0;
                     if (!details.toolname.IsEmpty())
                         if (!pUnit->GetProperty(details.toolname.GetData(), type, (const void *&)tool, eNormal) || eLong!=type )
                             tool = 0;
@@ -4911,6 +4914,34 @@ void CAhApp::InitMoveModes()
         SetConfig(SZ_SECT_COMMON, SZ_KEY_MOVEMENTS, S.GetData());
     }
 }
+
+void CAhApp::InitMovementSpeed()
+{
+    int value = atol(GetConfig(SZ_SECT_COMMON, SZ_KEY_MOVEMEMENT_SPEED_WALK));
+    if (value == 0)
+    {
+        value = 2;
+        SetConfig(SZ_SECT_COMMON, SZ_KEY_MOVEMEMENT_SPEED_WALK, value);
+    }
+    RoutePlanner::SpeedWalk = value;
+
+    value = atol(GetConfig(SZ_SECT_COMMON, SZ_KEY_MOVEMEMENT_SPEED_RIDE));
+    if (value == 0)
+    {
+        value = 4;
+        SetConfig(SZ_SECT_COMMON, SZ_KEY_MOVEMEMENT_SPEED_RIDE, value);
+    }
+    RoutePlanner::SpeedRide = value;
+
+    value = atol(GetConfig(SZ_SECT_COMMON, SZ_KEY_MOVEMEMENT_SPEED_FLY));
+    if (value == 0)
+    {
+        value = 6;
+        SetConfig(SZ_SECT_COMMON, SZ_KEY_MOVEMEMENT_SPEED_FLY, value);
+    }
+    RoutePlanner::SpeedFly = value;
+}
+
 
 //--------------------------------------------------------------------------
 

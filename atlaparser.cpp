@@ -5550,10 +5550,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                     CLand * pLandHexDest = GetLandFlexible(destination);
                     if (pLandHexDest)
                     {
-                        int movementMode;
-                        bool noCross;
-                        GetMovementMode(pUnit, movementMode, noCross, O_MOVE);
-                        wxString route = RoutePlanner::GetRoute(pLand, pLandHexDest, movementMode, RoutePlanner::ROUTE_MARKUP_TURN);
+                        MovementSetup setup = RoutePlanner::GetMovementSetup(pUnit, O_MOVE);
+                        wxString route = RoutePlanner::GetRoute(pLand, pLandHexDest, setup, RoutePlanner::ROUTE_MARKUP_TURN);
                         if (!route.IsEmpty())
                         {
                             if (route.Length() > 66)
@@ -7037,43 +7035,6 @@ void CAtlaParser::RunOrder_Promote(CStr & Line, CStr & ErrorLine, BOOL skiperror
     } while (FALSE);
 }
 
-//-------------------------------------------------------------
-
-void CAtlaParser::GetMovementMode(CUnit * pUnit, int & movementMode, bool & noCross, long order) const
-{
-    EValueType          type;
-    const void        * value;
-
-    movementMode = 0;
-    noCross = true;
-
-    if (pUnit->GetProperty(PRP_MOVEMENT, type, value, eNormal) && eCharPtr==type)
-    {
-        const char * movementModeStr = (const char *)value;
-        if (strstr(movementModeStr, "Swim"))
-            noCross = false;
-
-        if (strstr(movementModeStr, "Fly"))
-        {
-            movementMode = 6;
-            noCross = (pUnit->Flags & UNIT_FLAG_NO_CROSS_WATER);
-        }
-        else
-        if (strstr(movementModeStr, "Ride"))
-            movementMode = 4;
-        else
-        if (strstr(movementModeStr, "Walk"))
-            movementMode = 2;
-        else
-            movementMode = 2;
-    }
-
-    if (O_SAIL == order)
-    {
-        noCross = false;
-        movementMode = 4;
-    }
-}
 
 //-------------------------------------------------------------
 
@@ -7097,12 +7058,13 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
     long                currentStruct = 0;
     int                 totalMovementCost = 0;
     bool                pathCanBeTraced = true;
-    int                 movementMode = 0;
     const int           startMonth = (m_YearMon % 100) - 1;
-    bool                noCross = true;
     bool                throughWall = false;
 
-    GetMovementMode(pUnit, movementMode, noCross, order);
+    bool                unitStartedInShip = false;
+    bool                unitActuallyMoved = false; // true when the move order had effect, to avoid warnings for MOVE p in a ship.
+
+    MovementSetup setup = RoutePlanner::GetMovementSetup(pUnit, order);
 
     do
     {
@@ -7126,6 +7088,12 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
         if (pUnit->GetProperty(PRP_STRUCT_ID, type, value, eNormal) && eLong==type)
         {
             currentStruct = (long)value;
+        }
+
+        const int FirstShipNumber = atol(gpApp->GetConfig(SZ_SECT_COMMON, "FIRST_SHIP_NUMBER"));
+        if (order == O_MOVE && currentStruct >= FirstShipNumber)
+        {
+            unitStartedInShip = true;
         }
 
         while (params)
@@ -7176,7 +7144,7 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                     if (pLandExit && pLandCurrent && pathCanBeTraced)
                     {
                         int terrainCost = GetTerrainMovementCost(wxString::FromUTF8(pLandExit->TerrainType.GetData()));
-                        if (noCross && terrainCost == 999)
+                        if (setup.noCross && terrainCost == 999)
                         {
                             pathCanBeTraced = false;
                             SHOW_WARN(" - Trying to move into the ocean!");
@@ -7185,7 +7153,7 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                         {
                             bool weather = IsBadWeatherHex(pLandExit, startMonth);
                             bool road = IsRoadConnected(pLandCurrent, pLandExit, i%6);
-                            int cost = GetMovementCost(terrainCost, weather, road, movementMode, noCross);
+                            int cost = RoutePlanner::GetMovementCost(terrainCost, weather, road, setup);
                             totalMovementCost += cost;
                         }
                     }
@@ -7198,6 +7166,7 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                     if (throughWall)
                         SHOW_WARN_CONTINUE(" - Hexes are not connected - going through a wall perhaps!");
 
+                    unitActuallyMoved = true;
                     break;
                 }
             }
@@ -7238,7 +7207,7 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                                         int terrainCost = GetTerrainMovementCost(wxString::FromUTF8(pLandExit->TerrainType.GetData()));
                                         bool weather = IsBadWeatherHex(pLandExit, startMonth);
                                         bool road = false;
-                                        int cost = GetMovementCost(terrainCost, weather, road, movementMode, noCross);
+                                        int cost = RoutePlanner::GetMovementCost(terrainCost, weather, road, setup);
                                         totalMovementCost += cost;
                                     }
                                     int z;
@@ -7276,27 +7245,42 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
             {
                 // Try to parse a structure number.
                 int structNumber = atoi(S1.GetData());
-                if (structNumber > 0 && structNumber < 10000)
+                if (structNumber > 0 && structNumber < 10000 && currentStruct != structNumber)
+                {
                     currentStruct = structNumber;
+                    unitActuallyMoved = true;
+                }
             }
         }
 
     SomeChecks:
+
+        if (!pUnit->GetProperty(PRP_MEN, type, (const void*&)nmen, eNormal) || (eLong != type) || (nmen <= 0))
+            SHOW_WARN_CONTINUE(" - There are no men in the unit!");
+
+        if (pLandCurrent && !setup.canSwim && !currentStruct && order == O_MOVE && (GetTerrainMovementCost(pLandCurrent->TerrainType.GetData()) == 999))
+        {
+            SHOW_WARN_CONTINUE(" - flying into ocean, can drown!");
+        }
+
+        if (order == O_MOVE && unitStartedInShip && unitActuallyMoved)
+        {
+            SHOW_WARN(" - Moving out of a ship fails if the ship sails. Consider using LEAVE.");
+        }
+
         if (pUnit->reqMovementSpeed > 0)
         {
-            if (movementMode < pUnit->reqMovementSpeed)
+            if (setup.speed < pUnit->reqMovementSpeed)
             {
-                wxString msg = wxString::Format(wxT(" - Unit is moving at slower speed than specified! [%d/%d]"), movementMode, pUnit->reqMovementSpeed);
+                wxString msg = wxString::Format(wxT(" - Unit is moving at slower speed than specified! [%d/%d]"), setup.speed, pUnit->reqMovementSpeed);
                 SHOW_WARN_CONTINUE(msg.ToUTF8());
             }
         }
-        else if (totalMovementCost > movementMode && gpDataHelper->ShowMoveWarnings())
+        else if (totalMovementCost > setup.speed && gpDataHelper->ShowMoveWarnings())
         {
-            wxString msg = wxString::Format(wxT(" - Unit is moving further than it can! [%d/%d]"), totalMovementCost, movementMode);
+            wxString msg = wxString::Format(wxT(" - Unit is moving further than it can! [%d/%d]"), totalMovementCost, setup.speed);
             SHOW_WARN_CONTINUE(msg.ToUTF8());
         }
-        if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)nmen, eNormal) || (eLong!=type) || (nmen<=0))
-            SHOW_WARN_CONTINUE(" - There are no men in the unit!");
 
         if (O_SAIL == order)
         {
@@ -8158,33 +8142,6 @@ bool CAtlaParser::IsBadWeatherHex(CLand * pLand, int month) const
         }
     }
     return false;
-}
-
-//-------------------------------------------------------------
-
-int CAtlaParser::GetMovementCost(int terrainCost, bool isBadWeather, bool hasRoad, int movementMode, bool noCross) const
-{
-    int MovementCost;
-
-    if ((movementMode >= 6 && terrainCost < 999) || !noCross)
-    {
-        MovementCost = 1;
-    }
-    else
-    {
-        MovementCost = terrainCost;
-    }
-
-    if (isBadWeather)
-    {
-        MovementCost *= 2;
-    }
-    if (hasRoad && movementMode < 6)
-    {
-        MovementCost = (MovementCost + 1) / 2;
-    }
-
-    return MovementCost;
 }
 
 //-------------------------------------------------------------

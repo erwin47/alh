@@ -64,7 +64,7 @@ public:
     CLongColl() : CCollection() {};
     CLongColl(int nDelta) : CCollection(nDelta) {};
 protected:
-    virtual void FreeItem(void * pItem) {};
+    virtual void FreeItem(void *) {};
 };
 
 //====================================================
@@ -111,7 +111,7 @@ public:
     CLongSortColl() : CSortedCollection() {};
     CLongSortColl(int nDelta) : CSortedCollection(nDelta) {};
 protected:
-    virtual void FreeItem(void * pItem) {};
+    virtual void FreeItem(void *) {};
     virtual int Compare(void * pItem1, void * pItem2) const
     {
         if ((long)pItem1 > (long)pItem2)

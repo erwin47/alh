@@ -2942,6 +2942,9 @@ void CMapPane::DrawSingleTrack(int X, int Y, int Z, int wx, int wy, wxDC * pDC, 
     long           n1;
     int            LocA3;
 
+    wx_a = 0;
+    wy_a = 0;
+
     if (pUnit->pMovement && pUnit->pMoveA3Points && pUnit->pMoveA3Points->Count() == pUnit->pMovement->Count())
         Arcadia3Sail = TRUE;
 

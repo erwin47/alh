@@ -339,6 +339,7 @@ private:
     void                 StdRedirectInit();
     void                 StdRedirectDone();
     void                 InitMoveModes();
+    void                 InitMovementSpeed();
     void                 SelectTempUnit(CUnit * pUnit);
 
 

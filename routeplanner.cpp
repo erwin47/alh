@@ -1,5 +1,6 @@
 #include "routeplanner.h"
 
+#include <algorithm>
 #include <list>
 
 #include "ahapp.h"
@@ -14,7 +15,130 @@
 #include "objs.h"
 #include "stdhdr.h"
 
-wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, ROUTE_MARKUP markup)
+int RoutePlanner::GetMovementCost(int terrainCost, bool isBadWeather, bool hasRoad, MovementSetup setup)
+{
+    int cost{ 1 };
+
+    switch (setup.mode) {
+    case MovementMode::Walk:
+    case MovementMode::Ride:
+        if (!setup.canSwim || terrainCost < 999)
+        {
+            cost = terrainCost;
+        }
+        break;
+
+    case MovementMode::Fly:
+        if (terrainCost >= 999 && setup.noCross)
+            cost = terrainCost;
+        break;
+
+    case MovementMode::Sail:
+        cost = 1;
+    }
+    
+    if (isBadWeather)
+    {
+        cost *= 2;
+    }
+    if (hasRoad && cost < 6)
+    {
+        cost = (cost + 1) / 2;
+    }
+    return cost;
+}
+
+int RoutePlanner::GetSwinLevel(CUnit* pUnit)
+{
+    EValueType          type;
+    const void* value;
+
+    int swin{ 0 };
+
+    if (pUnit->GetProperty("SWIN_", type, value, eNormal) && (eLong == type))
+    {
+        // Mages can directly use their SWIN skill
+        swin = (int)value;
+    }
+
+    if (pUnit->GetProperty("WCHM", type, value, eNormal) && (eLong == type))
+    {
+        const int WindChimeSWIN = 2;
+        if (value > 0 && IsMageOrApprentice(pUnit))
+        {
+            swin = std::max(swin, WindChimeSWIN);
+        }
+    }
+    return swin;
+}
+
+
+bool RoutePlanner::IsMageOrApprentice(CUnit * pUnit)
+{
+    std::vector<wxString> skills = { "PATT", "SPIR", "FORC", "MANI" };
+
+    EValueType          type;
+    const void* value;
+
+    int level = 0;
+
+    for (auto skill : skills)
+    {
+        wxString property = skill + PRP_SKILL_POSTFIX;
+        if (pUnit->GetProperty(property.c_str(), type, value, eNormal) && (eLong == type))
+            level = std::max((int)value, level);
+    }
+    return level;
+}
+
+
+MovementSetup RoutePlanner::GetMovementSetup(CUnit* pUnit, long order)
+{
+    EValueType          type;
+    const void* value;
+
+    MovementSetup setup;
+
+    if (O_SAIL == order)
+    {
+        setup.mode = MovementMode::Sail;
+        setup.noCross = false;
+        setup.speed = 4;
+    }
+    else if (pUnit->GetProperty(PRP_MOVEMENT, type, value, eNormal) && eCharPtr == type)
+    {
+        const char* movementModeStr = (const char*)value;
+        if (strstr(movementModeStr, "Swim"))
+        {
+            setup.noCross = (pUnit->Flags & UNIT_FLAG_NO_CROSS_WATER);
+            setup.canSwim = true;
+        }
+
+        if (strstr(movementModeStr, "Walk"))
+        {
+            setup.mode = MovementMode::Walk;
+            setup.speed = SpeedWalk;
+        }
+        else if (strstr(movementModeStr, "Ride"))
+        {
+            setup.mode = MovementMode::Ride;
+            setup.speed = SpeedRide;
+        }
+        else if (strstr(movementModeStr, "Fly"))
+        {
+            setup.mode = MovementMode::Fly;
+            setup.noCross = (pUnit->Flags & UNIT_FLAG_NO_CROSS_WATER);
+            setup.speed = SpeedFly;
+
+            if (GetSwinLevel(pUnit))
+                setup.speed += 2;
+        }
+    }
+    return setup;
+}
+
+
+wxString RoutePlanner::GetRoute(CLand * start, CLand * end, MovementSetup setup, ROUTE_MARKUP markup)
 {
     extern const char * Directions[]; // Definition is in atlaparser.cpp
 
@@ -27,7 +151,7 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, RO
     bool EraseLandFromList;
     wxString Log;
 
-    int x, y, x0, y0, z, i;
+    int x, y, x0, y0, z;
 
     const int startMonth = gpApp->m_pAtlantis->m_YearMon % 100 - 1;
 
@@ -37,7 +161,7 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, RO
     for (int n=0; n<gpApp->m_pAtlantis->m_Planes.Count(); n++)
     {
         CPlane * pPlane = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(n);
-        for (i=0; i<pPlane->Lands.Count(); i++)
+        for (int i=0; i<pPlane->Lands.Count(); i++)
         {
             CLand * pLand = (CLand*)pPlane->Lands.At(i);
             if (pLand)
@@ -67,7 +191,7 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, RO
                 LandIdToCoord(pLandCurrent->Id, x0, y0, z);
                 Log << "  Checking Land (" << x0 << " " << y0 << ")" << "\n";
                 // Loop through the exits
-                for (i=0; i<6; i++)
+                for (int i=0; i<6; i++)
                 {
                     pLandExit = gpApp->m_pAtlantis->GetLandExit(pLandCurrent, i);
                     if (pLandExit && ((pLandCurrent->Flags&LAND_VISITED) || gpApp->m_pAtlantis->GetLandExit(pLandExit, (i+3)%6)))
@@ -77,7 +201,7 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, RO
                             const bool hasRoad = gpApp->m_pAtlantis->IsRoadConnected(pLandCurrent, pLandExit, i);
                             Log << "    Found Exit to Land (" << x << " " << y << ")" << "\n";
 
-                            if (tryUpdateRoute(pLandCurrent, pLandExit, movementMode, startMonth, Directions[i + 6], hasRoad, markup))
+                            if (tryUpdateRoute(pLandCurrent, pLandExit, setup, startMonth, Directions[i + 6], hasRoad, markup))
                             {
                                 ListHex.push_back(pLandExit);
                                 if (pLandExit->Id == end->Id && bestSolution > pLandExit->TotalMovementCost)
@@ -104,7 +228,7 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, RO
                             if (pLandExit)
                             {
                                 Log << "      Found connection to landExit\n";
-                                if (tryUpdateRoute(pLandCurrent, pLandExit, movementMode, startMonth, wxString::Format("%ld IN", pStruct->Id), false, markup))
+                                if (tryUpdateRoute(pLandCurrent, pLandExit, setup, startMonth, wxString::Format("%ld IN", pStruct->Id), false, markup))
                                 {
                                     ListHex.push_back(pLandExit);
                                     LandIdToCoord(pLandExit->Id, x, y, z);
@@ -132,9 +256,9 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, RO
     }
 
     wxString Route;
-    if (end->TotalMovementCost > movementMode)
+    if (end->TotalMovementCost > setup.speed)
     {
-        Route = wxString::Format("; %d turns", (end->TotalMovementCost + movementMode - 1)/movementMode);
+        Route = wxString::Format("; %d turns", (end->TotalMovementCost + setup.speed - 1) / setup.speed);
     }
 
     if (end->ArrivedFromHexId)
@@ -166,17 +290,17 @@ wxString RoutePlanner::GetRoute(CLand * start, CLand * end, int movementMode, RO
 }
 
 
-bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const int movementMode, const int startMonth, const wxString moveCommand, const bool hasRoad, ROUTE_MARKUP markup)
+bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, MovementSetup setup, const int startMonth, const wxString moveCommand, const bool hasRoad, ROUTE_MARKUP markup)
 {
     wxString route_markers;
     // Land Found, now determine whether this route is faster than the old route.
-    int oldTurn = (pLandCurrent->TotalMovementCost + movementMode - 1) / movementMode;
+    int oldTurn = (pLandCurrent->TotalMovementCost + setup.speed - 1) / setup.speed;
     if (oldTurn == 0) oldTurn = 1;
     int currentMonth = (startMonth + oldTurn - 1) % 12;
 
     const int terrainCost = gpApp->m_pAtlantis->GetTerrainMovementCost(pLandExit->TerrainType.GetData());
 
-    int isBadWeather = gpApp->m_pAtlantis->IsBadWeatherHex(pLandExit, currentMonth);
+    bool isBadWeather = gpApp->m_pAtlantis->IsBadWeatherHex(pLandExit, currentMonth);
 
     if (markup == ROUTE_MARKUP_ALL)
     {
@@ -184,9 +308,9 @@ bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const
         if (hasRoad) route_markers += wxT("r");
     }
 
-    int MovementCost = gpApp->m_pAtlantis->GetMovementCost(terrainCost, isBadWeather, hasRoad, movementMode, true);
+    int MovementCost = GetMovementCost(terrainCost, isBadWeather, hasRoad, setup);
     int newMovementCost = pLandCurrent->TotalMovementCost + MovementCost;
-    int newTurn = (newMovementCost + movementMode - 1) / movementMode;
+    int newTurn = (newMovementCost + setup.speed - 1) / setup.speed;
     if (newTurn > oldTurn)
     {
         // Switching to a new turn, lose excess movement points first, change of weather possible
@@ -205,8 +329,8 @@ bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const
             if (hasRoad) route_markers += wxT("r");
         }
 
-        MovementCost = gpApp->m_pAtlantis->GetMovementCost(terrainCost, isBadWeather, hasRoad, movementMode, true);
-        if (MovementCost > movementMode)
+        MovementCost = GetMovementCost(terrainCost, isBadWeather, hasRoad, setup);
+        if (MovementCost > setup.speed)
         {
             if (isBadWeather)
             {
@@ -218,7 +342,7 @@ bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const
                 {
                     if (gpApp->m_pAtlantis->IsBadWeatherHex(pLandExit, (currentMonth + mon) % 12))
                     {
-                        MovementCost += movementMode;
+                        MovementCost += setup.speed;
                         if (markup == ROUTE_MARKUP_ALL || markup == ROUTE_MARKUP_TURN)
                         {
                             route_markers += wxT("_ ");
@@ -232,7 +356,7 @@ bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const
                 MovementCost = 999;
             }
         }
-        newMovementCost = oldTurn * movementMode + MovementCost;
+        newMovementCost = oldTurn * setup.speed + MovementCost;
     }
     if (pLandExit->TotalMovementCost > newMovementCost)
     {

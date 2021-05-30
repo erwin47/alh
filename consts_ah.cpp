@@ -35,7 +35,11 @@ DefaultConfigRec DefaultConfig[] =
 #else
     {SZ_SECT_COMMON            ,     SZ_KEY_EOL            ,     SZ_EOL_UNIX         },
 #endif
+    {SZ_SECT_COMMON            ,     SZ_KEY_FIRST_SHIP_NUMBER,     "100"             },
     {SZ_SECT_COMMON            ,     SZ_KEY_HATCH_UNVISITED,     "1"                 },
+    {SZ_SECT_COMMON            ,     SZ_KEY_MOVEMEMENT_SPEED_WALK, "2"               },
+    {SZ_SECT_COMMON            ,     SZ_KEY_MOVEMEMENT_SPEED_RIDE, "4"               },
+    {SZ_SECT_COMMON            ,     SZ_KEY_MOVEMEMENT_SPEED_FLY,  "6"               },
     {SZ_SECT_COMMON            ,     SZ_KEY_DEFAULT_EMPTY_ONLY,  "1"                 },
     {SZ_SECT_COMMON            ,     SZ_KEY_REP_CACHE_COUNT,     "8"                 },
     {SZ_SECT_COMMON            ,     SZ_KEY_LOAD_ORDER     ,     "1"                 },

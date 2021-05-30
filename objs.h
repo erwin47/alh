@@ -27,7 +27,6 @@ enum EValueType
 {
     eLong,
     eCharPtr,
-    eObjPtr
 };
 
 enum EPropertyType
@@ -164,7 +163,7 @@ public:
     TObject() {};
     virtual ~TObject() {};
 
-    virtual BOOL HandleEvent(TEvent * event) {return FALSE;};
+    virtual BOOL HandleEvent(TEvent *) {return FALSE;};
 };
 
 //-------------------------------------------------------------------

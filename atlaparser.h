@@ -188,8 +188,6 @@ public:
     int        GetTerrainMovementCost(wxString Terrain) const;
     bool       IsRoadConnected(CLand *, CLand *, int direction) const;
     bool       IsBadWeatherHex(CLand * pLand, int month) const;
-    int        GetMovementCost(int terrainCost, bool isBadWeather, bool hasRoad, int movementMode, bool noCross) const;
-    void       GetMovementMode(CUnit * pUnit, int & movementMode, bool & noCross, long order) const;
 
     int               m_CrntFactionId;
     CStr              m_CrntFactionPwd;
