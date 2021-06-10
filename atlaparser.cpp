@@ -683,7 +683,7 @@ BOOL CAtlaParser::ParseOneUnitEvent(CStr & EventLine, BOOL IsEvent, int UnitId)
 
 //----------------------------------------------------------------------
 
-BOOL CAtlaParser::ParseOneLandEvent(CStr & EventLine, BOOL IsEvent)
+BOOL CAtlaParser::ParseOneLandEvent(CStr & EventLine, [[maybe_unused]] BOOL IsEvent)
 {
     const char * p;
     CStr         Buf;
@@ -1653,8 +1653,8 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
     // Remove Arcadia III reference to edge location for sailing events
     if (strchr(LandName.GetData(), '('))
     {
-        int x = strchr(LandName.GetData(), '(') - LandName.GetData();
-        LandName.DelSubStr(x, LandName.GetLength()-x);
+        int xLocal = strchr(LandName.GetData(), '(') - LandName.GetData();
+        LandName.DelSubStr(x, LandName.GetLength()- xLocal);
         LandName.TrimRight(TRIM_ALL);
     }
 
@@ -1870,7 +1870,7 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
                 if (0==stricmp(S.GetData(), Directions[i]))
                 {
                     // yes!
-                    pLand->Exits << "  " << S << ": ";
+                    pLand->Exits << "  " << S << " : ";
                     pPlane->ExitsCount++;
                     S = p;
                     S.TrimLeft();
@@ -1878,9 +1878,9 @@ int CAtlaParser::ParseTerrain(CLand * pMotherLand, int ExitDir, CStr & FirstLine
                     ParseTerrain(pLand, i, S, FALSE, &pLandRef);
                     if (pLandRef)
                     {
-                        int x, y, z;
-                        LandIdToCoord(pLandRef->Id, x, y, z);
-                        pLand->SetExit(i, x, y);
+                        int xLocal, yLocal, zLocal;
+                        LandIdToCoord(pLandRef->Id, xLocal, yLocal, zLocal);
+                        pLand->SetExit(i, xLocal, yLocal);
                     }
                     DoBreak = FALSE;
                     break;
@@ -3550,7 +3550,7 @@ bool CAtlaParser::IsLandExitClosed(CLand * pLand, int direction) const
         int x, y, z;
         LandIdToCoord(pLand->Id, x, y, z);
         ExtrapolateLandCoord(x, y, z, direction);
-        CLand * pLand = GetLand(x, y, z, TRUE);
+        pLand = GetLand(x, y, z, TRUE);
         if (pLand)
         {
             if (pLand->xExit[(direction+3)%6] == EXIT_CLOSED)
@@ -3760,57 +3760,18 @@ void CAtlaParser::ComposeProductsLine(CLand * pLand, const char * eol, CStr & S)
 
 //-------------------------------------------------------------
 
-BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane, SAVE_HEX_OPTIONS * pOptions)
+BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane *, SAVE_HEX_OPTIONS * pOptions)
 {
-    CLand            * pLandExit;
     int                i;
     int                g;
 
     CStr               sLine (128);
-    CStr               sExits(128);
     CStruct          * pStruct;
     const char       * p;
-    BOOL               IsLinked;
     BOOL               TurnNoMarkerWritten = FALSE;
     CUnit            * pUnit;
     EValueType         type;
     const void       * value;
-    int                nstr;
-    CStruct          * pEdge;
-
-    IsLinked = FALSE;
-    sExits.Empty();
-    for (i=0; i<6; i++)
-    {
-        pLandExit = GetLandExit(pLand, i);
-        if (pLandExit)
-        {
-            CStr sCoord;
-            if (pLandExit->Flags&LAND_VISITED)
-            {
-                IsLinked = TRUE;
-            }
-            //  Northeast : mountain (20,0) in Lautaro, contains Krod [city].
-            ComposeLandStrCoord(pLandExit, sCoord);
-            sExits << "  " << Directions[i] << " : "
-                  << pLandExit->TerrainType << " (" << sCoord << ") in " << pLandExit->Name;
-            if (!pLandExit->CityName.IsEmpty())
-                sExits << ", contains " << pLandExit->CityName << " [" << pLandExit->CityType << "]";
-
-            // save edge structs
-            for (nstr = 0; nstr < pLand->EdgeStructs.Count(); nstr++)
-            {
-                pEdge = (CStruct*)pLand->EdgeStructs.At(nstr);
-                if (pEdge->Location == i)
-                    sExits << ", " << pEdge->Kind;
-            }
-            sExits  << "." << EOL_FILE;;
-        }
-    }
-
-    if ( (0==(pLand->Flags&LAND_VISITED)) && IsLinked)
-        return FALSE;
-
 
     p = pLand->Description.GetData();
     while (p)
@@ -3821,17 +3782,15 @@ BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane,
         if (pOptions->WriteTurnNo > 0 && !TurnNoMarkerWritten && sLine.GetLength() > 20)
         {
             BOOL         SkipIt = FALSE;
-            const char * p;
-
-            p = sLine.GetData();
-            while (*p)
+            const char * pLocal = sLine.GetData();
+            while (*pLocal)
             {
-                if ('-' != *p)
+                if ('-' != *pLocal)
                 {
                     SkipIt = TRUE;
                     break;
                 }
-                p++;
+                pLocal++;
             }
             if (!SkipIt)
             {
@@ -3849,8 +3808,13 @@ BOOL CAtlaParser::SaveOneHex(CFileWriter & Dest, CLand * pLand, CPlane * pPlane,
     if (pOptions->SaveResources)
         ComposeProductsLine(pLand, EOL_FILE, sLine);
 
+    wxString exits = pLand->Exits.GetData();
+    exits.Replace("\r\n", "\n", true);
+    exits.Replace("\n", EOL_FILE, true);
+
     sLine << EOL_FILE << "Exits:" << EOL_FILE ;
-    sLine << pLand->Exits;
+    sLine << exits.c_str();
+
     sLine.TrimRight(TRIM_ALL);
     sLine << EOL_FILE << EOL_FILE;
 
@@ -3980,8 +3944,8 @@ int  CAtlaParser::SaveOrders(const char * FNameOut, const char * password, BOOL 
                         else
                         {
                             wxString landDescr = wxString::FromUTF8(pLand->Description.GetData());
-                            wxString s = wxString::Format(wxT("Unable to save new unit orders in %s."), landDescr.BeforeFirst('.').c_str());
-                            OrderErr(1, pUnit->Id, s.ToUTF8(), pUnit->Name.GetData());
+                            wxString sErr = wxString::Format(wxT("Unable to save new unit orders in %s."), landDescr.BeforeFirst('.').c_str());
+                            OrderErr(1, pUnit->Id, sErr.ToUTF8(), pUnit->Name.GetData());
                         }
                     }
                 }
@@ -4874,7 +4838,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
 {
     CBaseObject         Dummy;
     CUnit             * pUnit;
-    CUnit             * pUnitNew;
     CUnit             * pUnitMaster;
     CUnit             * pUnit2;
     CStruct           * pStruct;
@@ -4893,7 +4856,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
     BOOL                errors = FALSE;
     int                 idx;
     EValueType          type;
-    const void        * value;
     int                 X, Y, Z;    // current coordinates for moving unit
     int                 XN=0, YN=0;     // saved current coords while new unit is processed
     int                 LocA3, LocA3N=0; // support for ArcadiaIII sailing
@@ -5122,48 +5084,6 @@ void CAtlaParser::RunLandOrders(CLand * pLand, const char * sCheckTeach)
                         if (SQ_FORM==sequence)
                         {
                             SHOW_WARN_CONTINUE(" - Do not manually enter a FORM command - use the split context-menu");
-                            break;
-                            if (!IS_NEW_UNIT_ID(n1))
-                                SHOW_WARN_CONTINUE(" - Invalid new unit number!");
-                            if (pLand->Units.Search(&Dummy, idx))
-                                SHOW_WARN_CONTINUE(" - Unit already exists!");
-                            pUnitNew             = new CUnit;
-                            pUnitNew->Id         = n1;
-                            pUnitNew->FactionId  = pUnit->FactionId;
-                            pUnitNew->pFaction   = pUnit->pFaction;
-                            pUnitNew->Flags      = pUnit->Flags;
-                            pUnitNew->IsOurs     = TRUE;
-                            pUnitNew->Name        << "NEW " << N1;
-                            pUnitNew->Description << "Created by " << pUnit->Name << " (" << pUnit->Id << ")";
-
-                            // set attitude:
-                            int attitude = gpDataHelper->GetAttitudeForFaction(pUnit->FactionId);
-                            SetUnitProperty(pUnitNew,PRP_FRIEND_OR_FOE,eLong,(void *) attitude,eNormal);
-
-                            if (pUnit->GetProperty(PRP_STRUCT_ID, type, value, eOriginal) )
-                                pUnitNew->SetProperty(PRP_STRUCT_ID, type, value, eBoth);
-                            if (pUnit->GetProperty(PRP_STRUCT_NAME, type, value, eOriginal) )
-                                pUnitNew->SetProperty(PRP_STRUCT_NAME, type, value, eBoth);
-
-                            if (!pLand->AddUnit(pUnitNew))
-                                SHOW_WARN_CONTINUE(" - Can not create new unit! " << BUG);
-                        }
-                        else
-                        {
-                            break;
-                            if (!IS_NEW_UNIT_ID(n1))
-                                continue;
-                            if (pUnitMaster)
-                                SHOW_WARN_CONTINUE(" - Sorry, we do not support new units creating units :(");
-                            pUnitMaster       = pUnit;
-                            if (!pLand->Units.Search(&Dummy, idx))
-                                SHOW_WARN_CONTINUE(" - Can not find new unit! " << BUG);
-                            pUnit = (CUnit*)pLand->Units.At(idx);
-                            XN     = X;
-                            YN     = Y;
-                            LocA3N = LocA3;
-                            LandIdToCoord(pLand->Id, X, Y, Z);
-                            LocA3 = NO_LOCATION;
                         }
                         break;
 
@@ -5794,7 +5714,7 @@ void CAtlaParser::RunOrder_Upkeep(CLand * pLand)
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL skiperror, CLand * pLand, SHARE_TYPE shareType, wxString shareName)
+void CAtlaParser::RunOrder_ShareSilver ([[maybe_unused]] CStr & LineOrig, CStr & ErrorLine, BOOL skiperror, CLand * pLand, SHARE_TYPE shareType, wxString shareName)
 {
     EValueType          type;
     CUnit * pUnit;
@@ -5869,9 +5789,9 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
         }
     }
 
-    if (shortage > 0)
+    if (shortage > 0 && displayUnit)
     {
-        if (displayUnit) pUnit = displayUnit;
+        pUnit = displayUnit;
         CStr sCoord;
         ComposeLandStrCoord(pLand, sCoord);
         wxString message = wxT(" - ") + wxString::FromUTF8(sCoord.GetData());
@@ -5882,7 +5802,7 @@ void CAtlaParser::RunOrder_ShareSilver (CStr & LineOrig, CStr & ErrorLine, BOOL 
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunOrder_Study(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params)
+void CAtlaParser::RunOrder_Study(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand *, const char * params)
 {
     EValueType          type;
     long                n, n1, n2;
@@ -5964,7 +5884,7 @@ void CAtlaParser::RunOrder_Study(CStr & Line, CStr & ErrorLine, BOOL skiperror, 
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunOrder_Name(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params)
+void CAtlaParser::RunOrder_Name([[maybe_unused]] CStr & Line, [[maybe_unused]] CStr & ErrorLine, [[maybe_unused]] BOOL skiperror, CUnit * pUnit, CLand *, const char * params)
 {
     CStr  What, Name, NewName;
 
@@ -6148,7 +6068,7 @@ void CAtlaParser::RunOrder_Produce(CStr & Line, CStr & ErrorLine, BOOL skiperror
 
 //-------------------------------------------------------------
 
-BOOL CAtlaParser::GetItemAndAmountForGive(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, CStr & Item, int & amount, const char * command, CUnit * pUnit2)
+BOOL CAtlaParser::GetItemAndAmountForGive(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, [[maybe_unused]] CLand * pLand, const char * params, CStr & Item, int & amount, const char * command, CUnit * pUnit2)
 {
     BOOL                Ok = FALSE;
     CStr                S1  (32);
@@ -6227,7 +6147,7 @@ BOOL CAtlaParser::GetItemAndAmountForGive(CStr & Line, CStr & ErrorLine, BOOL sk
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunOrder_Withdraw(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params)
+void CAtlaParser::RunOrder_Withdraw(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, [[maybe_unused]] CLand * pLand, const char * params)
 {
     EValueType          type;
     const void        * value;
@@ -6277,7 +6197,7 @@ void CAtlaParser::RunOrder_Withdraw(CStr & Line, CStr & ErrorLine, BOOL skiperro
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunOrder_Give(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL IgnoreMissingTarget)
+void CAtlaParser::RunOrder_Give(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, [[maybe_unused]] BOOL IgnoreMissingTarget)
 {
     EValueType          type;
     long                n1;
@@ -6468,7 +6388,7 @@ BOOL CAtlaParser::FindTargetsForSend(CStr & Line, CStr & ErrorLine, BOOL skiperr
 
 //-------------------------------------------------------------
 
-void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL IgnoreMissingTarget)
+void CAtlaParser::RunOrder_Take(CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, [[maybe_unused]] BOOL IgnoreMissingTarget)
 {
     EValueType          type;
     long                n1;
@@ -6911,27 +6831,25 @@ void CAtlaParser::RunOrder_Sell(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
     CStr                LandProp(32);
     long                landprop = 0; // Shar1 Extrict SELL/BUY check
 
-//    int               * weights;    // calculate weight change while giving
-//    const char       ** movenames;
-//    int                 movecount;
-
     do
     {
          // BUY 33 VIKI
          //     n1 S1
          params = SkipSpaces(N1.GetToken(params, " \t", ch, TRIM_ALL));
-         //params = SkipSpaces(S1.GetToken(params, " \t", ch, TRIM_ALL));
          params = ReadPropertyName(params, S1);
          n1= atol(N1.GetData());
          if (S1.IsEmpty() || (n1<=0 && 0!=stricmp(N1.GetData(), "ALL")) )
              SHOW_WARN_CONTINUE(" - Invalid SELL command");
 
          MakeQualifiedPropertyName(PRP_WANTED_PRICE_PREFIX, S1.GetData(), LandProp);
-         if ( !pLand->GetProperty(LandProp.GetData(), type,  (const void *&)peritem,  eNormal) ||
-              !pUnit->GetProperty(S1.GetData(),       type1, (const void *&)unitprop, eNormal) ||
-              (eLong!=type) || (eLong!=type1)
-              )
-             SHOW_WARN_CONTINUE(" - Can not SELL that!");
+         if (!pLand->GetProperty(LandProp.GetData(), type,  (const void *&)peritem,  eNormal) || (eLong != type))
+             SHOW_WARN_CONTINUE(" - Can not SELL that at this location!");
+
+         if (!pUnit->GetProperty(S1.GetData(), type1, (const void*&)unitprop, eNormal) || (eLong != type1))
+         {
+             SHOW_WARN_CONTINUE(" - has no items to sell!");
+         }
+
          if (0==stricmp(N1.GetData(), "ALL"))
              n1=unitprop;
          if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitmoney, eNormal) )
@@ -6954,7 +6872,7 @@ void CAtlaParser::RunOrder_Sell(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
          }
          if (n1 > landprop)
          {
-             SHOW_WARN_CONTINUE(" - Selling beyond market's capacity! Sell " << (long) landprop << " at max.");
+             SHOW_WARN(" - Selling beyond market's capacity! Sell " << (long) landprop << " at max.");
              n1 = landprop;
          }
          // Check amount owned by unit
@@ -6975,9 +6893,6 @@ void CAtlaParser::RunOrder_Sell(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
 
          pUnit->SilvRcvd += n1*peritem;
 
-         // adjust weight
-//         if (gpDataHelper->GetItemWeights(S1.GetData(), weights, movenames, movecount))
-//             pUnit ->AddWeight(-n1, weights, movenames, movecount);
          pUnit->CalcWeightsAndMovement();
     } while (FALSE);
 
@@ -7190,12 +7105,12 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                     }
                     else
                     {
-                        CStruct * pStruct = (CStruct*)pLandCurrent->Structs.At(currentStruct-1);
-                        if (pStruct->Attr & SA_SHAFT)
+                        CStruct * pTargetStruct = (CStruct*)pLandCurrent->Structs.At(currentStruct-1);
+                        if (pTargetStruct->Attr & SA_SHAFT)
                         {
-                            if (pStruct->Description.FindSubStr("links to (") >= 0)
+                            if (pTargetStruct->Description.FindSubStr("links to (") >= 0)
                             {
-                                pLandExit = GetLandFlexible(wxString::FromUTF8(pStruct->Description.GetData()));
+                                pLandExit = GetLandFlexible(wxString::FromUTF8(pTargetStruct->Description.GetData()));
                                 if (pLandExit)
                                 {
                                     if (!pUnit->pMovement)
@@ -7309,7 +7224,7 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                     SHOW_WARN_CONTINUE(sErr);
             }
         }
-    } while (FALSE);
+    } while (FALSE); 
 }
 
 //-------------------------------------------------------------
