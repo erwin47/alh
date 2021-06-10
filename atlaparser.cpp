@@ -6718,16 +6718,11 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
     long                landprop; // Shar1 Extrict SELL/BUY check
     CUnit               DummyGiver;
 
-//    int               * weights;    // calculate weight change while giving
-//    const char       ** movenames;
-//    int                 movecount;
-
     do
     {
         // BUY 33 VIKI
         //     n1 S1
         params = SkipSpaces(N1.GetToken(params, " \t", ch, TRIM_ALL));
-        //params = SkipSpaces(S1.GetToken(params, " \t", ch, TRIM_ALL));
         params = ReadPropertyName(params, S1);
         n1= atol(N1.GetData());
         if (S1.IsEmpty() || (n1<=0 && 0!=stricmp(N1.GetData(), "ALL")) )
@@ -6738,10 +6733,6 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
             || 0==stricmp(S1.GetData(), "peasants"))
             if (!pLand->PeasantRace.IsEmpty())
                 ReadPropertyName(pLand->PeasantRace.GetData(), S1);
-
-        // men/man is a category and cannot be aliased
-        if (S1.FindSubStr("HUMANS") != -1) S1 = "MAN";
-        if (S1.FindSubStr("ORCS") != -1) S1 = "ORC";
 
         MakeQualifiedPropertyName(PRP_SALE_PRICE_PREFIX, S1.GetData(), LandProp);
         if ( pLand->GetProperty(LandProp.GetData(), type, (const void *&)peritem, eNormal) && (eLong==type))
@@ -6796,9 +6787,6 @@ void CAtlaParser::RunOrder_Buy(CStr & Line, CStr & ErrorLine, BOOL skiperror, CU
             if (gpDataHelper->IsTradeItem(S1.GetData()))
                 pUnit->Flags |= UNIT_FLAG_PRODUCING;
 
-            // adjust weight
-//            if (gpDataHelper->GetItemWeights(S1.GetData(), weights, movenames, movecount))
-//                pUnit ->AddWeight(n1, weights, movenames, movecount);
             pUnit->CalcWeightsAndMovement();
 
             AdjustSkillsAfterGivingMen(&DummyGiver, pUnit, S1, n1);

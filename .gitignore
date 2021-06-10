@@ -25,9 +25,11 @@ Makefile
 # Temporary and Backup
 *~
 *.bak
+vc_mswu/
 vc_mswud/
 run/
 *.vcxproj*
+ah.aps
 
 #output files
 ah

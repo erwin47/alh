@@ -657,6 +657,10 @@ void CAhApp::UpgradeConfigFiles()
         SetConfig(SZ_SECT_LIST_COL_CURRENT  , SZ_KEY_LIS_COL_UNITS_FILTER,    SZ_SECT_LIST_COL_UNIT_FLTR_DEF);
     }
 
+    // Remove old aliases
+    m_Config[CONFIG_FILE_CONFIG].SetByName(SZ_SECT_ALIAS, "MEN", NULL);
+    m_Config[CONFIG_FILE_CONFIG].SetByName(SZ_SECT_ALIAS, "MAN", NULL);
+
     // unit filter
     Section.Empty();
     Section  << SZ_SECT_UNIT_FILTER << "Default";
@@ -1004,9 +1008,8 @@ const char * CAhApp::ResolveAlias(const char * alias)
         p = SkipSpaces(GetConfig(SZ_SECT_ALIAS, p1));
         if (p && *p)
             p1 = p;
-        if (cnt++ > 20)  // don't play with recursy, man!
+        if (cnt++ >= 10)  // don't play with recursy, man!
         {
-            p1 = alias;
             break;
         }
 

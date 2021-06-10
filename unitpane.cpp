@@ -613,9 +613,6 @@ bool CUnitPane::CreateScout(CUnit * pUnit, ScoutType scoutType)
     if (race.IsEmpty())
         return false; // When there is no race to buy, we cannot make a scout.
 
-    if (race.FindSubStr("ORCS") != -1) race = "ORC";
-    if (race.FindSubStr("HUMANS") != -1) race = "MAN";
-
     peritem = 0;
     MakeQualifiedPropertyName(PRP_SALE_PRICE_PREFIX, race.GetData(), racemarket);
     m_pCurLand->GetProperty(racemarket.GetData(), type, (const void *&)peritem, eNormal);
