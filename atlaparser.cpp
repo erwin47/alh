@@ -7051,6 +7051,7 @@ void CAtlaParser::RunOrder_Move(CStr & Line, CStr & ErrorLine, BOOL skiperror, C
                         {
                             pathCanBeTraced = false;
                             SHOW_WARN(" - Trying to move into the ocean!");
+                            skiperror = true;
                         }
                         else
                         {
