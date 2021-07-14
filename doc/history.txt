@@ -1,4 +1,17 @@
 
+2021, July, version 2.7.1, build date 210714
+
+- Unit movement speeds walk, ride and fly are now configurable. The SWIN movement bonus is applied to flying units. In ah.cfg:
+[COMMON]
+MOVEMENT_SPEED_WALK   = 2
+MOVEMENT_SPEED_RIDE   = 4
+MOVEMENT_SPEED_FLY    = 6
+
+- The 'Export Hexes' function no longer mixes up line-endings which could lead to unwanted additional linebreaks. The Exits now have an extra space, to be compatible with other clients.
+- The "Create scout" menu now works properly again with humans and orcs.
+- Added a warning for units which MOVE out of a ship without a LEAVE order.
+
+
 2019
 
 - added pseudocommands ;$move, ;$travel, ;$upkeep, ;$checkzero
