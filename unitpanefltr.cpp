@@ -495,7 +495,7 @@ void CUnitPaneFltr::OnPopupMenuIssueOrders(wxCommandEvent& )
         }
         pUnitPane = (CUnitPane*)gpApp->m_Panes[AH_PANE_UNITS_HEX];
         if (pUnitPane)
-            pUnitPane->Update(pUnitPane->m_pCurLand);
+            pUnitPane->UpdateState(pUnitPane->m_pCurLand);
     }
     LandIds.DeleteAll();
 }

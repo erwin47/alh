@@ -142,7 +142,7 @@ void CUnitPane::UpdateCells()
 
 bool default_unit_filter(CUnit* ) {   return true;  }
 
-void CUnitPane::Update(CLand * pLand, std::function<bool(CUnit* unit)> filter)
+void CUnitPane::UpdateState(CLand * pLand, std::function<bool(CUnit* unit)> filter)
 {
     int               i;
     CUnit           * pUnit;
@@ -429,7 +429,7 @@ void CUnitPane::OnSelected(wxListEvent& event)
 //        if (m_pCurLand)
 //            m_pCurLand->guiUnit = pUnit->Id;
         if (gpApp->OnUnitHexSelectionChange())
-            Update(m_pCurLand);
+            UpdateState(m_pCurLand);
     }
 }
 
@@ -632,7 +632,7 @@ void CUnitPane::OnPopupMenuTeach (wxCommandEvent& )
         gpApp->orders_changed(gpApp->m_pAtlantis->GenOrdersTeach(pUnit)
                                || gpApp->orders_changed());
         if (gpApp->orders_changed())
-            Update(m_pCurLand);
+            UpdateState(m_pCurLand);
     }
 }
 
@@ -648,7 +648,7 @@ void CUnitPane::OnPopupMenuSplit(wxCommandEvent& )
         if (wxID_OK == dlg.ShowModal()) // it will modify unit's orders
             gpApp->orders_changed(true);
 
-        Update(m_pCurLand);
+        UpdateState(m_pCurLand);
     }
 }
 
@@ -668,7 +668,7 @@ void CUnitPane::OnPopupMenuCreateNew(wxCommandEvent& )
             gpApp->orders_changed(true);
 
         gpApp->m_pAtlantis->RunLandOrders(pLand);
-        Update(m_pCurLand);
+        UpdateState(m_pCurLand);
     }
 }
 
@@ -699,13 +699,13 @@ void CUnitPane::OnPopupFilterByItems(wxCommandEvent& )
         UpdateFilter filter;
         filter.code_ = dlg.chosen_code_;
         filter.issuing_unit_ = pUnit;
-        Update(m_pCurLand, filter);
+        UpdateState(m_pCurLand, filter);
         this->is_filtered_ = true;
     }
     else
     {
         this->is_filtered_ = false;
-        Update(m_pCurLand);
+        UpdateState(m_pCurLand);
     }
     //gpApp->m_pAtlantis->RunLandOrders(pLand);
 }
@@ -745,7 +745,7 @@ void CUnitPane::OnPopupShareAsCaravan(wxCommandEvent& )
 
     gpApp->orders_changed(true);
     gpApp->m_pAtlantis->RunLandOrders(land);
-    Update(m_pCurLand);
+    UpdateState(m_pCurLand);
 
 }
 
@@ -809,7 +809,7 @@ void CUnitPane::OnPopupSellAll(wxCommandEvent& )
     {
         gpApp->orders_changed(true);
         gpApp->m_pAtlantis->RunLandOrders(land);
-        Update(m_pCurLand);
+        UpdateState(m_pCurLand);
     }
 }
 
@@ -825,7 +825,7 @@ void CUnitPane::OnPopupMenuReceiveItems(wxCommandEvent& )
     if (wxID_OK == dlg.ShowModal()) {
         gpApp->orders_changed(true);
         gpApp->m_pAtlantis->RunLandOrders(pLand);
-        Update(m_pCurLand);
+        UpdateState(m_pCurLand);
     }
 }
 
@@ -950,7 +950,7 @@ void CUnitPane::OnPopupMenuScoutSimple(wxCommandEvent& )
 
     gpApp->m_pAtlantis->RunOrders(land);
     gpApp->orders_changed(true);
-    Update(land);
+    UpdateState(land);
 }
 
 //--------------------------------------------------------------------------
@@ -962,7 +962,7 @@ void CUnitPane::OnPopupMenuScoutMove(wxCommandEvent& )
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
         if (CreateScout(pUnit, SCOUT_MOVE))
-            Update(m_pCurLand);
+            UpdateState(m_pCurLand);
     }
 }
 
@@ -975,7 +975,7 @@ void CUnitPane::OnPopupMenuScoutObserver(wxCommandEvent& )
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
         if (CreateScout(pUnit, SCOUT_OBSERVER))
-            Update(m_pCurLand);
+            UpdateState(m_pCurLand);
     }
 }
 
@@ -988,7 +988,7 @@ void CUnitPane::OnPopupMenuScoutStealth(wxCommandEvent& )
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
         if (CreateScout(pUnit, SCOUT_STEALTH))
-            Update(m_pCurLand);
+            UpdateState(m_pCurLand);
     }
 }
 
@@ -1001,7 +1001,7 @@ void CUnitPane::OnPopupMenuScoutGuard(wxCommandEvent& )
     if (pUnit && !IS_NEW_UNIT(pUnit))
     {
         if (CreateScout(pUnit, SCOUT_GUARD))
-            Update(m_pCurLand);
+            UpdateState(m_pCurLand);
     }
 }
 
@@ -1016,7 +1016,7 @@ void CUnitPane::OnPopupMenuShareSilv  (wxCommandEvent& )
         if (gpApp->m_pAtlantis->ShareSilver(pUnit))
         {
             gpApp->orders_changed(true);
-            Update(m_pCurLand);
+            UpdateState(m_pCurLand);
         }
     }
 }
@@ -1035,7 +1035,7 @@ void CUnitPane::OnPopupMenuGiveEverything (wxCommandEvent& )
         if (gpApp->m_pAtlantis->GenGiveEverything(m_pCurLand, pUnit, N.mb_str()))
         {
             gpApp->orders_changed(true);
-            Update(m_pCurLand);
+            UpdateState(m_pCurLand);
         }
     }
 }
@@ -1056,12 +1056,12 @@ void CUnitPane::OnPopupMenuDiscardJunk(wxCommandEvent& WXUNUSED(event))
             pLand->RemoveUnit(pUnit);
             delete pUnit;
             gpApp->orders_changed(true);
-            Update(m_pCurLand);
+            UpdateState(m_pCurLand);
         }
         else if (gpApp->m_pAtlantis->DiscardJunkItems(pUnit, gpApp->GetConfig(SZ_SECT_UNITPROP_GROUPS, PRP_JUNK_ITEMS)))
         {
             gpApp->orders_changed(true);
-            Update(m_pCurLand);
+            UpdateState(m_pCurLand);
         }
     }
 }
@@ -1086,7 +1086,7 @@ void CUnitPane::OnPopupMenuDetectSpies(wxCommandEvent& WXUNUSED(event))
                                             atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_SPY_DETECT_AMT))))
         {
             gpApp->orders_changed(true);
-            Update(m_pCurLand);          
+            UpdateState(m_pCurLand);          
         }        
     }
 }
@@ -1241,7 +1241,7 @@ void CUnitPane::OnPopupMenuIssueOrders(wxCommandEvent& )
     {
         gpApp->orders_changed(true);
         gpApp->m_pAtlantis->RunOrders(m_pCurLand);
-        Update(m_pCurLand);
+        UpdateState(m_pCurLand);
     }
 }
 

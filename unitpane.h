@@ -39,7 +39,7 @@ public:
     virtual ~CUnitPane() {}
     virtual void Init(CAhFrame * pParentFrame, const char * szConfigSection, const char * szConfigSectionHdr);
     virtual void Done();
-    void         Update(CLand * pLand, std::function<bool(CUnit* unit)> filter = default_unit_filter);
+    void UpdateState(CLand * pLand, std::function<bool(CUnit* unit)> filter = default_unit_filter);
     virtual void ApplyFonts();
     CUnit      * GetUnit(long index);
     virtual void Sort();

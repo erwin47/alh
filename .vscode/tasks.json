@@ -1,0 +1,72 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "clear; cd build; make -j 16",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "rebuild",
+            "type": "shell",
+            "command": "clear; cd build; make clean; make -j 16",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },        
+        {
+            "label": "set up miscatonic",
+            "type": "shell",
+            "command": "cp -v ../twilight/ah.* ./build; cp -v ../twilight/rep41.* ./build; cp -v ../twilight/thefishe*.ord ./build",
+            "problemMatcher": [
+                "$tsc"
+            ]
+        },
+        {
+            "label": "set up new origins",
+            "type": "shell",
+            "command": "cp -v ../NewOrigins/ah.* ./build; cp -v ../NewOrigins/report* ./build; cp -v ../NewOrigins/lostin*.ord ./build",
+            "problemMatcher": [
+                "$tsc"
+            ]
+        },
+        {
+            "label": "set up new origins 2",
+            "type": "shell",
+            "command": "cp -v ../NewOrigins2/ah.* ./build; cp -v ../NewOrigins2/rep* ./build; cp -v ../NewOrigins2/*.rep ./build; cp -v ../NewOrigins2/*.ord ./build",
+            "problemMatcher": [
+                "$tsc"
+            ]
+        },
+        {
+          "label": "set up miskatonic 2",
+          "type": "shell",
+          "command": "cp -v ../Twilight3/ah.* ./build; cp -v ../Twilight3/rep* ./build; cp -v ../Twilight3/*.rep ./build; cp -v ../Twilight3/*.ord ./build",
+          "problemMatcher": [
+              "$tsc"
+          ]
+        },
+        {
+            "label": "reconfigure: debug",
+            "type": "shell",
+            "command": "rm -rf ./build; mkdir build; cd build; cmake -DCMAKE_BUILD_TYPE=Debug ..",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "reconfigure: release",
+            "type": "shell",
+            "command": "rm -rf ./build; mkdir build; cd build; cmake -DCMAKE_BUILD_TYPE=Release ..",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        }  
+
+    ]
+}

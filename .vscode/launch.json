@@ -1,0 +1,49 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/ah",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/build",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) Attach to process",
+            "type": "cppdbg",
+            "request": "attach",
+            "program": "C:/Program Files/dotnet/dotnet.exe",
+            "processId": "${command:pickProcess}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "c:/msys2/mingw64/bin/gdb.exe",
+            "targetArchitecture": "x64",
+            "additionalSOLibSearchPath": "${workspaceFolder}/bin/Debug/win64/;d:\\Server\\src\\Server\\WorkingDirectory\\",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": false,
+                }
+            ],
+            "logging": { 
+                "trace": true, 
+                "traceResponse": true
+                },
+        }        
+    ]
+}

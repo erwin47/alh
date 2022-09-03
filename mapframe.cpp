@@ -926,7 +926,7 @@ void CMapFrame::OnApplyAutoorders(wxCommandEvent& event)
 
     CUnitPane * p = (CUnitPane*)gpApp->m_Panes[AH_PANE_UNITS_HEX];
     if (p && gpApp->orders_changed())
-        p->Update(p->m_pCurLand);
+        p->UpdateState(p->m_pCurLand);
 
 }
 

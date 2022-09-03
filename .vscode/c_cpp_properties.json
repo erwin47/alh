@@ -1,0 +1,37 @@
+{
+    "env": {
+        "myDefaultIncludePath": [
+            "/home/arkady/Atlantis/alh",
+            "${workspaceFolder}",
+            "/usr/include/wx-3.0",
+            "${workspaceFolder}/.."
+        ],
+        "myCompilerPath": "/usr/local/bin/gcc-7"
+    },
+    "configurations": [
+        {
+            "name": "Linux",
+            "intelliSenseMode": "clang-x64",
+            "includePath": [
+                "/home/arkady/Atlantis/alh",
+                "${workspaceFolder}",
+                "/usr/include/wx-3.0",
+                "${workspaceFolder}/.."
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}",
+                    "/home/arkady/Atlantis/alh",
+                    "/usr/include/wx-3.0"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": ""
+            },
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
+}

@@ -605,7 +605,7 @@ void CAhApp::OpenUnitFrameFltr(BOOL PopUpSettings)
             if  (PopUpSettings)
                 pUnitPaneF->OnPopupMenuFilter(event);
             else
-                pUnitPaneF->Update(NULL);
+                pUnitPaneF->UpdateState(NULL);
         }
     }
     else
@@ -1920,7 +1920,7 @@ void CAhApp::SetAllLandUnitFlags()
             pUnit->FlagsLast = ~pUnit->Flags;
         }
         if (pUnitPane)
-            pUnitPane->Update(pUnitPane->m_pCurLand);
+            pUnitPane->UpdateState(pUnitPane->m_pCurLand);
     }
 }
 
@@ -2739,7 +2739,7 @@ void CAhApp::PostLoadReport()
     }
 
     if (pUnitPaneF)
-        pUnitPaneF->Update(NULL);
+        pUnitPaneF->UpdateState(NULL);
 
     CheckRedirectedOutputFiles();
 
@@ -3640,7 +3640,7 @@ void CAhApp::OnMapSelectionChange()
     if (unit_pane)
     {
         unit_pane->is_filtered_ = false;//selection on map should discard filters
-        unit_pane->Update(land);
+        unit_pane->UpdateState(land);
     }        
 
     if (description_pane)
@@ -3766,7 +3766,7 @@ void CAhApp::LoadOrders()
 
         CUnitPane * pUnitPane = (CUnitPane*)m_Panes[AH_PANE_UNITS_HEX];
         if (pUnitPane) {
-            pUnitPane->Update(NULL);
+            pUnitPane->UpdateState(NULL);
         }
             
 
@@ -4569,7 +4569,7 @@ void CAhApp::RerunOrders()
     m_pAtlantis->RunOrders(NULL);//, TurnSequence::SQ_FIRST, TurnSequence::SQ_BUY);
     CUnitPane * pUnitPane = (CUnitPane*)gpApp->m_Panes[AH_PANE_UNITS_HEX];
     if (pUnitPane) {
-        pUnitPane->Update(pUnitPane->m_pCurLand);
+        pUnitPane->UpdateState(pUnitPane->m_pCurLand);
     }
         
 
