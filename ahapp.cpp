@@ -19,8 +19,9 @@
 
 #include "stdhdr.h"
 
-#include "wx/splitter.h"
-#include "wx/listctrl.h"
+#include <wx/filename.h>
+#include <wx/listctrl.h>
+#include <wx/splitter.h>
 //#include "wx/resource.h"
 
 #include "files.h"
@@ -5273,32 +5274,9 @@ void ColorToStr(char * p, wxColour * cr)
 
 void MakePathRelative(const char * cur_dir, CStr & path)
 {
-    const char * p = path.GetData();
-    CStr         rel_path;
-
-    while (*p && EQUAL_PATH_CHARS(*p, *cur_dir) )
-    {
-        p++;
-        cur_dir++;
-    }
-
-    if (*p==SEP)
-        p++;
-    else
-        rel_path << ".." << SEP;
-
-    while (*cur_dir)
-    {
-        if (*cur_dir == SEP)
-            rel_path << ".." << SEP;
-
-        cur_dir++;
-    }
-
-    rel_path << p;
-
-    if (path.GetLength() > rel_path.GetLength())
-        path = rel_path;
+    wxFileName filename(path.GetData());
+    filename.MakeRelativeTo(cur_dir);
+    path = (const char*)filename.GetFullPath().c_str();
 }
 
 //-------------------------------------------------------------------------
