@@ -176,6 +176,7 @@ namespace land_control
 
     struct Incomers
     {
+        Incomers() : man_amount_(0), land_income_available_(0), expected_income_(0) {}
         long man_amount_;
         long land_income_available_;
         long expected_income_;

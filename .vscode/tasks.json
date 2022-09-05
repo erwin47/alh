@@ -6,7 +6,7 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "clear; cd build; make -j 16",
+            "command": "clear; cd build; make -j 8",
             "problemMatcher": [
                 "$gcc"
             ]
@@ -14,15 +14,15 @@
         {
             "label": "rebuild",
             "type": "shell",
-            "command": "clear; cd build; make clean; make -j 16",
+            "command": "clear; cd build; make clean; make -j 8",
             "problemMatcher": [
                 "$gcc"
             ]
         },        
         {
-            "label": "set up miscatonic",
+            "label": "set up new origin5",
             "type": "shell",
-            "command": "cp -v ../twilight/ah.* ./build; cp -v ../twilight/rep41.* ./build; cp -v ../twilight/thefishe*.ord ./build",
+            "command": "cp -v ../NO5/ah.* ./build; cp -v ../NO5/rep*.18 ./build; cp -v ../NO5/*.ord ./build",
             "problemMatcher": [
                 "$tsc"
             ]
