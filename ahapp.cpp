@@ -103,7 +103,7 @@ CAhApp::CAhApp() : m_HexDescrSrc    (128),
     m_UpgradeLandFlags  = FALSE;
     m_DiscardChanges    = FALSE;
     //m_SelUnitIdx        = -1;
-    m_layout            = 0;
+    m_layout            = 4; //without settings we'd like to support the default
     m_DisableErrs       = FALSE;
     m_pAccel            = NULL;
 

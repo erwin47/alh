@@ -359,7 +359,7 @@ void CMapFrame::Init(int layout, const char * szConfigSection)
     const char        * szConfigSectionHdr;
 
     szConfigSection    = GetConfigSection(layout);
-    szConfigSectionHdr = gpApp->GetListColSection(SZ_SECT_LIST_COL_UNIT, SZ_KEY_LIS_COL_UNITS_HEX);
+    szConfigSectionHdr = gpApp->GetListColSection(SZ_SECT_LIST_COL_UNIT, SZ_KEY_LIS_COL_UNITS_HEX);//on first load it fails to load config section
     CAhFrame::Init(layout, szConfigSection);
 
     switch (layout)

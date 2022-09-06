@@ -3333,21 +3333,22 @@ void CMapPane::PaintRectangle(wxDC * pDC)
         CPlane * pPlane = (CPlane*)gpApp->m_pAtlantis->m_Planes.At(m_SelPlane);
         CLand  * pLand;
         int nl;
-        for (nl=0; nl<pPlane->Lands.Count(); nl++)
+        if (pPlane != nullptr) 
         {
-            pLand = (CLand*)pPlane->Lands.At(nl);
-            if (HexIsSelected(pLand))
+            for (nl=0; nl<pPlane->Lands.Count(); nl++)
             {
-                int x,y,z;
-                int wx,wy;
-                LandIdToCoord(pLand->Id, x,y,z);
-                GetHexCenter(x,y, wx, wy);
-                pDC->DrawLine(wx-m_HexHalfSize, wy-m_HexHalfHeight, wx+m_HexHalfSize, wy+m_HexHalfHeight);
-                pDC->DrawLine(wx-m_HexHalfSize, wy+m_HexHalfHeight, wx+m_HexHalfSize, wy-m_HexHalfHeight);
+                pLand = (CLand*)pPlane->Lands.At(nl);
+                if (HexIsSelected(pLand))
+                {
+                    int x,y,z;
+                    int wx,wy;
+                    LandIdToCoord(pLand->Id, x,y,z);
+                    GetHexCenter(x,y, wx, wy);
+                    pDC->DrawLine(wx-m_HexHalfSize, wy-m_HexHalfHeight, wx+m_HexHalfSize, wy+m_HexHalfHeight);
+                    pDC->DrawLine(wx-m_HexHalfSize, wy+m_HexHalfHeight, wx+m_HexHalfSize, wy-m_HexHalfHeight);
+                }
             }
         }
-
-
         pDC->SetPen(OldPen);
         pDC->SetLogicalFunction(OldFunc);
     }
