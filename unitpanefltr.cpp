@@ -235,10 +235,9 @@ void CUnitPaneFltr::UpdateFltr(CUnitFilterDlg * pFilter)
                 pPrevUnit = (CUnit*)pPrevLand->Units.At(unitidx);
                 if (pLand->Units.Search(pPrevUnit, i))
                     pUnit = (CUnit*)pLand->Units.At(i);
-                if (!pUnit) // that's the one!
+                if (!pUnit && pPrevUnit != nullptr) // that's the one!
                 {
-                    if (gpApp->m_pAtlantis->m_Units.Search(pPrevUnit, i))
-                        pUnit = (CUnit*)gpApp->m_pAtlantis->m_Units.At(i);
+                    pUnit = gpApp->m_pAtlantis->global_find_unit(pPrevUnit->Id);
                     ok = TRUE;
                 }
                 if (!pUnit)

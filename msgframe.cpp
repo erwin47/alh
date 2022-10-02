@@ -43,12 +43,12 @@ CMsgFrame::CMsgFrame(wxWindow * parent)
 
 //--------------------------------------------------------------------
 
-void CMsgFrame::Init(int layout, const char * szConfigSection)
+void CMsgFrame::Init(const char * szConfigSection)
 {
     CEditPane         * p;
 
     szConfigSection = SZ_SECT_WND_MSG;
-    CAhFrame::Init(layout, szConfigSection);
+    CAhFrame::Init(szConfigSection);
 
     p = new CEditPane(this, wxEmptyString, FALSE, FONT_ERR_DLG);
     SetPane(AH_PANE_MSG    , p);

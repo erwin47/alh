@@ -91,7 +91,7 @@ protected:
 class CMapPane : public wxWindow
 {
 public:
-    CMapPane(wxWindow * parent, wxWindowID id, int layout);
+    CMapPane(wxWindow * parent, wxWindowID id);
     virtual ~CMapPane();
     virtual void Init(CAhFrame * pParentFrame);
     virtual void Done();

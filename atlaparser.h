@@ -205,7 +205,6 @@ public:
     BOOL       GenOrdersTeach(CUnit * pMainUnit);
     BOOL       GenGiveEverything(CLand* land, CUnit * pFrom, const char * To);
     BOOL       DiscardJunkItems(CUnit * pUnit, const char * junk);
-    BOOL       DetectSpies(CUnit * pUnit, long lonum, long hinum, long amount);
     BOOL       ApplyDefaultOrders(BOOL EmptyOnly);
     void       ApplyLandDefaultOrders(CLand* land);
     int        ParseCBDataFile(const char * FNameIn);
@@ -235,7 +234,6 @@ public:
     void       ExtrapolateLandCoord(int &x, int &y, int z, int direction) const;
 
     // Movement
-    int        GetTerrainMovementCost(wxString Terrain) const;
     bool       IsRoadConnected(CLand *, CLand *, int direction) const;
     bool       IsBadWeatherHex(CLand * pLand, int month) const;
     int        GetMovementCost(int terrainCost, bool isBadWeather, bool hasRoad, int movementMode, bool noCross) const;
@@ -250,7 +248,10 @@ public:
     CBaseColl         m_NewProducts;
 
     CBaseCollById     m_Factions;
-    CBaseCollById     m_Units;
+
+
+    bool global_unit_exists(long unit_id) const {  return units_ids_.find(unit_id) != units_ids_.end();  }
+    CUnit* global_find_unit(long unit_id) {  return global_unit_exists(unit_id) ? units_[units_ids_[unit_id]] : nullptr;  }
 
     std::unordered_map<long, size_t> units_ids_; //<Id, pos in units_>
     std::vector<CUnit*> units_;
@@ -274,7 +275,6 @@ public:
     BOOL              m_OrdersLoaded;
     CStr              m_FactionInfo;
     BOOL              m_ArcadiaSkills;
-    std::map<wxString, int> TerrainMovementCost;
 
     bool              m_EconomyTaxPillage;
     bool              m_EconomyShareAfterBuy;

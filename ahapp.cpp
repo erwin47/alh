@@ -103,7 +103,6 @@ CAhApp::CAhApp() : m_HexDescrSrc    (128),
     m_UpgradeLandFlags  = FALSE;
     m_DiscardChanges    = FALSE;
     //m_SelUnitIdx        = -1;
-    m_layout            = 4; //without settings we'd like to support the default
     m_DisableErrs       = FALSE;
     m_pAccel            = NULL;
 
@@ -128,13 +127,6 @@ CAhApp::CAhApp() : m_HexDescrSrc    (128),
 CAhApp::~CAhApp()
 {
 }
-
-//-------------------------------------------------------------------------
-int CAhApp::getLayout() const
-{
-    return m_layout;
-}
-
 
 bool CAhApp::OnInit()
 {
@@ -178,15 +170,6 @@ bool CAhApp::OnInit()
     }
 */
     config_[CONFIG_FILE_STATE].load(SZ_CONFIG_STATE_FILE);
-
-    //UpgradeConfigFiles();
-
-    m_layout = atol(GetConfig(SZ_SECT_COMMON, SZ_KEY_LAYOUT));
-    if (m_layout<0)
-        m_layout = 0;
-    if (m_layout>=AH_LAYOUT_COUNT)
-        m_layout = AH_LAYOUT_COUNT-1;
-
     m_Brightness_Delta = atol(GetConfig(SZ_SECT_COMMON, SZ_KEY_BRIGHT_DELTA));
 
 
@@ -365,23 +348,11 @@ bool CAhApp::OnInit()
         i = GetSectionNext (i, SZ_SECT_REPORTS, szName, szValue);
     }
 
-
-
-    LoadTerrainCostConfig();
-
     StdRedirectInit();
 
     CreateAccelerator();
 
     OpenMapFrame();
-
-    if ((AH_LAYOUT_3_WIN==m_layout || AH_LAYOUT_2_WIN==m_layout) &&
-        atol(GetConfig(CUnitFrame::GetConfigSection(m_layout), SZ_KEY_OPEN)) )
-        OpenUnitFrame();
-
-    if ((AH_LAYOUT_3_WIN==m_layout) &&
-        (atol(GetConfig(CEditsFrame::GetConfigSection(m_layout), SZ_KEY_OPEN))) )
-        OpenEditsFrame();
 
     SetTopWindow(m_Frames[AH_FRAME_MAP]);
     m_Frames[AH_FRAME_MAP]->SetFocus();
@@ -406,7 +377,7 @@ bool CAhApp::OnInit()
             }
         }
 
-    if (atol(GetConfig(CUnitFrameFltr::GetConfigSection(m_layout), SZ_KEY_OPEN)) )
+    if (atol(GetConfig("", SZ_KEY_OPEN)) )
         OpenUnitFrameFltr(FALSE);
 
     return TRUE;
@@ -552,8 +523,8 @@ void CAhApp::OpenMapFrame()
 {
     if (!m_Frames[AH_FRAME_MAP])
     {
-        m_Frames[AH_FRAME_MAP] = new CMapFrame(NULL, m_layout);
-        m_Frames[AH_FRAME_MAP]->Init(m_layout, NULL);
+        m_Frames[AH_FRAME_MAP] = new CMapFrame(NULL);
+        m_Frames[AH_FRAME_MAP]->Init(NULL);
         m_Frames[AH_FRAME_MAP]->Show(TRUE);
     }
     else
@@ -567,7 +538,7 @@ void CAhApp::OpenUnitFrame()
     if (!m_Frames[AH_FRAME_UNITS])
     {
         m_Frames[AH_FRAME_UNITS] = new CUnitFrame(m_Frames[AH_FRAME_MAP]);
-        m_Frames[AH_FRAME_UNITS]->Init(m_layout, NULL);
+        m_Frames[AH_FRAME_UNITS]->Init(NULL);
         m_Frames[AH_FRAME_UNITS]->Show(TRUE);
     }
     else
@@ -581,7 +552,7 @@ void CAhApp::ShowShaftConnectGUI()
     if (!m_Frames[AH_FRAME_SHAFTS])
     {
         m_Frames[AH_FRAME_SHAFTS] = new ShaftsFrame(m_Frames[AH_FRAME_MAP]);
-        m_Frames[AH_FRAME_SHAFTS]->Init(m_layout, NULL);
+        m_Frames[AH_FRAME_SHAFTS]->Init(NULL);
         m_Frames[AH_FRAME_SHAFTS]->Show(TRUE);
     }
     else
@@ -595,7 +566,7 @@ void CAhApp::OpenUnitFrameFltr(BOOL PopUpSettings)
     if (!m_Frames[AH_FRAME_UNITS_FLTR])
     {
         m_Frames[AH_FRAME_UNITS_FLTR] = new CUnitFrameFltr(m_Frames[AH_FRAME_MAP]);
-        m_Frames[AH_FRAME_UNITS_FLTR]->Init(m_layout, NULL);
+        m_Frames[AH_FRAME_UNITS_FLTR]->Init(NULL);
         m_Frames[AH_FRAME_UNITS_FLTR]->Show(TRUE);
 
         CUnitPaneFltr   * pUnitPaneF = (CUnitPaneFltr*)m_Panes [AH_PANE_UNITS_FILTER];
@@ -622,7 +593,7 @@ void CAhApp::OpenMsgFrame()
     if (!m_Frames[AH_FRAME_MSG])
     {
         m_Frames[AH_FRAME_MSG] = new CMsgFrame(m_Frames[AH_FRAME_MAP]);
-        m_Frames[AH_FRAME_MSG]->Init(m_layout, NULL);
+        m_Frames[AH_FRAME_MSG]->Init(NULL);
         m_MsgSrc.Empty();
         m_Frames[AH_FRAME_MSG]->Show(TRUE);
     }
@@ -635,7 +606,7 @@ void CAhApp::OpenEditsFrame()
     if (!m_Frames[AH_FRAME_EDITS])
     {
         m_Frames[AH_FRAME_EDITS] = new CEditsFrame(m_Frames[AH_FRAME_MAP]);
-        m_Frames[AH_FRAME_EDITS]->Init(m_layout, NULL);
+        m_Frames[AH_FRAME_EDITS]->Init(NULL);
         m_Frames[AH_FRAME_EDITS]->Show(TRUE);
     }
     else
@@ -904,7 +875,7 @@ int  CAhApp::GetSectionNext (int idx, const char * szSection, const char *& szNa
         szValue = it->second.c_str();
         return idx;
     }
-    return -1;        
+    return -1;
 }
 
 //-------------------------------------------------------------------------
@@ -1120,7 +1091,7 @@ long CAhApp::GetStudyCost(const char * skill)
 }*/
 
 //-------------------------------------------------------------------------
-
+/*
 BOOL CAhApp::GetItemWeights(const char * item, int *& weights, const char **& movenames, int & movecount )
 {
     ItemWeights   Dummy;
@@ -1213,7 +1184,7 @@ BOOL CAhApp::GetItemWeights(const char * item, int *& weights, const char **& mo
 
     return Ok;
 }
-
+*/
 
 //-------------------------------------------------------------------------
 
@@ -1708,6 +1679,7 @@ int  CAhApp::LoadOrders  (const char * FNameIn)
 //            pMapPane->Refresh(FALSE, NULL);
 //            pMapPane->CleanCities(); //pMapPane->Refresh(FALSE, NULL); // to remove pointers to land wich could be replaced by joining orders
 
+        m_pAtlantis->RunOrders(nullptr);
         OnMapSelectionChange();
         RedrawTracks();
     }
@@ -2137,79 +2109,6 @@ void CAhApp::WriteMagesCSV()
 }
 
 //-------------------------------------------------------------------------
-
-void CAhApp::CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & TaxDetails)
-{
-    int               x;
-    CUnit           * pUnit;
-    EValueType        type;
-    long              men;
-    CStr              sCoord;
-    CTaxProdDetails * pDetail;
-    CTaxProdDetails   Dummy;
-    int               idx;
-    CTaxProdDetailsCollByFaction Factions;
-    wxString          OneLine;
-
-    for (x=0; x<pLand->Units.Count(); x++)
-    {
-        pUnit = (CUnit*)pLand->Units.At(x);
-        if (pUnit->Flags & UNIT_FLAG_TAXING)
-        {
-            Dummy.FactionId = pUnit->FactionId;
-            if (TaxDetails.Search(&Dummy, idx))
-                pDetail = (CTaxProdDetails*)TaxDetails.At(idx);
-            else
-            {
-                pDetail = new CTaxProdDetails;
-                pDetail->FactionId = pUnit->FactionId;
-                TaxDetails.Insert(pDetail);
-            }
-            if (Factions.Insert(pDetail))
-            {
-                pDetail->amount = pLand->current_state_.tax_.amount_;
-                pDetail->HexCount++;
-            }
-            if (pUnit->GetProperty(PRP_MEN, type, (const void *&)men, eNormal) && eLong==type)
-                pDetail->amount -= men*atol(GetConfig(SZ_SECT_COMMON, SZ_KEY_TAX_PER_TAXER));
-        }
-    }
-
-
-    // Output
-    for (int iFac=0; iFac<Factions.Count(); iFac++)
-    {
-        pDetail = (CTaxProdDetails*)Factions.At(iFac);
-        OneLine.Empty();
-
-        m_pAtlantis->ComposeLandStrCoord(pLand, sCoord);
-        OneLine << wxString::FromUTF8(pLand->TerrainType.GetData()) << wxT(" (") << wxString::FromUTF8(sCoord.GetData()) << wxT(") ");
-        if (!pLand->CityName.IsEmpty())
-            OneLine << wxString::FromUTF8(pLand->CityName.GetData()) << wxT(" ");
-
-        wxCoord x, y;
-        wxClientDC myDC(m_Frames[AH_FRAME_MAP]);
-        do
-        {
-            OneLine.Append(wxT(" "));
-            myDC.GetTextExtent(OneLine.GetData(), &x, &y, NULL, NULL, (m_Fonts[FONT_ERR_DLG]));
-        }
-        while (x < 245);
-
-        if (pDetail->amount > 0)
-            OneLine << wxT("is undertaxed by ") << pDetail->amount << wxT(" silv (") << 100 * (pLand->current_state_.tax_.amount_ - pDetail->amount) / (pLand->current_state_.tax_.amount_+1) << wxT("% of $") << pLand->current_state_.tax_.amount_ << wxT(").") << wxString::FromUTF8(EOL_SCR);
-        else if (pDetail->amount<0)
-            OneLine << wxT("is overtaxed  by ") << (-pDetail->amount) << wxT(" silv (") << 100 * (pLand->current_state_.tax_.amount_ - pDetail->amount) / (pLand->current_state_.tax_.amount_+1) << wxT("% of $") << pLand->current_state_.tax_.amount_ << wxT(").") << wxString::FromUTF8(EOL_SCR);
-        else
-            OneLine << wxString::FromUTF8(EOL_SCR);
-
-        pDetail->Details << OneLine.ToUTF8();
-    }
-
-    Factions.DeleteAll();
-}
-
-//-------------------------------------------------------------------------
 bool CAhApp::GetTradeActivityDescription(CLand* land, std::map<int, std::vector<std::string>>& report)
 {
     bool ret_val(false);
@@ -2299,7 +2198,7 @@ bool CAhApp::GetTradeActivityDescription(CLand* land, std::map<int, std::vector<
 
 //-------------------------------------------------------------------------
 
-void CAhApp::CheckTaxTrade()
+void CAhApp::CheckFactionActivityStatistics()
 {
     //CStr                sTax(64);
     //CStr                sTrade(64);
@@ -2481,10 +2380,9 @@ void CAhApp::CheckTaxTrade()
 
 void CAhApp::CheckProduction()
 {
-    int    n, i, x;
+    int    n, i;
     CLand  * pLand;
     CPlane * pPlane;
-    CUnit  * pUnit;
     CStr     Error(64), S(32);
 
     for (n=0; n<m_pAtlantis->m_Planes.Count(); n++)
@@ -2493,9 +2391,8 @@ void CAhApp::CheckProduction()
         for (i=0; i<pPlane->Lands.Count(); i++)
         {
             pLand = (CLand*)pPlane->Lands.At(i);
-            for (x=0; x<pLand->Units.Count(); x++)
+            for (CUnit* pUnit : pLand->units_seq_)
             {
-                pUnit = (CUnit*)pLand->Units.At(x);
                 if (!m_pAtlantis->CheckResourcesForProduction(pUnit, pLand, S))
                     Error << "Unit " << pUnit->Id << " " << S << EOL_SCR;
             }
@@ -2658,11 +2555,6 @@ void CAhApp::PostLoadReport()
     SET_UNIT_PROP_NAME(PRP_TEACHING          , eLong   )
     SET_UNIT_PROP_NAME(PRP_SEQUENCE          , eLong   )
     SET_UNIT_PROP_NAME(PRP_FRIEND_OR_FOE     , eLong   )
-    SET_UNIT_PROP_NAME(PRP_WEIGHT            , eLong   )
-    SET_UNIT_PROP_NAME(PRP_WEIGHT_WALK       , eLong   )
-    SET_UNIT_PROP_NAME(PRP_WEIGHT_RIDE       , eLong   )
-    SET_UNIT_PROP_NAME(PRP_WEIGHT_FLY        , eLong   )
-    SET_UNIT_PROP_NAME(PRP_WEIGHT_SWIM       , eLong   )
     SET_UNIT_PROP_NAME(PRP_BEST_SKILL        , eLong   )
     SET_UNIT_PROP_NAME(PRP_BEST_SKILL_DAYS   , eLong   )
     SET_UNIT_PROP_NAME(PRP_DESCRIPTION       , eCharPtr)
@@ -2672,8 +2564,6 @@ void CAhApp::PostLoadReport()
     SET_UNIT_PROP_NAME(PRP_FLAGS_STANDARD    , eCharPtr)
     SET_UNIT_PROP_NAME(PRP_FLAGS_CUSTOM      , eCharPtr)
     SET_UNIT_PROP_NAME(PRP_FLAGS_CUSTOM_ABBR , eCharPtr)
-
-    LoadTerrainCostConfig();
 
     // If no orders loaded, no movement will be calculated. Force it.
     if (!m_pAtlantis->m_OrdersLoaded)
@@ -2773,7 +2663,6 @@ int  CAhApp::LoadReport  (const char * FNameIn, BOOL Join)
         if (!m_FirstLoad && !Join)
         {
             m_pAtlantis = new CAtlaParser(&ThisGameDataHelper);
-            LoadTerrainCostConfig();
         }
 
         if (!Join)
@@ -2986,7 +2875,6 @@ void CAhApp::SelectUnit(CUnit * pUnit)
 void CAhApp::SelectLand(CLand * pLand)
 {
     CMapPane    * pMapPane  = (CMapPane* )gpApp->m_Panes[AH_PANE_MAP];
-    CUnitPane   * pUnitPane = (CUnitPane*)gpApp->m_Panes[AH_PANE_UNITS_HEX];
     CPlane      * pPlane;
     int           nx, ny, nz;
     BOOL          refresh;
@@ -3000,8 +2888,6 @@ void CAhApp::SelectLand(CLand * pLand)
         if (refresh)
             pMapPane->Refresh(FALSE);
 
-	if ((m_layout == AH_LAYOUT_1_WIN_ONE_DESCR) ||
-            (!pUnitPane || pLand != pUnitPane->m_pCurLand))
         pMapPane->SetSelection(nx, ny, NULL, pPlane, TRUE);
     }
 }
@@ -3029,7 +2915,6 @@ void CAhApp::EditPaneDClicked(CEditPane * pPane)
     CStr          src, S;
     char          ch;
     CUnit       * pUnit;
-    CBaseObject   Dummy;
     int           idx;
     long          position;
 
@@ -3075,10 +2960,10 @@ void CAhApp::EditPaneDClicked(CEditPane * pPane)
             }*/
 
             S.GetToken(p, " \t", ch, TRIM_ALL);
-            Dummy.Id = atol(S.GetData());
-            if (m_pAtlantis->m_Units.Search(&Dummy, idx))
+            long unit_id = atol(S.GetData());
+            pUnit = m_pAtlantis->global_find_unit(unit_id);
+            if (pUnit != nullptr)
             {
-                pUnit = (CUnit*)m_pAtlantis->m_Units.At(idx);
                 SelectUnit(pUnit);
                 return;
             }
@@ -3090,10 +2975,10 @@ void CAhApp::EditPaneDClicked(CEditPane * pPane)
         if ('('==ch)
         {
             S.GetToken(p, ",)\n", ch, TRIM_ALL);
-            Dummy.Id = atol(S.GetData());
-            if (')'==ch && m_pAtlantis->m_Units.Search(&Dummy, idx))
+            long unit_id = atol(S.GetData());
+            pUnit = m_pAtlantis->global_find_unit(unit_id);
+            if (')'==ch && pUnit != nullptr)
             {
-                pUnit = (CUnit*)m_pAtlantis->m_Units.At(idx);
                 SelectUnit(pUnit);
                 return;
             }
@@ -3110,12 +2995,16 @@ void CAhApp::EditPaneDClicked(CEditPane * pPane)
                 // Try to parse a unit number as well: (5,7) NEW 1 (2883585) Warning
                 CStr U;
                 CLand * pLand = m_pAtlantis->GetLand(S.GetData());
+                if (pLand == nullptr)
+                    return;
+                    
                 p = SkipSpaces(U.GetToken(p, "(\n", ch, TRIM_ALL));
                 if ('('==ch)
                 {
                     U.GetToken(p, ",)\n", ch, TRIM_ALL);
                     if (')' == ch)
                     {
+                        CBaseObject   Dummy;
                         Dummy.Id = atol(U.GetData());
                         if (pLand->Units.Search(&Dummy, idx))
                         {
@@ -3603,7 +3492,10 @@ std::string CAhApp::land_description_editpane(CLand * pLand)
     }
     for (const auto& error : pLand->current_state_.run_orders_errors_)
     {
-        reg_description += "    " + unit_control::compose_unit_name(error.unit_) + error.message_;
+        if (error.unit_ == nullptr)
+            reg_description += "    " + error.message_;
+        else
+            reg_description += "    " + unit_control::compose_unit_name(error.unit_) + error.message_;
         reg_description.append(EOL_SCR);
     }
     return reg_description;
@@ -3773,22 +3665,6 @@ void CAhApp::LoadOrders()
 
         LoadOrders(S.GetData());
         orders_changed(false);
-    }
-}
-
-//-------------------------------------------------------------------------
-
-void CAhApp::LoadTerrainCostConfig()
-{
-    const char * szName, * szValue;
-    int sectidx = GetSectionFirst(SZ_SECT_TERRAIN_COST, szName, szValue);
-    while (sectidx >= 0)
-    {
-        if (szValue && *szValue)
-        {
-            m_pAtlantis->TerrainMovementCost[wxString::FromUTF8(szName)] = atoi(szValue);
-        }
-        sectidx = GetSectionNext(sectidx, SZ_SECT_TERRAIN_COST, szName, szValue);
     }
 }
 
@@ -4150,10 +4026,6 @@ void CAhApp::ViewFactionOverview()
                     0==stricmp(propname.GetData(), PRP_TEACHING  ) ||
                     0==stricmp(propname.GetData(), PRP_SKILLS    ) ||
                     0==stricmp(propname.GetData(), PRP_MAG_SKILLS) ||
-                    0==stricmp(propname.GetData(), PRP_WEIGHT_WALK) ||
-                    0==stricmp(propname.GetData(), PRP_WEIGHT_RIDE) ||
-                    0==stricmp(propname.GetData(), PRP_WEIGHT_FLY) ||
-                    0==stricmp(propname.GetData(), PRP_WEIGHT_SWIM) ||
                     0==stricmp(propname.GetData(), PRP_BEST_SKILL) ||
                     0==stricmp(propname.GetData(), PRP_BEST_SKILL_DAYS) ||
                     0==stricmp(propname.GetData(), PRP_MAG_SKILLS) ||
@@ -5099,11 +4971,11 @@ bool CGameDataHelper::ResolveAliasItems (const std::string& phrase, std::string&
 {
     return gpApp->ResolveAliasItems(phrase, codename, long_name, long_name_plural);
 }
-
+/*
 BOOL CGameDataHelper::GetItemWeights(const char * item, int *& weights, const char **& movenames, int & movecount )
 {
     return gpApp->GetItemWeights(ResolveAlias(item), weights, movenames, movecount );
-}
+}*/
 
 void CGameDataHelper::GetMoveNames(const char **& movenames)
 {

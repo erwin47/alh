@@ -55,11 +55,6 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define PRP_STRUCT_OWNER                "structowner"
 #define PRP_STRUCT_NAME                 "structname"
 #define PRP_TEACHING                    "teaching"
-#define PRP_WEIGHT                      "weight"
-#define PRP_WEIGHT_WALK                 "weight_walk"
-#define PRP_WEIGHT_RIDE                 "weight_ride"
-#define PRP_WEIGHT_FLY                  "weight_fly"
-#define PRP_WEIGHT_SWIM                 "weight_swim"
 #define PRP_BEST_SKILL                  "best_skill"
 #define PRP_BEST_SKILL_DAYS             "best_skill_days"
 #define PRP_MOVEMENT                    "movement"
@@ -425,7 +420,6 @@ public:
     void    ExtractCommentsFromDefOrders();
     virtual void ResetNormalProperties();
     void    CheckWeight(CStr & sErr);
-    void    CalcWeightsAndMovement();
 
     CUnit * AllocSimpleCopy();
 
@@ -475,7 +469,6 @@ public:
     long            FactionId;
     CFaction      * pFaction;
     long            LandId;
-    long            Weight[MOVE_MODE_MAX];
     CStr            Comments;
     CStr            DefOrders;
     CStr            Orders;
@@ -632,9 +625,9 @@ void init_land_state(LandState& lstate);
 class AffectionsInfo
 {
     //moving to/from handling
-    std::set<CLand*>                                  affected_lands_;//! set of lands which were affected by current
-    std::unordered_map<CLand*, std::vector<CUnit*>>   incoming_units_;//! separated by foreign lands from which they come
-    std::unordered_map<CLand*, std::vector<CUnit*>>   going_to_come_units_;//! separated by foreign lands from which they come
+    std::set<CLand*>                            affected_lands_;//! set of lands which were affected by current
+    std::map<CLand*, std::vector<CUnit*>>       incoming_units_;//! separated by foreign lands from which they come
+    std::map<CLand*, std::vector<CUnit*>>       going_to_come_units_;//! separated by foreign lands from which they come
 
 public:
     //! cleans all affectors from affecting current region
@@ -653,9 +646,9 @@ public:
     inline void   add_going_to_come(CLand* land, CUnit* unit) { going_to_come_units_[land].push_back(unit); }
 
     //getters
-    inline std::set<CLand*>&                                affected_lands()      {  return affected_lands_;  }
-    inline std::unordered_map<CLand*, std::vector<CUnit*>>& incoming_units()      {  return incoming_units_; }
-    inline std::unordered_map<CLand*, std::vector<CUnit*>>& going_to_come_units() {  return going_to_come_units_;  }
+    inline std::set<CLand*>&                      affected_lands()      {  return affected_lands_;  }
+    inline std::map<CLand*, std::vector<CUnit*>>& incoming_units()      {  return incoming_units_; }
+    inline std::map<CLand*, std::vector<CUnit*>>& going_to_come_units() {  return going_to_come_units_;  }
 };
 
 
@@ -818,7 +811,6 @@ public:
     const char * GetWeatherLine    (BOOL IsCurrent, BOOL IsGood, int Zone);
     const char * ResolveAlias      (const char * alias);
     bool         ResolveAliasItems (const std::string& phrase, std::string& codename, std::string& name, std::string& name_plural);
-    BOOL         GetItemWeights    (const char * item, int *& weights, const char **& movenames, int & movecount );
     void         GetMoveNames      (const char **& movenames);
     BOOL         GetTropicZone     (const char * plane, long & y_min, long & y_max);
     const char * GetPlaneSize      (const char * plane);
@@ -838,47 +830,6 @@ public:
 extern CGameDataHelper * gpDataHelper;
 
 //-----------------------------------------------------------------
-
-class CTaxProdDetails
-{
-public:
-    CTaxProdDetails() {HexCount=0; FactionId=0; amount=0;}
-
-    long  FactionId;
-    long  HexCount;
-    long  amount;
-    CStr  Details;
-};
-
-class CTaxProdDetailsCollByFaction : public CSortedCollection
-{
-    public:
-        CTaxProdDetailsCollByFaction() : CSortedCollection() {};
-        CTaxProdDetailsCollByFaction(int nDelta) : CSortedCollection(nDelta) {};
-    protected:
-        virtual void FreeItem(void * pItem)
-        {
-            CTaxProdDetails * p = (CTaxProdDetails*)pItem;
-            delete p;
-        };
-        virtual int Compare(void * pItem1, void * pItem2) const
-        {
-            CTaxProdDetails * p1 = (CTaxProdDetails*)pItem1;
-            CTaxProdDetails * p2 = (CTaxProdDetails*)pItem2;
-
-            if (p1->FactionId > p2->FactionId)
-                return 1;
-            else
-                if (p1->FactionId < p2->FactionId)
-                    return -1;
-            else
-                return 0;
-        };
-};
-
-//-----------------------------------------------------------------
-
-
 
 long LandCoordToId(int x, int y, int z);
 void LandIdToCoord(long id, int & x, int & y, int & z);

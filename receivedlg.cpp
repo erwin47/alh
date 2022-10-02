@@ -225,7 +225,7 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
             unit_name << ppu.first << ") " << item_type << ")";//current amount of items
             unit_name << " " << unit_control::flags::compose_flag_info(ppu.second);//current fullmoth action sign (to help determine what is the unit)
 
-            long weights[5];
+            long weights[5] = {0};
             unit_control::get_weights(ppu.second, weights);
             unit_name << "[";
             unit_name << weights[0] << "/"; //unit weight

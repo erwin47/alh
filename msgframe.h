@@ -26,7 +26,7 @@ class CMsgFrame : public CAhFrame
 public:
     CMsgFrame(wxWindow * parent);
 
-    virtual void    Init(int layout, const char * szConfigSection);
+    virtual void    Init(const char * szConfigSection);
 
 private:
     void OnCloseWindow(wxCloseEvent& event);

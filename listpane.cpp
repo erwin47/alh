@@ -248,6 +248,51 @@ void CListPane::SetData(eSelMode selmode, long seldata, BOOL FullUpdate)
                     wxString temp(ss.str());
                     info.SetText(temp);                    
                 }
+                else if (unit != nullptr && 
+                    stricmp(layoutitem->m_Name, "weight") == 0)
+                {
+                    long weights[5] = {0};
+                    unit_control::get_weights(unit, weights);
+                    wxString res;
+                    res << weights[0];
+                    info.SetText(res);    
+                }
+                else if (unit != nullptr && 
+                    stricmp(layoutitem->m_Name, "weight_walk") == 0)
+                {
+                    long weights[5] = {0};
+                    unit_control::get_weights(unit, weights);
+                    wxString res;
+                    res << weights[1] - weights[0];
+                    info.SetText(res);    
+                }
+                else if (unit != nullptr && 
+                    stricmp(layoutitem->m_Name, "weight_ride") == 0)
+                {
+                    long weights[5] = {0};
+                    unit_control::get_weights(unit, weights);
+                     wxString res;
+                    res << weights[2] - weights[0];
+                    info.SetText(res);    
+                }
+                else if (unit != nullptr && 
+                    stricmp(layoutitem->m_Name, "weight_fly") == 0)
+                {
+                    long weights[5] = {0};
+                    unit_control::get_weights(unit, weights);
+                    wxString res;
+                    res << weights[3] - weights[0];
+                    info.SetText(res);    
+                }
+                else if (unit != nullptr && 
+                    stricmp(layoutitem->m_Name, "weight_swim") == 0)
+                {
+                    long weights[5] = {0};
+                    unit_control::get_weights(unit, weights);
+                    wxString res;
+                    res << weights[4] - weights[0];
+                    info.SetText(res);     
+                }
                 else if (dataitem->GetProperty(layoutitem->m_Name, valuetype, value ))
                 {
                     switch (valuetype)

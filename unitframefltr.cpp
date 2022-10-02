@@ -55,22 +55,14 @@ CUnitFrameFltr::CUnitFrameFltr(wxWindow * parent)
 
 //--------------------------------------------------------------------
 
-const char * CUnitFrameFltr::GetConfigSection(int )
-{
-    // we do not depend on layout
-    return SZ_SECT_WND_UNITS_FLTR;
-}
-
-//--------------------------------------------------------------------
-
-void CUnitFrameFltr::Init(int layout, const char * szConfigSection)
+void CUnitFrameFltr::Init(const char * szConfigSection)
 {
     CUnitPaneFltr * p1;
     const char    * szConfigSectionHdr;
 
-    szConfigSection    = GetConfigSection(layout);
+    szConfigSection    = SZ_SECT_WND_UNITS_FLTR;
     szConfigSectionHdr = gpApp->GetListColSection(SZ_SECT_LIST_COL_UNIT, SZ_KEY_LIS_COL_UNITS_FILTER);
-    CAhFrame::Init(layout, szConfigSection);
+    CAhFrame::Init(szConfigSection);
 
     p1 = new CUnitPaneFltr(this);
     SetPane(AH_PANE_UNITS_FILTER, p1);

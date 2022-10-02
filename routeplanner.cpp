@@ -14,6 +14,7 @@
 #include "objs.h"
 #include "stdhdr.h"
 #include "data_control.h"
+#include "ah_control.h"
 
 /*
 void route_generator(CLand* start, CLand* end, const unit_control::MoveMode& movemode, const bool& nocross)
@@ -188,7 +189,7 @@ bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const
     if (oldTurn == 0) oldTurn = 1;
     int currentMonth = (startMonth + oldTurn - 1) % 12;
 
-    int terrainCost = gpApp->m_pAtlantis->GetTerrainMovementCost(pLandExit->TerrainType.GetData());
+    int terrainCost = game_control::get_terrain_movement_cost(pLandExit->TerrainType.GetData());
     if (nocross && land_control::is_water(pLandExit))
     {
         terrainCost = 999;
@@ -202,6 +203,7 @@ bool RoutePlanner::tryUpdateRoute(CLand * pLandCurrent, CLand * pLandExit, const
         if (hasRoad) route_markers += wxT("r");
     }
 
+    
     int MovementCost = gpApp->m_pAtlantis->GetMovementCost(terrainCost, isBadWeather, hasRoad, movementMode, true);
     int newMovementCost = pLandCurrent->TotalMovementCost + MovementCost;
     int newTurn = (newMovementCost + movementMode - 1) / movementMode;

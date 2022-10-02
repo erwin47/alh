@@ -26,6 +26,7 @@
 #include "stdhdr.h"
 
 #include "data.h"
+#include "data_control.h"
 
 #include "cstr.h"
 #include "collection.h"
@@ -54,11 +55,6 @@ const char * STD_UNIT_PROPS [] =
     PRP_STRUCT_OWNER         ,
     PRP_STRUCT_NAME          ,
     PRP_TEACHING             ,
-    PRP_WEIGHT               ,
-    PRP_WEIGHT_WALK          ,
-    PRP_WEIGHT_RIDE          ,
-    PRP_WEIGHT_FLY           ,
-    PRP_WEIGHT_SWIM          ,
     PRP_MOVEMENT             ,
     PRP_DESCRIPTION          ,
     PRP_COMBAT               ,
@@ -435,26 +431,26 @@ void AffectionsInfo::clear_affected(CLand* current)
 
 void CLand::ResetUnitsAndStructs()
 {
-    int       i;
-    CUnit   * pUnit;
-    CStruct * pStruct;
-
     current_state_ = initial_state_;
 
-    for (i=Units.Count()-1; i>=0; i--)
-    {
-        pUnit = (CUnit*)Units.At(i);
-        pUnit->ResetNormalProperties();
-        pUnit->movements_.clear();
-        pUnit->movement_stop_ = 0;
-    }
+    land_control::perform_on_each_unit(this, [](CUnit* unit) {
+        unit->ResetNormalProperties();
+        unit->movements_.clear();
+        unit->movement_stop_ = 0;
+    });
+
+    land_control::moving::perform_on_each_incoming_unit(this, [](CUnit* unit) {
+        //we need to reset skills for case of moving ship with studying passangers, 
+        //because each recalculation of current region will update skills, and they have to be reset.
+        //Silver also have to be reset.
+        unit->skills_ = unit->skills_initial_;
+    });
 
     affections_.clear_affected(this);
 
     for (size_t k=0; k<initial_state_.structures_.size(); k++)
     {
-        pStruct = initial_state_.structures_[k];
-        pStruct->ResetNormalProperties();
+        initial_state_.structures_[k]->ResetNormalProperties();
     }
 }
 
@@ -779,7 +775,6 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
 
     FlagsLast     = ~Flags;
     reqMovementSpeed = 0;
-    memset(Weight, 0, sizeof(Weight));
 };
 
 //-------------------------------------------------------------
@@ -824,8 +819,6 @@ CUnit * CUnit::AllocSimpleCopy()
     pUnit->Flags                  = Flags                ;
     pUnit->FlagsOrg               = FlagsOrg             ;
     pUnit->FlagsLast              = FlagsLast            ;
-
-    memcpy(pUnit->Weight, Weight, sizeof(Weight))        ;
 
     const char  * propname;
     EValueType    type;
@@ -891,152 +884,10 @@ void CUnit::ResetNormalProperties()
     struct_id_ = struct_id_initial_;
     monthlong_descr_.clear();
     
-    /*if (struct_id_initial_ != 0)
-    {
-        pUnit->struct_id_initial_ = m_pCurStruct->Id | 0x00010000;//TODO: generalize
-        pUnit->struct_id_ = pUnit->struct_id_initial_;        
-        SetProperty(PRP_SILVER, eLong, (const void*)silver_initial_.amount_, eNormal);
-    }*/
     has_error_ = false;
     Flags     = FlagsOrg;
     FlagsLast = ~Flags;
     reqMovementSpeed = 0;
-
-    // calc weight;
-    CalcWeightsAndMovement();
-}
-
-//-------------------------------------------------------------
-
-void CUnit::AddWeight(int nitems, int * weights, const char ** , int nweights)
-{
-    int  i;
-    int  NW = std::min(nweights, MOVE_MODE_MAX);
-
-    for (i=0; i<NW; i++)
-        Weight[i] += nitems*weights[i];
-}
-
-//-------------------------------------------------------------
-
-void CUnit::CalcWeightsAndMovement()
-{
-    int           idx;
-    const char  * propname;
-    int         * weights;
-    const char ** movenames = NULL;
-    int           movecount;
-    EValueType    type;
-    const void  * n;
-    CStr          sValue;
-    int           i;
-
-    memset(Weight, 0, sizeof(Weight));
-    SetProperty(PRP_MOVEMENT, eCharPtr, "", eNormal);
-
-    if (!gpDataHelper)
-        return;
-
-    // preliminary calculation, no wagons
-    idx      = 0;
-    propname = GetPropertyName(idx);
-    while (propname)
-    {
-        if (GetProperty(propname, type, n, eNormal) &&
-            (eLong==type) &&
-            gpDataHelper->GetItemWeights(propname, weights, movenames, movecount))
-        {
-            AddWeight((long)n, weights, movenames, movecount);
-        }
-
-        propname = GetPropertyName(++idx);
-    }
-
-    if (!movenames)
-        return;
-
-    // adjust for wagons if needed
-    i = 3;
-    if (Weight[0])
-        while ((i>0) && (Weight[i] < Weight[0]))
-            i--;
-    if (0==i)
-    {
-        // cannot move at all, maybe wagons will help?
-        // First, find out how many horses and wagons do we have
-        // Then, redestribute weights based on min(horses, wagons).
-        // We do not do it in the preliminary calc because it is expensive
-        int nHorses=0, nWagons=0;
-        idx      = 0;
-        propname = GetPropertyName(idx);
-        while (propname)
-        {
-            if (GetProperty(propname, type, n, eNormal) &&
-                (eLong==type) )
-            {
-                if (gpDataHelper->IsWagonPuller(propname))
-                    nHorses += (long)n;
-                else if (gpDataHelper->IsWagon(propname))
-                    nWagons += (long)n;
-            }
-            propname = GetPropertyName(++idx);
-        }
-        int nAdjust = std::min(nHorses, nWagons);
-        if (nAdjust>0)
-            Weight[1] += nAdjust*gpDataHelper->WagonCapacity();
-    }
-
-    // Set movement name
-    sValue.Empty();
-    if (Weight[0])
-    {
-        i = 3;
-        while ((i>0) && (Weight[i] < Weight[0]))
-            i--;
-    }
-    else
-        i = 0;
-    sValue = movenames[i];
-
-    if (Weight[4] >= Weight[0]) // can swim
-        sValue << ',' << movenames[4];
-
-    SetProperty(PRP_MOVEMENT, eCharPtr, sValue.GetData(), eNormal);
-}
-
-//-------------------------------------------------------------
-
-void CUnit::CheckWeight(CStr & sErr)
-{
-    int           i;
-    const char ** movenames;
-    int           broken = 0;
-
-    sErr.Empty();
-    gpDataHelper->GetMoveNames(movenames);
-
-    for (i=1; i<MOVE_MODE_MAX; i++)
-        if (Weight[0] > Weight[i] && Weight[i] > 0)
-        {
-            broken = i;
-            break;
-        }
-
-    if (broken && broken<MOVE_MODE_MAX-2) // if flying broken, that is final. MOVE_MODE_MAX-2 is flying
-    {
-        // maybe there is good higher level movement mode?
-        // can happen when unit has gliders - cannot walk, but can fly!
-        for (i=MOVE_MODE_MAX-2; i>broken; i--)
-            if (Weight[0] <= Weight[i] && Weight[i] > 0)
-            {
-                broken = 0;
-                break;
-            }
-    }
-
-    if (broken && broken == MOVE_MODE_MAX-4)
-        sErr << " - Could " << movenames[broken] << " but is overloaded.";
-
 
 }
 
@@ -1213,31 +1064,6 @@ BOOL CUnit::GetProperty(const char  *  name,
         {
             type  = eLong;
             value = (void*)LandId;
-        }
-        else if (0==stricmp(name, PRP_WEIGHT ))
-        {
-            type  = eLong;
-            value = (void*)Weight[0];
-        }
-        else if (0==stricmp(name, PRP_WEIGHT_WALK ))
-        {
-            type  = eLong;
-            value = (void*)(Weight[1] - Weight[0]);
-        }
-        else if (0==stricmp(name, PRP_WEIGHT_RIDE ))
-        {
-            type  = eLong;
-            value = (void*)(Weight[2] - Weight[0]);
-        }
-        else if (0==stricmp(name, PRP_WEIGHT_FLY ))
-        {
-            type  = eLong;
-            value = (void*)(Weight[3] - Weight[0]);
-        }
-        else if (0==stricmp(name, PRP_WEIGHT_SWIM ))
-        {
-            type  = eLong;
-            value = (void*)(Weight[4] - Weight[0]);
         }
         else if (0==stricmp(name, PRP_BEST_SKILL))
         {

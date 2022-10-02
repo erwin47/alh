@@ -1811,14 +1811,12 @@ namespace orders
                 long allowed_weight(0);
                 long weight_step(0);//if we don't know, we assume it weights nothing.
 
-                long unit_weights[5];
+                long unit_weights[5] = {0,0,0,0,0};
                 unit_control::get_weights(unit, unit_weights);
 
-                int *item_weights;
-                int movecount;
-                const char** movenames;                    
-                gpDataHelper->GetItemWeights(item_name.c_str(), item_weights, movenames, movecount);
-
+                long item_weights[5] = {0,0,0,0,0};
+                game_control::get_item_weight(item_name, item_weights);           
+    
                 switch(unit->caravan_info_->speed_) 
                 {
                     case orders::CaravanSpeed::MOVE:

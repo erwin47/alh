@@ -89,7 +89,6 @@ public:
     void OnPopupShareAsCaravan        (wxCommandEvent& event);
     void OnPopupPaintCaravanRoadmap   (wxCommandEvent& event);
     void OnPopupMenuDiscardJunk       (wxCommandEvent& event);
-    void OnPopupMenuDetectSpies       (wxCommandEvent& event);
     void OnPopupMenuGiveEverything    (wxCommandEvent& event);
     void OnPopupMenuAddUnitToTracking (wxCommandEvent& event);
     void OnPopupMenuUnitFlags         (wxCommandEvent& event);

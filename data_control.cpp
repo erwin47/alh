@@ -261,13 +261,12 @@ namespace unit_control
 
     void get_weights(CUnit* unit, long weights[5])
     {
-        long cur_weights[5];
+        long cur_weights[5] = {0,//weight
+                               0,//move
+                               0,//ride
+                               0,//fly
+                               0};//swim
 
-        weights[0] = 0;//weight
-        weights[1] = 0;//move
-        weights[2] = 0;//ride
-        weights[3] = 0;//fly
-        weights[4] = 0;//swim
         std::set<CItem> items = get_all_items(unit);
 
         static std::vector<std::string> wagon_list = game_control::get_game_config<std::string>(SZ_SECT_COMMON, SZ_KEY_WAGONS);
@@ -296,7 +295,7 @@ namespace unit_control
     MoveMode get_move_state(CUnit* unit)
     {
         MoveMode ret;
-        long weights[5];
+        long weights[5] = {0,0,0,0,0};
         get_weights(unit, weights);
         if (weights[1] - weights[0] >= 0)
         {
@@ -329,7 +328,7 @@ namespace unit_control
         if (bad_weather)
             terr_cost *= 2;
 
-        if (connected_road && move.fly_ == 0)
+        if (connected_road && (move.fly_ == 0))
             terr_cost = (terr_cost + 1) / 2;
 
         return terr_cost;
@@ -409,7 +408,7 @@ namespace unit_control
             if (item == unit->silver_.code_name_)
                 amount += it->amount_;
         }
-        return amount;   
+        return amount;
     }
 
     std::string compose_unit_name(CUnit* unit)
@@ -481,8 +480,7 @@ namespace unit_control
 
         unit->impact_description_.push_back(ss.str());
         //properties support
-        modify_item_property(unit, codename);
-        unit->CalcWeightsAndMovement();        
+        modify_item_property(unit, codename);   
     }
 
     void modify_item_by_reason(CUnit* unit, const std::string& codename, long new_amount, const std::string& reason, bool apply_changes)
@@ -500,8 +498,7 @@ namespace unit_control
                 item_control::modify_amount(unit->items_, codename, new_amount);
 
             //properties support
-            modify_item_property(unit, codename);
-            unit->CalcWeightsAndMovement();                
+            modify_item_property(unit, codename);           
         }
 
         //pretty print
@@ -539,7 +536,6 @@ namespace unit_control
 
         modify_item_property(unit, PRP_SILVER);
         modify_item_property(unit, codename);
-        unit->CalcWeightsAndMovement();
     }
 
     void modify_man_from_market(CUnit* unit, const std::string& codename, long new_amount, long price)
@@ -570,8 +566,7 @@ namespace unit_control
         }
         unit->impact_description_.push_back(ss.str());
         modify_item_property(unit, PRP_SILVER);
-        modify_item_property(unit, codename);
-        unit->CalcWeightsAndMovement();         
+        modify_item_property(unit, codename);   
     }
 
     void modify_item_from_unit(CUnit* unit, CUnit* source_unit, const std::string& codename, long new_amount)
@@ -606,8 +601,7 @@ namespace unit_control
         ss << action << " " << abs(new_amount) << " of " << codename << " ";
         ss << direction << " " << source_name;
         unit->impact_description_.push_back(ss.str());
-        modify_item_property(unit, codename);
-        unit->CalcWeightsAndMovement();     
+        modify_item_property(unit, codename); 
     }
 
     void modify_man_from_unit(CUnit* unit, CUnit* source_unit, const std::string& codename, long new_amount)
@@ -655,7 +649,6 @@ namespace unit_control
         ss << direction << " " << source_name;
         unit->impact_description_.push_back(ss.str());
         modify_item_property(unit, codename);
-        unit->CalcWeightsAndMovement();     
     }
 
 
@@ -1516,13 +1509,7 @@ namespace land_control
             return land->current_state_.shared_items_[item].second;
 
         long res(0);
-        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-            if (unit_control::flags::is_sharing(unit))
-                res += unit_control::get_item_amount(unit, item);
-        });
-
-        //incoming_units_
-        land_control::moving::perform_on_each_incoming_unit(land, [&](CUnit* unit) {
+        land_control::perform_on_each_unit_after_moving(land, [&](CUnit* unit) {
             if (unit_control::flags::is_sharing(unit))
                 res += unit_control::get_item_amount(unit, item);
         });
@@ -1581,9 +1568,15 @@ namespace land_control
     void get_land_producers(CLand* land, std::vector<ProduceItem>& out, std::vector<unit_control::UnitError>& errors)
     {
         std::vector<CUnit*> producers;
-        land_control::get_units_if(land, producers, [](CUnit* unit) {
-            return orders::control::has_orders_with_type(orders::Type::O_PRODUCE, unit->orders_);
+
+        land_control::perform_on_each_unit_after_moving(land, [&](CUnit* unit) {
+            if (orders::control::has_orders_with_type(orders::Type::O_PRODUCE, unit->orders_))
+                producers.push_back(unit);
         });
+
+        //land_control::get_units_if(land, producers, [](CUnit* unit) {
+        //    return orders::control::has_orders_with_type(orders::Type::O_PRODUCE, unit->orders_);
+        //});
 
         std::map<std::string, std::vector<std::pair<CUnit*, long>>> prod_requests;
         for (CUnit* producer : producers)
@@ -1672,7 +1665,7 @@ namespace land_control
 
     void get_land_builders(CLand* land, std::vector<ActionUnit>& out, std::vector<unit_control::UnitError>& errors)
     {
-        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        land_control::perform_on_each_unit_after_moving(land, [&](CUnit* unit) { //perform_on_each_unit(land, [&](CUnit* unit) {
             auto ret = orders::control::retrieve_orders_by_type(orders::Type::O_BUILD, unit->orders_);
             if (ret.size() == 1) 
             {
@@ -1714,7 +1707,7 @@ namespace land_control
 
         long other_factions_men(0);
 
-        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        land_control::perform_on_each_unit_after_moving(land, [&](CUnit* unit) {//perform_on_each_unit(land, [&](CUnit* unit) {
             if (!unit_control::flags::is_entertaining(unit))
                 return;
 
@@ -1753,7 +1746,7 @@ namespace land_control
 
         long other_factions_men(0);
 
-        land_control::perform_on_each_unit(land, [&](CUnit* unit) {
+        land_control::perform_on_each_unit_after_moving(land, [&](CUnit* unit) {
             if (unit_control::flags::is_working(unit))
             {
                 if (!unit_control::of_player(unit))
@@ -2085,7 +2078,7 @@ namespace land_control
                 long price = game_control::get_study_cost(studying_skill);//gpApp->GetStudyCost(studying_skill.c_str());
                 if (price <= 0)
                 {
-                    errors.push_back({"Error", unit, studying_order, "study: can not study " + studying_skill});
+                    errors.push_back({"Error", unit, studying_order, "study: can not study, unknown price of " + studying_skill});
                     return;
                 }
 

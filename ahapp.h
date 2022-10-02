@@ -58,17 +58,6 @@ enum
 
 enum
 {
-    AH_LAYOUT_2_WIN        = 0,
-    AH_LAYOUT_3_WIN           ,
-    AH_LAYOUT_1_WIN           ,
-    AH_LAYOUT_1_WIN_WIDE      ,
-    AH_LAYOUT_1_WIN_ONE_DESCR ,
-
-    AH_LAYOUT_COUNT
-};
-
-enum
-{
     FONT_EDIT_DESCR        = 0,
     FONT_EDIT_ORDER           ,
     FONT_MAP_COORD            ,
@@ -141,7 +130,7 @@ protected:
 
 //-------------------------------------------------------------------------------
 
-struct ItemWeights
+struct ItemWeights //TODO ARKADY
 {
     char * name;
     int  * weights;
@@ -203,7 +192,7 @@ public:
     //returns true on success
     bool                 ResolveAliasItems(const std::string& phrase, std::string& codename, std::string& long_name, std::string& long_name_plural);
     void                 SetAliasItems(const std::string& codename, const std::string& long_name, const std::string& long_name_plural);
-    BOOL                 GetItemWeights (const char * item, int *& weights, const char **& movenames, int & movecount );
+   // BOOL                 GetItemWeights (const char * item, int *& weights, const char **& movenames, int & movecount );
     void                 GetMoveNames(const char **& movenames);
 
     BOOL                 GetOrderId     (const char * order, long & id);
@@ -215,9 +204,6 @@ public:
     BOOL                 CanSeeAdvResources(const char * skillname, const char * terrain, CLongColl & Levels, CBufColl & Resources);
     int64_t              GetAttitudeForFaction(int id);
     void                 SetAttitudeForFaction(int id, int attitude);
-    int                  getLayout() const; // it's not good to move it out, but UnitPane update actually controls other object
-    // which it shouldn't control, and this control have to be aligned with layout.
-
 
     int                  LoadReport(BOOL Join);
     int                  LoadReport(const char * FNameIn, BOOL Join);
@@ -262,9 +248,8 @@ public:
     void                 CheckMonthLongOrders();
     void                 CheckProduction();
     void                 CheckSailing();
-    void                 CheckTaxDetails  (CLand  * pLand, CTaxProdDetailsCollByFaction & TaxDetails);
     bool                 GetTradeActivityDescription(CLand* land, std::map<int, std::vector<std::string>>& report);
-    void                 CheckTaxTrade();
+    void                 CheckFactionActivityStatistics();
     void                 ExportHexes();
     void                 FindTradeRoutes();
     void                 EditListColumns(int command);
@@ -332,7 +317,6 @@ private:
     void                 UpdateEdgeStructs();
     void                 LoadUnitFlags();
     void                 SaveUnitFlags();
-    void                 LoadTerrainCostConfig();
 
     std::string          land_description_editpane(CLand * pLand);
     //void                 UpdateUnitPane(CLand * pLand);
@@ -358,7 +342,6 @@ private:
     CStr                 m_UnitDescrSrc;
     CStr                 m_MsgSrc;
     //long                 m_SelUnitIdx;
-    int                  m_layout;
     BOOL                 m_DisableErrs;
     CBufColl             m_MoveModes;
     CWeightsColl         m_ItemWeights;

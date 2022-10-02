@@ -72,12 +72,11 @@ CAhFrame::CAhFrame(wxWindow* parent, const char * title, long style)
 
 //--------------------------------------------------------------------------
 
-void CAhFrame::Init(int layout, const char * szConfigSection)
+void CAhFrame::Init(const char * szConfigSection)
 {
     int x, y, w, h, saved_pos;
 
     m_sConfigSection  = szConfigSection;
-    m_Layout          = layout;
 
     SetIcon(wxICON(icon_logo));
     x = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_X1));

@@ -50,7 +50,8 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 * unit_pane doesn't represent skills of a new unit with given skilled peasants
 * allowed multiple monthlong orders (not just teach) - or is it a feature to avoid mistakes?
 * add to hex filter possibility to show unit with specific orders/comments
-
+* choosing to produce an item that is not presented in the region should induce an error instead of a craft suggestion
+* wrong withdrawal syntax no errors: "withdrawal horse"
 
 ## Changelog:
 ### Dec 06 2020

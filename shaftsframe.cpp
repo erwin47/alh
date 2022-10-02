@@ -54,15 +54,10 @@ ShaftsFrame::~ShaftsFrame()
     Destroy();
 }
 
-const char * ShaftsFrame::GetConfigSection(int )
+void ShaftsFrame::Init(const char * szConfigSection)
 {
-    return SZ_SECT_WND_SHAFTS;
-}
-
-void ShaftsFrame::Init(int layout, const char * szConfigSection)
-{
-    szConfigSection    = GetConfigSection(layout);
-    CAhFrame::Init(layout, szConfigSection);
+    szConfigSection    = SZ_SECT_WND_SHAFTS;
+    CAhFrame::Init(szConfigSection);
 }
 
 void ShaftsFrame::Done(BOOL SetClosedFlag)

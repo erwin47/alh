@@ -62,7 +62,6 @@ BEGIN_EVENT_TABLE(CUnitPane, wxListCtrl)
     EVT_MENU             (menu_Popup_ShareAsCaravan, CUnitPane::OnPopupShareAsCaravan     )
     EVT_MENU             (menu_Popup_PaintCaravanRoadmap, CUnitPane::OnPopupPaintCaravanRoadmap)
     EVT_MENU             (menu_Popup_DiscardJunk   , CUnitPane::OnPopupMenuDiscardJunk    )
-    EVT_MENU             (menu_Popup_DetectSpies   , CUnitPane::OnPopupMenuDetectSpies    )
     EVT_MENU             (menu_Popup_GiveEverything, CUnitPane::OnPopupMenuGiveEverything )
 
     EVT_MENU             (menu_Popup_ScoutSimple   , CUnitPane::OnPopupMenuScoutSimple    )
@@ -167,23 +166,9 @@ void CUnitPane::UpdateState(CLand * pLand, std::function<bool(CUnit* unit)> filt
             selected_unit_id_ = pUnit->Id;
     }
 
-    //because we don't update windows, except current unit's list
-    //if (gpApp->getLayout() == AH_LAYOUT_1_WIN_ONE_DESCR)
-    //    FullUpdate = FALSE;
-    // It is a must, since some locations pointed to by stored pointers may be invalid at the moment.
-    // Namely all new units are deleted when orders are processed.
     if (!this->is_filtered_)
         m_pUnits->DeleteAll();//we shouldn't delete all, if we are already filtered, we just want to continue
                               //with list of units which we have
-
-    /*if (!FullUpdate)
-        for (i=GetItemCount()-1; i>=0; i--)
-        {
-            info.m_itemId = i;
-            info.m_col    = 0;
-            info.m_mask   = wxLIST_MASK_DATA;
-            GetItem(info);
-        }*/
 
     if (!this->is_filtered_ && pLand)
     {
@@ -612,7 +597,6 @@ void CUnitPane::OnRClick(wxListEvent& event)
                     menuScouts->Append(menu_Popup_ScoutGuard  , wxT("Scout Guard"));
 
                     menu.AppendSubMenu(menuScouts, wxT("Create"), wxT("Create a new unit with a simple task"));
-                    // menu.Append(menu_Popup_DetectSpies   , wxT("Detect spies")      );
                 }
             }
             menu.Append(menu_Popup_UnitFlags       , wxT("Set custom flags")    );
@@ -1063,31 +1047,6 @@ void CUnitPane::OnPopupMenuDiscardJunk(wxCommandEvent& WXUNUSED(event))
             gpApp->orders_changed(true);
             UpdateState(m_pCurLand);
         }
-    }
-}
-
-//--------------------------------------------------------------------------
-
-void CUnitPane::OnPopupMenuDetectSpies(wxCommandEvent& WXUNUSED(event))
-{
-    CUnit* pUnit = GetSelectedUnit();
-    bool DoCheck;
-
-    if (pUnit)
-    {
-        DoCheck = atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_SPY_DETECT_WARNING)) > 0;
-        if (DoCheck &&
-            wxYES != wxMessageBox(wxT("Really generate orders for spy detection?  It might freeze the program on Linux!"), wxT("Confirm"), wxYES_NO, NULL))
-            return;
-
-        if (gpApp->m_pAtlantis->DetectSpies(pUnit,
-                                            atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_SPY_DETECT_LO)),
-                                            atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_SPY_DETECT_HI)),
-                                            atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_SPY_DETECT_AMT))))
-        {
-            gpApp->orders_changed(true);
-            UpdateState(m_pCurLand);          
-        }        
     }
 }
 

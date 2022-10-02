@@ -308,6 +308,7 @@ namespace land_control
             if (Pred(unit))
                 return unit;
         }
+
         for (const auto& pair : land->affections_.incoming_units())
         {
             for (const auto& unit : pair.second)

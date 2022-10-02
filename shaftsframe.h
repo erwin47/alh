@@ -31,10 +31,8 @@ class ShaftsFrame: public CAhFrame
         wxString strHex1, strHex2;
         void UpdateSelect(wxChoice * choice, CLand * pLand); // Fills the select with the structures from the land
 
-        virtual void    Init(int layout, const char * szConfigSection);
+        virtual void    Init(const char * szConfigSection);
         virtual void    Done(BOOL SetClosedFlag);
-
-        static const char * GetConfigSection(int layout);
 
 		//(*Declarations(ShaftsFrame)
 		wxButton* ButtonConnectShaft;

@@ -31,7 +31,7 @@ class CAhFrame : public wxFrame
 public:
     CAhFrame(wxWindow* parent, const char * title, long style);
 
-    virtual void    Init(int layout, const char * szConfigSection);
+    virtual void    Init(const char * szConfigSection);
     virtual void    Update();
     virtual void    Done(BOOL SetClosedFlag);
 
@@ -47,7 +47,6 @@ protected:
     void            OnUnitList(wxCommandEvent& event);
     void            OnOrders(wxCommandEvent& event);
 
-    int             m_Layout;
 };
 
 //-------------------------------------------------------------------

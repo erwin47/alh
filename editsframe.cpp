@@ -56,88 +56,18 @@ CEditsFrame::CEditsFrame(wxWindow * parent)
     m_Splitter3= NULL;
 }
 
-//--------------------------------------------------------------------
-
-const char * CEditsFrame::GetConfigSection(int layout)
-{
-    switch (layout)
-    {
-    case AH_LAYOUT_2_WIN:        return SZ_SECT_WND_EDITS_2_WIN;
-    case AH_LAYOUT_3_WIN:        return SZ_SECT_WND_EDITS_3_WIN;
-    default:                     return "";
-    }
-}
 
 //--------------------------------------------------------------------
 
-void CEditsFrame::Init(int layout, const char * szConfigSection)
+void CEditsFrame::Init(const char * szConfigSection)
 {
-    CEditPane         *p1, *p2, *p3, *p4;
-    //CFlatPanel        * panel1;
-    long                y, x;
-
-    szConfigSection = GetConfigSection(layout);
-
-    switch (layout)
-    {
-    case AH_LAYOUT_3_WIN:
-        CAhFrame::Init(layout, szConfigSection);
-
-        m_Splitter1= new wxSplitterWindow(this       , -1, wxDefaultPosition, wxDefaultSize, wxSP_3D     | wxCLIP_CHILDREN);
-        m_Splitter2= new wxSplitterWindow(m_Splitter1, -1, wxDefaultPosition, wxDefaultSize, wxSP_3DSASH | wxCLIP_CHILDREN);
-        m_Splitter3= new wxSplitterWindow(m_Splitter2, -1, wxDefaultPosition, wxDefaultSize, wxSP_3DSASH | wxCLIP_CHILDREN);
-
-        m_Splitter2->SetBorderSize(0);
-        m_Splitter3->SetBorderSize(0);
-
-        p1 = new CEditPane(m_Splitter1, wxT("Hex description")        , FALSE, FONT_EDIT_DESCR);
-        p2 = new CEditPane(m_Splitter2, wxT("Unit description")       , FALSE, FONT_EDIT_DESCR);
-        p3 = new CUnitOrderEditPane(m_Splitter3, wxT("Orders")                 , FALSE, FONT_EDIT_ORDER);
-        p4 = new CEditPane(m_Splitter3, wxT("Comments/Default orders"), TRUE , FONT_EDIT_ORDER);
-
-        SetPane(AH_PANE_MAP_DESCR    , p1);
-        SetPane(AH_PANE_UNIT_DESCR   , p2);
-        SetPane(AH_PANE_UNIT_COMMANDS, p3);
-        SetPane(AH_PANE_UNIT_COMMENTS, p4);
-
-        p1->Init();
-        p2->Init();
-        p3->Init();
-        p4->Init();
-
-
-        y  = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_HEIGHT_0));
-        m_Splitter1->SetMinimumPaneSize(2);
-        m_Splitter1->SplitHorizontally(p1, m_Splitter2, y);
-
-        y  = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_HEIGHT_1));
-        m_Splitter2->SetMinimumPaneSize(2);
-        m_Splitter2->SplitHorizontally(p2, m_Splitter3, y);
-
-        x  = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_WIDTH_0));
-        m_Splitter3->SetMinimumPaneSize(2);
-        m_Splitter3->SplitVertically(p3, p4, x);
-
-        break;
-
-    }
+    //TODO ARKADY
 }
 
 //--------------------------------------------------------------------
 
 void CEditsFrame::Done(BOOL SetClosedFlag)
 {
-    switch (m_Layout)
-    {
-    case AH_LAYOUT_3_WIN:
-        gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_HEIGHT_0, m_Splitter1->GetSashPosition());
-        gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_HEIGHT_1, m_Splitter2->GetSashPosition());
-        gpApp->SetConfig(m_sConfigSection.GetData(), SZ_KEY_WIDTH_0 , m_Splitter3->GetSashPosition());
-
-        break;
-
-    }
-
     CAhFrame::Done(SetClosedFlag);
 }
 

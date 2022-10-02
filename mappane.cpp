@@ -132,9 +132,8 @@ END_EVENT_TABLE()
 
 //--------------------------------------------------------------------------
 
-CMapPane::CMapPane(wxWindow * parent, wxWindowID id, int layout)
-         :wxWindow(parent, id, wxDefaultPosition, wxDefaultSize,
-                   (AH_LAYOUT_3_WIN==layout)?wxSUNKEN_BORDER:0 )
+CMapPane::CMapPane(wxWindow * parent, wxWindowID id)
+         :wxWindow(parent, id, wxDefaultPosition, wxDefaultSize, 0)
 {
     int i;
 
@@ -3483,10 +3482,7 @@ void CMapPane::OnMouseEvent(wxMouseEvent& event)
         StartRectangle(xpos, ypos);
         GetHexNo(nx, ny, xpos, ypos);
         nx = gpApp->m_pAtlantis->NormalizeHexX(nx, pPlane);
-        if (gpApp->getLayout() == AH_LAYOUT_1_WIN_ONE_DESCR)
-            SetSelection(nx, ny, gpApp->GetSelectedUnit(), pPlane, TRUE);
-        else
-            SetSelection(nx, ny, gpApp->GetSelectedUnit(), pPlane, FALSE);
+        SetSelection(nx, ny, gpApp->GetSelectedUnit(), pPlane, TRUE);
     }
 
     else if (event.LeftUp())

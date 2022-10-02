@@ -24,16 +24,14 @@
 class CMapFrame : public CAhFrame
 {
 public:
-    CMapFrame(wxWindow * parent, int layout);
+    CMapFrame(wxWindow * parent);
 
-    virtual void    Init(int layout, const char * szConfigSection);
+    virtual void    Init(const char * szConfigSection);
     virtual void    Done(BOOL SetClosedFlag);
-
-    static const char * GetConfigSection(int layout);
 
 private:
 
-    void MakeMenu(int layout);
+    void MakeMenu();
     void MakeToolBar();
 
     void OnLoadReport          (wxCommandEvent& event);
@@ -72,7 +70,7 @@ private:
     void OnShareMaintaince     (wxCommandEvent& event);
     void OnWriteMagesCSV       (wxCommandEvent& event);
     void OnCheckMonthLongOrd   (wxCommandEvent& event);
-    void OnCheckTaxTrade       (wxCommandEvent& event);
+    void OnFactionActivityStatistics(wxCommandEvent& event);
     void OnCheckProduction     (wxCommandEvent& event);
     void OnCheckSailing        (wxCommandEvent& event);
     void OnFindHexes           (wxCommandEvent& event);
@@ -111,7 +109,7 @@ private:
     void OnShowLandAutoOrders(wxCommandEvent& event); 
     void OnShowLandMovePhases(wxCommandEvent& event); 
 
-    wxSplitterWindow  * m_Splitter;
+    wxSplitterWindow  * m_SplitterWholeWindow;
     wxSplitterWindow  * m_Splitter1;
     wxSplitterWindow  * m_Splitter2;
     wxSplitterWindow  * m_Splitter3;

@@ -117,11 +117,6 @@ COptionsDialog::COptionsDialog(wxWindow * parent)
 
     m_pTxtPassword              = new wxTextCtrl(this, ID_D1_TXT_PASSWORD);
 
-    m_pRadio1Win                = new wxRadioButton(this, ID_D1_RADIO_1_WIN, wxT("1 window"), wxDefaultPosition, wxDefaultSize, wxRB_GROUP);
-    m_pRadio1WinWide            = new wxRadioButton(this, ID_D1_RADIO_1_WIN_WIDE, wxT("1 window (wide)"));
-    m_pRadio2Win                = new wxRadioButton(this, ID_D1_RADIO_2_WIN, wxT("2 windows"));
-    m_pRadio3Win                = new wxRadioButton(this, ID_D1_RADIO_3_WIN, wxT("3 windows"));
-
     m_pRadioIconsSimple         = new wxRadioButton(this, ID_D1_RADIO_ICONS_SIMPLE  , wxT("Simple"), wxDefaultPosition, wxDefaultSize, wxRB_GROUP);
     m_pRadioIconsAdvanced       = new wxRadioButton(this, ID_D1_RADIO_ICONS_ADVANCED, wxT("Advanced"));
 
@@ -181,13 +176,6 @@ COptionsDialog::COptionsDialog(wxWindow * parent)
 
         colsizer = new wxBoxSizer( wxVERTICAL );
             colsizer->Add(stLayout         , 0, wxALL | wxGROW, space );
-            layoutsizer = new wxBoxSizer( wxVERTICAL );
-                layoutsizer->Add(m_pRadio1Win       , 0, wxALIGN_LEFT | wxALL, space);
-                layoutsizer->Add(m_pRadio1WinWide   , 0, wxALIGN_LEFT | wxALL, space);
-                layoutsizer->Add(m_pRadio2Win       , 0, wxALIGN_LEFT | wxALL, space);
-                layoutsizer->Add(m_pRadio3Win       , 0, wxALIGN_LEFT | wxALL, space);
-            colsizer->Add(layoutsizer      , 0, wxALL | wxGROW, space );
-
             colsizer->Add(stIcons         , 0, wxTOP | wxGROW, space+space );
             layoutsizer = new wxBoxSizer( wxVERTICAL );
                 layoutsizer->Add(m_pRadioIconsSimple       , 0, wxALIGN_LEFT | wxALL, space);
@@ -278,14 +266,6 @@ void COptionsDialog::Init()
     m_pChkCheckProdReq     ->SetValue(0!=atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_CHK_PROD_REQ)));
     m_pChkMoveMode         ->SetValue(0!=atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_CHECK_MOVE_MODE)));
 
-    switch(atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_LAYOUT)))
-    {
-      case AH_LAYOUT_1_WIN     : m_pRadio1Win->SetValue(TRUE);     break;
-      case AH_LAYOUT_1_WIN_WIDE: m_pRadio1WinWide->SetValue(TRUE); break;
-      case AH_LAYOUT_2_WIN     : m_pRadio2Win->SetValue(TRUE);     break;
-      default                  : m_pRadio3Win->SetValue(TRUE);     break;
-    }
-
     if (0==stricmp(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_ICONS), SZ_ICONS_ADVANCED))
         m_pRadioIconsAdvanced->SetValue(TRUE);
     else
@@ -316,35 +296,17 @@ void COptionsDialog::Done()
 void COptionsDialog::OnOk    (wxCommandEvent& event)
 {
     BOOL DoApplyColors;
-    int layout;
 
     if (m_IsValid && event.GetId()==wxID_OK)
     {
         m_IsValid = FALSE;
         DoApplyColors = ((m_pChkHatchUnvisited->GetValue()?1:0)!=atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_HATCH_UNVISITED)));
 
-
-        if (m_pRadio1Win->GetValue())
-            layout = AH_LAYOUT_1_WIN;
-        else if (m_pRadio1WinWide->GetValue())
-            layout = AH_LAYOUT_1_WIN_WIDE;
-        else if (m_pRadio2Win->GetValue())
-            layout = AH_LAYOUT_2_WIN;
-        else
-            layout = AH_LAYOUT_1_WIN_ONE_DESCR;
-
-//        if (m_pChk3WinLayout->GetValue() != (0!=atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_LAYOUT))))
-        if (layout != atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_LAYOUT)))
-            wxMessageBox(wxT("Please restart application for the changes to take effect"),
-                         wxT("Warning"), wxOK | wxCENTRE | wxICON_EXCLAMATION);
-
-
         gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_LOAD_ORDER        , m_pChkLoadOrd          ->GetValue()?"1":"0");
         gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_LOAD_REP          , m_pChkLoadRep          ->GetValue()?"1":"0");
         gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_HATCH_UNVISITED   , m_pChkHatchUnvisited   ->GetValue()?"1":"0");
         gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_RCLICK_CENTERS    , m_pChkRClickCenters    ->GetValue()?"1":"0");
 //        gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_LAYOUT            , m_pChk3WinLayout       ->GetValue()?"1":"0");
-        gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_LAYOUT            , layout);
         gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_CHECK_TEACH_LVL   , m_pChkTeach            ->GetValue()?"1":"0");
         gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_PWD_READ          , m_pChkReadPwd          ->GetValue()?"1":"0");
         gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_CHK_PROD_REQ      , m_pChkCheckProdReq     ->GetValue()?"1":"0");

@@ -72,6 +72,7 @@ namespace game_control
     long get_item_upkeep(const std::string& item);
     void get_item_weight(const std::string& item, long weights[5]);
     long get_study_cost(const std::string& skill);
+    long get_terrain_movement_cost(const std::string& terrain);
     
     namespace specific
     {

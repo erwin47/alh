@@ -69,7 +69,7 @@ enum
     menu_ShaftConnect       ,
     menu_WriteMagesCSV      ,
     menu_CheckMonthLongOrd  ,
-    menu_CheckTaxTrade      ,
+    menu_FactionActivityStat,
     menu_CheckProduction    ,
     menu_CheckSailing       ,
     menu_TaxPillage         ,
@@ -97,7 +97,6 @@ enum
     menu_Popup_ShareAsCaravan,
     menu_Popup_PaintCaravanRoadmap,
     menu_Popup_DiscardJunk  ,
-    menu_Popup_DetectSpies  ,
     menu_Popup_Filter       ,
     menu_Popup_SetSort      ,
     menu_Popup_Battles      ,
@@ -156,7 +155,7 @@ enum
     list_units_hex          ,
     list_units_hex_fltr
 };
-
+//TODO: Arkady fix files
 #if defined(_WIN32)
   #define SZ_REP_FILES                  "Report (*.rep)|*.rep|Report (*.atl)|*.atl|Text (*.txt)|*.txt|All|*.*||"
   #define SZ_ORD_FILES                  "Order (*.ord)|*.ord|Text (*.txt)|*.txt|All|*.*||"

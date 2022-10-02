@@ -26,10 +26,8 @@ class CUnitFrame : public CAhFrame
 public:
     CUnitFrame(wxWindow * parent);
 
-    virtual void    Init(int layout, const char * szConfigSection);
+    virtual void    Init(const char * szConfigSection);
     virtual void    Done(BOOL SetClosedFlag);
-
-    static const char * GetConfigSection(int layout);
 
 private:
     void OnCloseWindow(wxCloseEvent& event);

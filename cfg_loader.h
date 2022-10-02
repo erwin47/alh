@@ -40,12 +40,6 @@ namespace config {
     inline std::string to_string(const char* str) { return str; }
 
 
-    /*struct ciLessLibC : public std::binary_function<std::string, std::string, bool> {
-        bool operator()(const std::string &lhs, const std::string &rhs) const {
-            return strcasecmp(lhs.c_str(), rhs.c_str()) < 0 ;
-        }
-    };*/
-
 
     class Config {
 
@@ -56,7 +50,15 @@ namespace config {
         std::map<std::string, 
             std::map<std::string, std::vector<std::string>>> config_comments_;
 
+
     public:
+        /*class Classifications {
+            std::set<std::string> men;
+        } classifications;
+
+        std::set<std::string> property_item_men_;
+        */
+
         bool load(const char* file);
         bool save(const char* file);
     

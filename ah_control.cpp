@@ -194,7 +194,7 @@ namespace game_control
     void get_item_weight(const std::string& item, long weights[5])
     {
         struct weights_ {
-            long weights[5];
+            long weights[5] = {0,0,0,0,0};
         };
         static std::unordered_map<std::string, weights_> cache;
 
@@ -216,13 +216,23 @@ namespace game_control
 
     long get_study_cost(const std::string& skill) 
     {
-        static std::unordered_map<std::string, long> cache;
+        static std::map<std::string, long> cache;
         if (cache.find(skill) == cache.end()) {
             long fileno = gpApp->GetConfigFileNo(SZ_SECT_STUDY_COST);
             cache.insert({skill, gpApp->config_[fileno].get_case_insensitive<long>(SZ_SECT_STUDY_COST, skill.c_str(), -1)});
         }
 
         return cache[skill];
+    }
+
+    long get_terrain_movement_cost(const std::string& terrain) 
+    {
+        static std::map<std::string, long> cache;
+        if (cache.find(terrain) == cache.end()) {
+            long fileno = gpApp->GetConfigFileNo(SZ_SECT_TERRAIN_COST);
+            cache.insert({terrain, gpApp->config_[fileno].get_case_insensitive<long>(SZ_SECT_TERRAIN_COST, terrain.c_str(), -1)});
+        }
+        return cache[terrain];
     }
 
     namespace specific
