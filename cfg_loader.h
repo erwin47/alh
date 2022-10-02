@@ -50,15 +50,7 @@ namespace config {
         std::map<std::string, 
             std::map<std::string, std::vector<std::string>>> config_comments_;
 
-
     public:
-        /*class Classifications {
-            std::set<std::string> men;
-        } classifications;
-
-        std::set<std::string> property_item_men_;
-        */
-
         bool load(const char* file);
         bool save(const char* file);
     
