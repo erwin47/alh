@@ -233,7 +233,7 @@ protected:
     wxColour     * m_pUnitColor[ATT_UNDECLARED];
     wxColour     * m_pDarkColor[ATT_UNDECLARED];
     BOOL           m_Hatch;
-    int            m_Detail;
+    int            m_Detail; //represent detalization level of a hex, correlates to size of a hex
     int            m_HexIcons[7];
     int            SymLeft, SymBottom;
 

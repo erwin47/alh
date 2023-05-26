@@ -64,10 +64,7 @@ private:
     void OnRerunOrders         (wxCommandEvent& event);
     void OnShaftConnect        (wxCommandEvent& event);
     void OnTaxPillage          (wxCommandEvent& event);
-    void OnShareAfterBuy       (wxCommandEvent& event);
     void OnWork                (wxCommandEvent& event);
-    void OnMaintainceCosts     (wxCommandEvent& event);
-    void OnShareMaintaince     (wxCommandEvent& event);
     void OnWriteMagesCSV       (wxCommandEvent& event);
     void OnCheckMonthLongOrd   (wxCommandEvent& event);
     void OnFactionActivityStatistics(wxCommandEvent& event);

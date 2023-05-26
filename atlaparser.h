@@ -21,11 +21,13 @@
 #define __AH_REP_PARSER_H__
 
 #include <map>
+#include <list>
 
 #include "data.h"
 //#include "data_control.h"
 #include "files.h"
 #include "hash.h"
+
 
 extern const char * Monthes[];
 
@@ -44,79 +46,6 @@ extern int Flags_N      ;
 extern int Flags_SW_S_SE;
 extern int Flags_S      ;
 
-// MZ - O_SHARE added for Arcadia
-enum {
-    O_ADDRESS = 1,
-    O_ADVANCE,
-    O_ARMOR,
-    O_ASSASSINATE,
-    O_ATTACK,
-    O_AUTOTAX,
-    O_AVOID,
-    O_BEHIND,
-    O_BUILD,
-    O_BUY,
-    O_CAST,
-    O_CLAIM,
-    O_COMBAT,
-    O_CONSUME,
-    O_DECLARE,
-    O_DESCRIBE,
-    O_DESTROY,
-    O_ENDFORM,
-    O_ENTER,
-    O_ENTERTAIN,
-    O_EVICT,
-    O_EXCHANGE,
-    O_FACTION,
-    O_FIND,
-    O_FORGET,
-    O_FORM,
-    O_GIVE,
-    O_GIVEIF,
-    O_TAKE,
-    O_SEND,
-    O_GUARD,
-    O_HOLD,
-    O_LEAVE,
-    O_MOVE,
-    O_NAME,
-    O_NOAID,
-    O_NOCROSS,
-    O_SPOILS,
-    O_OPTION,
-    O_PASSWORD,
-    O_PILLAGE,
-    O_PREPARE,
-    O_PRODUCE,
-    O_PROMOTE,
-    O_QUIT,
-    O_RESTART,
-    O_REVEAL,
-    O_SAIL,
-    O_SELL,
-    O_SHARE,
-    O_SHOW,
-    O_STEAL,
-    O_STUDY,
-    O_TAX,
-    O_TEACH,
-    O_TRANSPORT,
-    O_WEAPON,
-    O_WITHDRAW,
-    O_WORK,
-    O_RECRUIT,
-    O_TYPE,
-    O_LABEL,
-    // must be in this sequence! O_ENDXXX == O_XXX+1
-    O_TURN,
-    O_ENDTURN,
-    O_TEMPLATE,
-    O_ENDTEMPLATE,
-    O_ALL,
-    O_ENDALL,
-    NORDERS
-};
 
 enum SHARE_TYPE {
     SHARE_BUY,
@@ -132,41 +61,6 @@ typedef struct SAVE_HEX_OPTIONS_STRUCT
     BOOL   SaveResources;
     long   WriteTurnNo; // Add turn number atlaclient style
 } SAVE_HEX_OPTIONS;
-
-
-enum class TurnSequence
-{
-       SQ_FIRST,
-       SQ_FORM   ,
-       SQ_CLAIM  ,
-       SQ_LEAVE  ,
-       SQ_ENTER  ,
-       SQ_PROMOTE,
-       SQ_ATTACK ,
-       SQ_STEAL  ,
-       SQ_GIVE_PRE,
-       SQ_GIVE   ,
-       SQ_JOIN   ,
-       SQ_EXCHANGE ,
-       SQ_PILLAGE,
-       SQ_TAX,
-       SQ_CAST   ,
-       SQ_SELL   , // Shar1 Extrict SELL/BUY check. Sell is executed before buy
-       SQ_BUY    ,
-       SQ_FORGET ,
-       SQ_WITHDRAW,
-       SQ_SAIL   ,
-       SQ_MOVE   ,
-       SQ_TEACH  ,
-       SQ_STUDY  ,
-       SQ_PRODUCE , //_MANUFACTURING, in future should split PRODUCE
-       SQ_BUILD  ,
-       //SQ_PRODUCE_HARVESTING,
-       SQ_ENTERTAIN,
-       SQ_WORK   ,
-       SQ_MAINTENANCE   ,//maybe we need a past-end step
-       SQ_LAST
-};
 
 inline TurnSequence& operator++(TurnSequence& x) {
     return x = (TurnSequence)(std::underlying_type<TurnSequence>::type(x) + 1); 
@@ -233,6 +127,8 @@ public:
 
     void       ExtrapolateLandCoord(int &x, int &y, int z, int direction) const;
 
+    void         CheckOrder_LandMonthlong  (CLand *land, std::list<CUnit*>& no_monthlong_orders);
+
     // Movement
     bool       IsRoadConnected(CLand *, CLand *, int direction) const;
     bool       IsBadWeatherHex(CLand * pLand, int month) const;
@@ -277,10 +173,7 @@ public:
     BOOL              m_ArcadiaSkills;
 
     bool              m_EconomyTaxPillage;
-    bool              m_EconomyShareAfterBuy;
     bool              m_EconomyWork;
-    bool              m_EconomyMaintainanceCosts;
-    bool              m_EconomyShareMaintainance;
 
     const char * ReadPropertyName(const char * src, CStr & Name);
 
@@ -329,7 +222,7 @@ protected:
     int          ParseOneImportantEvent(CStr & EventLine);
     int          ParseImportantEvents();
 
-    CUnit      * MakeUnit(long Id);
+    CUnit      * construct_or_retrieve_unit(long Id);
     CPlane     * MakePlane(const char * planename);
 
     BOOL         ReadNextLine(CStr & s);
@@ -341,10 +234,6 @@ protected:
     void         OrderErrFinalize();
 
     // Order handlers and helpers
-    //void         RunOrder_Teach            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL TeachCheckGlb);
-    void         RunOrder_Promote          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-
-    void         RunOrder_Take             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, BOOL IgnoreMissingTarget);
     void         RunOrder_Send             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     void         RunOrder_Produce          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     
@@ -358,29 +247,25 @@ protected:
     void         RunOrder_LandStudyTeach   (CLand* land);
     void         RunOrder_LandAggression   (CLand* land);//steal, assassinate, attack
     void         RunOrder_LandTaxPillage   (CLand* land, bool apply_changes);
-    void         CheckOrder_LandMonthlong  (CLand *land);
     void         RunOrder_LandWork         (CLand *land, bool apply_changes);
-    void         CheckOrder_LandEntertain  (CLand *land);
     void         RunOrder_LandEntertain    (CLand *land, bool apply_changes);
     void         RunOrder_LandSail         (CLand* land);
     void         RunOrder_LandMove         (CLand* land);
+    void         RunOrder_LandTransport    (CLand* land);
+    void         RunOrder_LandNameDescribe (CLand* land);
 
     template<orders::Type TYPE> void RunOrder_AOComments(CLand* land);
     void         RunOrder_AONames          (CLand* land);
     void         RunCaravanAutomoveOrderGeneration(CLand* land);
     //void         RunOrder_Study            (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-    void         RunOrder_Name             (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
     BOOL         FindTargetsForSend        (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char *& params, CUnit *& pUnit2, CLand *& pLand2);
     BOOL         GetItemAndAmountForGive   (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, CStr & Item, int & amount, const char * command, CUnit * pUnit2);
     void         RunOrder_Withdraw         (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params);
-    void         RunPseudoComment          (CStr & Line, CStr & ErrorLine, BOOL skiperror, CUnit * pUnit, CLand * pLand, const char * params, TurnSequence sequence, wxString &destination);
-    void         RunOrder_ShareSilver      (CStr & Line, CStr & ErrorLine, BOOL skiperror, CLand *, SHARE_TYPE, wxString shareName);
     void         RunOrder_Upkeep           (CLand *);
     void         RunOrder_Upkeep           (CUnit *, int turns);
     void         DistributeSilver          (CLand *, int unitFlag, int silver, int menCount);
     int          CountMenWithFlag          (CLand *, int unitFlag) const;
 
-    void         AdjustSkillsAfterGivingMen(CUnit * pUnitGive, CUnit * pUnitTake, CStr & item, long AmountGiven);
     void         LookupAdvancedResourceVisibility(CUnit * pUnit, CLand * pLand);
 
     int          ParseCBHex   (const char * FirstLine);

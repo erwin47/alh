@@ -33,6 +33,7 @@
 #include <set>
 #include <unordered_map>
 #include <string>
+#include <functional>
 
 typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 
@@ -114,7 +115,7 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define LAND_FLAG_COUNT  3
 
 // land flags
-#define LAND_UNITS          0x00000001
+#define LAND_UNITS          0x00000001 //representing that the land has units
 #define LAND_VISITED        0x00000002
 #define LAND_TAX            0x00000004
 #define LAND_TRADE          0x00000008
@@ -175,6 +176,7 @@ typedef enum {GT=0,GE,   EQ,   LE,   LT,  NE, NOP} eCompareOp;
 #define SA_ROAD_SW  0x0100
 #define SA_ROAD_NW  0x0200
 #define SA_ROAD_BAD 0x0400
+#define SA_CARAVANSERAI 0x0800
 
 // unit flags - standard flags from the top, custom from the bottom
 
@@ -234,6 +236,41 @@ enum {
     ATT_NEUTRAL,
     ATT_ENEMY,
     ATT_UNDECLARED
+};
+
+enum class TurnSequence
+{
+       SQ_FIRST,
+       SQ_FORM   ,
+       SQ_CLAIM  ,
+       SQ_LEAVE  ,
+       SQ_ENTER  ,
+       SQ_PROMOTE,
+       SQ_ATTACK ,
+       SQ_STEAL  ,
+       SQ_GIVE_PRE,
+       SQ_GIVE   ,
+       SQ_JOIN   ,
+       SQ_EXCHANGE ,
+       SQ_PILLAGE,
+       SQ_TAX,
+       SQ_CAST   ,
+       SQ_SELL   , // Shar1 Extrict SELL/BUY check. Sell is executed before buy
+       SQ_BUY    ,
+       SQ_FORGET ,
+       SQ_WITHDRAW,
+       SQ_SAIL   ,
+       SQ_MOVE   ,
+       SQ_TEACH  ,
+       SQ_STUDY  ,
+       SQ_PRODUCE , //_MANUFACTURING, in future should split PRODUCE
+       SQ_BUILD  ,
+       //SQ_PRODUCE_HARVESTING,
+       SQ_ENTERTAIN,
+       SQ_WORK   ,
+       SQ_MAINTENANCE   ,//maybe we need a past-end step
+       SQ_TRANSPORT, //for quartermasters
+       SQ_LAST
 };
 
 //#define NEW_UNIT_ID(_n, _FactId) ((_FactId << 16) | _n)
@@ -480,7 +517,6 @@ public:
     unsigned long   Flags;
     unsigned long   FlagsOrg;
     unsigned long   FlagsLast;
-    int             reqMovementSpeed; // When moving, it must have this speed. Long paths are allowed.
 
     static CStrStrColl * m_PropertyGroupsColl;
 
@@ -659,8 +695,8 @@ public:
     virtual ~CLand();
 
     BOOL      AddUnit(CUnit * pUnit);
-    void      RemoveUnit(CUnit * pUnit);
-    void      DeleteAllNewUnits(int factionId);
+    void      remove_new_unit(CUnit * pUnit);
+    void      DeleteAllNewUnits(int factionId = 0);
     void      ResetUnitsAndStructs();
     void      SetFlagsFromUnits();
     //CStruct * AddNewStruct(CStruct * pNewStruct);
@@ -682,8 +718,7 @@ public:
     CStr          FlagText[LAND_FLAG_COUNT];
     CStr          Exits;
     CStr          Events;
-    //CBaseCollById Structs;
-    CBaseCollById Units;
+
     std::vector<CUnit*> units_seq_;// keeps units in the sequence they were met in the report
     CBaseColl     EdgeStructs;
     CProductColl  Products;
@@ -805,7 +840,6 @@ public:
     //long         GetStudyCost      (const char * skill);
     //bool         GetStructAttr     (const char * kind, long & MaxLoad, long & MinSailingPower, long& flags);
     const char * GetConfString     (const char * section, const char * param);
-    BOOL         GetOrderId        (const char * order, long & id);
     BOOL         IsTradeItem       (const char * item);
     BOOL         IsMan             (const char * item);
     const char * GetWeatherLine    (BOOL IsCurrent, BOOL IsGood, int Zone);

@@ -260,7 +260,7 @@ BOOL CAttitude::IsEqual(CAttitude * attitude)
 
 //=============================================================
 
-CLand::CLand() : CBaseObject(), Units(32)
+CLand::CLand() : CBaseObject()
 {
     Flags=0;
     AlarmFlags=0;
@@ -287,7 +287,9 @@ CLand::~CLand()
     ResetUnitsAndStructs();
     //Structs.FreeAll();
     EdgeStructs.FreeAll();
-    Units.DeleteAll();
+    
+    DeleteAllNewUnits();
+    
     //UnitsSeq.DeleteAll();
     Products.FreeAll();
 }
@@ -303,41 +305,24 @@ void CLand::DebugPrint(CStr & sDest)
 
 BOOL CLand::AddUnit(CUnit * pUnit)
 {
-    if (Units.Insert(pUnit))
-    {
-        pUnit->LandId = Id;
-        Flags |= LAND_UNITS;
-        //UnitsSeq.Insert(pUnit);
         units_seq_.push_back(pUnit);
+    pUnit->LandId = Id;//TODO PRP_SEQ remove
         pUnit->SetProperty(PRP_SEQUENCE, eLong, (void*)units_seq_.size(), eNormal);
+    Flags |= LAND_UNITS;
         return TRUE;
     }
-    else
-        return FALSE;
-
-}
 
 //-------------------------------------------------------------
 
-void CLand::RemoveUnit(CUnit * pUnit)
-{
-    int i;
-
-    if (Units.Search(pUnit, i))
-    {
-        Units.AtDelete(i);
-
-        for (CUnit* p : units_seq_)
-        {
-            if (p->Id == pUnit->Id)
+void CLand::remove_new_unit(CUnit* unit)
             {
                 units_seq_.erase(std::remove_if(units_seq_.begin(), units_seq_.end(), [&](CUnit* p) {
-                        return p->Id == pUnit->Id;
-                    }), units_seq_.end());
-                break;
-            }
+        if (unit->Id == p->Id) {
+            delete(p);
+            return true;
         }
-    }
+        return false;
+                    }), units_seq_.end());
 }
 
 //-------------------------------------------------------------
@@ -345,19 +330,13 @@ void CLand::RemoveUnit(CUnit * pUnit)
 void CLand::DeleteAllNewUnits(int factionId)
 {
     // Delete all new units of factionId, or all new units if factionId==0.
-    int       i;
-    CUnit   * pUnit;
-
-    units_seq_.erase(std::remove_if(units_seq_.begin(), units_seq_.end(), [&](CUnit* p) {
-            return IS_NEW_UNIT(p) && (p->FactionId == factionId || 0 == factionId);
+    units_seq_.erase(std::remove_if(units_seq_.begin(), units_seq_.end(), [&](CUnit* unit) {
+            if (IS_NEW_UNIT(unit) && (unit->FactionId == factionId || 0 == factionId)) {
+                delete(unit);
+                return true;
+            }
+            return false;
         }), units_seq_.end());
-
-    for (i=Units.Count()-1; i>=0; i--)
-    {
-        pUnit = (CUnit*)Units.At(i);
-        if (IS_NEW_UNIT(pUnit) && (pUnit->FactionId == factionId || 0 == factionId))
-            Units.AtFree(i);
-    }
 }
 
 void init_economy(CEconomy& res)
@@ -459,18 +438,10 @@ void CLand::ResetUnitsAndStructs()
 int CLand::GetNextNewUnitNo()
 {
     int     no = 1;
-    int     i,x;
-    CUnit * pUnit;
-
-    for (i=Units.Count()-1; i>=0; i--)
+    for (CUnit* unit : this->units_seq_)
     {
-        pUnit = (CUnit*)Units.At(i);
-        if (IS_NEW_UNIT(pUnit))
-        {
-            x = REVERSE_NEW_UNIT_ID(pUnit->Id);
-            if (x>=no)
-                no=x+1;
-        }
+        if (IS_NEW_UNIT(unit) && (REVERSE_NEW_UNIT_ID(unit->Id) >= no))
+            no= REVERSE_NEW_UNIT_ID(unit->Id);
     }
 
     return no;
@@ -558,7 +529,6 @@ void CLand::SetFlagsFromUnits()
     const void        * gear_weapon;
     const void        * gear_armour;
     EValueType          type;
-    CUnit             * pUnit;
 
     Flags &= ~(LAND_TAX_NEXT | LAND_TRADE_NEXT);
     AlarmFlags = 0;
@@ -566,12 +536,10 @@ void CLand::SetFlagsFromUnits()
 
     for(i=ATT_UNDECLARED; i>=0; i--) Troops[i]=0;
 
-    for (i=Units.Count()-1; i>=0; i--)
-    {
+    for (CUnit* pUnit : this->units_seq_) {
         men=0;
         weapons=0;
         armours=0;
-        pUnit = (CUnit*)Units.At(i);
         if (pUnit->FactionId==player_id) AlarmFlags |= PRESENCE_OWN;
         if (((pUnit->Flags & UNIT_FLAG_TAXING) || (pUnit->Flags & UNIT_FLAG_PILLAGING)) && !(pUnit->Flags & UNIT_FLAG_GIVEN))
             Flags |= LAND_TAX_NEXT;
@@ -774,7 +742,6 @@ CUnit::CUnit() : CBaseObject(), Comments(16), DefOrders(32), Orders(32), Errors(
     movement_stop_ = 0;
 
     FlagsLast     = ~Flags;
-    reqMovementSpeed = 0;
 };
 
 //-------------------------------------------------------------
@@ -887,8 +854,6 @@ void CUnit::ResetNormalProperties()
     has_error_ = false;
     Flags     = FlagsOrg;
     FlagsLast = ~Flags;
-    reqMovementSpeed = 0;
-
 }
 
 //-------------------------------------------------------------

@@ -73,10 +73,7 @@ enum
     menu_CheckProduction    ,
     menu_CheckSailing       ,
     menu_TaxPillage         ,
-    menu_ShareAfterBuy      ,
     menu_Work               ,
-    menu_MaintainanceCosts  ,
-    menu_ShareMaintainance  ,
     menu_FindHexes          ,
     menu_ExportHexes        ,
     menu_FlagNames          ,
@@ -313,7 +310,6 @@ enum
 #define SZ_KEY_MIN_SEL_MEN               "MEN_THRESHOLD"
 #define SZ_KEY_BRIGHT_DELTA              "BRIGHTNESS_DELTA"
 #define SZ_KEY_DECORATE_ORDERS           "DECORATE_ORDERS"
-#define SZ_KEY_LAYOUT                    "LAYOUT"
 #define SZ_KEY_CHECK_TEACH_LVL           "CHECK_TEACH_LEVEL"
 //#define SZ_KEY_MAX_SKILL_DAYS            "MAX_SKILL_DAYS"
 #define SZ_KEY_WATER_TERRAINS            "WATER_TERRAINS"
@@ -424,7 +420,6 @@ enum
 
 #define SZ_KEY_ICONS                     "ICONS"
 #define SZ_KEY_BATTLE_STATISTICS         "BATTLE_STATISTICS"
-#define SZ_KEY_SHOW_STEALS               "SHOW_STEALS_EVENT"
 #define SZ_KEY_WAGONS                    "WAGONS"
 #define SZ_KEY_WAGON_PULLERS             "WAGON_PULLERS"
 #define SZ_KEY_WAGON_CAPACITY            "WAGON_CAPACITY"

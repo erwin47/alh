@@ -59,7 +59,13 @@
       "cstring": "cpp",
       "numeric": "cpp",
       "codecvt": "cpp",
-      "unordered_set": "cpp"
+      "unordered_set": "cpp",
+      "hash_set": "cpp",
+      "bit": "cpp",
+      "condition_variable": "cpp",
+      "random": "cpp",
+      "iomanip": "cpp",
+      "mutex": "cpp"
     }
   }
 }

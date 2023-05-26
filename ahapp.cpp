@@ -88,7 +88,6 @@ void handler(int sig) {
 CAhApp::CAhApp() : m_HexDescrSrc    (128),
                    m_UnitDescrSrc   (128),
                    m_ItemWeights    ( 32),
-                   m_OrderHash      (  3),
                    m_TradeItemsHash (  2),
                    m_MenHash        (  2),
                    m_MaxSkillHash   (  6),
@@ -231,67 +230,8 @@ bool CAhApp::OnInit()
     //m_Attitudes.FreeAll();
     SetAttitudeForFaction(0, ATT_NEUTRAL);
 
-    // Load order hash
-    m_OrderHash.Insert("advance"    ,     (void*)O_ADVANCE    );
-    m_OrderHash.Insert("assassinate",     (void*)O_ASSASSINATE);
-    m_OrderHash.Insert("attack"     ,     (void*)O_ATTACK     );
-    m_OrderHash.Insert("autotax"    ,     (void*)O_AUTOTAX    );
-    m_OrderHash.Insert("build"      ,     (void*)O_BUILD      );
-    m_OrderHash.Insert("buy"        ,     (void*)O_BUY        );
-    m_OrderHash.Insert("claim"      ,     (void*)O_CLAIM      );
-    m_OrderHash.Insert("end"        ,     (void*)O_ENDFORM    );
-    m_OrderHash.Insert("endturn"    ,     (void*)O_ENDTURN    );
-    m_OrderHash.Insert("enter"      ,     (void*)O_ENTER      );
-    m_OrderHash.Insert("form"       ,     (void*)O_FORM       );
-    m_OrderHash.Insert("give"       ,     (void*)O_GIVE       );
-    m_OrderHash.Insert("giveif"     ,     (void*)O_GIVEIF     );
-    m_OrderHash.Insert("take"       ,     (void*)O_TAKE       );
-    m_OrderHash.Insert("send"       ,     (void*)O_SEND       );
-    m_OrderHash.Insert("withdraw"   ,     (void*)O_WITHDRAW   );
-    m_OrderHash.Insert("leave"      ,     (void*)O_LEAVE      );
-    m_OrderHash.Insert("move"       ,     (void*)O_MOVE       );
-    m_OrderHash.Insert("produce"    ,     (void*)O_PRODUCE    );
-    m_OrderHash.Insert("promote"    ,     (void*)O_PROMOTE    );
-    m_OrderHash.Insert("sail"       ,     (void*)O_SAIL       );
-    m_OrderHash.Insert("sell"       ,     (void*)O_SELL       );
-    m_OrderHash.Insert("steal"      ,     (void*)O_STEAL      );
-    m_OrderHash.Insert("study"      ,     (void*)O_STUDY      );
-    m_OrderHash.Insert("teach"      ,     (void*)O_TEACH      );
-    m_OrderHash.Insert("transport"  ,     (void*)O_TRANSPORT  );
-    m_OrderHash.Insert("turn"       ,     (void*)O_TURN       );
-
-    m_OrderHash.Insert("pillage"    ,     (void*)O_PILLAGE    );
-    m_OrderHash.Insert("tax"        ,     (void*)O_TAX        );
-    m_OrderHash.Insert("entertain"  ,     (void*)O_ENTERTAIN  );
-    m_OrderHash.Insert("work"       ,     (void*)O_WORK       );
-
-    m_OrderHash.Insert("guard"      ,     (void*)O_GUARD      );
-    m_OrderHash.Insert("avoid"      ,     (void*)O_AVOID      );
-    m_OrderHash.Insert("behind"     ,     (void*)O_BEHIND     );
-    m_OrderHash.Insert("reveal"     ,     (void*)O_REVEAL     );
-    m_OrderHash.Insert("hold"       ,     (void*)O_HOLD       );
-    m_OrderHash.Insert("noaid"      ,     (void*)O_NOAID      );
-    m_OrderHash.Insert("consume"    ,     (void*)O_CONSUME    );
-    m_OrderHash.Insert("nocross"    ,     (void*)O_NOCROSS    );
-    m_OrderHash.Insert("spoils"     ,     (void*)O_SPOILS     );
-
-    m_OrderHash.Insert("recruit"    ,     (void*)O_RECRUIT    );
-    m_OrderHash.Insert("share"      ,     (void*)O_SHARE      );
-
-    m_OrderHash.Insert("template"   ,     (void*)O_TEMPLATE   );
-    m_OrderHash.Insert("endtemplate",     (void*)O_ENDTEMPLATE);
-    m_OrderHash.Insert("all"        ,     (void*)O_ALL        );
-    m_OrderHash.Insert("endall"     ,     (void*)O_ENDALL     );
-
-    m_OrderHash.Insert("type"       ,     (void*)O_TYPE       );
-    m_OrderHash.Insert("label"      ,     (void*)O_LABEL      );
-    m_OrderHash.Insert("name"       ,     (void*)O_NAME       );
-
-
-
-
-
-
+/*
+    TODO: Arkady -- fill order from config also, as we need to know valid orders even if they are new to the engine
     p = SkipSpaces(GetConfig(SZ_SECT_COMMON, SZ_KEY_VALID_ORDERS));
     while (p && *p)
     {
@@ -300,8 +240,7 @@ bool CAhApp::OnInit()
         if (!S.IsEmpty() && !m_OrderHash.Locate(S.GetData(), data))
             m_OrderHash.Insert(S.GetData(), (void*)-1);
     }
-//    m_OrderHash.Dbg_Print();
-
+*/
     // Load trade items hash
     p = SkipSpaces(GetConfig(SZ_SECT_UNITPROP_GROUPS,  PRP_TRADE_ITEMS));
     while (p && *p)
@@ -426,7 +365,6 @@ int CAhApp::OnExit()
 
     m_MoveModes.FreeAll();
     m_ItemWeights.FreeAll();
-    m_OrderHash.FreeAll();
     m_Attitudes.FreeAll();
 
     StdRedirectDone();
@@ -1194,17 +1132,6 @@ void CAhApp::GetMoveNames(const char **& movenames)
 }
 
 //-------------------------------------------------------------------------
-
-BOOL CAhApp::GetOrderId(const char * order, long & id)
-{
-    const void * data = NULL;
-    BOOL  Ok;
-
-    Ok = m_OrderHash.Locate(order, data);
-    id = (long)data;
-
-    return Ok;
-}
 
 //-------------------------------------------------------------------------
 
@@ -2241,7 +2168,8 @@ void CAhApp::CheckFactionActivityStatistics()
             pLand = (CLand*)pPlane->Lands.At(i);
 
             //get tax amount
-            std::set<long> scoreboard;//<factionId>, one for region
+            std::set<long> scoreboard;//<factionId>, one for region, to ignore other units of the same faction
+            std::set<long> martial_scoreboard;//<factionId>, which is known to use martial in the region
             land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {
 
                 if (scoreboard.find(unit->FactionId) != scoreboard.end())
@@ -2253,8 +2181,11 @@ void CAhApp::CheckFactionActivityStatistics()
                 output_stats[unit->FactionId].add_stat("", "Working men", pLand->current_state_.work_.requesters_amount_);
                 output_stats[unit->FactionId].add_stat("", "Entertaining men", pLand->current_state_.entertain_.requesters_amount_);
 
-                if (pLand->current_state_.tax_.requesters_amount_ > 0)
+                if (pLand->current_state_.tax_.requesters_amount_ > 0) {
                     output_stats[unit->FactionId].add_stat("", "Taxing regions", 1);
+                    output_stats[unit->FactionId].add_stat("", "Martial", 1);
+                    martial_scoreboard.insert(unit->FactionId);
+                }
 
                 if (unit_control::of_player(unit))
                 {
@@ -2323,6 +2254,11 @@ void CAhApp::CheckFactionActivityStatistics()
                 for (auto& fact_rep : reg_report)
                 {
                     output_stats[fact_rep.first].add_stat("", "Production/Trade region", 1);
+                    if (martial_scoreboard.find(fact_rep.first) == martial_scoreboard.end()) {
+                        output_stats[fact_rep.first].add_stat("", "Martial", 1);
+                        martial_scoreboard.insert(fact_rep.first);
+                    }
+
                     output_stats[fact_rep.first].trade_details_.append(land_control::land_full_name(pLand) + EOL_SCR);
                     for (auto& line : fact_rep.second)
                     {
@@ -2915,7 +2851,6 @@ void CAhApp::EditPaneDClicked(CEditPane * pPane)
     CStr          src, S;
     char          ch;
     CUnit       * pUnit;
-    int           idx;
     long          position;
 
 
@@ -3004,11 +2939,12 @@ void CAhApp::EditPaneDClicked(CEditPane * pPane)
                     U.GetToken(p, ",)\n", ch, TRIM_ALL);
                     if (')' == ch)
                     {
-                        CBaseObject   Dummy;
-                        Dummy.Id = atol(U.GetData());
-                        if (pLand->Units.Search(&Dummy, idx))
-                        {
-                            pUnit = (CUnit*)pLand->Units.At(idx);
+                        long unit_id = atol(U.GetData());
+                        pUnit = land_control::find_first_unit_if(pLand, [&](CUnit* unit) {
+                            return unit->Id == unit_id;
+                        });
+
+                        if (pUnit != nullptr) {
                             SelectUnit(pUnit);
                             return;
                         }
@@ -3969,8 +3905,7 @@ void CAhApp::ViewFactionOverview()
 {
 //m_UnitPropertyNames
 
-    int             unitidx, propidx, nl;
-    CUnit         * pUnit;
+    int             propidx, nl;
     CStr            propname;
     CStr            Skill;
     int             skilllen;
@@ -3998,16 +3933,13 @@ void CAhApp::ViewFactionOverview()
     skilllen    = strlen(PRP_SKILL_POSTFIX);
 
     // collect data
+    //TODO: FactionOverview recreate to items, skills & flags in a normal structure
     pMapPane->GetSelectedOrAllHexes(Hexes, Selected);
     for (nl=0; nl<Hexes.Count(); nl++)
     {
         pLand = (CLand*)Hexes.At(nl);
-        for (unitidx=0; unitidx<pLand->Units.Count(); unitidx++)
-        {
-            pUnit    = (CUnit*)pLand->Units.At(unitidx);
-            men      = 0;
-            if (pUnit->GetProperty(PRP_MEN, type, value, eOriginal) && (eLong==type) )
-                men = (long)value;
+        for (CUnit* pUnit : pLand->units_seq_) {
+            men = unit_control::get_item_amount_by_mask(pUnit, PRP_MEN);
 
             for (propidx=0; propidx<m_pAtlantis->m_UnitPropertyNames.Count(); propidx++)
             {
@@ -4070,56 +4002,6 @@ void CAhApp::ViewFactionOverview()
                 else
                     ViewFactionOverview_IncrementValue(pUnit->FactionId, pUnit->pFaction ? pUnit->pFaction->Name.GetData() : NULL, Factions, "Front Line", men);
             }
-
-
-            /*
-            propidx  = 0;
-            propname = pUnit->GetPropertyName(propidx);
-            while (!propname.IsEmpty())
-            {
-                if (pUnit->GetProperty(propname.GetData(), type, value, eOriginal) &&
-                    (eLong==type) )
-                    do
-                    {
-                        if (propname.FindSubStrR(PRP_SKILL_POSTFIX) == propname.GetLength()-skilllen)
-                        {
-                            // it is a skill
-
-                            propname << (long)value;
-                            if (!pUnit->GetProperty(PRP_MEN, type, value, eOriginal) &&
-                                (eLong==type) )
-                                break;
-                        }
-                        else if (IsASkillRelatedProperty(propname.GetData()) ||
-                                 0==stricmp(PRP_SEQUENCE, propname.GetData()) ||
-                                 0==stricmp(PRP_STRUCT_ID, propname.GetData()) )
-                            break;
-
-                        if (propname.GetLength() > maxproplen)
-                            maxproplen = propname.GetLength();
-
-                        Dummy.Id = pUnit->FactionId;
-                        if (Factions.Search(&Dummy, idx))
-                            pFaction = (CBaseObject*)Factions.At(idx);
-                        else
-                        {
-                            pFaction       = new CBaseObject;
-                            pFaction->Id   = pUnit->FactionId;
-                            if (pUnit->pFaction)
-                                pFaction->Name = pUnit->pFaction->Name;
-                            Factions.Insert(pFaction);
-                        }
-
-                        if (!pFaction->GetProperty(propname.GetData(), type, valuetot, eNormal))
-                            valuetot = (void*)0;
-
-                        valuetot = (void*)((long)valuetot + (long)value);
-                        pFaction->SetProperty(propname.GetData(), eLong, valuetot, eNormal);
-                    } while (FALSE);
-
-                propname = pUnit->GetPropertyName(++propidx);
-            }
-            */
         }
     }
     Hexes.DeleteAll();
@@ -4160,11 +4042,36 @@ void CAhApp::ViewFactionOverview()
 
 //--------------------------------------------------------------------------
 
-void CAhApp::CheckMonthLongOrders()
+void CAhApp::CheckMonthLongOrders() {
+    CMapPane*           pMapPane    = (CMapPane*)m_Panes[AH_PANE_MAP];
+    CBaseColl           Hexes(64);
+    std::list<CUnit*>   units;
+
+    pMapPane->GetSelectedOrAllHexes(Hexes, FALSE);
+    for (int nl=0; nl<Hexes.Count(); nl++)
+    {
+        CLand* land = (CLand*)Hexes.At(nl);
+        this->m_pAtlantis->CheckOrder_LandMonthlong(land, units);
+    }
+
+    if (units.size() > 0) {
+        OpenUnitFrameFltr(FALSE);
+        CUnitPaneFltr* pUnitPaneF = (CUnitPaneFltr*)m_Panes[AH_PANE_UNITS_FILTER];
+
+        pUnitPaneF->InsertUnitInit();
+        for (CUnit* unit : units) {
+            pUnitPaneF->InsertUnit(unit);
+        }
+        pUnitPaneF->InsertUnitDone();
+    } 
+    else
+        wxMessageBox(wxT("All is done."), wxT("Monthlong orders check"), wxOK | wxCENTRE, m_Frames[AH_FRAME_MAP]);
+}
+
+void CAhApp::CheckMonthLongOrders2()
 {
     static const char dup_ord_msg[] = ";--- Duplicate month long orders";
     int                  x;
-    CUnit              * pUnit;
     const char         * src;
     const char         * dupord;
     const char         * p;
@@ -4185,7 +4092,7 @@ void CAhApp::CheckMonthLongOrders()
     int                  errcount = 0;
     int                  turnlvl;
     CBaseColl            Hexes(64);
-    int                  nl, unitidx;
+    int                  nl;
     CLand              * pLand;
     CMapPane           * pMapPane  = (CMapPane* )m_Panes[AH_PANE_MAP];
 
@@ -4220,10 +4127,8 @@ void CAhApp::CheckMonthLongOrders()
     for (nl=0; nl<Hexes.Count(); nl++)
     {
         pLand = (CLand*)Hexes.At(nl);
-        for (unitidx=0; unitidx<pLand->Units.Count(); unitidx++)
-        {
-            pUnit    = (CUnit*)pLand->Units.At(unitidx);
-
+        //TODO: recreate check monthlong orders
+        for (CUnit* pUnit : pLand->units_seq_) {
             if (!pUnit->IsOurs)
                 continue;
             src   = pUnit->Orders.GetData();
@@ -4987,11 +4892,6 @@ const char * CGameDataHelper::GetConfString(const char * section, const char * p
     if (!section)
         section = SZ_SECT_COMMON;
     return gpApp->GetConfig(section, param);
-}
-
-BOOL CGameDataHelper::GetOrderId(const char * order, long & id)
-{
-    return gpApp->GetOrderId(order, id);
 }
 
 BOOL CGameDataHelper::IsTradeItem(const char * item)

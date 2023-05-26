@@ -9,24 +9,24 @@ namespace autonaming
     std::map<std::string, std::string> skills_map = {
         {"MANI", "A"},
         {"COMB", "A"},
-        {"ENDU", "X"},
+        {"ENDU", "A"},
         {"HEAL", "A"},
         {"LBOW", "A"},
         {"XBOW", "A"},
         {"ARMO", "M"},
         {"BUIL", "M"},
         {"CARP", "M"},
-        {"FARM", "M"},
-        {"FISH", "M"},
-        {"GCUT", "M"},
-        {"HERB", "M"},
-        {"MINI", "M"},
-        {"HORS", "M"},
-        {"HUNT", "M"},
-        {"LUMB", "M"},
+        {"FARM", "P"},
+        {"FISH", "P"},
+        {"GCUT", "P"},
+        {"HERB", "P"},
+        {"MINI", "P"},
+        {"HORS", "P"},
+        {"HUNT", "P"},
+        {"LUMB", "P"},
         {"WEAP", "M"},
         {"QUAM", "M"},
-        {"QUAR", "M"},
+        {"QUAR", "P"},
         {"SHIP", "M"},
         {"ENTE", "W"},
         {"SAIL", "S"},
@@ -38,8 +38,9 @@ namespace autonaming
     };
 
     std::map<std::string, long> skill_type_weights = {
-        {"S", 7},
-        {"M", 6},
+        {"S", 8},
+        {"M", 7},
+        {"P", 6},
         {"B", 5},
         {"A", 4},
         {"X", 3}, 
@@ -91,8 +92,10 @@ namespace autonaming
     {
         long skill_days_initial(0);
         long skill_days(0);
+
         if (unit->skills_initial_.find(skill_name) != unit->skills_initial_.end())
             skill_days_initial = unit->skills_initial_[skill_name];
+
         if (unit->skills_.find(skill_name) != unit->skills_.end())
             skill_days = unit->skills_[skill_name];
 
@@ -250,7 +253,7 @@ namespace autonaming
     std::string generate_unit_autoname(CLand* land, CUnit* unit)
     {
         if (unit_control::get_item_amount_by_mask(unit, PRP_MEN) == 0)
-            return "000 $c";
+            return "000";
 
         std::string type;
         std::string skills_line;
@@ -269,7 +272,7 @@ namespace autonaming
                     {
                         type = get_type(land, unit, highest_skill);
                         skills_line = generate_skill_line(unit, highest_skill, highest_lvl);
-                        return type + skills_line + " $c";
+                        return type + skills_line;
                     }                  
                 }
             }
@@ -277,7 +280,7 @@ namespace autonaming
         get_highest_skill(unit, highest_skill, highest_lvl);
         type = get_type(land, unit, highest_skill);
         skills_line = generate_skill_line(unit, highest_skill, highest_lvl);
-        return type + skills_line + " $c";
+        return type + skills_line;
     }
 
     std::string generate_initial_unit_autoname(const std::string& race, 
@@ -376,11 +379,11 @@ namespace autonaming
     std::map<std::string, std::map<SquadTypes, std::string>> race_name_generators = {
         {
             "GBLN", {
-                { SquadTypes::Bowmen, "Arrowshooters" },
+                { SquadTypes::Bowmen, "Goblin Archers" },
                 { SquadTypes::Crossbowmen, "Boltshooters" },
-                { SquadTypes::Worker, "Hunkies" },
+                { SquadTypes::Worker, "Gobsters" },
                 { SquadTypes::Scout, "Sneaker" },
-                { SquadTypes::Transport, "Pushcarters" },
+                { SquadTypes::Transport, "Goblins" },
 
                 { SquadTypes::Guardsmen, "Gartt" },
                 { SquadTypes::HeavyWarrior, "Gustyboiz" },
@@ -388,7 +391,7 @@ namespace autonaming
                 { SquadTypes::WeakEquipment, "Braet" },
                 { SquadTypes::StrongEquipment, "Ourmd" },                 
                 { SquadTypes::AmountHuge, "Horde" },
-                { SquadTypes::AmountSmall, "Bunch" },
+                { SquadTypes::AmountSmall, "Few" },
 
                 { SquadTypes::Sailors, "Gobsailors" }
             }
@@ -397,17 +400,17 @@ namespace autonaming
             "GNOL", {
                 { SquadTypes::Bowmen, "Gnoll Bowmen" },
                 { SquadTypes::Crossbowmen, "Gnoll Boltsmen" },
-                { SquadTypes::Worker, "Gnolls" },
+                { SquadTypes::Worker, "Houndpack" },
                 { SquadTypes::Scout, "Gnoll" },
                 { SquadTypes::Transport, "Gnolls Cartpushers" },
 
-                { SquadTypes::Guardsmen, "Watchdogs" },
+                { SquadTypes::Guardsmen, "Watchounds" },
                 { SquadTypes::HeavyWarrior, "Yeenoghu Fangs" },
                 { SquadTypes::Warrior, "Hyenas" },
                 { SquadTypes::WeakEquipment, "Paw" },
                 { SquadTypes::StrongEquipment, "Spotted" },                 
-                { SquadTypes::AmountHuge, "Flock" },
-                { SquadTypes::AmountSmall, "Group" },
+                { SquadTypes::AmountHuge, "Horde" },
+                { SquadTypes::AmountSmall, "Few" },
 
                 { SquadTypes::Sailors, "Sailors" }
             }
@@ -418,15 +421,15 @@ namespace autonaming
                 { SquadTypes::Crossbowmen, "Orcish Boltsmen" },
                 { SquadTypes::Worker, "Peons" },
                 { SquadTypes::Scout, "Peon" },
-                { SquadTypes::Transport, "Roaming Peons" },
+                { SquadTypes::Transport, "Peons" },
 
-                { SquadTypes::Guardsmen, "Gruntguard" },
+                { SquadTypes::Guardsmen, "Guard" },
                 { SquadTypes::HeavyWarrior, "Grunts" },
                 { SquadTypes::Warrior, "Skulls" },
                 { SquadTypes::WeakEquipment, "Ragged" },
                 { SquadTypes::StrongEquipment, "Ironclad" },
                 { SquadTypes::AmountHuge, "Horde" },
-                { SquadTypes::AmountSmall, "Pack" },
+                { SquadTypes::AmountSmall, "Few" },
                 { SquadTypes::Sailors, "Sailors" }
             }
         },
@@ -436,7 +439,7 @@ namespace autonaming
                 { SquadTypes::Crossbowmen, "Wood Marksmen" },
                 { SquadTypes::Worker, "Wood Tribe" },
                 { SquadTypes::Scout, "Wood Elf" },
-                { SquadTypes::Transport, "Roaming Tribe" },
+                { SquadTypes::Transport, "Wood Tribe" },
 
                 { SquadTypes::Guardsmen, "Elfish Guard" },
                 { SquadTypes::HeavyWarrior, "Wood Lords" },
@@ -444,7 +447,7 @@ namespace autonaming
                 { SquadTypes::WeakEquipment, "Light" },
                 { SquadTypes::StrongEquipment, "Shining" },                 
                 { SquadTypes::AmountHuge, "Regiment" },
-                { SquadTypes::AmountSmall, "Detachment" },
+                { SquadTypes::AmountSmall, "Few" },
                 { SquadTypes::Sailors, "Sailors" }
             }
         },
@@ -454,7 +457,7 @@ namespace autonaming
                 { SquadTypes::Crossbowmen, "High Marksmen" },
                 { SquadTypes::Worker, "High Tribe" },
                 { SquadTypes::Scout, "High Elf" },
-                { SquadTypes::Transport, "Roaming Tribe" },
+                { SquadTypes::Transport, "High Tribe" },
 
                 { SquadTypes::Guardsmen, "Elfish Guard" },
                 { SquadTypes::HeavyWarrior, "High Lords" },
@@ -462,7 +465,7 @@ namespace autonaming
                 { SquadTypes::WeakEquipment, "Light" },
                 { SquadTypes::StrongEquipment, "Shining" },                 
                 { SquadTypes::AmountHuge, "Regiment" },
-                { SquadTypes::AmountSmall, "Detachment" },
+                { SquadTypes::AmountSmall, "Few" },
                 { SquadTypes::Sailors, "Sailors" }
             }
         },
@@ -498,7 +501,7 @@ namespace autonaming
                 { SquadTypes::WeakEquipment, "Nimble" },
                 { SquadTypes::StrongEquipment, "Ice" },
                 { SquadTypes::AmountHuge, "Hird" },
-                { SquadTypes::AmountSmall, "Squad" },
+                { SquadTypes::AmountSmall, "Few" },
                 { SquadTypes::Sailors, "Sailors" }
             }
         },
@@ -588,7 +591,7 @@ namespace autonaming
                 { SquadTypes::WeakEquipment, "Light" },
                 { SquadTypes::StrongEquipment, "Heavy" },
                 { SquadTypes::AmountHuge, "Regiment" },
-                { SquadTypes::AmountSmall, "Detachment" },
+                { SquadTypes::AmountSmall, "Few" },
                 { SquadTypes::Sailors, "Sailors" }
             }
         },
@@ -606,7 +609,7 @@ namespace autonaming
                 { SquadTypes::WeakEquipment, "Light" },
                 { SquadTypes::StrongEquipment, "Sharp-Toothed" },
                 { SquadTypes::AmountHuge, "Swarm" },
-                { SquadTypes::AmountSmall, "Pack" },
+                { SquadTypes::AmountSmall, "Few" },
                 { SquadTypes::Sailors, "Woodwalkers" }
             }
         },
@@ -624,7 +627,7 @@ namespace autonaming
                 { SquadTypes::WeakEquipment, "Light" },
                 { SquadTypes::StrongEquipment, "Shining" },
                 { SquadTypes::AmountHuge, "Regiment" },
-                { SquadTypes::AmountSmall, "Detachment" },
+                { SquadTypes::AmountSmall, "Few" },
                 { SquadTypes::Sailors, "Sailors" }
             }
         },        
@@ -642,7 +645,7 @@ namespace autonaming
                 { SquadTypes::WeakEquipment, "Light" },
                 { SquadTypes::StrongEquipment, "Heavy" },
                 { SquadTypes::AmountHuge, "Regiment" },
-                { SquadTypes::AmountSmall, "Detachment" },
+                { SquadTypes::AmountSmall, "Few" },
                 { SquadTypes::Sailors, "Sailors" }
             }
         },
@@ -718,7 +721,7 @@ namespace autonaming
 
     bool is_heavy(long weap_weight, long arm_weight)
     {
-        if (arm_weight > armor_weight["MARM"])
+        if (arm_weight >= armor_weight["MARM"])
                 return true;
         return false;
     }
@@ -778,7 +781,7 @@ namespace autonaming
 
         if (armor_score >= armor_weight["MARM"])
             ret.is_heavy_armored_ = 1;
-        else if (armor_score >= armor_weight["CARM"])
+        else if (armor_score > 0)
             ret.is_light_armored_ = 1;
 
         if (shield_score >= shield_weight["MSHD"])
@@ -809,9 +812,9 @@ namespace autonaming
             if (params.is_guard_) {
                 noun = race_name_generators[race][SquadTypes::Guardsmen];
                 
-                if (params.is_heavy_weaponed_ + params.is_heavy_shield_)
+                if (params.is_heavy_weaponed_)
                     adjective = race_name_generators[race][SquadTypes::StrongEquipment];
-                else if (params.is_light_weaponed_ + params.is_light_shield_ == 0)
+                else if (params.is_light_weaponed_)
                     adjective = race_name_generators[race][SquadTypes::WeakEquipment];
                 
             } else if (params.is_crossbowmen_) {
@@ -827,17 +830,17 @@ namespace autonaming
             } else if (params.is_heavy_armored_) {
                 noun = race_name_generators[race][SquadTypes::HeavyWarrior];
 
-                if (params.is_heavy_weaponed_ + params.is_heavy_shield_)
+                if (params.is_heavy_weaponed_)
                     adjective = race_name_generators[race][SquadTypes::StrongEquipment];
-                else if (params.is_light_weaponed_ + params.is_light_shield_ == 0)
+                else if (params.is_light_weaponed_)
                     adjective = race_name_generators[race][SquadTypes::WeakEquipment];
 
-            } else if (params.is_heavy_armored_) {
+            } else if (params.is_light_armored_) {
                 noun = race_name_generators[race][SquadTypes::Warrior];
 
-                if (params.is_heavy_weaponed_ + params.is_heavy_shield_)
+                if (params.is_heavy_weaponed_)
                     adjective = race_name_generators[race][SquadTypes::StrongEquipment];
-                else if (params.is_light_weaponed_ + params.is_light_shield_ == 0)
+                else if (params.is_light_weaponed_)
                     adjective = race_name_generators[race][SquadTypes::WeakEquipment];
 
             } else {
@@ -860,45 +863,6 @@ namespace autonaming
         return ret;
     }
 
-    SquadTypes deduct_type(CUnit* unit) {
-        long men_amount = unit_control::get_item_amount_by_mask(unit, PRP_MEN);
-        if (men_amount == 1)
-            return SquadTypes::Scout;
-
-        long armor_points = deduct_equipment_weight(men_amount, unit, armor_weight);
-        long weapon_points = deduct_equipment_weight(men_amount, unit, weapon_weight);
-        long bow_points = deduct_equipment_weight(men_amount, unit, bow_weight);
-        long xbow_points = deduct_equipment_weight(men_amount, unit, xbow_weight);
-
-        if (weapon_points + armor_points < 2 ||
-            unit_control::get_current_skill_days(unit, "COMB") < 30)
-        {
-            if (xbow_points >= 2)
-                return SquadTypes::Crossbowmen;
-            else if (bow_points >= 2)
-                return SquadTypes::Bowmen;
-            else if (is_transport(men_amount, unit))
-                return SquadTypes::Transport;
-            else
-                return SquadTypes::Worker;
-        }
-
-        if (is_heavy(weapon_points, armor_points))
-        {
-            if (is_cavalry(unit))
-                return SquadTypes::HeavyCavalry;
-            else
-                return SquadTypes::HeavyInfantry;
-        }
-        else
-        {
-            if (is_cavalry(unit))
-                return SquadTypes::LightCavalry;
-            else
-                return SquadTypes::LightInfantry;
-        }
-    }
-
     std::string generate_unit_name(CLand* land, CUnit* unit)
     {
         namingParameters params = get_naming_parameters(unit);
@@ -918,21 +882,5 @@ namespace autonaming
             race_name = "default";
             
         return name_generator(race_name, params);
-        /*SquadTypes type = deduct_type(unit);
-        auto races = unit_control::get_all_items_by_mask(unit, PRP_MEN);
-        std::string race_name;
-        long men_amount = 0;
-        for (auto race : races)
-        {
-            if (race.amount_ > men_amount)
-            {
-                men_amount = race.amount_;
-                race_name = race.code_name_;
-            }
-        }
-        if (race_name_generators.find(race_name) == race_name_generators.end())
-            return race_name_generators["default"][type];
-
-        return race_name_generators[race_name][type];*/
     }
 }

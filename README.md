@@ -52,6 +52,8 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 * add to hex filter possibility to show unit with specific orders/comments
 * choosing to produce an item that is not presented in the region should induce an error instead of a craft suggestion
 * wrong withdrawal syntax no errors: "withdrawal horse"
+* load order crushes the program with a weird memory issue (uninitialized address of a Unit, or deleted unit)
+* save order (Ctrl + S) doesn't really work
 
 ## Changelog:
 ### Dec 06 2020

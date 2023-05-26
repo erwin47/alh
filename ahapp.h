@@ -195,7 +195,6 @@ public:
    // BOOL                 GetItemWeights (const char * item, int *& weights, const char **& movenames, int & movecount );
     void                 GetMoveNames(const char **& movenames);
 
-    BOOL                 GetOrderId     (const char * order, long & id);
     BOOL                 IsTradeItem    (const char * item);
     BOOL                 IsMan          (const char * item);
     BOOL                 IsMagicSkill   (const char * skill);
@@ -245,6 +244,7 @@ public:
     void                 ViewFactionInfo();
     void                 ViewFactionOverview();
     void                 ViewFactionOverview_IncrementValue(long FactionId, const char * factionname, CBaseCollById & Factions, const char * propname, long value);
+    void                 CheckMonthLongOrders2();
     void                 CheckMonthLongOrders();
     void                 CheckProduction();
     void                 CheckSailing();
@@ -350,7 +350,6 @@ private:
     std::set<std::string> state_sections_;
     bool                 orders_changed_flag_;
     CStr                 m_sTitle;
-    CHashStrToLong       m_OrderHash;
     CHashStrToLong       m_TradeItemsHash;
     CHashStrToLong       m_MenHash;
     CHashStrToLong       m_MaxSkillHash;

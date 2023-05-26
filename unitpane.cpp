@@ -143,16 +143,7 @@ bool default_unit_filter(CUnit* ) {   return true;  }
 
 void CUnitPane::UpdateState(CLand * pLand, std::function<bool(CUnit* unit)> filter)
 {
-    int               i;
-    CUnit           * pUnit;
-    //eSelMode          selmode = sel_by_no;
-    //long              seldata = 0;
-    //BOOL              FullUpdate = (pLand != m_pCurLand); // if not full mode, refresh new units only
-    //wxListItem        info;
-    //CBaseColl         ArrivingUnits;
     long              GuiColor;
-
-
 
     CLand* prev_land = m_pCurLand;
     m_pCurLand = pLand;
@@ -161,9 +152,9 @@ void CUnitPane::UpdateState(CLand * pLand, std::function<bool(CUnit* unit)> filt
 
     if (prev_land == m_pCurLand)
     {
-        pUnit = GetSelectedUnit();
-        if (pUnit != nullptr)
-            selected_unit_id_ = pUnit->Id;
+        CUnit* selected_unit = GetSelectedUnit();
+        if (selected_unit != nullptr)
+            selected_unit_id_ = selected_unit->Id;
     }
 
     if (!this->is_filtered_)
@@ -173,9 +164,8 @@ void CUnitPane::UpdateState(CLand * pLand, std::function<bool(CUnit* unit)> filt
     if (!this->is_filtered_ && pLand)
     {
         std::set<long> already_listed_units;
-        for (i=0; i<pLand->Units.Count(); i++)
+        for (CUnit* pUnit : pLand->units_seq_)
         {
-            pUnit = (CUnit*)pLand->Units.At(i);
             if (pUnit && !filter(pUnit)) {
                 this->is_filtered_ = true;
                 //FullUpdate = true;
@@ -209,7 +199,6 @@ void CUnitPane::UpdateState(CLand * pLand, std::function<bool(CUnit* unit)> filt
                 return;
             }
                 
-
             already_listed_units.insert(unit->Id);
             GuiColor = 2;
             unit->SetProperty(PRP_GUI_COLOR, eLong, (void*)GuiColor, eBoth);
@@ -1037,8 +1026,7 @@ void CUnitPane::OnPopupMenuDiscardJunk(wxCommandEvent& WXUNUSED(event))
         if (IS_NEW_UNIT(pUnit))
         {
             CLand * pLand = gpApp->m_pAtlantis->GetLand(pUnit->LandId);
-            pLand->RemoveUnit(pUnit);
-            delete pUnit;
+            pLand->remove_new_unit(pUnit);
             gpApp->orders_changed(true);
             UpdateState(m_pCurLand);
         }

@@ -118,10 +118,7 @@ BEGIN_EVENT_TABLE(CMapFrame, CAhFrame)
     EVT_MENU     (menu_FindTradeRoutes    , CMapFrame::OnFindTradeRoutes       )
 
     EVT_MENU     (menu_TaxPillage         , CMapFrame::OnTaxPillage            )
-    EVT_MENU     (menu_ShareAfterBuy      , CMapFrame::OnShareAfterBuy         )
     EVT_MENU     (menu_Work               , CMapFrame::OnWork                  )
-    EVT_MENU     (menu_MaintainanceCosts  , CMapFrame::OnMaintainceCosts       )
-    EVT_MENU     (menu_ShareMaintainance  , CMapFrame::OnShareMaintaince       )
 
     EVT_MENU     (menu_CheckMonthLongOrd  , CMapFrame::OnCheckMonthLongOrd     )
     EVT_MENU     (menu_FactionActivityStat, CMapFrame::OnFactionActivityStatistics)
@@ -281,10 +278,7 @@ void CMapFrame::MakeMenu()
 
     menuItem = new wxMenu;
     menuItem->AppendCheckItem(menu_TaxPillage        , wxT("Tax and Pillage")         , wxEmptyString);
-    menuItem->AppendCheckItem(menu_ShareAfterBuy     , wxT("Share silver after Buy")  , wxEmptyString);
     menuItem->AppendCheckItem(menu_Work              , wxT("Work income")             , wxEmptyString);
-    menuItem->AppendCheckItem(menu_MaintainanceCosts , wxT("Pay Maintainance costs")  , wxEmptyString);
-    menuItem->AppendCheckItem(menu_ShareMaintainance , wxT("Share Study and Maintainance costs")  , wxEmptyString);
     menuBar->Append(menuItem, wxT("&Economy"));
 
 
@@ -392,7 +386,7 @@ void CMapFrame::Init(const char * szConfigSection)
 
     m_SplitterWholeWindow->SplitHorizontally(m_Splitter1, panelUnits, y);
     m_Splitter1->SplitVertically(panelMapOfHexes, m_Splitter2, x);
-    m_Splitter2->SplitHorizontally(panelHexUnitDescription, m_Splitter4, x);
+    m_Splitter2->SplitHorizontally(panelHexUnitDescription, m_Splitter4, y*0.7);
     x  = atol(gpApp->GetConfig(szConfigSection, SZ_KEY_WIDTH_1));
     m_Splitter4->SplitVertically(panelUnitOrders, panelUnitRemarks, x);
 
@@ -813,35 +807,12 @@ void CMapFrame::OnTaxPillage(wxCommandEvent& event)
 
 //--------------------------------------------------------------------
 
-void CMapFrame::OnShareAfterBuy(wxCommandEvent& event)
-{
-    gpApp->m_pAtlantis->m_EconomyShareAfterBuy = event.IsChecked();
-    gpApp->RerunOrders();
-}
-
-//--------------------------------------------------------------------
-
 void CMapFrame::OnWork(wxCommandEvent& event)
 {
     gpApp->m_pAtlantis->m_EconomyWork = event.IsChecked();
     gpApp->RerunOrders();
 }
 
-//--------------------------------------------------------------------
-
-void CMapFrame::OnMaintainceCosts(wxCommandEvent& event)
-{
-    gpApp->m_pAtlantis->m_EconomyMaintainanceCosts = event.IsChecked();
-    gpApp->RerunOrders();
-}
-
-//--------------------------------------------------------------------
-
-void CMapFrame::OnShareMaintaince(wxCommandEvent& event)
-{
-    gpApp->m_pAtlantis->m_EconomyShareMaintainance = event.IsChecked();
-    gpApp->RerunOrders();
-}
 
 //--------------------------------------------------------------------
 

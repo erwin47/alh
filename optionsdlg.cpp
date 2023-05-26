@@ -260,7 +260,6 @@ void COptionsDialog::Init()
     m_pChkUnixStyle        ->SetValue(0!=stricmp(SZ_EOL_MS, gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_EOL)));
     m_pChkHatchUnvisited   ->SetValue(0!=atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_HATCH_UNVISITED)));
     m_pChkRClickCenters    ->SetValue(0!=atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_RCLICK_CENTERS)));
-//    m_pChk3WinLayout       ->SetValue(0!=atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_LAYOUT)));
     m_pChkTeach            ->SetValue(0!=atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_CHECK_TEACH_LVL)));
     m_pChkReadPwd          ->SetValue(0!=atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_PWD_READ)));
     m_pChkCheckProdReq     ->SetValue(0!=atol(gpApp->GetConfig(SZ_SECT_COMMON, SZ_KEY_CHK_PROD_REQ)));
@@ -306,7 +305,6 @@ void COptionsDialog::OnOk    (wxCommandEvent& event)
         gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_LOAD_REP          , m_pChkLoadRep          ->GetValue()?"1":"0");
         gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_HATCH_UNVISITED   , m_pChkHatchUnvisited   ->GetValue()?"1":"0");
         gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_RCLICK_CENTERS    , m_pChkRClickCenters    ->GetValue()?"1":"0");
-//        gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_LAYOUT            , m_pChk3WinLayout       ->GetValue()?"1":"0");
         gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_CHECK_TEACH_LVL   , m_pChkTeach            ->GetValue()?"1":"0");
         gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_PWD_READ          , m_pChkReadPwd          ->GetValue()?"1":"0");
         gpApp->SetConfig(SZ_SECT_COMMON, SZ_KEY_CHK_PROD_REQ      , m_pChkCheckProdReq     ->GetValue()?"1":"0");

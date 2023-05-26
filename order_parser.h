@@ -74,20 +74,21 @@ namespace orders
         O_TAX = 55,
         O_TEACH = 56,
         O_TRANSPORT = 57,
-        O_WEAPON = 58,
-        O_WITHDRAW = 59,
-        O_WORK = 60,
-        O_RECRUIT = 61,
-        O_TYPE = 62,
-        O_LABEL = 63,
+        O_DISTRIBUTE = 58,
+        O_WEAPON = 59,
+        O_WITHDRAW = 60,
+        O_WORK = 61,
+        O_RECRUIT = 62,
+        O_TYPE = 63,
+        O_LABEL = 64,
         // must be in this sequence! O_ENDXXX == O_XXX+1
-        O_TURN = 64,
-        O_ENDTURN = 65,
-        O_TEMPLATE = 66,
-        O_ENDTEMPLATE = 67,
-        O_ALL = 68,
-        O_ENDALL = 69,
-        O_ERROR = 70,
+        O_TURN = 65,
+        O_ENDTURN = 66,
+        O_TEMPLATE = 67,
+        O_ENDTEMPLATE = 68,
+        O_ALL = 69,
+        O_ENDALL = 70,
+        O_ERROR = 71,
         O_COMMENT = 256,//any comment not belonging to any other comments groups
         O_COMMENT_AUTONAME = 512,//specific comment which belongs to autoname generation system
         O_SUPRESS_ERRORS = 1024,//specific comment which belongs to autoname generation system
@@ -158,6 +159,7 @@ namespace orders
             bool parse_produce(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount);
             bool parse_build(const std::shared_ptr<orders::Order>& order, std::string& building, bool& helps, long& unit_id);
             bool parse_claim(const std::shared_ptr<orders::Order>& order, long& amount);
+            bool parse_withdraw(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount);
             bool parse_study(const std::shared_ptr<orders::Order>& order, std::string& skill, long& level);
             bool parse_assassinate(const std::shared_ptr<orders::Order>& order, long& target_id);
             bool parse_attack(const std::shared_ptr<orders::Order>& order, std::vector<long>& targets);
@@ -165,6 +167,10 @@ namespace orders
             bool parse_sellbuy(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount, bool& all);
             bool parse_flags(const std::shared_ptr<orders::Order>& order, bool& flag);
             bool parse_flags_with_param(const std::shared_ptr<orders::Order>& order, std::string& param);
+            bool parse_namedescribe(const std::shared_ptr<orders::Order>& order, std::string& name, bool& object);
+            bool parse_enter(const std::shared_ptr<orders::Order>& order, long& struct_id);
+            bool parse_promote(const std::shared_ptr<orders::Order>& order, long& target_id);
+            bool parse_transport(const std::shared_ptr<orders::Order>& order, long& target_id, long& amount, std::string& item, long& except);
 
         }
 

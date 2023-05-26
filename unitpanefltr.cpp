@@ -41,6 +41,8 @@
 #include "extend.h"
 #include "utildlgs.h"
 
+#include "data_control.h"
+
 
 BEGIN_EVENT_TABLE(CUnitPaneFltr, wxListCtrl)
     EVT_LIST_ITEM_SELECTED   (list_units_hex_fltr, CUnitPaneFltr::OnSelected)
@@ -97,7 +99,7 @@ void CUnitPaneFltr::UpdateFltr(CUnitFilterDlg * pFilter)
     int              i,k;
     CStr             ConfigKey;
     eCompareOp       CompareOp[UNIT_SIMPLE_FLTR_COUNT];
-    CUnit          * pUnit, * pPrevUnit;
+    CUnit          * pUnit;
     BOOL             ok;
     CStr             TrackingGroup;
     CLongSortColl    Tracking(32);
@@ -110,7 +112,6 @@ void CUnitPaneFltr::UpdateFltr(CUnitFilterDlg * pFilter)
     CStr             sConfSect;
     CBaseColl        Hexes(64);
     CLand          * pLand, * pPrevLand;
-    int              unitidx;
     BOOL             Selected = FALSE;
     BOOL             ShowOnMap= FALSE;
     CMapPane       * pMapPane = (CMapPane* )gpApp->m_Panes[AH_PANE_MAP];
@@ -228,13 +229,10 @@ void CUnitPaneFltr::UpdateFltr(CUnitFilterDlg * pFilter)
             if (!pPrevLand)
                 goto Failed;
 
-            for (unitidx=0; unitidx<pPrevLand->Units.Count(); unitidx++)
+            for (CUnit* pPrevUnit : pPrevLand->units_seq_)
             {
                 ok    = FALSE;
-                pUnit = NULL;
-                pPrevUnit = (CUnit*)pPrevLand->Units.At(unitidx);
-                if (pLand->Units.Search(pPrevUnit, i))
-                    pUnit = (CUnit*)pLand->Units.At(i);
+                pUnit = land_control::find_first_unit_if(pLand, [&](CUnit* unit) {  return unit->Id == pPrevUnit->Id; });
                 if (!pUnit && pPrevUnit != nullptr) // that's the one!
                 {
                     pUnit = gpApp->m_pAtlantis->global_find_unit(pPrevUnit->Id);
@@ -268,9 +266,8 @@ void CUnitPaneFltr::UpdateFltr(CUnitFilterDlg * pFilter)
         for (nl=0; nl<Hexes.Count(); nl++)
         {
             pLand = (CLand*)Hexes.At(nl);
-            for (unitidx=0; unitidx<pLand->Units.Count(); unitidx++)
+            for (CUnit* pUnit : pLand->units_seq_)
             {
-                pUnit = (CUnit*)pLand->Units.At(unitidx);
                 ok    = TRUE;
 
                 if (!TrackingGroup.IsEmpty())

@@ -250,7 +250,11 @@ namespace land_control
             for (const auto& pair : land->affections_.incoming_units())
             {
                 for (const auto& unit : pair.second)
-                    Pred(unit);
+                    if (unit != nullptr)
+                        Pred(unit);
+                    else {
+                        // TODO: add error message
+                    }
             }
         }
 
@@ -260,7 +264,11 @@ namespace land_control
             for (const auto& pair : land->affections_.going_to_come_units())
             {
                 for (const auto& unit : pair.second)
-                    Pred(unit);
+                    if (unit != nullptr)
+                        Pred(unit);
+                    else {
+                        // TODO: add error message
+                    }
             }
         }        
     }

@@ -69,6 +69,7 @@ namespace orders
         {"TAX", orders::Type::O_TAX},
         {"TEACH", orders::Type::O_TEACH},
         {"TRANSPORT", orders::Type::O_TRANSPORT},
+        {"DISTRIBUTE", orders::Type::O_DISTRIBUTE},
         {"WEAPON", orders::Type::O_WEAPON},
         {"WITHDRAW", orders::Type::O_WITHDRAW},
         {"WORK", orders::Type::O_WORK},
@@ -84,6 +85,7 @@ namespace orders
         {"ENDALL", orders::Type::O_ENDALL},
     };
 //std::map< unsigned int, std::function<int(int,int)> > callbackMap;
+//TODO: Sanity checks -- start using
     std::map<orders::Type, std::function<bool(const std::vector<std::string>&)> > sanity_checks = {
         {orders::Type::O_ADDRESS, [](const std::vector<std::string>&) {
             return true;
@@ -161,7 +163,9 @@ namespace orders
         {orders::Type::O_ENDALL, [](const std::vector<std::string>& ) {  return true;  } },
         {orders::Type::O_COMMENT, [](const std::vector<std::string>& ) {  return true;  } },
         {orders::Type::O_COMMENT_AUTONAME, [](const std::vector<std::string>& ) {  return true;  } },
-        {orders::Type::O_ERROR, [](const std::vector<std::string>& ) {  return true;  } }
+        {orders::Type::O_ERROR, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_TRANSPORT, [](const std::vector<std::string>& ) {  return true;  } },
+        {orders::Type::O_DISTRIBUTE, [](const std::vector<std::string>& ) {  return true;  } }
     };
 
 
@@ -250,6 +254,10 @@ namespace orders
                 resolve_item_alias(words[4]);
         }},
         {orders::Type::O_TRANSPORT, [](std::vector<std::string>& words) {
+            if (words.size() >= 4)//TRANSPORT [unit] ALL [item] EXCEPT [amount] 
+                resolve_item_alias(words[3]);
+        }},
+        {orders::Type::O_DISTRIBUTE, [](std::vector<std::string>& words) {
             if (words.size() >= 4)//TRANSPORT [unit] ALL [item] EXCEPT [amount] 
                 resolve_item_alias(words[3]);
         }},
@@ -399,9 +407,7 @@ namespace orders
 
             if (res->words_order_.empty() && !res->comment_.empty())
             {//if comment
-                if (res->comment_.find(";;") != std::string::npos && 
-                    (res->comment_.find(" $C") != std::string::npos ||
-                    res->comment_.find(" !C") != std::string::npos))
+                if (res->comment_.find(";;") != std::string::npos)
                     res->type_ = orders::Type::O_COMMENT_AUTONAME;
                 else {
                     //find a subtype if exists (example: `;sell all ITEM`)
@@ -607,7 +613,8 @@ namespace orders
             {
                 std::vector<std::string>::iterator it_beg = order->words_order_.begin();
                 if (it_beg == order->words_order_.end() || 
-                        stricmp((*it_beg).c_str(), "GIVE") != 0)
+                        (stricmp((*it_beg).c_str(), "GIVE") != 0 &&
+                        stricmp((*it_beg).c_str(), "TAKE") != 0))
                     return false;
 
                 it_beg +=1;
@@ -675,13 +682,13 @@ namespace orders
 
                 if (order->words_order_.size() == 3)
                 {
-                    item = gpApp->ResolveAlias(order->words_order_[2].c_str());
+                    item = order->words_order_[2];//gpApp->ResolveAlias(order->words_order_[2].c_str());
                     amount = atol(order->words_order_[1].c_str());
                     return true;
                 }
                 else if (order->words_order_.size() == 2)
                 {
-                    item = gpApp->ResolveAlias(order->words_order_[1].c_str());
+                    item = order->words_order_[1]; //gpApp->ResolveAlias(order->words_order_[1].c_str());
                     amount = -1;
                     return true;
                 }
@@ -731,6 +738,27 @@ namespace orders
                 }               
                 return false; 
             }
+
+            bool parse_withdraw(const std::shared_ptr<orders::Order>& order, std::string& item, long& amount) {
+                if (order->words_order_.size() == 0 || 
+                        stricmp(order->words_order_[0].c_str(), "withdraw") != 0)
+                    return false;
+
+                if (order->words_order_.size() == 2)
+                {
+                    amount = 1;
+                    item = order->words_order_[1];
+                    //amount = atol(order->words_order_[1].c_str());
+                    return true;
+                }
+                else if (order->words_order_.size() == 3) {
+                    amount = atol(order->words_order_[1].c_str());
+                    item = order->words_order_[2];
+                    return true;
+                }
+                return false; 
+            }
+
             bool parse_study(const std::shared_ptr<orders::Order>& order, std::string& skill, long& level)
             {
                 if (order->words_order_.size() == 0 || 
@@ -740,13 +768,13 @@ namespace orders
                 if (order->words_order_.size() == 2)
                 {
                     
-                    skill = gpApp->ResolveAlias(order->words_order_[1].c_str());
+                    skill = order->words_order_[1];
                     level = -1;
                     return true;
                 }
                 else if (order->words_order_.size() == 3)
                 {
-                    skill = gpApp->ResolveAlias(order->words_order_[1].c_str());
+                    skill = order->words_order_[1];
                     level = atol(order->words_order_[2].c_str());
                     return true;
                 }             
@@ -846,6 +874,84 @@ namespace orders
                 }
                 return false;
             }
+
+            bool parse_namedescribe(const std::shared_ptr<orders::Order>& order, std::string& name, bool& object) {
+                if (order->words_order_.size() != 3)
+                    return false;
+                
+                if (stricmp(order->words_order_[0].c_str(), "name") != 0 &&
+                    stricmp(order->words_order_[0].c_str(), "describe") != 0) 
+                    return false;
+                
+                if (stricmp(order->words_order_[1].c_str(), "unit") != 0 &&
+                    stricmp(order->words_order_[1].c_str(), "object") != 0) 
+                    return false;
+                
+                object = false;
+                if (stricmp(order->words_order_[1].c_str(), "object") == 0)
+                    object = true;
+
+                name = order->words_order_[2];
+                return true;
+            }
+
+            bool parse_enter(const std::shared_ptr<orders::Order>& order, long& struct_id) {
+                if (order->words_order_.size() != 2)
+                    return false;
+                
+                if (stricmp(order->words_order_[0].c_str(), "enter") != 0) 
+                    return false;
+
+                struct_id = atol(order->words_order_[1].c_str());
+                return true;
+            }
+
+            bool parse_promote(const std::shared_ptr<orders::Order>& order, long& target_id) {
+                if (order->words_order_.size() != 2)
+                    return false;
+                
+                if (stricmp(order->words_order_[0].c_str(), "promote") != 0) 
+                    return false;
+
+                target_id = atol(order->words_order_[1].c_str());
+                return true;
+            }
+
+            bool parse_transport(const std::shared_ptr<orders::Order>& order, long& target_id, 
+                                    long& amount, std::string& item, long& except) {
+
+                if (order->words_order_.size() == 4 ||
+                    order->words_order_.size() == 6) {
+                    if (stricmp(order->words_order_[0].c_str(), "transport") != 0 &&
+                        stricmp(order->words_order_[0].c_str(), "distribute") != 0)
+                        return false;
+
+                    target_id = atol(order->words_order_[1].c_str());
+                    if (target_id == 0)
+                        return false;
+
+                    if (stricmp("ALL", order->words_order_[2].c_str()) == 0)
+                        amount = 0;
+                    else
+                        amount = atol(order->words_order_[2].c_str());
+
+                    std::string name, plural;
+                    if (!gpApp->ResolveAliasItems(order->words_order_[3].c_str(), item, name, plural))
+                        item = order->words_order_[3];
+
+                    except = 0;
+                    if (order->words_order_.size() == 4)
+                        return true;
+
+                    if (stricmp(order->words_order_[4].c_str(), "except") != 0)
+                        return false;
+
+                    except = atol(order->words_order_[5].c_str());
+                    return true;
+                }
+                return false;
+            }
+
         }        
     }
 
