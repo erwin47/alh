@@ -958,10 +958,10 @@ int CAtlaParser::ParseAttitudes(CStr & Line, BOOL Join)
     BOOL         apply_attitudes = TRUE;
     BOOL         def;
 
-    attitudes[ATT_FRIEND1] = gpDataHelper->GetConfString(SZ_SECT_ATTITUDES, SZ_ATT_FRIEND1);
-    attitudes[ATT_FRIEND2] = gpDataHelper->GetConfString(SZ_SECT_ATTITUDES, SZ_ATT_FRIEND2);
-    attitudes[ATT_NEUTRAL] = gpDataHelper->GetConfString(SZ_SECT_ATTITUDES, SZ_ATT_NEUTRAL);
-    attitudes[ATT_ENEMY] = gpDataHelper->GetConfString(SZ_SECT_ATTITUDES, SZ_ATT_ENEMY);
+    attitudes[ATT_FRIEND1]  = gpDataHelper->GetConfString(SZ_SECT_ATTITUDES, SZ_ATT_FRIEND1);
+    attitudes[ATT_ME]       = gpDataHelper->GetConfString(SZ_SECT_ATTITUDES, SZ_ATT_ME);
+    attitudes[ATT_NEUTRAL]  = gpDataHelper->GetConfString(SZ_SECT_ATTITUDES, SZ_ATT_NEUTRAL);
+    attitudes[ATT_ENEMY]    = gpDataHelper->GetConfString(SZ_SECT_ATTITUDES, SZ_ATT_ENEMY);
 
     if(Join)
     {   // check config whether to apply allied attitudes
@@ -2277,9 +2277,9 @@ int CAtlaParser::ParseUnit(CStr & FirstLine, BOOL Join)
 
     // ===== Check faction attitude and set stances prop
     attitude = ATT_UNDECLARED;
-    if(pUnit->IsOurs && (!Join)) // set own units to ATT_FRIEND2
+    if(pUnit->IsOurs && (!Join)) // set own units to ATT_ME
     {
-        attitude = ATT_FRIEND2;
+        attitude = ATT_ME;
     }
     else if(pUnit->IsOurs) // set unrevealing units of reporting faction
     {
@@ -4372,7 +4372,7 @@ BOOL CAtlaParser::ShareSilver(CUnit * pMainUnit)
 
     do
     {
-        if (!pMainUnit || IS_NEW_UNIT(pMainUnit) || !pMainUnit->IsOurs  )
+        if (!pMainUnit || IS_NEW_UNIT(pMainUnit) || !unit_control::of_player(pMainUnit))
             break;
 
         pLand = GetLand(pMainUnit->LandId);
@@ -4399,7 +4399,7 @@ BOOL CAtlaParser::ShareSilver(CUnit * pMainUnit)
 
         for (CUnit* pUnit : pLand->units_seq_)
         {
-            if (!pUnit->IsOurs)
+            if (!unit_control::of_player(pUnit))
                 continue;
 
             if (!pUnit->GetProperty(PRP_SILVER, type, (const void *&)unitmoney, eNormal) )
@@ -4458,7 +4458,7 @@ BOOL CAtlaParser::GenGiveEverything(CLand* land, CUnit * pFrom, const char * To)
 
     do
     {
-        if (!pFrom || IS_NEW_UNIT(pFrom) || !pFrom->IsOurs || !To || !*To )
+        if (!pFrom || IS_NEW_UNIT(pFrom) || !unit_control::of_player(pFrom) || !To || !*To )
             break;
 
         pLand = GetLand(pFrom->LandId);
@@ -4563,7 +4563,7 @@ BOOL CAtlaParser::GenOrdersTeach(CUnit * pMainUnit)
 {
     CStr                Line(32);
 
-    if (!pMainUnit || !pMainUnit->IsOurs)
+    if (!pMainUnit || !unit_control::of_local(pMainUnit))
         return FALSE;
 
     CLand* pLand = nullptr;
@@ -4671,7 +4671,7 @@ BOOL CAtlaParser::DiscardJunkItems(CUnit * pUnit, const char * junk)
     CStr                sJunkItem(32);
     BOOL                Changed = FALSE;
 
-    if (!pUnit || IS_NEW_UNIT(pUnit) || !pUnit->IsOurs )
+    if (!pUnit || IS_NEW_UNIT(pUnit) || !unit_control::of_player(pUnit))
         return FALSE;
 
     pLand = GetLand(pUnit->LandId);
@@ -4811,7 +4811,6 @@ BOOL CAtlaParser::GetTargetUnitId(long x, long y, long z, const char *& p, long 
 void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequence stop_step)
 {
     CBaseObject         Dummy;
-    CStruct           * pStruct;
     CStr                Line(32);
     CStr                Cmd (32);
     CStr                S   (32);
@@ -4841,7 +4840,7 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
             // AutoOrders initialization & sanity check section
             land_control::perform_on_each_unit(pLand, [&](CUnit* unit) {
                 //caravan sanity check
-                if (unit->IsOurs && unit_control::init_caravan(unit))
+                if (unit_control::of_player(unit) && unit_control::init_caravan(unit))
                 {
                     for (size_t i = 0; i < unit->caravan_info_->regions_.size(); ++i)
                     {
@@ -4965,8 +4964,8 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
                                     yes_string = YES;
                                 }
 
-                                if ((PE_OK!=unit->SetProperty(PRP_STRUCT_ID,  eLong, (void*)pStruct->Id, eNormal)) ||
-                                    (PE_OK!=unit->SetProperty(PRP_STRUCT_NAME,  eCharPtr, pStruct->name_.c_str(), eNormal)) ||
+                                if ((PE_OK!=unit->SetProperty(PRP_STRUCT_ID,  eLong, (void*)structure->Id, eNormal)) ||
+                                    (PE_OK!=unit->SetProperty(PRP_STRUCT_NAME,  eCharPtr, structure->name_.c_str(), eNormal)) ||
                                     (PE_OK!=unit->SetProperty(PRP_STRUCT_OWNER, eCharPtr, yes_string.c_str(), eNormal)) )
                                     OrderError("Error", pLand, unit, last_order, "enter: couldn't set property to unit by order: "+last_order->original_string_);
 
@@ -5204,9 +5203,9 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
         //     for (auto func : pair.second) {
         //         OrderError("Warning", pLand, nullptr, nullptr, "");
         //         func(sequence);
-            }
-                
-        }
+        //    }
+        //        
+        //}
 
 
     }   // phases loop
@@ -5659,7 +5658,7 @@ void CAtlaParser::RunOrder_LandAggression(CLand* land)
 void CAtlaParser::RunCaravanAutomoveOrderGeneration(CLand* land)
 {
     land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-        if (!unit->IsOurs || 
+        if (!unit_control::of_player(unit) || 
             unit_control::flags::is_moving(unit) ||
             unit->caravan_info_ == nullptr ||
             unit->caravan_info_->goal_land_ == nullptr)
@@ -5700,7 +5699,7 @@ template<orders::Type TYPE> void CAtlaParser::RunOrder_AOComments(CLand* land)
     //std::map<long, std::chrono::microseconds> time_points;
 
     land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-        if (!unit->IsOurs)
+        if (!unit_control::of_player(unit))
             return;
         //auto start = std::chrono::high_resolution_clock::now();
 
@@ -5824,7 +5823,7 @@ void CAtlaParser::RunOrder_AONames(CLand* land)
         return;
 
     land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-        if (!unit->IsOurs)
+        if (!unit_control::of_player(unit))
             return;
 
         //Update autoname if exists
@@ -6214,7 +6213,6 @@ void CAtlaParser::RunOrder_LandGive(CLand* land, CUnit* up_to)
                     OrderError("Error", land, unit, give_order, "give: transfer unit to yourself: "+give_order->original_string_);
                 else {
                     unit->impact_description_.push_back("give: transfer unit to faction "+std::to_string(target_unit->FactionId));
-                    //unit->IsOurs = false;
                 }                    
                 continue;
             }

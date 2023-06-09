@@ -1200,15 +1200,22 @@ namespace orders
                 const char* end = beg + statement.size();
 
                 //extract number
+                long sign = 1;
+                if (statement.size() > 0 && statement[0] == '-') 
+                {
+                    sign = -1;
+                    ++runner;
+                }
                 amount = 0;
                 while (*runner >= '0' && *runner <= '9' && runner < end)
                 {
                     amount = (*runner - '0') + amount*10;
                     ++runner;
                 }
+                amount = amount * sign;
 
                 //didn't find a number
-                if (runner == beg)
+                if (amount == 0)
                     return false;
 
                 //to next word
@@ -1501,7 +1508,7 @@ namespace orders
                         {
                             long existing_amount(0);
                             land_control::perform_on_each_unit(land, [&](CUnit* cur_unit) {
-                                if (cur_unit->IsOurs && cur_unit->caravan_info_ == nullptr)
+                                if (unit_control::of_local(cur_unit) && cur_unit->caravan_info_ == nullptr)
                                     existing_amount += unit_control::get_item_amount(cur_unit, codename);
                             }); 
                             long to_request = unit_req - existing_amount;
@@ -1842,7 +1849,7 @@ namespace orders
         {
             std::vector<orders::AutoRequirement> cur_needs;
             land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-                if (unit->IsOurs && unit->caravan_info_ == nullptr)
+                if (unit_control::of_local(unit) && unit->caravan_info_ == nullptr)
                 {
                     cur_needs.clear();
                     parser::get_unit_sources_and_needs(unit, sources, cur_needs);
@@ -1869,7 +1876,7 @@ namespace orders
         {
             land_control::perform_on_each_unit(land, [&](CUnit* unit) {
 
-                if (unit->IsOurs && unit->caravan_info_ != nullptr && 
+                if (unit_control::of_local(unit) && unit->caravan_info_ != nullptr && 
                     utils::is_region_in_caravan_list(unit->caravan_info_, land))
                 {
                     for (const auto& region : unit->caravan_info_->regions_)

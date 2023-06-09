@@ -44,9 +44,9 @@
             ]
         },
         {
-          "label": "set up miskatonic 2",
+          "label": "set up miskatonic 5",
           "type": "shell",
-          "command": "cp -v ../Twilight3/ah.* ./build; cp -v ../Twilight3/rep* ./build; cp -v ../Twilight3/*.rep ./build; cp -v ../Twilight3/*.ord ./build",
+          "command": "cp -v ../Twilight5/ah.* ./build; cp -v ../Twilight5/rep* ./build; cp -v ../Twilight5/*.rep ./build; cp -v ../Twilight5/*.ord ./build",
           "problemMatcher": [
               "$tsc"
           ]

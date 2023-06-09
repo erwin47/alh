@@ -232,7 +232,7 @@ extern const char * STRUCT_GATE;
 
 enum {
     ATT_FRIEND1     = 0,
-    ATT_FRIEND2,
+    ATT_ME,
     ATT_NEUTRAL,
     ATT_ENEMY,
     ATT_UNDECLARED

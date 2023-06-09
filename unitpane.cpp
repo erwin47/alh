@@ -542,7 +542,7 @@ void CUnitPane::OnRClick(wxListEvent& event)
         if (pUnit)
         {
             // single unit
-            if (pUnit->IsOurs)
+            if (unit_control::of_player(pUnit))
             {
                 if (!IS_NEW_UNIT(pUnit))
                 {
@@ -1173,7 +1173,7 @@ void CUnitPane::OnPopupMenuIssueOrders(wxCommandEvent& )
     while (idx>=0)
     {
         pUnit = GetUnit(idx);
-        if (pUnit->IsOurs)
+        if (unit_control::of_local(pUnit))
         {
             Changed = TRUE;
             pUnit->Orders.TrimRight(TRIM_ALL);

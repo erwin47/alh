@@ -470,7 +470,7 @@ void CUnitPaneFltr::OnPopupMenuIssueOrders(wxCommandEvent& )
     while (idx>=0)
     {
         pUnit = GetUnit(idx);
-        if (pUnit->IsOurs)
+        if (unit_control::of_local(pUnit))
         {
             pUnit->Orders.TrimRight(TRIM_ALL);
             if (!pUnit->Orders.IsEmpty())

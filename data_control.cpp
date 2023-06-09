@@ -690,7 +690,7 @@ namespace unit_control
         ss << std::string(begin, runner).c_str() << "." << EOL_SCR;
 
         //getting misc line
-        if (unit->IsOurs)
+        if (unit_control::of_local(unit))
         {
             ++runner;
             while (*runner == ' ')
@@ -725,7 +725,7 @@ namespace unit_control
         std::stringstream ss;
         
         //first line
-        if (unit->IsOurs)
+        if (unit_control::of_local(unit))
             ss << " * ";
         else
             ss << " - ";
@@ -1486,7 +1486,7 @@ namespace land_control
     void apply_land_flags(CLand* land, std::vector<unit_control::UnitError>& errors)
     {
         land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-            if (!unit->IsOurs)
+            if (!unit_control::of_player(unit))
                 return;
 
             apply_flag<orders::Type::O_AUTOTAX>(unit, errors);
@@ -2178,7 +2178,7 @@ namespace land_control
                                           });
                     if (lost_student != nullptr)
                     {
-                        if (!lost_student->IsOurs) 
+                        if (!unit_control::of_player(lost_student)) 
                         {
                             long lost_student_amount = unit_control::get_item_amount_by_mask(lost_student, PRP_MEN);
                             other_faction_students.push_back({studId, lost_student_amount});

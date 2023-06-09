@@ -1277,7 +1277,7 @@ BOOL CAhApp::CanSeeAdvResources(const char * skillname, const char * terrain, CL
 int64_t CAhApp::GetAttitudeForFaction(int id)
 {
     int player_id = atol( GetConfig(SZ_SECT_ATTITUDES, SZ_ATT_PLAYER_ID));
-    if(id == player_id) return ATT_FRIEND2;
+    if(id == player_id) return ATT_ME;
     int attitude = ATT_UNDECLARED;
     CAttitude * policy;
     for(int i=m_Attitudes.Count()-1; i>=0; i--)
@@ -3509,7 +3509,7 @@ bool CAhApp::OnUnitHexSelectionChange()
 
     if (pUnit)
     {//
-        ReadOnly = !pUnit->IsOurs || pUnit->Id<=0 || 
+        ReadOnly = pUnit->Id<=0 || 
                    (m_pAtlantis->m_YearMon != (long)m_ReportDates.At(gpApp->m_ReportDates.Count()-1) );
         
         if (pDescription) 
@@ -4066,160 +4066,6 @@ void CAhApp::CheckMonthLongOrders() {
     } 
     else
         wxMessageBox(wxT("All is done."), wxT("Monthlong orders check"), wxOK | wxCENTRE, m_Frames[AH_FRAME_MAP]);
-}
-
-void CAhApp::CheckMonthLongOrders2()
-{
-    static const char dup_ord_msg[] = ";--- Duplicate month long orders";
-    int                  x;
-    const char         * src;
-    const char         * dupord;
-    const char         * p;
-    char                 ch;
-    CStr                 Line;
-    CStr                 Ord;
-    const char         * order;
-    BOOL                 IsNew;
-    BOOL                 Found;
-    CStr                 Errors(128);
-    CStr                 S(64);
-    CStr                 FoundOrder;
-    CStringSortColl      MonthLongOrders;
-    CStringSortColl      MonthLongDup;
-    long                 men;
-    EValueType           type;
-    CUnitPaneFltr      * pUnitPaneF = NULL;
-    int                  errcount = 0;
-    int                  turnlvl;
-    CBaseColl            Hexes(64);
-    int                  nl;
-    CLand              * pLand;
-    CMapPane           * pMapPane  = (CMapPane* )m_Panes[AH_PANE_MAP];
-
-
-    p = SkipSpaces(GetConfig(SZ_SECT_COMMON, SZ_KEY_ORD_MONTH_LONG));
-    while (p && *p)
-    {
-        p = SkipSpaces(S.GetToken(p, ','));
-        if (!S.IsEmpty())
-            MonthLongOrders.Insert(strdup(S.GetData()));
-    }
-
-    p = SkipSpaces(GetConfig(SZ_SECT_COMMON, SZ_KEY_ORD_DUPLICATABLE));
-    while (p && *p)
-    {
-        p = SkipSpaces(S.GetToken(p, ','));
-        if (!S.IsEmpty())
-            MonthLongDup.Insert(strdup(S.GetData()));
-    }
-
-    if (1==atol(SkipSpaces(GetConfig(SZ_SECT_COMMON, SZ_KEY_CHECK_OUTPUT_LIST))))
-    {
-        // Output will go into the unit filter window
-        OpenUnitFrameFltr(FALSE);
-        pUnitPaneF = (CUnitPaneFltr*)m_Panes [AH_PANE_UNITS_FILTER];
-    }
-
-    if (pUnitPaneF)
-        pUnitPaneF->InsertUnitInit();
-
-    pMapPane->GetSelectedOrAllHexes(Hexes, FALSE);
-    for (nl=0; nl<Hexes.Count(); nl++)
-    {
-        pLand = (CLand*)Hexes.At(nl);
-        //TODO: recreate check monthlong orders
-        for (CUnit* pUnit : pLand->units_seq_) {
-            if (!pUnit->IsOurs)
-                continue;
-            src   = pUnit->Orders.GetData();
-            IsNew = FALSE;
-            Found = FALSE;
-            turnlvl = 0;
-            while (src && *src)
-            {
-                dupord = src;
-                src    = Line.GetToken(src, '\n', TRIM_ALL);
-                Ord.GetToken(SkipSpaces(Line.GetData()), " \t", ch, TRIM_ALL);
-                order = Ord.GetData();
-                if ('@'==*order)
-                    order++;
-                if (0==SafeCmp("FORM", order))
-                    IsNew = TRUE;
-                else if (0==SafeCmp("END", order))
-                    IsNew = FALSE;
-                else if (0==SafeCmp("TURN", order))
-                    turnlvl++;
-                else if (0==SafeCmp("ENDTURN", order))
-                    turnlvl--;
-                else if (!IsNew && 0==turnlvl && MonthLongOrders.Search((void*)order, x) )
-                {
-                    if (Found)
-                    {
-                        if (0==stricmp(order, FoundOrder.GetData()) &&
-                            MonthLongDup.Search((void*)order, x))
-                            continue; // it is an order which can be duplicated
-
-                        errcount++;
-                        if (pUnitPaneF)
-                        {
-                            int newpos;
-
-                            pUnitPaneF->InsertUnit(pUnit);
-                            S = dup_ord_msg;
-                            S << EOL_SCR;
-                            newpos = dupord - pUnit->Orders.GetData() + S.GetLength();
-                            pUnit->Orders.InsBuf(S.GetData(), dupord - pUnit->Orders.GetData(), S.GetLength());
-                            src = &pUnit->Orders.GetData()[newpos];
-                        }
-                        else
-                        {
-                            S.Format("Unit % 5d Error : Duplicate month long orders - %s", pUnit->Id, Line.GetData());
-                            Errors << S << EOL_SCR;
-                        }
-                        break;
-                    }
-                    Found      = TRUE;
-                    FoundOrder = order;
-                }
-            }
-            if (!Found)
-            {
-                if (!pUnit->GetProperty(PRP_MEN, type, (const void *&)men, eNormal) ||
-                    (eLong==type && 0==men))
-                    continue; // no men - no orders is ok
-
-                errcount++;
-                if (pUnitPaneF)
-                {
-                    pUnitPaneF->InsertUnit(pUnit);
-                }
-                else
-                {
-                    S.Format("Unit % 5d Warning : No month long orders", pUnit->Id);
-                    Errors << S << EOL_SCR;
-                }
-            }
-        }
-    }
-
-    Hexes.DeleteAll();
-
-
-    if (pUnitPaneF)
-        pUnitPaneF->InsertUnitDone();
-
-    if (!pUnitPaneF && errcount>0)
-        ShowError(Errors.GetData(), Errors.GetLength(), TRUE);
-
-    if (0==errcount)
-        wxMessageBox(wxT("No problems found."), wxT("Order checking"), wxOK | wxCENTRE, m_Frames[AH_FRAME_MAP]);
-
-
-//int wxMessageBox(const wxString& message, const wxString& caption = "Message", int style = wxOK | wxCENTRE,
-// wxWindow *parent = NULL, int x = -1, int y = -1)
-
-    MonthLongOrders.FreeAll();
-    MonthLongDup.FreeAll();
 }
 
 //--------------------------------------------------------------------------
@@ -4966,8 +4812,7 @@ void CGameDataHelper::SetAttitudeForFaction(int id, int attitude)
 
 void CGameDataHelper::SetPlayingFaction(long id)
 {
-    // set playing faction to ATT_FRIEND2
-    gpApp->SetAttitudeForFaction(id, ATT_FRIEND2);
+    gpApp->SetAttitudeForFaction(id, ATT_ME);
 
     int fileno = gpApp->GetConfigFileNo(SZ_SECT_ATTITUDES);
     long playing_faction_id = gpApp->config_[fileno].get(SZ_SECT_ATTITUDES, SZ_ATT_PLAYER_ID, 0);

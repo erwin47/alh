@@ -303,7 +303,7 @@ DefaultConfigRec DefaultConfig[] =
     {SZ_SECT_ATTITUDES         ,     SZ_ATT_PLAYER_ID      ,     "-1"                 },
     {SZ_SECT_ATTITUDES         ,     SZ_ATT_APPLY_ON_JOIN  ,     "0"                  },
     {SZ_SECT_ATTITUDES         ,     SZ_ATT_FRIEND1        ,     "Ally,Friendly"      },
-    {SZ_SECT_ATTITUDES         ,     SZ_ATT_FRIEND2        ,     "Own"      },
+    {SZ_SECT_ATTITUDES         ,     SZ_ATT_ME             ,     "Own"                },
     {SZ_SECT_ATTITUDES         ,     SZ_ATT_NEUTRAL        ,     "Neutral"            },
     {SZ_SECT_ATTITUDES         ,     SZ_ATT_ENEMY          ,     "Unfriendly,Hostile" },
 

@@ -305,12 +305,12 @@ void CLand::DebugPrint(CStr & sDest)
 
 BOOL CLand::AddUnit(CUnit * pUnit)
 {
-        units_seq_.push_back(pUnit);
+    units_seq_.push_back(pUnit);
     pUnit->LandId = Id;//TODO PRP_SEQ remove
-        pUnit->SetProperty(PRP_SEQUENCE, eLong, (void*)units_seq_.size(), eNormal);
+    pUnit->SetProperty(PRP_SEQUENCE, eLong, (void*)units_seq_.size(), eNormal);
     Flags |= LAND_UNITS;
-        return TRUE;
-    }
+    return TRUE;
+}
 
 //-------------------------------------------------------------
 
@@ -594,7 +594,7 @@ void CLand::SetFlagsFromUnits()
         case ATT_FRIEND1:
             AlarmFlags |= CLAIMED_BY_FRIEND;
             break;
-        case ATT_FRIEND2:
+        case ATT_ME:
             AlarmFlags |= CLAIMED_BY_OWN;
             break;
         case ATT_NEUTRAL:
@@ -610,7 +610,7 @@ void CLand::SetFlagsFromUnits()
         case ATT_FRIEND1:
             AlarmFlags |= GUARDED_BY_FRIEND;
             break;
-        case ATT_FRIEND2:
+        case ATT_ME:
             AlarmFlags |= GUARDED_BY_OWN;
             break;
         case ATT_NEUTRAL:
@@ -631,7 +631,7 @@ void CLand::SetFlagsFromUnits()
         case ATT_ENEMY:
             AlarmFlags |= PRESENCE_ENEMY;
     }
-    if((alarm > guard_stance) && (alarm > claim) && (alarm > ATT_FRIEND2)) AlarmFlags |= ALARM;
+    if((alarm > guard_stance) && (alarm > claim) && (alarm > ATT_ME)) AlarmFlags |= ALARM;
 
     // normalise troops
     int minimen = 2*atol(gpApp->GetConfig(SZ_SECT_COMMON  , SZ_KEY_MIN_SEL_MEN));

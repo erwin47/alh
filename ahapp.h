@@ -244,7 +244,6 @@ public:
     void                 ViewFactionInfo();
     void                 ViewFactionOverview();
     void                 ViewFactionOverview_IncrementValue(long FactionId, const char * factionname, CBaseCollById & Factions, const char * propname, long value);
-    void                 CheckMonthLongOrders2();
     void                 CheckMonthLongOrders();
     void                 CheckProduction();
     void                 CheckSailing();

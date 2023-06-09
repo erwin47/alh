@@ -11,7 +11,7 @@ std::map<std::string, long> get_item_types_list(CUnit* issuer_unit, CLand* land)
 {
     std::map<std::string, long> ret;
     land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-        if (!unit->IsOurs || issuer_unit->Id == unit->Id || IS_NEW_UNIT(unit))
+        if (!unit_control::of_player(unit) || issuer_unit->Id == unit->Id || IS_NEW_UNIT(unit))
             return;
 
         std::set<CItem> cur_products = unit_control::get_all_items(unit);
@@ -199,7 +199,7 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
     std::vector<CUnit*> other_units;
     //get all our units except chosen one
     land_control::get_units_if(land, other_units, [&unit](CUnit* cur_unit) {
-        return cur_unit->IsOurs && cur_unit->Id != unit->Id && !IS_NEW_UNIT(cur_unit);
+        return unit_control::of_player(cur_unit) && cur_unit->Id != unit->Id && !IS_NEW_UNIT(cur_unit);
     });
 
     //sort them out by amount of items they have
@@ -307,7 +307,7 @@ void CReceiveDlg::OnOk           (wxCommandEvent& )
             items.push_back(plural_to_code_[long_name_item]);
 
         land_control::perform_on_each_unit(land_, [&](CUnit* unit) {
-            if (!unit->IsOurs || unit->Id == unit_->Id || IS_NEW_UNIT(unit))
+            if (!unit_control::of_player(unit) || unit->Id == unit_->Id || IS_NEW_UNIT(unit))
                 return;
 
             std::string rem_pattern = ";!receive_dlg_orders_removal";

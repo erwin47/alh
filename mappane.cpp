@@ -475,7 +475,7 @@ void CMapPane::ApplyColors()
             case ATT_FRIEND1:
                 StrToColor(&cr, gpApp->GetConfig(SZ_SECT_COLORS, SZ_KEY_MAP_TRUSTED));
                 break;
-            case ATT_FRIEND2:
+            case ATT_ME:
                 StrToColor(&cr, gpApp->GetConfig(SZ_SECT_COLORS, SZ_KEY_MAP_PREFERRED));
                 break;
             case ATT_NEUTRAL:
@@ -1410,7 +1410,7 @@ void CMapPane::DrawUnits(wxDC * pDC, CLand * pLand, wxPoint * point)
         }
         else if(pLand->Flags&PRESENCE_OWN)
         {
-            color = ATT_FRIEND2;
+            color = ATT_ME;
         }
 
         if (!pLand->GetProperty(PRP_SEL_FACT_MEN, type, (const void *&)x, eNormal) || (eLong!=type))
@@ -1423,7 +1423,7 @@ void CMapPane::DrawUnits(wxDC * pDC, CLand * pLand, wxPoint * point)
         {
             if(pLand->AlarmFlags&GUARDED_BY_OWN)
             {
-                color = ATT_FRIEND2;
+                color = ATT_ME;
                 mark=FALSE;
             }
             else if (pLand->AlarmFlags&GUARDED_BY_FRIEND) color = ATT_FRIEND1;
@@ -1434,7 +1434,7 @@ void CMapPane::DrawUnits(wxDC * pDC, CLand * pLand, wxPoint * point)
         {
             if(pLand->AlarmFlags&CLAIMED_BY_OWN)
             {
-                color = ATT_FRIEND2;
+                color = ATT_ME;
                 mark=FALSE;
             }
             else if (pLand->AlarmFlags&CLAIMED_BY_FRIEND) color = ATT_FRIEND1;
@@ -1450,8 +1450,8 @@ void CMapPane::DrawUnits(wxDC * pDC, CLand * pLand, wxPoint * point)
             for(int side=ATT_FRIEND1; side < ATT_UNDECLARED; side++)
             {
                 // juggle the order of FRIEND1 / FRIEND2 !
-                if(side==ATT_FRIEND1) side = ATT_FRIEND2;
-                else if(side==ATT_FRIEND2) side = ATT_FRIEND1;
+                if(side==ATT_FRIEND1) side = ATT_ME;
+                else if(side==ATT_ME) side = ATT_FRIEND1;
                 if(pLand->Troops[side] > 0)
                 {
                     xc += 2;
@@ -2020,7 +2020,7 @@ void CMapPane::DrawShieldIcon(wxDC * pDC, int x, int y, wxColour pGuardColor, wx
 
             if (mark)
             {
-                pGuardColor = *m_pUnitColor[ATT_FRIEND2];
+                pGuardColor = *m_pUnitColor[ATT_ME];
                 wxPen * pen = new wxPen(pGuardColor,1,wxPENSTYLE_SOLID);
                 pDC->SetPen(*pen);
                 pDC->DrawLine(x+2, y-5, x+2, y-2);
@@ -2042,7 +2042,7 @@ void CMapPane::DrawShieldIcon(wxDC * pDC, int x, int y, wxColour pGuardColor, wx
             if (mark)
             {
                 pDarkColor = pGuardColor;
-                pGuardColor = *m_pUnitColor[ATT_FRIEND2];
+                pGuardColor = *m_pUnitColor[ATT_ME];
             }
             wxPen * pen = new wxPen(pGuardColor,1,wxPENSTYLE_SOLID);
             pDC->SetPen(*pen);
@@ -2102,12 +2102,12 @@ void CMapPane::DrawFlagIcon(wxDC * pDC, int x, int y, wxColour FlagColor, wxColo
             {
                 pDC->SetPen  (*m_pPenGrey);
                 pDC->DrawLine(x+1, y-1, x+5, y-1);
-                DarkColor = * m_pDarkColor[ATT_FRIEND2];
+                DarkColor = * m_pDarkColor[ATT_ME];
                 wxPen * pen = new wxPen(DarkColor,1,wxPENSTYLE_SOLID);
                 pDC->SetPen(*pen);
                 pDC->DrawLine(x+1, y  , x+5, y);
                 delete pen;
-                FlagColor = * m_pUnitColor[ATT_FRIEND2];
+                FlagColor = * m_pUnitColor[ATT_ME];
                 wxPen * pen1 = new wxPen(FlagColor,1,wxPENSTYLE_SOLID);
                 pDC->SetPen(*pen1);
                 pDC->DrawLine(x+2, y-1, x+4, y-1);
@@ -2149,12 +2149,12 @@ void CMapPane::DrawFlagIcon(wxDC * pDC, int x, int y, wxColour FlagColor, wxColo
             {
                 pDC->SetPen  (*m_pPenGrey);
                 pDC->DrawLine(x+1, y-1, x+5, y-1);
-                DarkColor = * m_pDarkColor[ATT_FRIEND2];
+                DarkColor = * m_pDarkColor[ATT_ME];
                 wxPen * pen = new wxPen(DarkColor,1,wxPENSTYLE_SOLID);
                 pDC->SetPen(*pen);
                 pDC->DrawLine(x+1, y  , x+5, y);
                 delete pen;
-                FlagColor = * m_pUnitColor[ATT_FRIEND2];
+                FlagColor = * m_pUnitColor[ATT_ME];
                 wxPen * pen1 = new wxPen(FlagColor,1,wxPENSTYLE_SOLID);
                 pDC->SetPen(*pen1);
                 pDC->DrawLine(x+2, y-1, x+4, y-1);
@@ -3947,7 +3947,7 @@ void CMapPane::OnPopupWarehouse   (wxCommandEvent & )
 {
     std::stringstream output;
     getWarehouse(output, [&](CUnit* unit) {
-        return unit->IsOurs;
+        return unit_control::of_player(unit);
     });
 
     CEditPane* pEditPane = (CEditPane*)gpApp->m_Panes[AH_PANE_MAP_DESCR];
@@ -3961,7 +3961,7 @@ void CMapPane::OnPopupEnemyWarehouse(wxCommandEvent & )
 {
     std::stringstream output;
     getWarehouse(output, [&](CUnit* unit) {
-        return !unit->IsOurs;
+        return !unit_control::of_player(unit);
     });
 
     CEditPane* pEditPane = (CEditPane*)gpApp->m_Panes[AH_PANE_MAP_DESCR];
@@ -4107,7 +4107,7 @@ void CMapPane::OnPopupMovePhases(wxCommandEvent& )
         {
             CLand* land = (CLand*)plane->Lands.At(i);
             land_control::perform_on_each_unit(land, [&](CUnit* unit) {
-                if (!unit->IsOurs || unit->movements_.size() == 0)
+                if (!unit_control::of_local(unit) || unit->movements_.size() == 0)
                     return;
 
                 //check if ship && if sails on it, then take speed of the ship

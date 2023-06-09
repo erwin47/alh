@@ -452,7 +452,7 @@ enum
 #define SZ_ATT_PLAYER_ID                 "PLAYER_FACTION_ID"
 #define SZ_ATT_APPLY_ON_JOIN             "APPLY_ATTITUDES_ON_JOIN"
 #define SZ_ATT_FRIEND1                   "TRUSTED_ATTITUDES"
-#define SZ_ATT_FRIEND2                   "PREFERRED_ATTITUDES"
+#define SZ_ATT_ME                        "PREFERRED_ATTITUDES"
 #define SZ_ATT_NEUTRAL                   "TOLERATED_ATTITUDES"
 #define SZ_ATT_ENEMY                     "ENEMY_ATTITUDES"
 
