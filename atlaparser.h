@@ -95,6 +95,9 @@ public:
     int        LoadOrders  (const char * FNameIn, int & FactionId);  // return an id of the order's faction
     void       RunOrders(CLand * pLand, TurnSequence start_step = TurnSequence::SQ_FIRST, TurnSequence stop_step = TurnSequence::SQ_LAST);
     void       RunLandOrders(CLand * pLand, TurnSequence beg_step = TurnSequence::SQ_FIRST, TurnSequence stop_step = TurnSequence::SQ_LAST);
+    //! generate autonames as if RunOrders was executed, but just for AONaming
+    void       RunLandAutonames(CLand * land);
+
     BOOL       ShareSilver(CUnit * pMainUnit);
     BOOL       GenOrdersTeach(CUnit * pMainUnit);
     BOOL       GenGiveEverything(CLand* land, CUnit * pFrom, const char * To);

@@ -988,7 +988,7 @@ namespace orders
                 unit->Orders.Empty();
                 unit->Orders << orders::parser::compose_string(unit->orders_).c_str();
                 parser::recalculate_hash(unit->orders_);
-                gpApp->orders_changed(true);
+                gpApp->orders_changed(true); // maybe this is the flag to handle updates?
                 return true;
             }
             return false;
@@ -1518,6 +1518,7 @@ namespace orders
                     }            
                 }
 
+                //! accepts name / group, returns all related items
                 void extract_items(const std::string& item_name, std::vector<std::string>& items)
                 {
                     items = game_control::get_game_config<std::string>(SZ_SECT_UNITPROP_GROUPS, item_name.c_str());

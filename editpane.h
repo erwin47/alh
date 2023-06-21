@@ -43,6 +43,7 @@ public:
     void         SetHeader(const std::string& new_header);
 
     wxTextCtrl   * m_pEditor;
+    bool        evt_text_event_;
     int test_;
 
 

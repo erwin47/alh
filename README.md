@@ -57,6 +57,8 @@ In alh.cfg there is a section `RECEIVE_DLG_SETTINGS` related to it. In field `RE
 * save order (Ctrl + S) doesn't really work
 * add to caravan order which would forbid delivery specific types of items
 * add to COND warning if enabling two minthlong orders
+* @name unit -- can't be understanded at first moment after unit creation.
+* idea about wall construction with a direction
 
 ## Changelog:
 ### Dec 06 2020

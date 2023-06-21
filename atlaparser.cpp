@@ -5227,6 +5227,14 @@ void CAtlaParser::RunLandOrders(CLand * pLand, TurnSequence beg_step, TurnSequen
     OrderErrFinalize();
 }
 
+void CAtlaParser::RunLandAutonames(CLand* land)
+{
+    // currently the only real dependance of AONames from land is LEAVE/ENTER logic
+    // should be updated accordingly if it is going to be changed
+    RunLandOrders(land, TurnSequence::SQ_LEAVE, TurnSequence::SQ_ENTER);
+    RunOrder_AONames(land);
+}
+
 //-------------------------------------------------------------
 
 int CAtlaParser::CountMenWithFlag(CLand * pLand, int unitFlag) const

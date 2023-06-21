@@ -77,10 +77,11 @@ void CEditorForPane::OnKillFocus(wxFocusEvent& event)
     event.Skip();
 }
 
-void CEditorForPane::OnMouseEvent(wxMouseEvent& )
+void CEditorForPane::OnMouseEvent(wxMouseEvent& event)
 {
     // maybe it can be handled in the parent control, but just to be sure
     m_pParent->OnMouseDClick();
+    event.Skip();
 }
 
 //====================================================================
@@ -105,6 +106,7 @@ CEditPane::CEditPane(wxWindow* parent, const wxString& header, BOOL editable, in
     m_HdrHeight     = 0;
     m_WhichFont     = WhichFont;
     m_pEditor       = new CEditorForPane(this);
+    evt_text_event_ = false;
     m_ColorNormal   = m_pEditor->GetBackgroundColour() ;
 
     m_ColorReadOnly.Set(APPLY_COLOR_DELTA(m_ColorNormal.Red()),
@@ -254,8 +256,11 @@ CUnitOrderEditPane::CUnitOrderEditPane(wxWindow *parent, const wxString &header,
 
 }
 
-void CUnitOrderEditPane::OnOrderModified(wxCommandEvent& )
-{//EVT_KILL_FOCUS
+void CUnitOrderEditPane::OnOrderModified(wxCommandEvent& event)
+{
+    evt_text_event_ = true;
+    event.Skip();
+    //EVT_KILL_FOCUS
  /*   if (unit_ != NULL && m_pEditor->IsModified())
     {
         unit_order_pane_modified_ = true;
@@ -282,12 +287,13 @@ CUnit* CUnitOrderEditPane::change_representing_unit(CUnit* unit)
     label += "," + std::to_string(land_y) + "," + std::to_string(land_z) + ")";
     this->m_pHeader->SetLabel(label);
     CUnit* prev_unit = unit_;
-    if (m_pEditor->IsModified() && unit_ != NULL)
+    if (m_pEditor->IsModified() && evt_text_event_ && unit_ != NULL)
     {
         unit_->Orders.SetStr(m_pEditor->GetValue().mb_str());
         unit_->orders_ = orders::parser::parse_lines_to_orders(std::string(unit_->Orders.GetData(), unit_->Orders.GetLength()));
         unit_->orders_.is_modified_ = true;
         gpApp->orders_changed(true);
+        evt_text_event_ = false;
         m_pEditor->DiscardEdits();
     }
     unit_ = unit;

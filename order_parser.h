@@ -15,7 +15,7 @@ class CUnit;
 class CLand;
 namespace orders
 {
-    enum class Type : long {
+    enum class Type : uint64_t {
         O_NORDERS = 0,
         O_ADDRESS = 1,
         O_ADVANCE = 2,
@@ -104,15 +104,15 @@ namespace orders
         std::string original_string_;
     };
 
-    struct OrderTypeHash {
-        std::size_t operator()(orders::Type t) const
-        {
-            return static_cast<std::size_t>(t);
-        } 
-    };
-
     struct UnitOrders
     {
+        struct OrderTypeHash {
+            std::size_t operator()(orders::Type t) const
+            {
+                return static_cast<std::size_t>(t);
+            } 
+        };
+
         UnitOrders() : turn_endturn_started_(false), is_modified_(false) {}
 
         std::vector<std::shared_ptr<orders::Order>> orders_;

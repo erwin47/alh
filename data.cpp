@@ -441,7 +441,7 @@ int CLand::GetNextNewUnitNo()
     for (CUnit* unit : this->units_seq_)
     {
         if (IS_NEW_UNIT(unit) && (REVERSE_NEW_UNIT_ID(unit->Id) >= no))
-            no= REVERSE_NEW_UNIT_ID(unit->Id);
+            no= REVERSE_NEW_UNIT_ID(unit->Id) + 1;
     }
 
     return no;

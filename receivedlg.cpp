@@ -212,7 +212,16 @@ std::vector<std::string> CReceiveDlg::get_units_with_item(const std::string& ite
         [](const std::pair<long, CUnit*>& u1, const std::pair<long, CUnit*>& u2) {
         return u1.first > u2.first;
     });
+
+    if (products_per_unit.empty()) {
+        return {};
+    }
     //gpApp->m_pAtlantis->RunLandOrders(land_, TurnSequence::SQ_GIVE_PRE, TurnSequence::SQ_GIVE);
+    //gpApp->m_pAtlantis->RunLandOrders(land_, TurnSequence::SQ_FIRST, TurnSequence::SQ_GIVE_PRE);
+
+    //setting up names as/if possible for better representation
+    gpApp->m_pAtlantis->RunLandAutonames(land);
+
     for (const auto& ppu : products_per_unit)
     {
         if (ppu.first > 0)
@@ -426,7 +435,7 @@ CItemChooseDlg::CItemChooseDlg(wxWindow *parent, CUnit * unit, CLand* land) :
 
     topsizer->Add(itemssizer, 5, wxALL | wxEXPAND);
     //topsizer->Add(new wxStaticLine(this), 0, 0);
-    topsizer->Add(buttonsizer, 0, wxALIGN_BOTTOM);
+    topsizer->Add(buttonsizer, 0, wxALIGN_BOTTOM); // warning on Mac
 
     wxAcceleratorEntry entries[2];
     entries[0].Set(wxACCEL_ALT, 13, wxID_OK);
