@@ -35,7 +35,6 @@
 #include "consts.h"
 #include "cstr.h"
 #include "collection.h"
-#include "cfgfile.h"
 
 #include "objs.h"
 #include "data.h"
@@ -5335,29 +5334,12 @@ std::vector<orders::Type> get_monthlong_orders()
     return ret;
 }
 
-std::set<orders::Type> get_duplicatable_orders()
-{
-    std::set<orders::Type> ret;
-    std::vector<std::string> dup_orders = game_control::get_game_config<std::string>(SZ_SECT_COMMON, SZ_KEY_ORD_DUPLICATABLE);
-    for (const std::string& dup_order : dup_orders)
-    {
-        if (orders::types_mapping.find(dup_order) == orders::types_mapping.end())
-        {
-            gpApp->m_pAtlantis->OrderError("Error", nullptr, nullptr, nullptr, std::string("Unknown order in ")+SZ_KEY_ORD_DUPLICATABLE + " group: " + dup_order);
-            continue;
-        }
-        ret.insert(orders::types_mapping[dup_order]);
-    }
-    return ret;
-}
-
 void CAtlaParser::CheckOrder_LandMonthlong(CLand *land, std::list<CUnit*>& no_monthlong_orders)
 {
     std::vector<unit_control::UnitError> errors;
     std::map<orders::Type, std::vector<std::shared_ptr<orders::Order>>> monthlong_collection;
 
     static std::vector<orders::Type> monthlong_orders = get_monthlong_orders();
-    static std::set<orders::Type> duplicatable_orders = get_duplicatable_orders();
     
     land_control::perform_on_each_unit_after_moving(land, [&](CUnit* unit) { // perform_on_each_unit(land, [&](CUnit* unit) {
         if (!unit_control::of_player(unit))
@@ -5370,12 +5352,10 @@ void CAtlaParser::CheckOrder_LandMonthlong(CLand *land, std::list<CUnit*>& no_mo
 
         size_t monthlong_orders_amount = std::accumulate(monthlong_collection.begin(), monthlong_collection.end(), (size_t)0, 
           [&](size_t acc, const std::pair<orders::Type, std::vector<std::shared_ptr<orders::Order>>>& orders) {
-              if (duplicatable_orders.find(orders.first) == duplicatable_orders.end())
-                  return acc + orders.second.size();
-              else if (orders.second.size() > 0)
+              if (game_control::is_duplicatable_order(orders.first))
                   return acc + 1;
-              else 
-                  return acc;//no orders found
+              else
+                  return acc + orders.second.size();
           });
 
         if (monthlong_orders_amount == 0) {

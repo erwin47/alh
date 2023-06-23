@@ -80,6 +80,9 @@
       "__nullptr": "cpp",
       "__string": "cpp",
       "compare": "cpp",
-      "concepts": "cpp"
+      "concepts": "cpp",
+      "hash_set": "cpp",
+      "condition_variable": "cpp",
+      "random": "cpp"
     }
 }

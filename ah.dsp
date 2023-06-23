@@ -291,14 +291,6 @@ SOURCE=.\bool.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\cfgfile.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\cfgfile.h
-# End Source File
-# Begin Source File
-
 SOURCE=.\collection.cpp
 # End Source File
 # Begin Source File

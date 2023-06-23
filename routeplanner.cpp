@@ -4,7 +4,6 @@
 
 #include "ahapp.h"
 #include "atlaparser.h"
-#include "cfgfile.h"
 #include "collection.h"
 #include "consts.h"
 #include "consts_ah.h"

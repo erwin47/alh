@@ -31,7 +31,6 @@
 
 #include "cstr.h"
 #include "collection.h"
-#include "cfgfile.h"
 #include "files.h"
 #include "atlaparser.h"
 #include "consts.h"

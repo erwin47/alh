@@ -104,6 +104,8 @@ namespace orders
         std::string original_string_;
     };
 
+    static Order SUPRESS_ERROR = {orders::Type::O_SUPRESS_ERRORS, {}, {}, {}};
+
     struct UnitOrders
     {
         struct OrderTypeHash {

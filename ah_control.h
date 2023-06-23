@@ -73,6 +73,8 @@ namespace game_control
     void get_item_weight(const std::string& item, long weights[5]);
     long get_study_cost(const std::string& skill);
     long get_terrain_movement_cost(const std::string& terrain);
+
+    bool is_duplicatable_order(orders::Type order);
     
     namespace specific
     {

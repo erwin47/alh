@@ -18,7 +18,7 @@
             "problemMatcher": [
                 "$gcc"
             ]
-        },        
+        },
         {
             "label": "set up new origin5",
             "type": "shell",
@@ -44,12 +44,12 @@
             ]
         },
         {
-          "label": "set up miskatonic 5",
-          "type": "shell",
-          "command": "cp -v ../Twilight5/ah.* ./build; cp -v ../Twilight5/rep* ./build; cp -v ../Twilight5/*.rep ./build; cp -v ../Twilight5/*.ord ./build",
-          "problemMatcher": [
-              "$tsc"
-          ]
+            "label": "set up miskatonic 5",
+            "type": "shell",
+            "command": "cp -v ../Twilight5/ah.* ./build; cp -v ../Twilight5/rep* ./build; cp -v ../Twilight5/*.rep ./build; cp -v ../Twilight5/*.ord ./build",
+            "problemMatcher": [
+                "$tsc"
+            ]
         },
         {
             "label": "reconfigure: debug",
@@ -66,7 +66,17 @@
             "problemMatcher": [
                 "$gcc"
             ]
-        }  
-
+        },
+        {
+            "type": "cmake",
+            "label": "CMake: build",
+            "command": "build",
+            "targets": [
+                "[N/A - Select Kit]"
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "CMake template build task"
+        }
     ]
 }

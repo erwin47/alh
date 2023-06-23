@@ -1584,8 +1584,13 @@ namespace land_control
             auto produce_orders = orders::control::retrieve_orders_by_type(orders::Type::O_PRODUCE, producer->orders_);
             if (produce_orders.size() > 1)
             {//check amount of produce orders
-                errors.push_back({"Error", producer, nullptr, "produce: more than one production order!"});
-                continue;
+                // TODO: generalize for all monthlong orders
+                // and make loop for all
+                if (!game_control::is_duplicatable_order(orders::Type::O_PRODUCE))
+                {
+                    errors.push_back({"Error", producer, nullptr, "produce: more than one production order!"});
+                    continue;
+                }
             }
 
             long man_amount = unit_control::get_item_amount_by_mask(producer, PRP_MEN);

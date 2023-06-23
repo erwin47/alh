@@ -235,6 +235,30 @@ namespace game_control
         return cache[terrain];
     }
 
+
+    std::set<orders::Type> get_duplicatable_orders()
+    {
+        std::set<orders::Type> ret;
+        std::vector<std::string> dup_orders = game_control::get_game_config<std::string>(SZ_SECT_COMMON, SZ_KEY_ORD_DUPLICATABLE);
+        for (const std::string& dup_order : dup_orders)
+        {
+            if (orders::types_mapping.find(dup_order) == orders::types_mapping.end())
+            {
+                gpApp->m_pAtlantis->OrderError("Error", nullptr, nullptr, nullptr, std::string("Unknown order in ")+SZ_KEY_ORD_DUPLICATABLE + " group: " + dup_order);
+                continue;
+            }
+            ret.insert(orders::types_mapping[dup_order]);
+        }
+        return ret;
+    }  
+
+
+    bool is_duplicatable_order(orders::Type order)
+    {
+        static std::set<orders::Type> cache = get_duplicatable_orders();
+        return cache.find(order) != cache.end();
+    }    
+
     namespace specific
     {
         // returns men collection which are not leaders

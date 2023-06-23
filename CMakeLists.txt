@@ -6,7 +6,6 @@ set(AH_CPP
     "${PROJECT_SOURCE_DIR}/ah_control.cpp"
     "${PROJECT_SOURCE_DIR}/ahframe.cpp"
     "${PROJECT_SOURCE_DIR}/atlaparser.cpp"
-    "${PROJECT_SOURCE_DIR}/cfgfile.cpp"
     "${PROJECT_SOURCE_DIR}/collection.cpp"
     "${PROJECT_SOURCE_DIR}/consts_ah.cpp"
     "${PROJECT_SOURCE_DIR}/createnewunitdlg.cpp"
@@ -53,7 +52,6 @@ set(AH_HEADERS
     "${PROJECT_SOURCE_DIR}/ahframe.h"
     "${PROJECT_SOURCE_DIR}/atlaparser.h"
     "${PROJECT_SOURCE_DIR}/bool.h"
-    "${PROJECT_SOURCE_DIR}/cfgfile.h"
     "${PROJECT_SOURCE_DIR}/collection.h"
     "${PROJECT_SOURCE_DIR}/compat.h"
     "${PROJECT_SOURCE_DIR}/config.h"
@@ -98,7 +96,7 @@ set(AH_HEADERS
    )
 
 # specify the C++ standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 # -Wconversion
 # -Wcast-qual

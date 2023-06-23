@@ -24,7 +24,6 @@
 #include <wx/app.h>
 
 #include "atlaparser.h"
-#include "cfgfile.h"
 #include "collection.h"
 #include "cstr.h"
 
@@ -344,7 +343,6 @@ private:
     BOOL                 m_DisableErrs;
     CBufColl             m_MoveModes;
     CWeightsColl         m_ItemWeights;
-    //CConfigFile          m_Config[CONFIG_FILE_COUNT];
     //CStringSortColl      m_ConfigSectionsState;
     std::set<std::string> state_sections_;
     bool                 orders_changed_flag_;
